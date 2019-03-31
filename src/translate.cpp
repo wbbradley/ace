@@ -25,8 +25,8 @@ expr_t *texpr(const defn_id_t &for_defn_id,
                        type->str().c_str()));
     if (auto literal = dcast<literal_t *>(expr)) {
       if (literal->token.tk == tk_string) {
-        auto vector_ctor =
-            identifier_t{"std.__string_ref", literal->get_location()};
+        auto vector_ctor = identifier_t{"std.__string_ref",
+                                        literal->get_location()};
         types::type_t::refs string_ref_terms = {
             type_operator(type_id(make_iid(PTR_TYPE_OPERATOR)),
                           type_id(make_iid(CHAR_TYPE))),
@@ -58,8 +58,8 @@ expr_t *texpr(const defn_id_t &for_defn_id,
                           unescape_json_quotes(literal->token.text).size())});
         typing[new_str_len] = type_int(INTERNAL_LOC());
 
-        expr_t *new_ctor_partial_2 =
-            new application_t(new_ctor_partial_1, new_str_len);
+        expr_t *new_ctor_partial_2 = new application_t(new_ctor_partial_1,
+                                                       new_str_len);
         typing[new_ctor_partial_2] = type_arrows(string_ref_terms, 2);
 
         return new_ctor_partial_2;
@@ -178,9 +178,9 @@ expr_t *texpr(const defn_id_t &for_defn_id,
       typing[new_continue] = type_unit(INTERNAL_LOC());
       return new_continue;
     } else if (auto return_ = dcast<return_statement_t *>(expr)) {
-      auto ret =
-          new return_statement_t(texpr(for_defn_id, return_->value, bound_vars,
-                                       tenv, typing, needed_defns, returns));
+      auto ret = new return_statement_t(texpr(for_defn_id, return_->value,
+                                              bound_vars, tenv, typing,
+                                              needed_defns, returns));
       typing[ret] = type_unit(return_->get_location());
       returns = true;
       return ret;
@@ -224,16 +224,16 @@ expr_t *texpr(const defn_id_t &for_defn_id,
       typing[new_builtin] = type;
       return new_builtin;
     } else if (auto sizeof_ = dcast<sizeof_t *>(expr)) {
-      auto builtin_word_id =
-          identifier_t{"__builtin_word_size", sizeof_->get_location()};
+      auto builtin_word_id = identifier_t{"__builtin_word_size",
+                                          sizeof_->get_location()};
       auto new_sizeof = new builtin_t(new var_t(builtin_word_id), {});
       typing[new_sizeof] = type;
       return new_sizeof;
     } else if (auto tuple_deref = dcast<tuple_deref_t *>(expr)) {
-      auto new_tuple_deref =
-          new tuple_deref_t(texpr(for_defn_id, tuple_deref->expr, bound_vars,
-                                  tenv, typing, needed_defns, returns),
-                            tuple_deref->index, tuple_deref->max);
+      auto new_tuple_deref = new tuple_deref_t(
+          texpr(for_defn_id, tuple_deref->expr, bound_vars, tenv, typing,
+                needed_defns, returns),
+          tuple_deref->index, tuple_deref->max);
       typing[new_tuple_deref] = type;
       return new_tuple_deref;
     }
@@ -255,8 +255,8 @@ translation_t::ref translate(const defn_id_t &for_defn_id,
                              needed_defns_t &needed_defns,
                              bool &returns) {
   tracked_types_t typing;
-  expr_t *translated_expr =
-      texpr(for_defn_id, expr, bound_vars, tenv, typing, needed_defns, returns);
+  expr_t *translated_expr = texpr(for_defn_id, expr, bound_vars, tenv, typing,
+                                  needed_defns, returns);
   return std::make_shared<translation_t>(translated_expr, typing);
 }
 
@@ -363,8 +363,8 @@ types::type_t::refs translation_env_t::get_fresh_data_ctor_terms(
       if (ctors.first == ctor_id.name) {
         types::type_t::ref ctor_type = ctors.second;
         while (true) {
-          if (auto type_lambda =
-                  dyncast<const types::type_lambda_t>(ctor_type)) {
+          if (auto type_lambda = dyncast<const types::type_lambda_t>(
+                  ctor_type)) {
             ctor_type = type_lambda->apply(type_variable(INTERNAL_LOC()));
           } else {
             break;

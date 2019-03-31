@@ -622,8 +622,8 @@ types::type_t::ref type_unit(location_t location) {
 }
 
 types::type_t::ref type_bottom() {
-  static auto bottom_type =
-      std::make_shared<types::type_id_t>(make_iid(BOTTOM_TYPE));
+  static auto bottom_type = std::make_shared<types::type_id_t>(
+      make_iid(BOTTOM_TYPE));
   return bottom_type;
 }
 

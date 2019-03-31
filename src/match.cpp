@@ -561,8 +561,8 @@ void difference(Pattern::ref lhs,
 
   if (lhs_ctor_pattern) {
     if (rhs_ctor_patterns) {
-      Pattern::ref new_a =
-          std::make_shared<CtorPattern>(lhs->location, lhs_ctor_pattern->cpv);
+      Pattern::ref new_a = std::make_shared<CtorPattern>(lhs->location,
+                                                         lhs_ctor_pattern->cpv);
       auto new_a_send = [&new_a](Pattern::ref pattern) {
         new_a = pattern_union(new_a, pattern);
       };

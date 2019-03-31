@@ -83,8 +83,8 @@ void base64_encode(const void *payload,
                    unsigned long payload_size,
                    std::string &encoding) {
   /* rfc 1521 */
-  const unsigned char *octets =
-      reinterpret_cast<const unsigned char *>(payload);
+  const unsigned char *octets = reinterpret_cast<const unsigned char *>(
+      payload);
   const size_t len = payload_size;
   std::stringstream ss;
 

@@ -19,8 +19,8 @@
 
 #define STDERR stdout
 
-static int _max_log_depth =
-    atoi(getenv("LOG_DEPTH") != nullptr ? getenv("LOG_DEPTH") : "0");
+static int _max_log_depth = atoi(
+    getenv("LOG_DEPTH") != nullptr ? getenv("LOG_DEPTH") : "0");
 
 int logger_level = log_info | log_warning | log_error | log_panic;
 
@@ -594,8 +594,8 @@ void print_stacktrace(FILE *p_out, unsigned int p_max_frames) {
       // offset in [begin_offset, end_offset). now apply __cxa_demangle():
 
       int status;
-      char *ret =
-          abi::__cxa_demangle(begin_name, funcname, &funcnamesize, &status);
+      char *ret = abi::__cxa_demangle(begin_name, funcname, &funcnamesize,
+                                      &status);
 
       if (status == 0) {
         funcname = ret; // use possibly realloc()-ed string; static analyzer

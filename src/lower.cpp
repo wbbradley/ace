@@ -61,9 +61,9 @@ llvm::Value *get_llvm_value(const env_t &env,
                             types::type_t::ref type) {
   auto llvm_value = maybe_get_llvm_value(env, name, type);
   if (llvm_value == nullptr) {
-    auto error =
-        user_error(INTERNAL_LOC(), "we need an llvm definition for %s :: %s",
-                   name.c_str(), type->str().c_str());
+    auto error = user_error(INTERNAL_LOC(),
+                            "we need an llvm definition for %s :: %s",
+                            name.c_str(), type->str().c_str());
     for (auto pair : env) {
       for (auto overload : pair.second) {
         error.add_info(INTERNAL_LOC(), "%s :: %s = %s", pair.first.c_str(),
@@ -86,8 +86,8 @@ void set_llvm_value(env_t &env,
   debug_above(5, log("setting env[%s][%s] = %s", name.c_str(),
                      type->str().c_str(), llvm_print(llvm_value).c_str()));
   assert(name.size() != 0);
-  auto existing_llvm_value =
-      get(env, name, type, static_cast<llvm::Value *>(nullptr));
+  auto existing_llvm_value = get(env, name, type,
+                                 static_cast<llvm::Value *>(nullptr));
   if (existing_llvm_value == nullptr) {
     env[name][type] = llvm_value;
   } else {
@@ -114,8 +114,8 @@ llvm::Constant *lower_decl(std::string name,
   if (new_value == nullptr) {
     llvm::Value *llvm_value = maybe_get_llvm_value(env, name, value->type);
     if (llvm_value != nullptr) {
-      llvm::Constant *llvm_constant =
-          llvm::dyn_cast<llvm::Constant>(llvm_value);
+      llvm::Constant *llvm_constant = llvm::dyn_cast<llvm::Constant>(
+          llvm_value);
       assert(llvm_constant != nullptr);
       return llvm_constant;
     }
@@ -135,8 +135,8 @@ llvm::Constant *lower_decl(std::string name,
     assert(false);
     return nullptr;
   } else if (auto cast = dyncast<gen::cast_t>(value)) {
-    auto llvm_inner_value =
-        lower_decl(name, builder, llvm_module, cast->value, env);
+    auto llvm_inner_value = lower_decl(name, builder, llvm_module, cast->value,
+                                       env);
     auto llvm_value = builder.CreateBitCast(llvm_inner_value,
                                             get_llvm_type(builder, cast->type));
     auto llvm_constant = llvm::dyn_cast<llvm::Constant>(llvm_value);
@@ -180,7 +180,7 @@ llvm::Constant *lower_decl(std::string name,
     return nullptr;
   } else if (auto tuple = dyncast<gen::tuple_t>(value)) {
     if (tuple->parent.lock() == nullptr) {
-        return lower_tuple_global(name, builder, llvm_module, tuple, env);
+      return lower_tuple_global(name, builder, llvm_module, tuple, env);
     } else {
       // TODO: handle make_tuple calls onto the heap
       assert_not_impl();
@@ -338,7 +338,8 @@ llvm::Value *lower_tuple_alloc(
     const std::map<gen::block_t::ref,
                    llvm::BasicBlock *,
                    gen::block_t::comparator_t> &block_map,
-    std::map<gen::block_t::ref, bool, gen::block_t::comparator_t> &blocks_visited,
+    std::map<gen::block_t::ref, bool, gen::block_t::comparator_t>
+        &blocks_visited,
     const env_t &env) {
   std::vector<llvm::Value *> llvm_dims;
   for (auto dim : tuple->dims) {
@@ -349,8 +350,8 @@ llvm::Value *lower_tuple_alloc(
   std::vector<llvm::Type *> alloc_terms{builder.getInt64Ty()};
   log("need to allocate a tuple of type %s", llvm_print(llvm_type).c_str());
   auto llvm_module = llvm_get_module(builder);
-  auto llvm_alloc_func_decl =
-      llvm::cast<llvm::Function>(llvm_module->getOrInsertFunction(
+  auto llvm_alloc_func_decl = llvm::cast<llvm::Function>(
+      llvm_module->getOrInsertFunction(
           "malloc",
           llvm_create_function_type(builder, alloc_terms,
                                     builder.getInt8Ty()->getPointerTo())));
@@ -367,8 +368,8 @@ llvm::Constant *lower_tuple_global(std::string name,
                                    gen::tuple_t::ref tuple,
                                    const env_t &env) {
   llvm::Type *llvm_type = get_llvm_type(builder, tuple->type);
-  llvm::StructType *llvm_struct_type =
-      llvm::dyn_cast<llvm::StructType>(llvm_type->getPointerElementType());
+  llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(
+      llvm_type->getPointerElementType());
   assert(llvm_struct_type != nullptr);
 
   std::vector<llvm::Constant *> llvm_struct_data;
@@ -383,8 +384,8 @@ llvm::Constant *lower_tuple_global(std::string name,
     }
 
     if (llvm_value != nullptr) {
-      llvm::Constant *llvm_dim_const =
-          llvm::dyn_cast<llvm::Constant>(llvm_value);
+      llvm::Constant *llvm_dim_const = llvm::dyn_cast<llvm::Constant>(
+          llvm_value);
       if (llvm_dim_const == nullptr) {
         throw user_error(dim->get_location(),
                          "non-constant global dim element found %s",
@@ -415,8 +416,8 @@ llvm::Value *lower_value(
   value = resolve_proxy(value);
   assert(value != nullptr);
 
-  llvm::Value *llvm_previously_computed_value =
-      get(locals, value->name, (llvm::Value *)nullptr);
+  llvm::Value *llvm_previously_computed_value = get(locals, value->name,
+                                                    (llvm::Value *)nullptr);
 
   if (llvm_previously_computed_value != nullptr) {
     return llvm_previously_computed_value;
@@ -445,8 +446,8 @@ llvm::Value *lower_value(
     locals[cast->name] = llvm_value;
     return llvm_value;
   } else if (auto function = dyncast<gen::function_t>(value)) {
-    auto llvm_value =
-        get(env, function->name, function->type, (llvm::Value *)nullptr);
+    auto llvm_value = get(env, function->name, function->type,
+                          (llvm::Value *)nullptr);
     assert(llvm_value != nullptr);
     return llvm_value;
   } else if (auto builtin = dyncast<gen::builtin_t>(value)) {
@@ -465,7 +466,8 @@ llvm::Value *lower_value(
     }
     throw user_error(
         INTERNAL_LOC(), "failed to find argument %d in function %s",
-        argument->index, builder.GetInsertBlock()->getParent()->getName().str().c_str());
+        argument->index,
+        builder.GetInsertBlock()->getParent()->getName().str().c_str());
   } else if (auto goto_ = dyncast<gen::goto_t>(value)) {
     assert_not_impl();
     return nullptr;
@@ -584,8 +586,8 @@ void lower_block(llvm::IRBuilder<> &builder,
     return;
   }
 
-  llvm::BasicBlock *llvm_block =
-      get(block_map, block, (llvm::BasicBlock *)nullptr);
+  llvm::BasicBlock *llvm_block = get(block_map, block,
+                                     (llvm::BasicBlock *)nullptr);
 
   if (llvm_block == builder.GetInsertBlock()) {
     /* we're already checking this block right now, so be cool */
@@ -786,8 +788,8 @@ int lower(std::string main_function, const gen::gen_env_t &gen_env) {
           dbg_when(name.find("std.Ref-impl") != std::string::npos);
           continue;
         }
-        llvm::Constant *llvm_decl =
-            lower_decl(name, builder, module, overload.second, lower_env);
+        llvm::Constant *llvm_decl = lower_decl(name, builder, module,
+                                               overload.second, lower_env);
         if (llvm_decl != nullptr) {
           /* we were able to create a lowered version of `name` */
           if (auto bb = builder.GetInsertBlock()) {

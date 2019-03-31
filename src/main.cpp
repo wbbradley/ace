@@ -28,11 +28,12 @@ bool debug_compiled_env = getenv("SHOW_ENV") != nullptr;
 bool debug_types = getenv("SHOW_TYPES") != nullptr;
 bool debug_all_expr_types = getenv("SHOW_EXPR_TYPES") != nullptr;
 bool debug_all_translated_defns = getenv("SHOW_DEFN_TYPES") != nullptr;
-int max_tuple_size =
-    (getenv("ZION_MAX_TUPLE") != nullptr) ? atoi(getenv("ZION_MAX_TUPLE")) : 16;
+int max_tuple_size = (getenv("ZION_MAX_TUPLE") != nullptr)
+                         ? atoi(getenv("ZION_MAX_TUPLE"))
+                         : 16;
 
-types::type_t::ref program_main_type =
-    type_arrows({type_unit(INTERNAL_LOC()), type_unit(INTERNAL_LOC())});
+types::type_t::ref program_main_type = type_arrows(
+    {type_unit(INTERNAL_LOC()), type_unit(INTERNAL_LOC())});
 types::scheme_t::ref program_main_scheme = scheme({}, {}, program_main_type);
 
 int usage() {
@@ -128,61 +129,61 @@ const types::scheme_t::map &get_builtins() {
     (*map)["__builtin_word_size"] = scheme({}, {}, Int);
     (*map)["__builtin_min_int"] = scheme({}, {}, Int);
     (*map)["__builtin_max_int"] = scheme({}, {}, Int);
-    (*map)["__builtin_multiply_int"] =
-        scheme({}, {}, type_arrows({Int, Int, Int}));
-    (*map)["__builtin_divide_int"] =
-        scheme({}, {}, type_arrows({Int, Int, Int}));
-    (*map)["__builtin_subtract_int"] =
-        scheme({}, {}, type_arrows({Int, Int, Int}));
+    (*map)["__builtin_multiply_int"] = scheme({}, {},
+                                              type_arrows({Int, Int, Int}));
+    (*map)["__builtin_divide_int"] = scheme({}, {},
+                                            type_arrows({Int, Int, Int}));
+    (*map)["__builtin_subtract_int"] = scheme({}, {},
+                                              type_arrows({Int, Int, Int}));
     (*map)["__builtin_add_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
     (*map)["__builtin_negate_int"] = scheme({}, {}, type_arrows({Int, Int}));
     (*map)["__builtin_abs_int"] = scheme({}, {}, type_arrows({Int, Int}));
-    (*map)["__builtin_multiply_float"] =
-        scheme({}, {}, type_arrows({Float, Float, Float}));
-    (*map)["__builtin_divide_float"] =
-        scheme({}, {}, type_arrows({Float, Float, Float}));
-    (*map)["__builtin_subtract_float"] =
-        scheme({}, {}, type_arrows({Float, Float, Float}));
-    (*map)["__builtin_add_float"] =
-        scheme({}, {}, type_arrows({Float, Float, Float}));
+    (*map)["__builtin_multiply_float"] = scheme(
+        {}, {}, type_arrows({Float, Float, Float}));
+    (*map)["__builtin_divide_float"] = scheme(
+        {}, {}, type_arrows({Float, Float, Float}));
+    (*map)["__builtin_subtract_float"] = scheme(
+        {}, {}, type_arrows({Float, Float, Float}));
+    (*map)["__builtin_add_float"] = scheme({}, {},
+                                           type_arrows({Float, Float, Float}));
     (*map)["__builtin_abs_float"] = scheme({}, {}, type_arrows({Float, Float}));
-    (*map)["__builtin_int_to_float"] =
-        scheme({}, {}, type_arrows({Int, Float}));
-    (*map)["__builtin_negate_float"] =
-        scheme({}, {}, type_arrows({Float, Float}));
-    (*map)["__builtin_add_ptr"] =
-        scheme({"a"}, {}, type_arrows({tp_a, Int, tp_a}));
-    (*map)["__builtin_ptr_eq"] =
-        scheme({"a"}, {}, type_arrows({tp_a, tp_a, Bool}));
-    (*map)["__builtin_ptr_ne"] =
-        scheme({"a"}, {}, type_arrows({tp_a, tp_a, Bool}));
+    (*map)["__builtin_int_to_float"] = scheme({}, {},
+                                              type_arrows({Int, Float}));
+    (*map)["__builtin_negate_float"] = scheme({}, {},
+                                              type_arrows({Float, Float}));
+    (*map)["__builtin_add_ptr"] = scheme({"a"}, {},
+                                         type_arrows({tp_a, Int, tp_a}));
+    (*map)["__builtin_ptr_eq"] = scheme({"a"}, {},
+                                        type_arrows({tp_a, tp_a, Bool}));
+    (*map)["__builtin_ptr_ne"] = scheme({"a"}, {},
+                                        type_arrows({tp_a, tp_a, Bool}));
     (*map)["__builtin_ptr_load"] = scheme({"a"}, {}, type_arrows({tp_a, tv_a}));
-    (*map)["__builtin_get_dim"] =
-        scheme({"a", "b"}, {}, type_arrows({tv_a, Int, tv_b}));
-    (*map)["__builtin_get_ctor_id"] =
-        scheme({"a"}, {}, type_arrows({tv_a, Int}));
+    (*map)["__builtin_get_dim"] = scheme({"a", "b"}, {},
+                                         type_arrows({tv_a, Int, tv_b}));
+    (*map)["__builtin_get_ctor_id"] = scheme({"a"}, {},
+                                             type_arrows({tv_a, Int}));
     (*map)["__builtin_int_eq"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
     (*map)["__builtin_int_ne"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
     (*map)["__builtin_int_lt"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
     (*map)["__builtin_int_lte"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
     (*map)["__builtin_int_gt"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
     (*map)["__builtin_int_gte"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
-    (*map)["__builtin_float_eq"] =
-        scheme({}, {}, type_arrows({Float, Float, Bool}));
-    (*map)["__builtin_float_ne"] =
-        scheme({}, {}, type_arrows({Float, Float, Bool}));
-    (*map)["__builtin_float_lt"] =
-        scheme({}, {}, type_arrows({Float, Float, Bool}));
-    (*map)["__builtin_float_lte"] =
-        scheme({}, {}, type_arrows({Float, Float, Bool}));
-    (*map)["__builtin_float_gt"] =
-        scheme({}, {}, type_arrows({Float, Float, Bool}));
-    (*map)["__builtin_float_gte"] =
-        scheme({}, {}, type_arrows({Float, Float, Bool}));
-    (*map)["__builtin_print"] =
-        scheme({}, {}, type_arrows({String, type_unit(INTERNAL_LOC())}));
-    (*map)["__builtin_exit"] =
-        scheme({}, {}, type_arrows({Int, type_bottom()}));
+    (*map)["__builtin_float_eq"] = scheme({}, {},
+                                          type_arrows({Float, Float, Bool}));
+    (*map)["__builtin_float_ne"] = scheme({}, {},
+                                          type_arrows({Float, Float, Bool}));
+    (*map)["__builtin_float_lt"] = scheme({}, {},
+                                          type_arrows({Float, Float, Bool}));
+    (*map)["__builtin_float_lte"] = scheme({}, {},
+                                           type_arrows({Float, Float, Bool}));
+    (*map)["__builtin_float_gt"] = scheme({}, {},
+                                          type_arrows({Float, Float, Bool}));
+    (*map)["__builtin_float_gte"] = scheme({}, {},
+                                           type_arrows({Float, Float, Bool}));
+    (*map)["__builtin_print"] = scheme(
+        {}, {}, type_arrows({String, type_unit(INTERNAL_LOC())}));
+    (*map)["__builtin_exit"] = scheme({}, {},
+                                      type_arrows({Int, type_bottom()}));
     (*map)["__builtin_calloc"] = scheme({"a"}, {}, type_arrows({Int, tp_a}));
     (*map)["__builtin_store_ref"] = scheme(
         {"a"}, {},
@@ -226,8 +227,8 @@ std::map<std::string, type_class_t *> check_type_classes(
       predicates.insert(type_class->id.name);
 
       types::type_t::map bindings;
-      bindings[type_class->type_var_id.name] =
-          type_variable(gensym(type_class->type_var_id.location), predicates);
+      bindings[type_class->type_var_id.name] = type_variable(
+          gensym(type_class->type_var_id.location), predicates);
 
       for (auto pair : type_class->overloads) {
         if (in(pair.first, env.map)) {
@@ -326,13 +327,13 @@ void check_instance_for_type_class_overload(
 
       env_t local_env{env};
       local_env.instance_requirements.resize(0);
-      auto instance_decl_id =
-          make_instance_decl_id(type_class->id.name, instance, decl->var);
-      auto expected_scheme =
-          type->rebind(subst)->generalize(local_env.get_predicate_map());
+      auto instance_decl_id = make_instance_decl_id(type_class->id.name,
+                                                    instance, decl->var);
+      auto expected_scheme = type->rebind(subst)->generalize(
+          local_env.get_predicate_map());
 
-      auto instance_decl_expr =
-          new as_t(decl->value, expected_scheme, false /*force_cast*/);
+      auto instance_decl_expr = new as_t(decl->value, expected_scheme,
+                                         false /*force_cast*/);
       check(instance_decl_id, instance_decl_expr, local_env);
       debug_above(
           5,
@@ -390,8 +391,8 @@ void check_instance_for_type_class_overloads(
   /* make a template for the type that the instance implementation should
    * conform to */
   types::type_t::map subst;
-  subst[type_class->type_var_id.name] =
-      instance->type->generalize({})->instantiate(INTERNAL_LOC());
+  subst[type_class->type_var_id.name] = instance->type->generalize({})
+                                            ->instantiate(INTERNAL_LOC());
 
   /* check whether this instance properly implements the given type class */
   std::set<std::string> names_checked;
@@ -489,9 +490,9 @@ void check_instance_requirements(const std::vector<instance_t *> &instances,
           "could not find an instance that supports the requirement %s",
           ir.str().c_str());
     } else if (matching_instances.size() != 1) {
-      auto error =
-          user_error(ir.location, "found multiple instances implementing %s",
-                     ir.str().c_str());
+      auto error = user_error(ir.location,
+                              "found multiple instances implementing %s",
+                              ir.str().c_str());
       for (auto mi : matching_instances) {
         error.add_info(mi->get_location(), "matching instance found is %s %s",
                        mi->type_class_id.str().c_str(),
@@ -546,9 +547,9 @@ public:
   decl_t *lookup(defn_id_t defn_id) const {
     auto decl = maybe_lookup(defn_id);
     if (decl == nullptr) {
-      auto error =
-          user_error(defn_id.id.location, "symbol %s does not seem to exist",
-                     defn_id.id.str().c_str());
+      auto error = user_error(defn_id.id.location,
+                              "symbol %s does not seem to exist",
+                              defn_id.id.str().c_str());
       std::stringstream ss;
 
       for (auto pair : decl_map) {
@@ -625,8 +626,8 @@ std::map<std::string, int> get_builtin_arities() {
 
 phase_2_t compile(std::string user_program_name_) {
   auto builtin_arities = get_builtin_arities();
-  auto compilation =
-      compiler::parse_program(user_program_name_, builtin_arities);
+  auto compilation = compiler::parse_program(user_program_name_,
+                                             builtin_arities);
   if (compilation == nullptr) {
     exit(EXIT_FAILURE);
   }
@@ -647,8 +648,8 @@ phase_2_t compile(std::string user_program_name_) {
   check_decls(compilation->program_name + ".main", program->decls, env);
   std::map<defn_id_t, decl_t *> overrides_map;
 
-  auto instance_decls =
-      check_instances(program->instances, type_class_map, overrides_map, env);
+  auto instance_decls = check_instances(program->instances, type_class_map,
+                                        overrides_map, env);
 
   std::map<std::string, decl_t *> decl_map;
 
@@ -738,8 +739,8 @@ void specialize_core(defn_map_t const &defn_map,
   assert(defn_id.scheme->btvs() == 0);
 
   const auto type = defn_id.scheme->instantiate({});
-  auto translation =
-      get(translation_map, defn_id.id.name, type, translation_t::ref{});
+  auto translation = get(translation_map, defn_id.id.name, type,
+                         translation_t::ref{});
   if (translation != nullptr) {
     debug_above(6, log("we have already specialized %s. it is %s",
                        defn_id.str().c_str(), translation->str().c_str()));
@@ -800,21 +801,21 @@ void specialize_core(defn_map_t const &defn_map,
 
       expr_t *empty_closure = unit_expr(INTERNAL_LOC());
       (*tracked_types)[empty_closure] = type_unit(INTERNAL_LOC());
-      expr_t *callable_var_ref =
-          new var_t(identifier_t{final_name, INTERNAL_LOC()});
+      expr_t *callable_var_ref = new var_t(
+          identifier_t{final_name, INTERNAL_LOC()});
       (*tracked_types)[callable_var_ref] = type;
 
       expr_t *encoded_callable = new tuple_t(
           INTERNAL_LOC(),
           std::vector<bitter::expr_t *>{callable_var_ref, empty_closure});
 
-      types::type_t::ref closure_type =
-          type_tuple({type, type_unit(INTERNAL_LOC())});
+      types::type_t::ref closure_type = type_tuple(
+          {type, type_unit(INTERNAL_LOC())});
       translation_env_t tenv{tracked_types, ctor_id_map, data_ctors_map};
       (*tracked_types)[encoded_callable] = closure_type;
 
-      expr_t *as_function =
-          new as_t(encoded_callable, type->generalize({}), true);
+      expr_t *as_function = new as_t(encoded_callable, type->generalize({}),
+                                     true);
       (*tracked_types)[as_function] = type;
 
       std::unordered_set<std::string> bound_vars;
@@ -847,8 +848,8 @@ void specialize_core(defn_map_t const &defn_map,
     INDENT(6, string_format("----------- specialize %s ------------",
                             defn_id.str().c_str()));
     bool returns = true;
-    auto translated_decl =
-        translate(defn_id, as_defn, bound_vars, tenv, needed_defns, returns);
+    auto translated_decl = translate(defn_id, as_defn, bound_vars, tenv,
+                                     needed_defns, returns);
 
     assert(returns);
 
@@ -1046,10 +1047,10 @@ struct job_t {
 
 int run_job(const job_t &job) {
   get_help = in_vector("-help", job.opts) || in_vector("--help", job.opts);
-  debug_compiled_env =
-      (getenv("SHOW_ENV") != nullptr) || in_vector("-show-env", job.opts);
-  debug_types =
-      (getenv("SHOW_TYPES") != nullptr) || in_vector("-show-types", job.opts);
+  debug_compiled_env = (getenv("SHOW_ENV") != nullptr) ||
+                       in_vector("-show-env", job.opts);
+  debug_types = (getenv("SHOW_TYPES") != nullptr) ||
+                in_vector("-show-types", job.opts);
   debug_all_expr_types = (getenv("SHOW_EXPR_TYPES") != nullptr) ||
                          in_vector("-show-expr-types", job.opts);
   debug_all_translated_defns = (getenv("SHOW_DEFN_TYPES") != nullptr) ||
@@ -1095,8 +1096,8 @@ int run_job(const job_t &job) {
     }
 
     std::string user_program_name = job.args[0];
-    auto compilation =
-        compiler::parse_program(user_program_name, get_builtin_arities());
+    auto compilation = compiler::parse_program(user_program_name,
+                                               get_builtin_arities());
     if (compilation != nullptr) {
       for (auto decl : compilation->program->decls) {
         log_location(decl->var.location, "%s = %s", decl->var.str().c_str(),

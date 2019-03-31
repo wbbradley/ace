@@ -136,8 +136,8 @@ struct global_parser_state_t {
   const std::map<std::string, int> &builtin_arities;
 
   module_t *parse_module_statefully(identifier_t module_id) {
-    if (auto module =
-            get(modules_map_by_name, module_id.name, (module_t *)nullptr)) {
+    if (auto module = get(modules_map_by_name, module_id.name,
+                          (module_t *)nullptr)) {
       return module;
     }
     std::string module_filename = compiler::resolve_module_filename(
@@ -160,8 +160,8 @@ struct global_parser_state_t {
                        builtin_arities);
 
       std::set<identifier_t> dependencies;
-      module_t *module =
-          ::parse_module(ps, {modules_map_by_name["std"]}, dependencies);
+      module_t *module = ::parse_module(ps, {modules_map_by_name["std"]},
+                                        dependencies);
 
       modules.push_back(module);
       modules_map_by_name[ps.module_name] = module;
@@ -176,10 +176,10 @@ struct global_parser_state_t {
 
       return module;
     } else {
-      auto error =
-          user_error(module_id.location,
-                     "could not open \"%s\" when trying to link module",
-                     module_filename.c_str());
+      auto error = user_error(
+          module_id.location,
+          "could not open \"%s\" when trying to link module",
+          module_filename.c_str());
       error.add_info(module_id.location, "imported here");
       throw error;
     }
@@ -219,8 +219,8 @@ std::set<std::string> get_top_level_decls(
 compilation_t::ref parse_program(
     std::string user_program_name,
     const std::map<std::string, int> &builtin_arities) {
-  std::string program_name =
-      strip_zion_extension(leaf_from_file_path(user_program_name));
+  std::string program_name = strip_zion_extension(
+      leaf_from_file_path(user_program_name));
   try {
     /* first just parse all the modules that are reachable from the initial
      * module and bring them into our whole ast */

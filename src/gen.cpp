@@ -416,8 +416,8 @@ value_t::ref gen(std::string name,
     debug_above(8, log("gen(..., %s, ..., ...)", expr->str().c_str()));
     if (auto literal = dcast<const bitter::literal_t *>(expr)) {
       return builder.create_literal(literal->token, type);
-    } else if (auto static_print =
-                   dcast<const bitter::static_print_t *>(expr)) {
+    } else if (auto static_print = dcast<const bitter::static_print_t *>(
+                   expr)) {
       assert(false);
     } else if (auto var = dcast<const bitter::var_t *>(expr)) {
       return get_env_var(gen_env, var->id, type);
@@ -445,8 +445,8 @@ value_t::ref gen(std::string name,
       builder.create_cond_branch(cond, truthy_branch, falsey_branch);
 
       builder.set_insertion_block(truthy_branch);
-      value_t::ref truthy_value =
-          gen(builder, condition->truthy, typing, gen_env, globals);
+      value_t::ref truthy_value = gen(builder, condition->truthy, typing,
+                                      gen_env, globals);
       bool truthy_terminates = has_terminator(builder.block->instructions);
       if (!truthy_terminates) {
         merge_branch = builder.create_block("merge" + bitter::fresh(),
@@ -456,8 +456,8 @@ value_t::ref gen(std::string name,
       }
 
       builder.set_insertion_block(falsey_branch);
-      value_t::ref falsey_value =
-          gen(builder, condition->falsey, typing, gen_env, globals);
+      value_t::ref falsey_value = gen(builder, condition->falsey, typing,
+                                      gen_env, globals);
       bool falsey_terminates = has_terminator(builder.block->instructions);
       if (!falsey_terminates) {
         if (merge_branch == nullptr) {
@@ -654,8 +654,8 @@ value_t::ref builder_t::create_builtin(identifier_t id,
   debug_above(8,
               log("creating builtin %s for %s with type %s", id.str().c_str(),
                   join_str(values, ", ").c_str(), type->str().c_str()));
-  auto builtin =
-      std::make_shared<builtin_t>(id.location, block, id, values, type, name);
+  auto builtin = std::make_shared<builtin_t>(id.location, block, id, values,
+                                             type, name);
   insert_instruction(builtin);
   return builtin;
 }
@@ -709,8 +709,8 @@ value_t::ref builder_t::create_tuple_deref(location_t location,
                                            value_t::ref value,
                                            int index,
                                            std::string name) {
-  auto tuple_deref =
-      std::make_shared<tuple_deref_t>(location, block, value, index, name);
+  auto tuple_deref = std::make_shared<tuple_deref_t>(location, block, value,
+                                                     index, name);
   insert_instruction(tuple_deref);
   return tuple_deref;
 }

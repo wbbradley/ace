@@ -33,11 +33,11 @@ llvm::Constant *llvm_create_global_string_constant(llvm::IRBuilder<> &builder,
                                                    llvm::Module &M,
                                                    std::string str) {
   llvm::LLVMContext &Context = builder.getContext();
-  llvm::Constant *StrConstant =
-      llvm::ConstantDataArray::getString(Context, str);
+  llvm::Constant *StrConstant = llvm::ConstantDataArray::getString(Context,
+                                                                   str);
   std::string name = std::string("__global_string_") + str;
-  llvm::GlobalVariable *llvm_value =
-      llvm_get_global(&M, name, StrConstant, true /*is_constant*/);
+  llvm::GlobalVariable *llvm_value = llvm_get_global(&M, name, StrConstant,
+                                                     true /*is_constant*/);
   return llvm_get_pointer_to_constant(builder, llvm_value);
 }
 
@@ -105,8 +105,8 @@ llvm::CallInst *llvm_create_call_inst(llvm::IRBuilder<> &builder,
   llvm::FunctionType *llvm_function_type = nullptr;
   llvm::Function *llvm_func_decl = nullptr;
 
-  if (llvm::Function *llvm_callee_fn =
-          llvm::dyn_cast<llvm::Function>(llvm_callee_value)) {
+  if (llvm::Function *llvm_callee_fn = llvm::dyn_cast<llvm::Function>(
+          llvm_callee_value)) {
     /* see if we have an exact function we want to call */
 
     /* get the current module we're inserting code into */
@@ -120,10 +120,10 @@ llvm::CallInst *llvm_create_call_inst(llvm::IRBuilder<> &builder,
 
     /* before we can call a function, we must make sure it either exists in
      * this module, or a declaration exists */
-    llvm_func_decl =
-        llvm::cast<llvm::Function>(llvm_module->getOrInsertFunction(
-            llvm_callee_fn->getName(), llvm_callee_fn->getFunctionType(),
-            llvm_callee_fn->getAttributes()));
+    llvm_func_decl = llvm::cast<llvm::Function>(
+        llvm_module->getOrInsertFunction(llvm_callee_fn->getName(),
+                                         llvm_callee_fn->getFunctionType(),
+                                         llvm_callee_fn->getAttributes()));
 
     llvm_function_type = llvm::dyn_cast<llvm::FunctionType>(
         llvm_func_decl->getType()->getElementType());
@@ -131,14 +131,14 @@ llvm::CallInst *llvm_create_call_inst(llvm::IRBuilder<> &builder,
   } else {
     llvm_function = llvm_callee_value;
 
-    llvm::PointerType *llvm_ptr_type =
-        llvm::dyn_cast<llvm::PointerType>(llvm_callee_value->getType());
+    llvm::PointerType *llvm_ptr_type = llvm::dyn_cast<llvm::PointerType>(
+        llvm_callee_value->getType());
     assert(llvm_ptr_type != nullptr);
 
     debug_above(8,
                 log("llvm_ptr_type is %s", llvm_print(llvm_ptr_type).c_str()));
-    llvm_function_type =
-        llvm::dyn_cast<llvm::FunctionType>(llvm_ptr_type->getElementType());
+    llvm_function_type = llvm::dyn_cast<llvm::FunctionType>(
+        llvm_ptr_type->getElementType());
     assert(llvm_function_type != nullptr);
   }
 
@@ -381,8 +381,8 @@ llvm::StructType *llvm_create_struct_type(
     const std::vector<llvm::Type *> &llvm_types) {
   llvm::ArrayRef<llvm::Type *> llvm_dims{llvm_types};
 
-  auto llvm_struct_type =
-      llvm::StructType::create(builder.getContext(), llvm_dims);
+  auto llvm_struct_type = llvm::StructType::create(builder.getContext(),
+                                                   llvm_dims);
 
   /* give the struct a helpful name internally */
   llvm_struct_type->setName(name);
@@ -436,8 +436,8 @@ void llvm_verify_module(llvm::Module &llvm_module) {
 
 llvm::Constant *llvm_sizeof_type(llvm::IRBuilder<> &builder,
                                  llvm::Type *llvm_type) {
-  llvm::StructType *llvm_struct_type =
-      llvm::dyn_cast<llvm::StructType>(llvm_type);
+  llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(
+      llvm_type);
   if (llvm_struct_type != nullptr) {
     if (llvm_struct_type->isOpaque()) {
       debug_above(1, log("llvm_struct_type is opaque when we're trying to get "
@@ -649,8 +649,8 @@ bool llvm_value_is_pointer(llvm::Value *llvm_value) {
 llvm::StructType *llvm_find_struct(llvm::Type *llvm_type) {
   if (auto llvm_struct_type = llvm::dyn_cast<llvm::StructType>(llvm_type)) {
     return llvm_struct_type;
-  } else if (auto llvm_ptr_type =
-                 llvm::dyn_cast<llvm::PointerType>(llvm_type)) {
+  } else if (auto llvm_ptr_type = llvm::dyn_cast<llvm::PointerType>(
+                 llvm_type)) {
     return llvm_find_struct(llvm_ptr_type->getElementType());
   } else {
     return nullptr;
@@ -709,10 +709,10 @@ llvm::Type *get_llvm_type(llvm::IRBuilder<> &builder,
     if (tuple_type->dimensions.size() == 0) {
       return builder.getInt8Ty()->getPointerTo();
     }
-    std::vector<llvm::Type *> llvm_types =
-        get_llvm_types(builder, tuple_type->dimensions);
-    llvm::StructType *llvm_struct_type =
-        llvm_create_struct_type(builder, type->repr(), llvm_types);
+    std::vector<llvm::Type *> llvm_types = get_llvm_types(
+        builder, tuple_type->dimensions);
+    llvm::StructType *llvm_struct_type = llvm_create_struct_type(
+        builder, type->repr(), llvm_types);
     return llvm_struct_type->getPointerTo();
   } else if (auto operator_ = dyncast<const types::type_operator_t>(type)) {
     types::type_t::refs terms;

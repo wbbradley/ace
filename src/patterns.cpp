@@ -82,8 +82,8 @@ void check_patterns(location_t location,
   match::Pattern::ref uncovered = match::all_of(
       location, maybe<identifier_t>(make_iid(expr)), tenv, pattern_value_type);
   for (auto pattern_block : pattern_blocks) {
-    match::Pattern::ref covering =
-        pattern_block->predicate->get_pattern(pattern_value_type, tenv);
+    match::Pattern::ref covering = pattern_block->predicate->get_pattern(
+        pattern_value_type, tenv);
     if (match::intersect(uncovered, covering)->asNothing() != nullptr) {
       auto error = user_error(pattern_block->predicate->get_location(),
                               "this pattern is already covered");
@@ -239,9 +239,9 @@ expr_t *translate_next(const defn_id_t &for_defn_id,
   }
 
   auto as_tuple_type = type_tuple(tuple_dims);
-  auto scrutinee_as_tuple =
-      new as_t(scrutinee, as_tuple_type->generalize({})->normalize(),
-               true /*force_cast*/);
+  auto scrutinee_as_tuple = new as_t(scrutinee,
+                                     as_tuple_type->generalize({})->normalize(),
+                                     true /*force_cast*/);
   typing[scrutinee_as_tuple] = as_tuple_type;
 
   auto dim = new tuple_deref_t(scrutinee_as_tuple, param_index + dim_offset,
@@ -282,8 +282,8 @@ expr_t *ctor_predicate_t::translate(
     translate_continuation_t &failed) const {
   static auto Int = type_int(INTERNAL_LOC());
   static auto Bool = type_bool(INTERNAL_LOC());
-  types::type_t::refs ctor_terms =
-      tenv.get_data_ctor_terms(scrutinee_type, ctor_name);
+  types::type_t::refs ctor_terms = tenv.get_data_ctor_terms(scrutinee_type,
+                                                            ctor_name);
 
   if (do_checks) {
     int ctor_id = tenv.get_ctor_id(ctor_name.name);
