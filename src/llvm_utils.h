@@ -123,6 +123,8 @@ llvm::Constant *llvm_create_global_string_constant(llvm::IRBuilder<> &builder,
 // handle cyclic types, so it should only be used for debugging.
 void explain(llvm::Type *llvm_type);
 
+std::vector<llvm::Type *> llvm_get_types(
+    const std::vector<llvm::Value *> &llvm_values);
 bool llvm_value_is_handle(llvm::Value *llvm_value);
 bool llvm_value_is_pointer(llvm::Value *llvm_value);
 llvm::StructType *llvm_find_struct(llvm::Type *llvm_type);

@@ -35,7 +35,7 @@ llvm::Constant *llvm_create_global_string_constant(llvm::IRBuilder<> &builder,
   llvm::LLVMContext &Context = builder.getContext();
   llvm::Constant *StrConstant =
       llvm::ConstantDataArray::getString(Context, str);
-  std::string name = std::string("__global_") + str;
+  std::string name = std::string("__global_string_") + str;
   llvm::GlobalVariable *llvm_value =
       llvm_get_global(&M, name, StrConstant, true /*is_constant*/);
   return llvm_get_pointer_to_constant(builder, llvm_value);
@@ -744,6 +744,15 @@ std::vector<llvm::Type *> get_llvm_types(llvm::IRBuilder<> &builder,
   std::vector<llvm::Type *> llvm_types;
   for (auto type : types) {
     llvm_types.push_back(get_llvm_type(builder, type));
+  }
+  return llvm_types;
+}
+
+std::vector<llvm::Type *> llvm_get_types(
+    const std::vector<llvm::Value *> &llvm_values) {
+  std::vector<llvm::Type *> llvm_types;
+  for (auto llvm_value : llvm_values) {
+    llvm_types.push_back(llvm_value->getType());
   }
   return llvm_types;
 }

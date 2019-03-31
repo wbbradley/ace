@@ -34,9 +34,6 @@ typedef std::vector<std::string> libs;
 
 void info(const char *format, ...);
 
-/* testing */
-std::string dump_program_text(std::string module_name);
-
 /* first step is to parse all modules */
 compilation_t::ref parse_program(
     std::string program_name,

@@ -280,7 +280,7 @@ std::string clean_ansi_escapes(std::string out) {
   return out;
 }
 
-std::string clean_ansi_escapes_if_not_tty(FILE *fp, std::string out) {
+std::string clean_ansi_escapes_if_not_tty(FILE *fp, const std::string &out) {
   if (!isatty(fileno(fp)) && !getenv("COLORIZE")) {
     return clean_ansi_escapes(out);
   } else {

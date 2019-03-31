@@ -149,6 +149,8 @@ llvm::Constant *lower_decl(std::string name,
       /* this function will not be called directly, it will be packaged into a
        * closure */
       type_terms.insert(type_terms.end() - 1, type_id(make_iid("__closure_t")));
+      log("treating lower_decl of function %s as an -impl",
+          (name + " :: " + function->type->repr()).c_str());
     }
     return llvm_start_function(builder, llvm_module, type_terms,
                                name + " :: " + function->type->repr());
@@ -275,6 +277,21 @@ llvm::Value *lower_builtin(llvm::IRBuilder<> &builder,
     /* scheme({}, {}, type_arrows({Float, Float, Bool})) */
   } else if (name == "__builtin_print") {
     /* scheme({}, {}, type_arrows({String, type_unit(INTERNAL_LOC())})) */
+    auto llvm_module = llvm_get_module(builder);
+    std::vector<llvm::Type *> write_terms({builder.getInt64Ty(),
+                                           builder.getInt8Ty()->getPointerTo(),
+                                           builder.getInt64Ty()});
+
+    // libc dependency
+    auto llvm_write_func_decl = llvm::cast<llvm::Function>(
+        llvm_module->getOrInsertFunction(
+            "write",
+            llvm_create_function_type(builder, write_terms,
+                                      builder.getInt64Ty()));
+    return builder.CreateBitCast(
+        builder.CreateCall(llvm_write_func_decl,
+                           std::vector<llvm::Value *>{}),
+        llvm_type);
   } else if (name == "__builtin_exit") {
     /* scheme({}, {}, type_arrows({Int, type_bottom()})) */
   } else if (name == "__builtin_calloc") {
@@ -441,10 +458,14 @@ llvm::Value *lower_value(
 
     return lower_builtin(builder, builtin->id.name, params);
   } else if (auto argument = dyncast<gen::argument_t>(value)) {
-    assert_not_impl();
-    auto llvm_value = get(locals, argument->name, (llvm::Value *)nullptr);
-    assert(llvm_value != nullptr);
-    return llvm_value;
+    int i = 0;
+    for (auto &arg : builder.GetInsertBlock()->getParent()->args()) {
+      if (i++ == argument->index)
+        return &arg;
+    }
+    throw user_error(
+        INTERNAL_LOC(), "failed to find argument %d in function %s",
+        argument->index, builder.GetInsertBlock()->getParent()->getName().str().c_str());
   } else if (auto goto_ = dyncast<gen::goto_t>(value)) {
     assert_not_impl();
     return nullptr;
@@ -452,15 +473,56 @@ llvm::Value *lower_value(
     assert_not_impl();
     return nullptr;
   } else if (auto callsite = dyncast<gen::callsite_t>(value)) {
+    /* all callsites are presumed to be closures */
+    std::cout << llvm_print_module(*llvm_get_module(builder)) << std::endl;
+    log("lowering callsite: %s", callsite->str().c_str());
     std::vector<llvm::Value *> llvm_params;
     for (auto param : callsite->params) {
       llvm_params.push_back(
           lower_value(builder, param, locals, block_map, blocks_visited, env));
+      log("llvm_param is %s", llvm_print(llvm_params.back()).c_str());
     }
     llvm::Value *llvm_callee = lower_value(builder, callsite->callable, locals,
                                            block_map, blocks_visited, env);
-    auto llvm_callsite =
-        llvm_create_call_inst(builder, llvm_callee, llvm_params);
+    // log("llvm_callee = %s", llvm_print(llvm_callee).c_str());
+    // log("llvm_callee_type = %s", llvm_print(llvm_callee->getType()).c_str());
+    auto llvm_callee_type = llvm::dyn_cast<llvm::FunctionType>(
+        llvm_callee->getType()->getPointerElementType());
+    assert(llvm_callee_type != nullptr);
+    // log("llvm_callee is %s", llvm_print(llvm_callee).c_str());
+    // log("--------------------------------------------------------------------");
+    // log("callee type params count = %d",
+    //    int(llvm_callee_type->params().size()));
+    // log("inbound param count = %d", int(llvm_params.size()));
+
+    llvm::Type *llvm_return_type = get_llvm_type(builder, callsite->type);
+
+    /* add the closure to its own param list */
+    llvm_params.push_back(builder.CreateBitCast(
+        llvm_callee, builder.getInt8Ty()->getPointerTo()));
+    llvm::Type *llvm_closure_type = llvm::StructType::create(
+                                        builder.getContext(),
+                                        {llvm_create_function_type(
+                                             builder,
+                                             llvm_get_types(llvm_params),
+                                             llvm_return_type)
+                                             ->getPointerTo()})
+                                        ->getPointerTo();
+    // log("llvm_closure_type = %s", llvm_print(llvm_closure_type).c_str());
+
+    llvm::Value *llvm_closure = builder.CreateBitCast(llvm_callee,
+                                                      llvm_closure_type);
+    llvm::Value *llvm_zero = llvm::ConstantInt::get(
+        llvm::Type::getInt32Ty(builder.getContext()), 0);
+    llvm::Value *llvm_gep_args[] = {llvm_zero, llvm_zero};
+    llvm::Value *llvm_func_to_call = builder.CreateLoad(
+        builder.CreateInBoundsGEP(
+            llvm_closure->getType()->getPointerElementType(), llvm_closure,
+            llvm_gep_args));
+    // log("llvm_func_to_call = %s", llvm_print(llvm_func_to_call).c_str());
+    llvm::Value *llvm_callsite = llvm_create_call_inst(
+        builder, llvm_func_to_call, llvm_params);
+    // log("llvm_callsite = %s", llvm_print(llvm_callsite).c_str());
     locals[callsite->name] = llvm_callsite;
     return llvm_callsite;
   } else if (auto return_ = dyncast<gen::return_t>(value)) {

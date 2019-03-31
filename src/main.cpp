@@ -931,13 +931,12 @@ struct phase_4_t {
   std::ostream &dump(std::ostream &os) {
     for (auto pair : gen_env) {
       for (auto overload : pair.second) {
-        os << pair.first << " :: " << overload.first->repr() << ": ";
+        os << pair.first << " :: " << overload.first->repr() << std::endl;
         gen::value_t::ref value = gen::resolve_proxy(overload.second);
         if (value == nullptr) {
           value = overload.second;
         }
 
-        os << std::endl;
         value->render(os);
         os << std::endl;
       }
@@ -1165,8 +1164,11 @@ int run_job(const job_t &job) {
       if (user_error::errors_occurred()) {
         return EXIT_FAILURE;
       }
-      phase_4.dump(std::cout);
+      std::stringstream ss;
+      phase_4.dump(ss);
 
+      auto output = clean_ansi_escapes_if_not_tty(stdout, ss.str());
+      fprintf(stdout, "%s", output.c_str());
       return user_error::errors_occurred() ? EXIT_FAILURE : EXIT_SUCCESS;
     }
   };
