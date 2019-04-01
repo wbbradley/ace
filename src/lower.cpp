@@ -1,5 +1,6 @@
 #include "lower.h"
 
+#include <fstream>
 #include "llvm_utils.h"
 #include "logger.h"
 #include "types.h"
@@ -278,20 +279,20 @@ llvm::Value *lower_builtin(llvm::IRBuilder<> &builder,
   } else if (name == "__builtin_print") {
     /* scheme({}, {}, type_arrows({String, type_unit(INTERNAL_LOC())})) */
     auto llvm_module = llvm_get_module(builder);
-    std::vector<llvm::Type *> write_terms({builder.getInt64Ty(),
-                                           builder.getInt8Ty()->getPointerTo(),
-                                           builder.getInt64Ty()});
+    llvm::Type *write_terms[] = {builder.getInt8Ty()->getPointerTo()};
+
+    assert(params.size() == 1);
 
     // libc dependency
     auto llvm_write_func_decl = llvm::cast<llvm::Function>(
         llvm_module->getOrInsertFunction(
-            "write",
-            llvm_create_function_type(builder, write_terms,
-                                      builder.getInt64Ty()));
-    return builder.CreateBitCast(
-        builder.CreateCall(llvm_write_func_decl,
-                           std::vector<llvm::Value *>{}),
-        llvm_type);
+            "puts",
+            llvm::FunctionType::get(builder.getInt64Ty(),
+                                    llvm::ArrayRef<llvm::Type *>(write_terms),
+                                    false /*isVarArg*/)));
+    return builder.CreateIntToPtr(
+        builder.CreateCall(llvm_write_func_decl, params),
+        builder.getInt8Ty()->getPointerTo());
   } else if (name == "__builtin_exit") {
     /* scheme({}, {}, type_arrows({Int, type_bottom()})) */
   } else if (name == "__builtin_calloc") {
@@ -476,7 +477,6 @@ llvm::Value *lower_value(
     return nullptr;
   } else if (auto callsite = dyncast<gen::callsite_t>(value)) {
     /* all callsites are presumed to be closures */
-    std::cout << llvm_print_module(*llvm_get_module(builder)) << std::endl;
     log("lowering callsite: %s", callsite->str().c_str());
     std::vector<llvm::Value *> llvm_params;
     for (auto param : callsite->params) {
@@ -671,6 +671,7 @@ void lower_function(llvm::IRBuilder<> &builder,
   for (auto block : function->blocks) {
     lower_block(builder, block, locals, block_map, blocks_visited, env);
   }
+  llvm_verify_function(INTERNAL_LOC(), llvm_function);
 }
 
 void lower_populate(llvm::IRBuilder<> &builder,
@@ -805,7 +806,6 @@ int lower(std::string main_function, const gen::gen_env_t &gen_env) {
         }
       }
     }
-    log("ffffffff");
     for (auto pair : gen_env) {
       for (auto overload : pair.second) {
         const std::string &name = pair.first;
@@ -817,7 +817,10 @@ int lower(std::string main_function, const gen::gen_env_t &gen_env) {
                        lower_env);
       }
     }
-    std::cout << llvm_print_module(*module) << std::endl;
+    std::ofstream ofs;
+    ofs.open("zion-output.llir", std::ofstream::out);
+    ofs << llvm_print_module(*module) << std::endl;
+    ofs.close();
     std::cout << "Created " << lower_env.size() << " named variables."
               << std::endl;
     return EXIT_SUCCESS;
