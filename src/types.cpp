@@ -704,7 +704,7 @@ types::type_t::ref type_arrow(location_t location,
 }
 
 types::type_t::ref type_arrows(types::type_t::refs types, int offset) {
-  assert(types.size() - offset > 0);
+  assert(int(types.size()) - offset > 0);
   if (types.size() - offset == 1) {
     return types[offset];
   } else {

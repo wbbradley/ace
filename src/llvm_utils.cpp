@@ -16,8 +16,7 @@ llvm::Value *llvm_create_global_string(llvm::IRBuilder<> &builder,
 
 llvm::Constant *llvm_get_pointer_to_constant(llvm::IRBuilder<> &builder,
                                              llvm::Constant *llvm_constant) {
-  assert(llvm::dyn_cast<llvm::PointerType>(llvm_constant->getType()) !=
-         nullptr);
+  assert(llvm::dyn_cast<llvm::PointerType>(llvm_constant->getType()));
 
   debug_above(9, log(log_info, "getting pointer to constant %s",
                      llvm_print(llvm_constant).c_str()));
@@ -404,7 +403,7 @@ llvm::StructType *llvm_create_struct_type(
 void llvm_verify_function(location_t location, llvm::Function *llvm_function) {
   debug_above(5, log("writing to function-verification-failure.llir..."));
   std::string llir_filename = "function-verification-failure.llir";
-#if 0
+#if 1
 	FILE *fp = fopen(llir_filename.c_str(), "wt");
 	fprintf(fp, "%s\n", llvm_print_module(*llvm_function->getParent()).c_str());
 	fclose(fp);
@@ -469,6 +468,9 @@ llvm::Function *llvm_start_function(llvm::IRBuilder<> &builder,
                                     llvm::Module *llvm_module,
                                     const types::type_t::refs &terms,
                                     std::string name) {
+  log("llvm_start_function(..., ..., {%s}, %s)...", join_str(terms).c_str(),
+      name.c_str());
+  assert(terms.size() == 3);
   std::vector<llvm::Type *> llvm_type_terms = get_llvm_types(builder, terms);
 
   /* get the llvm function type for the data ctor */
@@ -478,7 +480,7 @@ llvm::Function *llvm_start_function(llvm::IRBuilder<> &builder,
 
   /* now let's generate our actual data ctor fn */
   auto llvm_function = llvm::Function::Create(
-      (llvm::FunctionType *)llvm_fn_type, llvm::Function::ExternalLinkage, name,
+      llvm_fn_type, llvm::Function::ExternalLinkage, name,
       llvm_module != nullptr ? llvm_module : llvm_get_module(builder));
 
   llvm_function->setDoesNotThrow();
@@ -718,13 +720,16 @@ llvm::Type *get_llvm_type(llvm::IRBuilder<> &builder,
     types::type_t::refs terms;
     unfold_binops_rassoc(ARROW_TYPE_OPERATOR, type, terms);
     if (terms.size() <= 1) {
+      /* anything user-defined gets passed around as an i8* */
       return builder.getInt8Ty()->getPointerTo();
     } else {
-      auto llvm_types = get_llvm_types(builder, terms);
-      return llvm_create_function_type(
-                 builder, vec_slice(llvm_types, 0, llvm_types.size() - 1),
-                 llvm_types.back())
-          ->getPointerTo();
+      auto ft = llvm_create_function_type(
+                    builder, {get_llvm_type(builder, terms[0])},
+                    get_llvm_type(builder, type_arrows(terms, 1)))
+                    ->getPointerTo();
+      log("get_llvm_type(..., %s) -> %s", type->str().c_str(),
+          llvm_print(ft).c_str());
+      return ft;
     }
   } else if (auto variable = dyncast<const types::type_variable_t>(type)) {
     assert(false);

@@ -5,6 +5,7 @@
 #include "token.h"
 #include "utils.h"
 #include "zion.h"
+
 struct env_t;
 
 extern const char *NULL_TYPE;
