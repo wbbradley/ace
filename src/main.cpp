@@ -193,6 +193,11 @@ const types::scheme_t::map &get_builtins() {
         {"a"}, {},
         type_arrows({type_operator(type_id(make_iid(PTR_TYPE_OPERATOR)), tv_a),
                      tv_a, type_unit(INTERNAL_LOC())}));
+    for (auto pair: *map) {
+      if (starts_with(pair.first, "__builtin,")) {
+        assert(pair.second->instantiate(INTERNAL_LOC())->ftv_count() == 0);
+      }
+    }
   }
   return *map;
 }
@@ -789,6 +794,11 @@ void specialize_core(defn_map_t const &defn_map,
 
     if (types::is_callable(type)) {
       /* from this point forward use the -impl suffix */
+      //
+      // fn add(x, y) => x + y
+      // add        = (add-impl, ())
+      // add-impl   = fn (x, env) => new (add-impl-2, (add-impl-2, x))
+      //
       final_name += IMPL_SUFFIX;
 
       assert(get(translation_map, defn_id.id.name + IMPL_SUFFIX, type,
@@ -804,10 +814,13 @@ void specialize_core(defn_map_t const &defn_map,
       expr_t *callable_var_ref = new var_t(
           identifier_t{final_name, INTERNAL_LOC()});
       (*tracked_types)[callable_var_ref] = type;
+      expr_t *casted_callable_var_ref = new as_t(
+          callable_var_ref, type->generalize({}), true /*force_cast*/);
+      (*tracked_types)[casted_callable_var_ref] = type;
 
       expr_t *encoded_callable = new tuple_t(
-          INTERNAL_LOC(),
-          std::vector<bitter::expr_t *>{callable_var_ref, empty_closure});
+          INTERNAL_LOC(), std::vector<bitter::expr_t *>{casted_callable_var_ref,
+                                                        empty_closure});
 
       types::type_t::ref closure_type = type_tuple(
           {type, type_unit(INTERNAL_LOC())});
@@ -824,8 +837,10 @@ void specialize_core(defn_map_t const &defn_map,
                                      needed_defns, returns);
       assert(!returns);
 
+      std::stringstream ss;
+      callable_decl->expr->render(ss, 0);
       log("setting %s :: %s = %s", defn_id.id.name.c_str(),
-          closure_type->str().c_str(), callable_decl->str().c_str());
+          closure_type->str().c_str(), ss.str().c_str());// callable_decl->str().c_str());
       assert(translation_map[defn_id.id.name][type] == nullptr);
       translation_map[defn_id.id.name][type] = callable_decl;
     }

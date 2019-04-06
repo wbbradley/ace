@@ -1,7 +1,3 @@
 fn main() {
-    x := 4
-    let f = fn () {
-        return x
-    }
-    print(f())
+  print(0)
 }

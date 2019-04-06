@@ -325,6 +325,13 @@ std::vector<V> vec_slice(const std::vector<V> &orig, int start, int lim) {
   return output;
 }
 
+template <typename V>
+std::vector<V> vec_concat(const std::vector<V> &xs, const std::vector<V> &ys) {
+  std::vector<V> output = xs;
+  output.insert(output.end(), ys.begin(), ys.end());
+  return output;
+}
+
 template <typename U, typename COLL> bool in_vector(U item, const COLL &set) {
   return std::find(set.begin(), set.end(), item) != set.end();
 }

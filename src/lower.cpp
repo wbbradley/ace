@@ -1,7 +1,6 @@
 #include "lower.h"
 
 #include <fstream>
-#include "llvm_utils.h"
 #include "logger.h"
 #include "types.h"
 
@@ -13,15 +12,9 @@
 
 namespace lower {
 
-using env_t = std::map<
+using lower_env_t = std::map<
     std::string,
     std::map<types::type_t::ref, llvm::Value *, types::compare_type_t>>;
-
-llvm::Constant *lower_decl(std::string name,
-                           llvm::IRBuilder<> &builder,
-                           llvm::Module *llvm_module,
-                           gen::value_t::ref value,
-                           const env_t &env);
 
 void lower_block(llvm::IRBuilder<> &builder,
                  gen::block_t::ref block,
@@ -31,7 +24,7 @@ void lower_block(llvm::IRBuilder<> &builder,
                                 gen::block_t::comparator_t> &block_map,
                  std::map<gen::block_t::ref, bool, gen::block_t::comparator_t>
                      &blocks_visited,
-                 const env_t &env);
+                 const lower_env_t &env);
 
 llvm::Value *lower_value(
     llvm::IRBuilder<> &builder,
@@ -42,22 +35,16 @@ llvm::Value *lower_value(
                    gen::block_t::comparator_t> &block_map,
     std::map<gen::block_t::ref, bool, gen::block_t::comparator_t>
         &blocks_visited,
-    const env_t &env);
+    const lower_env_t &env);
 
-llvm::Constant *lower_tuple_global(std::string name,
-                                   llvm::IRBuilder<> &builder,
-                                   llvm::Module *llvm_module,
-                                   gen::tuple_t::ref tuple,
-                                   const env_t &env);
-
-llvm::Value *maybe_get_llvm_value(const env_t &env,
+llvm::Value *maybe_get_llvm_value(const lower_env_t &env,
                                   std::string name,
                                   types::type_t::ref type) {
   type = types::unitize(type);
   return get(env, name, type, static_cast<llvm::Value *>(nullptr));
 }
 
-llvm::Value *get_llvm_value(const env_t &env,
+llvm::Value *get_llvm_value(const lower_env_t &env,
                             std::string name,
                             types::type_t::ref type) {
   auto llvm_value = maybe_get_llvm_value(env, name, type);
@@ -79,7 +66,7 @@ llvm::Value *get_llvm_value(const env_t &env,
   return llvm_value;
 }
 
-void set_llvm_value(env_t &env,
+void set_llvm_value(lower_env_t &env,
                     std::string name,
                     types::type_t::ref type,
                     llvm::Value *llvm_value,
@@ -105,7 +92,7 @@ llvm::Constant *lower_decl(std::string name,
                            llvm::IRBuilder<> &builder,
                            llvm::Module *llvm_module,
                            gen::value_t::ref value,
-                           const env_t &env) {
+                           const lower_env_t &env) {
   debug_above(4, log("lower_decl(%s, ..., %s :: %s, ...)", name.c_str(),
                      value->str().c_str(), value->type->str().c_str()));
 
@@ -145,15 +132,16 @@ llvm::Constant *lower_decl(std::string name,
   } else if (auto function = dyncast<gen::function_t>(value)) {
     types::type_t::refs type_terms;
     unfold_binops_rassoc(ARROW_TYPE_OPERATOR, function->type, type_terms);
-    if (function->args.size() != 0 &&
-        function->args.back()->name == "__closure") {
-      /* this function will not be called directly, it will be packaged into a
-       * closure */
-      type_terms.insert(type_terms.end() - 1, type_id(make_iid("__closure_t")));
-      log("treating lower_decl of function %s as an -impl",
-          (name + " :: " + function->type->repr()).c_str());
-    }
-    return llvm_start_function(builder, llvm_module, type_terms,
+    /* this function will not be called directly, it will be packaged into a
+     * closure. the type system does not reflect the difference between
+     * functions or closures, but here when we are lowering, we need to be
+     * honest with LLVM. all functions in Zion are capable of taking closure
+     * environments, but not all use them. */
+    assert(type_terms.size() >= 1);
+    auto return_type = type_arrows(type_terms, 1);
+    types::type_t::refs actual_type_terms = {
+        type_terms[0], type_id(make_iid("__closure_t")), return_type};
+    return llvm_start_function(builder, llvm_module, actual_type_terms,
                                name + " :: " + function->type->repr());
   } else if (auto builtin = dyncast<gen::builtin_t>(value)) {
     assert(false);
@@ -341,7 +329,7 @@ llvm::Value *lower_tuple_alloc(
                    gen::block_t::comparator_t> &block_map,
     std::map<gen::block_t::ref, bool, gen::block_t::comparator_t>
         &blocks_visited,
-    const env_t &env) {
+    const lower_env_t &env) {
   std::vector<llvm::Value *> llvm_dims;
   for (auto dim : tuple->dims) {
     llvm_dims.push_back(
@@ -367,14 +355,18 @@ llvm::Constant *lower_tuple_global(std::string name,
                                    llvm::IRBuilder<> &builder,
                                    llvm::Module *llvm_module,
                                    gen::tuple_t::ref tuple,
-                                   const env_t &env) {
+                                   const lower_env_t &env) {
   llvm::Type *llvm_type = get_llvm_type(builder, tuple->type);
   llvm::StructType *llvm_struct_type = llvm::dyn_cast<llvm::StructType>(
       llvm_type->getPointerElementType());
   assert(llvm_struct_type != nullptr);
+  log("lower_tuple_global wants to create a tuple of type %s or %s",
+      tuple->type->str().c_str(),
+      llvm_print(llvm_struct_type).c_str());
 
   std::vector<llvm::Constant *> llvm_struct_data;
   for (auto dim : tuple->dims) {
+    /* for each element in the tuple, let's get its Value */
     llvm::Value *llvm_value = maybe_get_llvm_value(env, dim->name, dim->type);
     if (llvm_value == nullptr) {
       log("%s does not exist, normally this would have been registered by "
@@ -413,7 +405,7 @@ llvm::Value *lower_value(
                    gen::block_t::comparator_t> &block_map,
     std::map<gen::block_t::ref, bool, gen::block_t::comparator_t>
         &blocks_visited,
-    const env_t &env) {
+    const lower_env_t &env) {
   value = resolve_proxy(value);
   assert(value != nullptr);
 
@@ -539,9 +531,11 @@ llvm::Value *lower_value(
     return nullptr;
   } else if (auto tuple = dyncast<gen::tuple_t>(value)) {
     if (tuple->parent.lock() != nullptr) {
+      /* we are in a function body */
       return lower_tuple_alloc(builder, tuple, locals, block_map,
                                blocks_visited, env);
     } else {
+      /* we are at global scope */
       return lower_tuple_global("" /*name*/, builder, llvm_get_module(builder),
                                 tuple, env);
     }
@@ -580,7 +574,7 @@ void lower_block(llvm::IRBuilder<> &builder,
                                 gen::block_t::comparator_t> &block_map,
                  std::map<gen::block_t::ref, bool, gen::block_t::comparator_t>
                      &blocks_visited,
-                 const env_t &env) {
+                 const lower_env_t &env) {
   if (block == nullptr) {
     /* maybe the value we are lowering doesn't need a block */
     return;
@@ -635,7 +629,7 @@ void lower_function(llvm::IRBuilder<> &builder,
                     types::type_t::ref type,
                     gen::function_t::ref function,
                     llvm::Value *llvm_value,
-                    env_t &env) {
+                    lower_env_t &env) {
   std::cout << "Lowering " << name << std::endl;
   function->render(std::cout);
 
@@ -680,7 +674,7 @@ void lower_populate(llvm::IRBuilder<> &builder,
                     types::type_t::ref type,
                     gen::value_t::ref value,
                     llvm::Value *llvm_value,
-                    env_t &env) {
+                    lower_env_t &env) {
   debug_above(4, log("lower_populate(%s, ..., %s, ...)", name.c_str(),
                      value->str().c_str()));
 
@@ -750,7 +744,7 @@ int lower(std::string main_function, const gen::gen_env_t &gen_env) {
   llvm::IRBuilder<> builder(context);
 
   try {
-    lower::env_t lower_env;
+    lower::lower_env_t lower_env;
     int lowering_index = 0;
     for (auto pair : gen_env) {
       for (auto overload : pair.second) {

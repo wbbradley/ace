@@ -360,11 +360,9 @@ value_t::ref gen_lambda(std::string name,
     function->args.push_back(std::make_shared<argument_t>(
         identifier_t{"__closure", INTERNAL_LOC()}, closure->type, 1, function));
 
-    // new_env["__self"] = builder.create_gep(function->args.back(), {0});
     int arg_index = 0;
     for (auto typed_id : free_vars.typed_ids) {
-      /* inject the closed over vars into the new environment within the closure
-       */
+      // inject the closed over vars into the new environment within the closure
       auto new_closure_var = new_builder.create_tuple_deref(
           typed_id.id.location,
           new_builder.create_cast(typed_id.id.location, function->args.back(),
