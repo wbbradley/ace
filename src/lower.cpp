@@ -1,6 +1,7 @@
 #include "lower.h"
 
 #include <fstream>
+
 #include "logger.h"
 #include "types.h"
 
@@ -303,7 +304,8 @@ llvm::Value *lower_builtin(llvm::IRBuilder<> &builder,
 llvm::Value *lower_literal(llvm::IRBuilder<> &builder,
                            types::type_t::ref type,
                            const token_t &token) {
-  log("emitting literal %s :: %s", token.str().c_str(), type->str().c_str());
+  debug_above(6, log("emitting literal %s :: %s", token.str().c_str(),
+                     type->str().c_str()));
   if (type_equality(type, type_id(make_iid(INT_TYPE)))) {
     return builder.getZionInt(atoll(token.text.c_str()));
   } else if (type_equality(type,
@@ -361,18 +363,19 @@ llvm::Constant *lower_tuple_global(std::string name,
       llvm_type->getPointerElementType());
   assert(llvm_struct_type != nullptr);
   log("lower_tuple_global wants to create a tuple of type %s or %s",
-      tuple->type->str().c_str(),
-      llvm_print(llvm_struct_type).c_str());
+      tuple->type->str().c_str(), llvm_print(llvm_struct_type).c_str());
 
   std::vector<llvm::Constant *> llvm_struct_data;
   for (auto dim : tuple->dims) {
     /* for each element in the tuple, let's get its Value */
     llvm::Value *llvm_value = maybe_get_llvm_value(env, dim->name, dim->type);
     if (llvm_value == nullptr) {
-      log("%s does not exist, normally this would have been registered by "
-          "a call to lower::set_llvm_value. Going to try to recurse for "
-          "it...",
-          dim->name.c_str());
+      debug_above(
+          6,
+          log("%s does not exist, normally this would have been registered by "
+              "a call to lower::set_llvm_value. Going to try to recurse for "
+              "it...",
+              dim->name.c_str()));
       llvm_value = lower_decl(dim->name, builder, llvm_module, dim, env);
     }
 
@@ -423,7 +426,7 @@ llvm::Value *lower_value(
 
   std::stringstream ss;
   value->render(ss);
-  log("Lowering value %s", ss.str().c_str());
+  debug_above(5, log("Lowering value %s", ss.str().c_str()));
   if (auto unit = dyncast<gen::unit_t>(value)) {
     return llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo());
   } else if (auto literal = dyncast<gen::literal_t>(value)) {
@@ -469,12 +472,13 @@ llvm::Value *lower_value(
     return nullptr;
   } else if (auto callsite = dyncast<gen::callsite_t>(value)) {
     /* all callsites are presumed to be closures */
-    log("lowering callsite: %s", callsite->str().c_str());
+    debug_above(5, log("lowering callsite: %s", callsite->str().c_str()));
     std::vector<llvm::Value *> llvm_params;
     for (auto param : callsite->params) {
       llvm_params.push_back(
           lower_value(builder, param, locals, block_map, blocks_visited, env));
-      log("llvm_param is %s", llvm_print(llvm_params.back()).c_str());
+      debug_above(
+          8, log("llvm_param is %s", llvm_print(llvm_params.back()).c_str()));
     }
     llvm::Value *llvm_callee = lower_value(builder, callsite->callable, locals,
                                            block_map, blocks_visited, env);

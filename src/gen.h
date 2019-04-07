@@ -80,7 +80,7 @@ struct function_t;
 struct instruction_t : public value_t {
   typedef std::shared_ptr<instruction_t> ref;
 
-  std::string str() const override final;
+  std::string str() const override;
 
   instruction_t(location_t location,
                 types::type_t::ref type,
@@ -331,6 +331,8 @@ struct tuple_t : public instruction_t {
           std::string name)
       : instruction_t(location, tuple_type(dims), parent, name), dims(dims) {
   }
+
+  std::string str() const override;
 
   std::vector<value_t::ref> dims;
 };
