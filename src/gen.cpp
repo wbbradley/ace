@@ -695,7 +695,7 @@ value_t::ref builder_t::create_tuple(location_t location,
   if (dims.size() == 0) {
     return create_unit(location, name);
   } else {
-    auto tuple = std::make_shared<tuple_t>(location, block, dims, name);
+    auto tuple = std::make_shared<gen_tuple_t>(location, block, dims, name);
     if (block != nullptr) {
       insert_instruction(tuple);
     }
@@ -711,8 +711,8 @@ value_t::ref builder_t::create_tuple_deref(location_t location,
                                            value_t::ref value,
                                            int index,
                                            std::string name) {
-  auto tuple_deref = std::make_shared<tuple_deref_t>(location, block, value,
-                                                     index, name);
+  auto tuple_deref = std::make_shared<gen_tuple_deref_t>(location, block, value,
+                                                         index, name);
   insert_instruction(tuple_deref);
   return tuple_deref;
 }
@@ -848,19 +848,22 @@ std::ostream &function_t::render(std::ostream &os) const {
   return os;
 }
 
-std::string tuple_t::str() const {
+std::string gen_tuple_t::str() const {
   std::stringstream ss;
   render(ss);
   return ss.str().c_str();
 }
 
-std::ostream &tuple_t::render(std::ostream &os) const {
-  return os << C_ID << name << C_RESET << " := " C_GOOD
-            << (parent.lock() ? "alloc_tuple" : "global_tuple") << C_RESET "("
-            << join_str(dims, ", ") << ")";
+std::ostream &gen_tuple_t::render(std::ostream &os) const {
+  if (parent.lock() != nullptr) {
+    os << C_ID << name << C_RESET << " := ";
+  }
+
+  return os << C_GOOD << (parent.lock() ? "alloc_tuple" : "global_tuple")
+            << C_RESET "(" << join_str(dims, ", ") << ")";
 }
 
-std::ostream &tuple_deref_t::render(std::ostream &os) const {
+std::ostream &gen_tuple_deref_t::render(std::ostream &os) const {
   return os << C_ID << name << C_RESET " := " << value->str() << "[" << index
             << "] :: " << type->str();
 }

@@ -41,6 +41,7 @@ struct proxy_value_t : public value_t {
                 std::string name,
                 types::type_t::ref type)
       : value_t(location, parent, type, name) {
+        assert(!starts_with(name, "__v"));
   }
 
   void set_proxy_impl(value_t::ref impl_);
@@ -321,14 +322,14 @@ struct store_t : public instruction_t {
 
 types::type_t::ref tuple_type(const std::vector<value_t::ref> &dims);
 
-struct tuple_t : public instruction_t {
-  typedef std::shared_ptr<tuple_t> ref;
+struct gen_tuple_t : public instruction_t {
+  typedef std::shared_ptr<gen_tuple_t> ref;
 
   std::ostream &render(std::ostream &os) const override;
-  tuple_t(location_t location,
-          std::weak_ptr<block_t> parent,
-          std::vector<value_t::ref> dims,
-          std::string name)
+  gen_tuple_t(location_t location,
+              std::weak_ptr<block_t> parent,
+              std::vector<value_t::ref> dims,
+              std::string name)
       : instruction_t(location, tuple_type(dims), parent, name), dims(dims) {
   }
 
@@ -337,12 +338,12 @@ struct tuple_t : public instruction_t {
   std::vector<value_t::ref> dims;
 };
 
-struct tuple_deref_t : public instruction_t {
-  tuple_deref_t(location_t location,
-                std::weak_ptr<block_t> parent,
-                value_t::ref value,
-                int index,
-                std::string name)
+struct gen_tuple_deref_t : public instruction_t {
+  gen_tuple_deref_t(location_t location,
+                    std::weak_ptr<block_t> parent,
+                    value_t::ref value,
+                    int index,
+                    std::string name)
       : instruction_t(location,
                       tuple_deref_type(location, value->type, index),
                       parent,

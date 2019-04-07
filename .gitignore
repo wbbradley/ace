@@ -1,4 +1,5 @@
 profiler.trace
+*.ssa-gen
 .*.swo
 test.c
 test
