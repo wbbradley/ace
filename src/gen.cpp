@@ -170,19 +170,23 @@ void set_env_var(gen_env_t &gen_env,
   // dbg_when(name == "std.Ref" && type->repr().find("* Char ->") !=
   // std::string::npos);
   if (existing_value == nullptr) {
-    log("found no value in the gen_env 0x%08llx for %s :: %s, adding a new "
-        "value",
-        (unsigned long long)&gen_env, name.c_str(), type->str().c_str());
+    debug_above(
+        4,
+        log("found no value in the gen_env 0x%08llx for %s :: %s, adding a new "
+            "value",
+            (unsigned long long)&gen_env, name.c_str(), type->str().c_str()));
     gen_env[name].insert({type, value});
   } else if (auto proxy = dyncast<proxy_value_t>(existing_value)) {
     assert(!allow_shadowing);
-    log("found proxy value in the gen_env for %s :: %s, updating it",
-        name.c_str(), type->str().c_str());
+    debug_above(
+        4, log("found proxy value in the gen_env for %s :: %s, updating it",
+               name.c_str(), type->str().c_str()));
     assert(!is_proxy(value));
     proxy->set_proxy_impl(value);
   } else if (allow_shadowing) {
-    log("overwriting any existing value in the gen_env for %s :: %s",
-        name.c_str(), type->str().c_str());
+    debug_above(
+        4, log("overwriting any existing value in the gen_env for %s :: %s",
+               name.c_str(), type->str().c_str()));
     gen_env[name].insert({type, value});
   } else {
     /* what now? probably shouldn't have happened */
@@ -842,6 +846,12 @@ std::ostream &function_t::render(std::ostream &os) const {
     os << "}" << std::endl;
   }
   return os;
+}
+
+std::string tuple_t::str() const {
+  std::stringstream ss;
+  render(ss);
+  return ss.str().c_str();
 }
 
 std::ostream &tuple_t::render(std::ostream &os) const {

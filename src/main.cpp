@@ -1,8 +1,8 @@
+#include <cstdio>
+#include <cstdlib>
 #include <chrono>
 #include <fstream>
 #include <iostream>
-#include <stdio.h>
-#include <stdlib.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -193,7 +193,7 @@ const types::scheme_t::map &get_builtins() {
         {"a"}, {},
         type_arrows({type_operator(type_id(make_iid(PTR_TYPE_OPERATOR)), tv_a),
                      tv_a, type_unit(INTERNAL_LOC())}));
-    for (auto pair: *map) {
+    for (auto pair : *map) {
       if (starts_with(pair.first, "__builtin,")) {
         assert(pair.second->instantiate(INTERNAL_LOC())->ftv_count() == 0);
       }
@@ -799,15 +799,15 @@ void specialize_core(defn_map_t const &defn_map,
       // add        = (add-impl, ())
       // add-impl   = fn (x, env) => new (add-impl-2, (add-impl-2, x))
       //
-      final_name += IMPL_SUFFIX;
+      final_name += IMPL_SUFFIX; // "-impl"
 
       assert(get(translation_map, defn_id.id.name + IMPL_SUFFIX, type,
                  translation_t::ref{}) == nullptr);
 
-      log("specializing callable %s :: %s, should be creating something like "
-          "(%s, ())",
-          defn_id.id.name.c_str(), type->str().c_str(),
-          (defn_id.id.name + IMPL_SUFFIX).c_str());
+      debug_above(4, log("specializing callable %s :: %s, should be creating "
+                         "something like (%s, ())",
+                         defn_id.id.name.c_str(), type->str().c_str(),
+                         (defn_id.id.name + IMPL_SUFFIX).c_str()));
 
       expr_t *empty_closure = unit_expr(INTERNAL_LOC());
       (*tracked_types)[empty_closure] = type_unit(INTERNAL_LOC());
@@ -837,10 +837,13 @@ void specialize_core(defn_map_t const &defn_map,
                                      needed_defns, returns);
       assert(!returns);
 
+#ifdef ZION_DEBUG
       std::stringstream ss;
       callable_decl->expr->render(ss, 0);
-      log("setting %s :: %s = %s", defn_id.id.name.c_str(),
-          closure_type->str().c_str(), ss.str().c_str());// callable_decl->str().c_str());
+      debug_above(4, log("setting %s :: %s = %s", defn_id.id.name.c_str(),
+                         closure_type->str().c_str(),
+                         ss.str().c_str())); // callable_decl->str().c_str());
+#endif
       assert(translation_map[defn_id.id.name][type] == nullptr);
       translation_map[defn_id.id.name][type] = callable_decl;
     }
@@ -873,8 +876,8 @@ void specialize_core(defn_map_t const &defn_map,
                    translated_decl->str().c_str());
     }
 
-    log("setting %s :: %s = %s", final_name.c_str(), type->str().c_str(),
-        translated_decl->str().c_str());
+    debug_above(4, log("setting %s :: %s = %s", final_name.c_str(),
+                       type->str().c_str(), translated_decl->str().c_str()));
     translation_map[final_name][type] = translated_decl;
   } catch (...) {
     assert(get(translation_map, defn_id.id.name, type, translation_t::ref{}) ==
@@ -990,8 +993,8 @@ phase_4_t ssa_gen(const phase_3_t phase_3) {
     debug_above(6, log("globals are %s", join(globals).c_str()));
     for (auto pair : phase_3.translation_map) {
       for (auto overload : pair.second) {
-        log("fetching %s expression type from translated types",
-            pair.first.c_str());
+        debug_above(4, log("fetching %s expression type from translated types",
+                           pair.first.c_str()));
 
         auto type = get(overload.second->typing, overload.second->expr, {});
         assert(type != nullptr);
@@ -1000,8 +1003,9 @@ phase_4_t ssa_gen(const phase_3_t phase_3) {
             gen_env, {pair.first, overload.second->expr->get_location()}, type);
         assert(value == nullptr);
         auto expr = overload.second->expr;
-        log("making a placeholder proxy value for %s :: %s = %s",
-            pair.first.c_str(), type->str().c_str(), expr->str().c_str());
+        debug_above(4, log("making a placeholder proxy value for %s :: %s = %s",
+                           pair.first.c_str(), type->str().c_str(),
+                           expr->str().c_str()));
         gen::set_env_var(gen_env, pair.first,
                          std::make_shared<gen::proxy_value_t>(
                              overload.second->get_location(),
@@ -1030,13 +1034,14 @@ phase_4_t ssa_gen(const phase_3_t phase_3) {
 
       auto &typing = code.typing;
       auto expr = code.expr;
-      log("running gen phase for %s :: %s", name.c_str(), type->str().c_str());
+      debug_above(4, log("running gen phase for %s :: %s", name.c_str(),
+                         type->str().c_str()));
 
       auto value = gen::gen(name, builder, expr, typing, gen_env, globals);
       std::stringstream ss;
       value->render(ss);
-      log("generated %s :: %s == %s", name.c_str(), type->str().c_str(),
-          ss.str().c_str());
+      debug_above(4, log("generated %s :: %s == %s", name.c_str(),
+                         type->str().c_str(), ss.str().c_str()));
       gen::set_env_var(gen_env, name, value, false /*allow_shadowing*/);
     }
 
@@ -1183,8 +1188,17 @@ int run_job(const job_t &job) {
       std::stringstream ss;
       phase_4.dump(ss);
 
-      auto output = clean_ansi_escapes_if_not_tty(stdout, ss.str());
-      fprintf(stdout, "%s", output.c_str());
+      auto output = clean_ansi_escapes(ss.str());
+      std::string output_filename = "./zion-output.ssa-gen";
+      FILE *fp = std::fopen(output_filename.c_str(), "w");
+      if (fp != nullptr) {
+        fprintf(fp, "%s", output.c_str());
+        fclose(fp);
+      } else {
+        std::cerr << "ssa-gen: unable to open " << output_filename << std::endl;
+        return EXIT_FAILURE;
+      }
+
       return user_error::errors_occurred() ? EXIT_FAILURE : EXIT_SUCCESS;
     }
   };
@@ -1205,7 +1219,7 @@ int run_job(const job_t &job) {
       }
 
       return lower::lower(phase_4.phase_3.phase_2.compilation->program_name +
-                              ".main",
+                              IMPL_SUFFIX ".main",
                           phase_4.gen_env);
     }
   };
