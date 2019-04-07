@@ -14,14 +14,36 @@ using lower_env_t = std::map<
 
 int lower(std::string main_function, const gen::gen_env_t &gen_env);
 llvm::Constant *lower_decl(std::string name,
+                           types::type_t::ref type,
                            llvm::IRBuilder<> &builder,
                            llvm::Module *llvm_module,
                            gen::value_t::ref value,
-                           const lower_env_t &env);
+                           lower_env_t &env);
 
 llvm::Constant *lower_tuple_global(std::string name,
                                    llvm::IRBuilder<> &builder,
                                    llvm::Module *llvm_module,
-                                   gen::tuple_t::ref tuple,
-                                   const lower_env_t &env);
+                                   gen::gen_tuple_t::ref tuple,
+                                   lower_env_t &env);
+llvm::Value *lower_value(
+    llvm::IRBuilder<> &builder,
+    gen::value_t::ref value,
+    std::map<std::string, llvm::Value *> &locals,
+    const std::map<gen::block_t::ref,
+                   llvm::BasicBlock *,
+                   gen::block_t::comparator_t> &block_map,
+    std::map<gen::block_t::ref, bool, gen::block_t::comparator_t>
+        &blocks_visited,
+    lower_env_t &env);
+
+void lower_block(llvm::IRBuilder<> &builder,
+                 gen::block_t::ref block,
+                 std::map<std::string, llvm::Value *> &locals,
+                 const std::map<gen::block_t::ref,
+                                llvm::BasicBlock *,
+                                gen::block_t::comparator_t> &block_map,
+                 std::map<gen::block_t::ref, bool, gen::block_t::comparator_t>
+                     &blocks_visited,
+                 lower_env_t &env);
+
 } // namespace lower

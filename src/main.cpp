@@ -1,10 +1,6 @@
-#include <cstdio>
 #include <cstdlib>
-#include <chrono>
 #include <fstream>
 #include <iostream>
-#include <sys/wait.h>
-#include <unistd.h>
 
 #include "ast.h"
 #include "compiler.h"
@@ -1188,16 +1184,12 @@ int run_job(const job_t &job) {
       std::stringstream ss;
       phase_4.dump(ss);
 
-      auto output = clean_ansi_escapes(ss.str());
       std::string output_filename = "./zion-output.ssa-gen";
-      FILE *fp = std::fopen(output_filename.c_str(), "w");
-      if (fp != nullptr) {
-        fprintf(fp, "%s", output.c_str());
-        fclose(fp);
-      } else {
-        std::cerr << "ssa-gen: unable to open " << output_filename << std::endl;
-        return EXIT_FAILURE;
-      }
+
+      std::ofstream ofs;
+      ofs.open(output_filename.c_str(), std::ofstream::out);
+      ofs << clean_ansi_escapes(ss.str()) << std::endl;
+      ofs.close();
 
       return user_error::errors_occurred() ? EXIT_FAILURE : EXIT_SUCCESS;
     }
