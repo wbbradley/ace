@@ -182,10 +182,10 @@ llvm::Constant *lower_decl(std::string name,
 llvm::Value *lower_builtin(llvm::IRBuilder<> &builder,
                            const std::string &name,
                            const std::vector<llvm::Value *> &params) {
-  log("lowering builtin %s(%s)...", name.c_str(),
-      join_with(params, ", ", [](llvm::Value *lv) {
-        return llvm_print(lv);
-      }).c_str());
+  debug_above(7, log("lowering builtin %s(%s)...", name.c_str(),
+                     join_with(params, ", ", [](llvm::Value *lv) {
+                       return llvm_print(lv);
+                     }).c_str()));
 
   if (name == "__builtin_word_size") {
     /* scheme({}, {}, Int) */
@@ -259,7 +259,7 @@ llvm::Value *lower_builtin(llvm::IRBuilder<> &builder,
   } else if (name == "__builtin_float_gte") {
     /* scheme({}, {}, type_arrows({Float, Float, Bool})) */
   } else if (name == "__builtin_print") {
-    /* scheme({}, {}, type_arrows({String, type_unit(INTERNAL_LOC())})) */
+    /* scheme({}, {}, type_arrows({*Char, type_unit(INTERNAL_LOC())})) */
     auto llvm_module = llvm_get_module(builder);
     llvm::Type *write_terms[] = {builder.getInt8Ty()->getPointerTo()};
 
@@ -287,6 +287,24 @@ llvm::Value *lower_builtin(llvm::IRBuilder<> &builder,
     /* scheme({"a"}, {}, type_arrows({
      * type_operator(type_id(make_iid(PTR_TYPE_OPERATOR)), tv_a), tv_a,
      * type_unit(INTERNAL_LOC())})) */
+  } else if (name == "__builtin_hello") {
+    /* scheme({}, {}, Unit) */
+    auto llvm_module = llvm_get_module(builder);
+    llvm::Type *write_terms[] = {builder.getInt8Ty()->getPointerTo()};
+
+    std::vector<llvm::Value *> params = {
+        llvm_create_global_string_constant(builder, *llvm_module, "hello")};
+
+    // libc dependency
+    auto llvm_write_func_decl = llvm::cast<llvm::Function>(
+        llvm_module->getOrInsertFunction(
+            "puts",
+            llvm::FunctionType::get(builder.getInt64Ty(),
+                                    llvm::ArrayRef<llvm::Type *>(write_terms),
+                                    false /*isVarArg*/)));
+    return builder.CreateIntToPtr(
+        builder.CreateCall(llvm_write_func_decl, params),
+        builder.getInt8Ty()->getPointerTo());
   }
 
   log("Need an impl for " c_id("%s"), name.c_str());
@@ -307,7 +325,8 @@ llvm::Value *lower_literal(llvm::IRBuilder<> &builder,
     /* char * */
     auto llvm_literal = llvm_create_global_string_constant(
         builder, *llvm_get_module(builder), unescape_json_quotes(token.text));
-    log("emitting llvm literal %s", llvm_print(llvm_literal).c_str());
+    debug_above(
+        6, log("emitting llvm literal %s", llvm_print(llvm_literal).c_str()));
     return llvm_literal;
   }
 
@@ -326,24 +345,59 @@ llvm::Value *lower_tuple_alloc(
         &blocks_visited,
     lower_env_t &env) {
   std::vector<llvm::Value *> llvm_dims;
+  int i = 0;
   for (auto dim : tuple->dims) {
     llvm_dims.push_back(
         lower_value(builder, dim, locals, block_map, blocks_visited, env));
+    debug_above(7, log("llvm_dims[%d] == %s", i,
+                       llvm_print(llvm_dims[i]->getType()).c_str()));
+    ++i;
   }
-  auto llvm_type = get_llvm_type(builder, tuple->type);
+  auto llvm_tuple_pointer_type = get_llvm_type(builder, tuple->type);
+  auto llvm_tuple_type = llvm_tuple_pointer_type->getPointerElementType();
   std::vector<llvm::Type *> alloc_terms{builder.getInt64Ty()};
-  debug_above(6, log("need to allocate a tuple of type %s", llvm_print(llvm_type).c_str()));
+  debug_above(6, log("need to allocate a tuple of type %s",
+                     llvm_print(llvm_tuple_pointer_type).c_str()));
   auto llvm_module = llvm_get_module(builder);
   auto llvm_alloc_func_decl = llvm::cast<llvm::Function>(
       llvm_module->getOrInsertFunction(
           "malloc",
           llvm_create_function_type(builder, alloc_terms,
                                     builder.getInt8Ty()->getPointerTo())));
-  return builder.CreateBitCast(
+  llvm::Value *llvm_allocated_tuple = builder.CreateBitCast(
       builder.CreateCall(llvm_alloc_func_decl,
-                         std::vector<llvm::Value *>{llvm_sizeof_type(
-                             builder, llvm_type->getPointerElementType())}),
-      llvm_type);
+                         std::vector<llvm::Value *>{
+                             llvm_sizeof_type(builder, llvm_tuple_type)}),
+      llvm_tuple_pointer_type);
+
+  llvm::Value *llvm_zero = llvm::ConstantInt::get(
+      llvm::Type::getInt32Ty(builder.getContext()), 0);
+
+  debug_above(7,
+              log("llvm_tuple_type = %s", llvm_print(llvm_tuple_type).c_str()));
+  /* actually copy the dims into the allocated space */
+  for (int i = 0; i < llvm_dims.size(); ++i) {
+    llvm::Value *llvm_index = llvm::ConstantInt::get(
+        llvm::Type::getInt32Ty(builder.getContext()), i);
+    llvm::Value *llvm_gep_args[] = {llvm_zero, llvm_index};
+    debug_above(7, log("builder.CreateStore(%s, builder.CreateInBoundsGEP(%s, "
+                       "%s, {0, %d}))",
+                       llvm_print(llvm_dims[i]->getType()).c_str(),
+                       llvm_print(llvm_tuple_type).c_str(),
+                       llvm_print(llvm_allocated_tuple->getType()).c_str(), i));
+    llvm::Value *llvm_member_address = builder.CreateInBoundsGEP(
+        llvm_tuple_type, llvm_allocated_tuple, llvm_gep_args);
+    debug_above(7, log("GEP returned %s with type %s",
+                       llvm_print(llvm_member_address).c_str(),
+                       llvm_print(llvm_member_address->getType()).c_str()));
+
+    builder.CreateStore(
+        builder.CreateBitCast(
+            llvm_dims[i],
+            llvm_member_address->getType()->getPointerElementType()),
+        llvm_member_address);
+  }
+  return llvm_allocated_tuple;
 }
 
 llvm::Constant *lower_tuple_global(std::string name,
@@ -453,8 +507,9 @@ llvm::Value *lower_value(
   } else if (auto argument = dyncast<gen::argument_t>(value)) {
     int i = 0;
     for (auto &arg : builder.GetInsertBlock()->getParent()->args()) {
-      if (i++ == argument->index)
+      if (i++ == argument->index) {
         return &arg;
+      }
     }
     throw user_error(
         INTERNAL_LOC(), "failed to find argument %d in function %s",
@@ -494,15 +549,14 @@ llvm::Value *lower_value(
     /* add the closure to its own param list */
     llvm_params.push_back(builder.CreateBitCast(
         llvm_callee, builder.getInt8Ty()->getPointerTo()));
-    llvm::Type *llvm_closure_type = llvm::StructType::create(
-                                        builder.getContext(),
-                                        {llvm_create_function_type(
-                                             builder,
-                                             llvm_get_types(llvm_params),
-                                             llvm_return_type)
-                                             ->getPointerTo()})
-                                        ->getPointerTo();
-    // log("llvm_closure_type = %s", llvm_print(llvm_closure_type).c_str());
+    llvm::StructType *llvm_closure_struct_type =
+        llvm::StructType::create(
+            builder.getContext(),
+            {llvm_create_function_type(builder, llvm_get_types(llvm_params),
+                                       llvm_return_type)
+                 ->getPointerTo()});
+            llvm_closure_struct_type->setName("ClosureForCallsite");
+    llvm::Type *llvm_closure_type = llvm_closure_struct_type->getPointerTo();
 
     llvm::Value *llvm_closure = builder.CreateBitCast(llvm_callee,
                                                       llvm_closure_type);
@@ -542,7 +596,7 @@ llvm::Value *lower_value(
   } else if (auto tuple_deref = dyncast<gen::gen_tuple_deref_t>(value)) {
     std::stringstream ss;
     tuple_deref->render(ss);
-    log("tuple_deref = %s", ss.str().c_str());
+    debug_above(7, log("tuple_deref = %s", ss.str().c_str()));
     llvm::Value *llvm_value = lower_value(builder, tuple_deref->value, locals,
                                           block_map, blocks_visited, env);
 
@@ -763,9 +817,9 @@ int lower(std::string main_function, const gen::gen_env_t &gen_env) {
 
         std::stringstream ss;
         value->render(ss);
-        log("emitting #%d " c_id("%s") " :: %s = %s", lowering_index,
-            name.c_str(), type->str().c_str(),
-            ss.str().c_str()); // value->str().c_str());
+        debug_above(6, log("emitting #%d " c_id("%s") " :: %s = %s",
+                           lowering_index, name.c_str(), type->str().c_str(),
+                           ss.str().c_str()));
         ++lowering_index;
 
         if (maybe_get_llvm_value(lower_env, name, type) != nullptr) {

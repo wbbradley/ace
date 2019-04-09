@@ -110,11 +110,13 @@ std::vector<std::string> alphabet(int count) {
 const types::scheme_t::map &get_builtins() {
   static std::unique_ptr<types::scheme_t::map> map;
   if (map == nullptr) {
+    auto Unit = type_unit(INTERNAL_LOC());
     auto Int = type_id(make_iid(INT_TYPE));
     auto Float = type_id(make_iid(FLOAT_TYPE));
     auto Bool = type_id(make_iid(BOOL_TYPE));
     auto Char = type_id(make_iid(CHAR_TYPE));
     auto String = type_operator(type_id(make_iid(VECTOR_TYPE)), Char);
+    auto PtrToChar = type_operator(type_id(make_iid(PTR_TYPE_OPERATOR)), Char);
     auto tv_a = type_variable(make_iid("a"));
     auto tp_a = type_ptr(tv_a);
     auto tv_b = type_variable(make_iid("b"));
@@ -122,6 +124,7 @@ const types::scheme_t::map &get_builtins() {
 
     map = std::make_unique<types::scheme_t::map>();
 
+    (*map)["__builtin_hello"] = scheme({}, {}, Unit);
     (*map)["__builtin_word_size"] = scheme({}, {}, Int);
     (*map)["__builtin_min_int"] = scheme({}, {}, Int);
     (*map)["__builtin_max_int"] = scheme({}, {}, Int);
@@ -177,7 +180,7 @@ const types::scheme_t::map &get_builtins() {
     (*map)["__builtin_float_gte"] = scheme({}, {},
                                            type_arrows({Float, Float, Bool}));
     (*map)["__builtin_print"] = scheme(
-        {}, {}, type_arrows({String, type_unit(INTERNAL_LOC())}));
+        {}, {}, type_arrows({PtrToChar, type_unit(INTERNAL_LOC())}));
     (*map)["__builtin_exit"] = scheme({}, {},
                                       type_arrows({Int, type_bottom()}));
     (*map)["__builtin_calloc"] = scheme({"a"}, {}, type_arrows({Int, tp_a}));
@@ -876,8 +879,6 @@ void specialize_core(defn_map_t const &defn_map,
                        type->str().c_str(), translated_decl->str().c_str()));
     translation_map[final_name][type] = translated_decl;
   } catch (...) {
-    assert(get(translation_map, defn_id.id.name, type, translation_t::ref{}) ==
-           nullptr);
     translation_map[defn_id.id.name].erase(type);
     throw;
   }

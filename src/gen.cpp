@@ -74,7 +74,7 @@ void get_free_vars(const bitter::expr_t *expr,
       free_vars.add(var->id, get(typing, expr, {}));
     }
   } else if (auto lambda = dcast<const bitter::lambda_t *>(expr)) {
-    auto new_bindings = bindings;
+    std::unordered_set<std::string> new_bindings; // = bindings;
     new_bindings.insert(lambda->var.name);
     get_free_vars(lambda->body, typing, new_bindings, free_vars);
   } else if (auto application = dcast<const bitter::application_t *>(expr)) {
