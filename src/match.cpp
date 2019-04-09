@@ -101,10 +101,6 @@ template <> std::string Scalars<int64_t>::scalar_name() {
   return "integers";
 }
 
-template <> std::string Scalars<std::string>::scalar_name() {
-  return "strings";
-}
-
 std::shared_ptr<const CtorPattern> asCtorPattern(Pattern::ref pattern) {
   return dyncast<const CtorPattern>(pattern);
 }
@@ -127,10 +123,6 @@ std::shared_ptr<Scalars<int64_t>> allIntegers =
     std::make_shared<Scalars<int64_t>>(INTERNAL_LOC(),
                                        Scalars<int64_t>::Exclude,
                                        std::set<int64_t>{});
-std::shared_ptr<Scalars<std::string>> allStrings =
-    std::make_shared<Scalars<std::string>>(INTERNAL_LOC(),
-                                           Scalars<std::string>::Exclude,
-                                           std::set<std::string>{});
 
 Pattern::ref all_of(location_t location,
                     maybe<identifier_t> expr,
@@ -261,8 +253,6 @@ Pattern::ref intersect(Pattern::ref lhs, Pattern::ref rhs) {
   auto rhs_ctor_pattern = asCtorPattern(rhs);
   auto lhs_integers = asScalars<int64_t>(lhs);
   auto rhs_integers = asScalars<int64_t>(rhs);
-  auto lhs_strings = asScalars<std::string>(lhs);
-  auto rhs_strings = asScalars<std::string>(rhs);
 
   if (lhs_nothing || rhs_nothing) {
     /* intersection of nothing and anything is nothing */
@@ -297,10 +287,6 @@ Pattern::ref intersect(Pattern::ref lhs, Pattern::ref rhs) {
 
   if (lhs_integers && rhs_integers) {
     return intersect(*lhs_integers, *rhs_integers);
-  }
-
-  if (lhs_strings && rhs_strings) {
-    return intersect(*lhs_strings, *rhs_strings);
   }
 
   log_location(log_error, lhs->location,
@@ -371,8 +357,6 @@ Pattern::ref from_type(location_t location,
     }
     CtorPatternValue cpv{type->repr(), "tuple", args};
     return std::make_shared<CtorPattern>(location, cpv);
-  } else if (type_equality(type, type_string(INTERNAL_LOC()))) {
-    return allStrings;
   } else if (type_equality(type, type_int(INTERNAL_LOC()))) {
     return allIntegers;
   } else {
@@ -504,8 +488,6 @@ void difference(Pattern::ref lhs,
   auto rhs_ctor_pattern = asCtorPattern(rhs);
   auto lhs_integers = asScalars<int64_t>(lhs);
   auto rhs_integers = asScalars<int64_t>(rhs);
-  auto lhs_strings = asScalars<std::string>(lhs);
-  auto rhs_strings = asScalars<std::string>(rhs);
 
   if (lhs_nothing || rhs_nothing) {
     send(lhs);
@@ -586,13 +568,6 @@ void difference(Pattern::ref lhs,
   if (lhs_integers) {
     if (rhs_integers) {
       send(difference(*lhs_integers, *rhs_integers));
-      return;
-    }
-  }
-
-  if (lhs_strings) {
-    if (rhs_strings) {
-      send(difference(*lhs_strings, *rhs_strings));
       return;
     }
   }
@@ -716,17 +691,6 @@ Pattern::ref literal_t::get_pattern(type_t::ref type,
     } else if (token.tk == tk_identifier) {
       return std::make_shared<Scalars<int64_t>>(
           token.location, Scalars<int64_t>::Exclude, std::set<int64_t>{});
-    }
-  } else if (type_equality(type, type_string(INTERNAL_LOC()))) {
-    if (token.tk == tk_string) {
-      std::string value = unescape_json_quotes(token.text);
-      return std::make_shared<Scalars<std::string>>(
-          token.location, Scalars<std::string>::Include,
-          std::set<std::string>{value});
-    } else if (token.tk == tk_identifier) {
-      return std::make_shared<Scalars<std::string>>(
-          token.location, Scalars<std::string>::Exclude,
-          std::set<std::string>{});
     }
   }
 
