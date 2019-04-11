@@ -201,6 +201,7 @@ llvm::Value *lower_builtin(llvm::IRBuilder<> &builder,
     /* scheme({}, {}, type_arrows({Int, Int, Int})) */
   } else if (name == "__builtin_add_int") {
     /* scheme({}, {}, type_arrows({Int, Int, Int})) */
+    return builder.CreateAdd(params[0], params[1]);
   } else if (name == "__builtin_negate_int") {
     /* scheme({}, {}, type_arrows({Int, Int})) */
     return builder.CreateNeg(params[0]);
