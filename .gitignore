@@ -1,6 +1,7 @@
 profiler.trace
 *.ssa-gen
 .*.swo
+a.out
 test.c
 test
 build-*
