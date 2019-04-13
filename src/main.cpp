@@ -10,7 +10,6 @@
 #include "lexer.h"
 #include "logger.h"
 #include "logger_decls.h"
-#include "lower.h"
 #include "tests.h"
 #include "translate.h"
 #include "unification.h"

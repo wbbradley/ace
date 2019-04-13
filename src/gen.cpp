@@ -73,18 +73,26 @@ void get_free_vars(const bitter::expr_t *expr,
       free_vars.add(var->id, get(typing, expr, {}));
     }
   } else if (auto lambda = dcast<const bitter::lambda_t *>(expr)) {
+    bool already_has_lambda_var = in(lambda->var.name, free_vars);
     std::unordered_set<std::string> new_bindings; // = bindings;
     new_bindings.insert(lambda->var.name);
     get_free_vars(lambda->body, typing, new_bindings, free_vars);
+    /* we should never be adding a bound variable name to the closure if it is
+     * being overwritten at a lower scope prior to capture */
+    assert_implies(!already_has_lambda_var, !in(lambda->var.name, free_vars));
   } else if (auto application = dcast<const bitter::application_t *>(expr)) {
     get_free_vars(application->a, typing, bindings, free_vars);
     get_free_vars(application->b, typing, bindings, free_vars);
   } else if (auto let = dcast<const bitter::let_t *>(expr)) {
     // TODO: allow let-rec
+    bool already_has_let_var = in(let->var.name, free_vars);
     get_free_vars(let->value, typing, bindings, free_vars);
     auto new_bound_vars = bindings;
     new_bound_vars.insert(let->var.name);
     get_free_vars(let->body, typing, new_bound_vars, free_vars);
+    /* we should never be adding a bound variable name to the closure if it is
+     * being overwritten at a lower scope prior to capture */
+    assert_implies(!already_has_let_var, in(let->var.name, free_vars));
   } else if (auto fix = dcast<const bitter::fix_t *>(expr)) {
     get_free_vars(fix->f, typing, bindings, free_vars);
   } else if (auto condition = dcast<const bitter::conditional_t *>(expr)) {
@@ -241,6 +249,17 @@ function_t::ref builder_t::create_function(std::string name,
 }
 #endif
 
+llvm::Value * gen(llvm::IRBuilder<> &builder,
+                 llvm::BasicBlock *break_to_block,
+                 llvm::BasicBlock *continue_to_block,
+                 const bitter::expr_t *expr,
+                 const tracked_types_t &typing,
+                 const gen_env_t &gen_env,
+                 const std::unordered_set<std::string> &globals) {
+  return gen("", builder, break_to_block, continue_to_block, expr, typing,
+             gen_env, globals);
+}
+
 llvm::Value *gen_lambda(std::string name,
                         llvm::IRBuilder<> &builder,
                         const bitter::lambda_t *lambda,
@@ -274,77 +293,85 @@ llvm::Value *gen_lambda(std::string name,
 
   llvm::BasicBlock *block = llvm::BasicBlock::Create(builder.getContext(),
                                                      "entry", llvm_function);
-  llvm::InsertPointGuard ipg(builder);
+  std::vector<llvm::Value *> llvm_dims;
+  types::type_t::refs dim_types;
+
+  /* the closure includes a reference to its code so that it can be run */
+  llvm_dims.push_back(llvm_function);
+
+  // CAPTURE
+  /* this lambda requires closure over some variables from our environment,
+   * and as such requires that we add code to capture the free_vars and place
+   * them in our nested environment, but pointing to the closure, not to the
+   * outer environment. */
+  debug_above(8, log("for %s we need closure by value of %s", name.c_str(),
+                     free_vars.str().c_str()));
+
+  for (auto typed_id : free_vars.typed_ids) {
+    /* add a copy of each captured variable. If get_env_var fails here, then
+     * it means that get_free_vars is talking about a variable that just
+     * doesn't exist yet, and thus will need to be captured by a nested
+     * closure. */
+    llvm_dims.push_back(get_env_var(gen_env, typed_id.id, typed_id.type));
+    dim_types.push_back(typed_id.type);
+  }
+
+  /* actually copy the available free variables into the closure. if a
+   * variable does not exist at this scope, then we rely on a sub-scope that
+   * declares that variable to add it to the eventual node that does require
+   * the closure.
+   *
+   * (let f (lambda x (lambda y (lambda z y))))
+   *
+   * In the above example, the free vars at (lambda x... include y in the
+   * innermost (lambda z y), however at this moment, y is not even declared.
+   *
+   * */
+  auto *closure = (llvm_dims.size() == 1 && llvm_dims[0] == llvm_function)
+                      ? llvm_create_constant_struct_instance(
+                            llvm_create_struct_type(
+                                builder, "closure",
+                                {llvm_function->getType()->getPointerTo()}),
+                            std::vector<llvm::Constant *>({llvm_function}))
+                      : llvm_tuple_alloc(builder, llvm_dims);
+
+  llvm::IRBuilderBase::InsertPointGuard ipg(builder);
   builder.SetInsertPoint(block);
 
   /* put the param in scope */
   auto new_env = gen_env;
-  set_env_var(new_env, lambda->var.name, &*llvm_function->args().begin(),
-              true /*allow_shadowing*/);
+  set_env_var(new_env, lambda->var.name, type_terms[0],
+              &*llvm_function->args().begin(), true /*allow_shadowing*/);
 
-  value_t::ref closure;
+  llvm::Value *closure_env = builder.CreateBitCast(
+      llvm_function->arg_end() - 1, closure->getType(), "closure_env");
 
-  if (free_vars.count() != 0) {
-    /* this is a closure, and as such requires that we capture the free_vars
-     * from our current environment */
-    debug_above(8,
-                log("we need closure by value of %s", free_vars.str().c_str()));
-
-    std::vector<value_t::ref> dims;
-
-    /* the closure includes a reference to this function */
-    dims.push_back(function);
-
-    for (auto typed_id : free_vars.typed_ids) {
-      /* add a copy of each closed over variable */
-      dims.push_back(get_env_var(gen_env, typed_id.id, typed_id.type));
-    }
-
-    closure = builder.create_tuple(lambda->get_location(), dims);
-
-    /* let's add the closure argument to this function */
-    function->args.push_back(std::make_shared<argument_t>(
-        identifier_t{"__closure", INTERNAL_LOC()}, closure->type, 1, function));
-
-    int arg_index = 0;
-    for (auto typed_id : free_vars.typed_ids) {
-      // inject the closed over vars into the new environment within the closure
-      auto new_closure_var = new_builder.create_tuple_deref(
-          typed_id.id.location,
-          new_builder.create_cast(typed_id.id.location, function->args.back(),
-                                  tuple_type(dims),
-                                  "__closure_" + bitter::fresh()),
-          arg_index + 1);
-      set_env_var(new_env, typed_id.id.name, new_closure_var,
-                  true /*allow_shadowing*/);
-      ++arg_index;
-    }
-  } else {
-    /* this can be considered a top-level function that takes no closure gen_env
-     */
+  // TODO: consider injecting the lambda's name to avoid recursion issues...
+  int arg_index = 1;
+  for (auto typed_id : free_vars.typed_ids) {
+    // inject the closed over vars into the new environment within the closure
+    auto gep_path = std::vector<llvm::Value *>{builder.getInt32(0),
+                                               builder.getInt32(arg_index)};
+    llvm::Value *llvm_captured_value_in_lambda_scope = builder.CreateLoad(
+        builder.CreateInBoundsGEP(closure_env, gep_path));
+    llvm_captured_value_in_lambda_scope->setName(typed_id.id.name);
+    set_env_var(new_env, typed_id.id.name, dim_types[arg_index - 1],
+                llvm_captured_value_in_lambda_scope, true /*allow_shadowing*/);
+    ++arg_index;
   }
 
-  gen("", new_builder, break_to_block, continue_to_block, lambda->body, typing,
-      new_env, globals);
-  new_builder.ensure_terminator([](builder_t &builder) {
-    builder.create_return(builder.create_unit(INTERNAL_LOC()));
-  });
-  return ((free_vars.count() != 0)
-              ? builder.create_cast(closure->get_location(), closure,
-                                    function->type,
-                                    "__closure_as_func_" + bitter::fresh())
-              : function);
-}
+  /* now build the body of the function */
+  gen(builder, nullptr /*break_to_block*/, nullptr /*continue_to_block*/,
+      lambda->body, typing, new_env, globals);
 
-value_t::ref gen(builder_t &builder,
-                 llvm::BasicBlock *break_to_block,
-                 llvm::BasicBlock *continue_to_block,
-                 const bitter::expr_t *expr,
-                 const tracked_types_t &typing,
-                 const gen_env_t &gen_env,
-                 const std::unordered_set<std::string> &globals) {
-  return gen("", builder, break_to_block, continue_to_block, expr, typing,
-             gen_env, globals);
+  if (builder.GetInsertBlock()->getTerminator() == nullptr) {
+    /* ensure that we have a terminator */
+    builder.CreatRet(
+        llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo()));
+  }
+
+  return builder.CreateCast(closure->get_location(), closure, function->type,
+                            "__closure_as_func_" + bitter::fresh());
 }
 
 value_t::ref gen(std::string name,
