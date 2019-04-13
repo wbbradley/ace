@@ -470,6 +470,7 @@ llvm::Function *llvm_start_function(llvm::IRBuilder<> &builder,
                                     std::string name) {
   debug_above(7, log("llvm_start_function(..., ..., {%s}, %s)...",
                      join_str(terms).c_str(), name.c_str()));
+  assert(llvm_module != nullptr);
   assert(terms.size() == 3);
   std::vector<llvm::Type *> llvm_type_terms = get_llvm_types(builder, terms);
 
