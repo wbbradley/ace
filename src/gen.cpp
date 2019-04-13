@@ -335,46 +335,53 @@ llvm::Value *gen_lambda(std::string name,
                             std::vector<llvm::Constant *>({llvm_function}))
                       : llvm_tuple_alloc(builder, llvm_dims);
 
-  llvm::IRBuilderBase::InsertPointGuard ipg(builder);
-  builder.SetInsertPoint(block);
+  // BLOCK
+  {
+    llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+    builder.SetInsertPoint(block);
 
-  /* put the param in scope */
-  auto new_env = gen_env;
-  set_env_var(new_env, lambda->var.name, type_terms[0],
-              &*llvm_function->args().begin(), true /*allow_shadowing*/);
+    /* put the param in scope */
+    auto new_env = gen_env;
+    set_env_var(new_env, lambda->var.name, type_terms[0],
+                &*llvm_function->args().begin(), true /*allow_shadowing*/);
 
-  llvm::Value *closure_env = builder.CreateBitCast(
-      llvm_function->arg_end() - 1, closure->getType(), "closure_env");
+    llvm::Value *closure_env = builder.CreateBitCast(
+        llvm_function->arg_end() - 1, closure->getType(), "closure_env");
 
-  // TODO: consider injecting the lambda's name to avoid recursion issues...
-  int arg_index = 1;
-  for (auto typed_id : free_vars.typed_ids) {
-    // inject the closed over vars into the new environment within the closure
-    auto gep_path = std::vector<llvm::Value *>{builder.getInt32(0),
-                                               builder.getInt32(arg_index)};
-    llvm::Value *llvm_captured_value_in_lambda_scope = builder.CreateLoad(
-        builder.CreateInBoundsGEP(closure_env, gep_path));
-    llvm_captured_value_in_lambda_scope->setName(typed_id.id.name);
-    set_env_var(new_env, typed_id.id.name, dim_types[arg_index - 1],
-                llvm_captured_value_in_lambda_scope, true /*allow_shadowing*/);
-    ++arg_index;
+    // TODO: consider injecting the lambda's name to avoid recursion issues...
+    int arg_index = 1;
+    for (auto typed_id : free_vars.typed_ids) {
+      // inject the closed over vars into the new environment within the closure
+      auto gep_path = std::vector<llvm::Value *>{builder.getInt32(0),
+                                                 builder.getInt32(arg_index)};
+      llvm::Value *llvm_captured_value_in_lambda_scope = builder.CreateLoad(
+          builder.CreateInBoundsGEP(closure_env, gep_path));
+      llvm_captured_value_in_lambda_scope->setName(typed_id.id.name);
+      set_env_var(new_env, typed_id.id.name, dim_types[arg_index - 1],
+                  llvm_captured_value_in_lambda_scope,
+                  true /*allow_shadowing*/);
+      ++arg_index;
+    }
+
+    /* now build the body of the function */
+    gen(builder, nullptr /*break_to_block*/, nullptr /*continue_to_block*/,
+        lambda->body, typing, new_env, globals);
+
+    if (builder.GetInsertBlock()->getTerminator() == nullptr) {
+      /* ensure that we have a terminator */
+      builder.CreateRet(
+          llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo()));
+    }
   }
 
-  /* now build the body of the function */
-  gen(builder, nullptr /*break_to_block*/, nullptr /*continue_to_block*/,
-      lambda->body, typing, new_env, globals);
-
-  if (builder.GetInsertBlock()->getTerminator() == nullptr) {
-    /* ensure that we have a terminator */
-    builder.CreatRet(
-        llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo()));
-  }
-
-  return builder.CreateCast(closure->get_location(), closure, function->type,
-                            "__closure_as_func_" + bitter::fresh());
+  return builder.CreateBitCast(
+      closure,
+      llvm_create_struct_type(builder, "opaque_closure",
+                              {llvm_function->getType()->getPointerTo(),
+                               builder.getInt8Ty()->getPointerTo()}));
 }
 
-value_t::ref gen(std::string name,
+llvm::Value *gen(std::string name,
                  builder_t &builder,
                  llvm::BasicBlock *break_to_block,
                  llvm::BasicBlock *continue_to_block,
