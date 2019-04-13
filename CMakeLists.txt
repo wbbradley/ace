@@ -34,7 +34,6 @@ add_executable(zion
 	src/defn_id.cpp
 	src/disk.cpp
 	src/env.cpp
-	src/lower.cpp
 	src/gen.cpp
 	src/identifier.cpp
 	src/infer.cpp

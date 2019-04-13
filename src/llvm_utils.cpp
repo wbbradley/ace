@@ -400,6 +400,18 @@ llvm::StructType *llvm_create_struct_type(
                                  get_llvm_types(builder, dimensions));
 }
 
+llvm::StructType *llvm_create_struct_type(
+    llvm::IRBuilder<> &builder,
+    std::string name,
+    const std::vector<llvm::Value*> &llvm_dims) {
+  std::vector<llvm::Type*> llvm_types;
+  for (auto llvm_dim: llvm_dims) {
+    llvm_types.push_back(llvm_dim.getType());
+  }
+  return llvm_create_struct_type(builder, name,
+                                 llvm_types);
+}
+
 void llvm_verify_function(location_t location, llvm::Function *llvm_function) {
   debug_above(5, log("writing to function-verification-failure.llir..."));
   std::string llir_filename = "function-verification-failure.llir";
@@ -762,3 +774,50 @@ std::vector<llvm::Type *> llvm_get_types(
   }
   return llvm_types;
 }
+
+llvm::Value *llvm_tuple_alloc(llvm::IRBuilder<> &builder,
+                              const std::vector<llvm::Value *> llvm_dims) {
+  llvm::StructType *llvm_tuple_type = llvm_create_struct_type(builder, "tuple", llvm_dims);
+  std::vector<llvm::Type *> alloc_terms{builder.getInt64Ty()};
+  debug_above(6, log("need to allocate a tuple of type %s",
+                     llvm_print(llvm_tuple_type).c_str()));
+  auto llvm_module = llvm_get_module(builder);
+  auto llvm_alloc_func_decl = llvm::cast<llvm::Function>(
+      llvm_module->getOrInsertFunction(
+          "malloc",
+          llvm_create_function_type(builder, alloc_terms,
+                                    builder.getInt8Ty()->getPointerTo())));
+  llvm::Value *llvm_allocated_tuple = builder.CreateBitCast(
+      builder.CreateCall(llvm_alloc_func_decl,
+                         std::vector<llvm::Value *>{
+                             llvm_sizeof_type(builder, llvm_tuple_type)}),
+      llvm_tuple_type->getPointerTo());
+
+  llvm::Value *llvm_zero = llvm::ConstantInt::get(
+      llvm::Type::getInt32Ty(builder.getContext()), 0);
+
+  /* actually copy the dims into the allocated space */
+  for (int i = 0; i < llvm_dims.size(); ++i) {
+    llvm::Value *llvm_index = llvm::ConstantInt::get(
+        llvm::Type::getInt32Ty(builder.getContext()), i);
+    llvm::Value *llvm_gep_args[] = {llvm_zero, llvm_index};
+    debug_above(7, log("builder.CreateStore(%s, builder.CreateInBoundsGEP(%s, "
+                       "%s, {0, %d}))",
+                       llvm_print(llvm_dims[i]->getType()).c_str(),
+                       llvm_print(llvm_tuple_type).c_str(),
+                       llvm_print(llvm_allocated_tuple->getType()).c_str(), i));
+    llvm::Value *llvm_member_address = builder.CreateInBoundsGEP(
+        llvm_tuple_type, llvm_allocated_tuple, llvm_gep_args);
+    debug_above(7, log("GEP returned %s with type %s",
+                       llvm_print(llvm_member_address).c_str(),
+                       llvm_print(llvm_member_address->getType()).c_str()));
+
+    builder.CreateStore(
+        builder.CreateBitCast(
+            llvm_dims[i],
+            llvm_member_address->getType()->getPointerElementType()),
+        llvm_member_address);
+  }
+  return llvm_allocated_tuple;
+}
+
