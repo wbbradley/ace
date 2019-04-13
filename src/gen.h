@@ -28,8 +28,10 @@ void set_env_var(gen_env_t &env,
 
 llvm::Value *gen(std::string name,
                  llvm::IRBuilder<> &builder,
+                 llvm::BasicBlock *break_to_block,
+                 llvm::BasicBlock *continue_to_block,
                  const bitter::expr_t *expr,
                  const tracked_types_t &typing,
-                 const gen_env_t &env,
+                 const gen_env_t &gen_env,
                  const std::unordered_set<std::string> &globals);
 } // namespace gen
