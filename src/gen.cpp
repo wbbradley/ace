@@ -327,13 +327,22 @@ llvm::Value *gen_lambda(std::string name,
    * innermost (lambda z y), however at this moment, y is not even declared.
    *
    * */
+  llvm::StructType *llvm_closure_type = llvm::StructType::get(
+      llvm_function->getType()->getPointerTo(),
+      builder.getInt8Ty()->getPointerTo());
+
   auto *closure = (llvm_dims.size() == 1 && llvm_dims[0] == llvm_function)
-                      ? llvm_create_constant_struct_instance(
-                            llvm_create_struct_type(
-                                builder, "closure",
-                                {llvm_function->getType()->getPointerTo()}),
-                            std::vector<llvm::Constant *>({llvm_function}))
+                      ? llvm::ConstantStruct::get(
+                            llvm_closure_type,
+                            std::vector<llvm::Constant *>(
+                                {llvm_function,
+                                 llvm::Constant::getNullValue(
+                                     builder.getInt8Ty()->getPointerTo())}))
                       : llvm_tuple_alloc(builder, llvm_dims);
+
+  /* we should always be returning the same type, and it should be the closure
+   * type */
+  assert(closure->getType() == llvm_closure_type->getPointerTo());
 
   // BLOCK
   {
@@ -374,15 +383,19 @@ llvm::Value *gen_lambda(std::string name,
     }
   }
 
-  return builder.CreateBitCast(
-      closure,
-      llvm_create_struct_type(builder, "opaque_closure",
-                              {llvm_function->getType()->getPointerTo(),
-                               builder.getInt8Ty()->getPointerTo()}));
+  return closure;
+}
+
+llvm::Value *gen_literal(std::string name,
+                         llvm::IRBuilder<> &builder,
+                         const bitter::literal_t *literal,
+                         types::type_t::ref type) {
+  assert(false);
+  return nullptr;
 }
 
 llvm::Value *gen(std::string name,
-                 builder_t &builder,
+                 llvm::IRBuilder<> &builder,
                  llvm::BasicBlock *break_to_block,
                  llvm::BasicBlock *continue_to_block,
                  const bitter::expr_t *expr,
@@ -399,7 +412,7 @@ llvm::Value *gen(std::string name,
 
     debug_above(8, log("gen(..., %s, ..., ...)", expr->str().c_str()));
     if (auto literal = dcast<const bitter::literal_t *>(expr)) {
-      return builder.create_literal(literal->token, type);
+      return gen_literal(name, builder, literal, type);
     } else if (auto static_print = dcast<const bitter::static_print_t *>(
                    expr)) {
       assert(false);
@@ -408,17 +421,30 @@ llvm::Value *gen(std::string name,
     } else if (auto lambda = dcast<const bitter::lambda_t *>(expr)) {
       return gen_lambda(name, builder, lambda, type, typing, gen_env, globals);
     } else if (auto application = dcast<const bitter::application_t *>(expr)) {
-      return builder.create_call(
-          gen(builder, break_to_block, continue_to_block, application->a,
-              typing, gen_env, globals),
-          {gen(builder, application->b, typing, gen_env, globals)}, type, name);
+      auto closure = gen(builder, break_to_block, continue_to_block,
+                         application->a, typing, gen_env, globals);
+
+      auto lambda_arg = gen(builder, break_to_block, continue_to_block,
+                            application->b, typing, gen_env, globals);
+
+      llvm::Value *llvm_function;
+      llvm::Value *llvm_closure_env;
+      destructure_closure(closure, &llvm_function, &llvm_closure_env);
+
+      llvm::Value *args[] = {lambda_arg, llvm_closure_env};
+
+      return builder.CreateCall(llvm_function,
+                                llvm::ArrayRef<llvm::Value *>(args));
     } else if (auto let = dcast<const bitter::let_t *>(expr)) {
       auto new_env = gen_env;
       auto let_value = gen(builder, break_to_block, continue_to_block,
                            let->value, typing, gen_env, globals);
-      set_env_var(new_env, let->var.name, let_value, true /*allow_shadowing*/);
-      return gen(builder, continue_to_block, let->body, typing, new_env,
-                 globals);
+      set_env_var(new_env, let->var.name,
+                  get(typing, static_cast<const bitter::expr_t *>(let->body),
+                      types::type_t::ref{}),
+                  let_value, true /*allow_shadowing*/);
+      return gen(builder, break_to_block, continue_to_block, let->body, typing,
+                 new_env, globals);
     } else if (auto fix = dcast<const bitter::fix_t *>(expr)) {
       assert(false);
     } else if (auto condition = dcast<const bitter::conditional_t *>(expr)) {

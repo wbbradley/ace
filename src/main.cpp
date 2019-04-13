@@ -947,12 +947,7 @@ struct phase_4_t {
     for (auto pair : gen_env) {
       for (auto overload : pair.second) {
         os << pair.first << " :: " << overload.first->repr() << std::endl;
-        gen::value_t::ref value = gen::resolve_proxy(overload.second);
-        if (value == nullptr) {
-          value = overload.second;
-        }
-
-        value->render(os);
+        os << llvm_print(overload.second);
         os << std::endl;
       }
     }
