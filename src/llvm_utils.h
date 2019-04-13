@@ -137,3 +137,6 @@ llvm::StructType *llvm_find_struct(llvm::Type *llvm_type);
 void llvm_generate_dead_return(llvm::IRBuilder<> &builder);
 llvm::Instruction *llvm_dead_return(llvm::IRBuilder<> &builder,
                                     llvm::Type *llvm_return_type);
+
+void check_value_is_closure(llvm::Value *closure);
+void destructure_closure(llvm::Value *closure, llvm::Value **llvm_function, llvm::Value **llvm_closure_env);

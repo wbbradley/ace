@@ -377,11 +377,10 @@ llvm::Constant *llvm_create_constant_struct_instance(
 llvm::StructType *llvm_create_struct_type(
     llvm::IRBuilder<> &builder,
     std::string name,
-    const std::vector<llvm::Type *> &llvm_types) {
-  llvm::ArrayRef<llvm::Type *> llvm_dims{llvm_types};
-
-  auto llvm_struct_type = llvm::StructType::create(builder.getContext(),
-                                                   llvm_dims);
+    const std::vector<llvm::Type *> &llvm_types_) {
+  llvm::ArrayRef<llvm::Type *> llvm_types{llvm_types_};
+  auto llvm_struct_type = llvm::StructType::get(builder.getContext(),
+                                                llvm_types);
 
   /* give the struct a helpful name internally */
   llvm_struct_type->setName(name);
@@ -406,7 +405,7 @@ llvm::StructType *llvm_create_struct_type(
     const std::vector<llvm::Value*> &llvm_dims) {
   std::vector<llvm::Type*> llvm_types;
   for (auto llvm_dim: llvm_dims) {
-    llvm_types.push_back(llvm_dim.getType());
+    llvm_types.push_back(llvm_dim->getType());
   }
   return llvm_create_struct_type(builder, name,
                                  llvm_types);
@@ -821,3 +820,46 @@ llvm::Value *llvm_tuple_alloc(llvm::IRBuilder<> &builder,
   return llvm_allocated_tuple;
 }
 
+void check_value_is_closure(llvm::Value *closure) {
+  llvm::Value *_;
+  destructure_closure(closure, &_, &_);
+}
+
+void destructure_closure(llvm::Value *closure,
+                         llvm::Value **llvm_function,
+                         llvm::Value **llvm_closure_env) {
+  auto &context = closure->getContext();
+  assert(closure->getType()->isPointerTy());
+  auto inner_type = closure->getType()->getPointerElementType();
+  auto struct_type = llvm::dyn_cast<llvm::StructType>(inner_type);
+  assert(struct_type != nullptr);
+  assert(struct_type->getNumElements() == 2);
+
+  // First part of the tuple is the function pointer
+  auto llvm_function_ptr_type = struct_type->getElementType(0);
+  assert(llvm_function_ptr_type->isPointerTy());
+  auto llvm_callable_type = llvm_function_ptr_type->getPointerElementType();
+  assert(llvm_callable_type != nullptr);
+  llvm::FunctionType *llvm_function_type = llvm::dyn_cast<llvm::FunctionType>(
+      llvm_callable_type);
+  assert(llvm_function_type != nullptr);
+  auto params = llvm_function_type->params();
+
+  // Must accept the closure env.
+  assert(params.size() >= 1);
+  assert(params.back() == llvm::Type::getInt8Ty(context));
+
+  // Second part of the tuple is the closure env pointer (i8*)
+  auto llvm_closure_env_type = struct_type->getElementType(1);
+  assert(llvm_closure_env_type == llvm::Type::getInt8Ty(context));
+
+  llvm::IRBuilder<> &builder(context);
+  auto gep_function_path = std::vector<llvm::Value *>{builder.getInt32(0),
+                                                      builder.getInt32(0)};
+  auto gep_env_path = std::vector<llvm::Value *>{builder.getInt32(0),
+                                                 builder.getInt32(1)};
+  *llvm_function = builder.CreateLoad(
+      builder.CreateInBoundsGEP(closure, gep_function_path));
+  *llvm_closure_env = builder.CreateLoad(
+      builder.CreateInBoundsGEP(closure, gep_env_path));
+}
