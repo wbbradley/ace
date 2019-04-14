@@ -6,6 +6,12 @@
 #include "types.h"
 #include "user_error.h"
 
+#define assert_not_impl()                                                      \
+  do {                                                                         \
+    std::cout << llvm_print_module(*llvm_get_module(builder)) << std::endl;    \
+    assert(false);                                                             \
+  } while (0)
+
 namespace gen {
 
 // llvm::IRBuilderBase::InsertPointGuard ipg(builder);
@@ -26,23 +32,23 @@ struct ip_guard_t {
 struct loop_guard_t {
   llvm::BasicBlock *old_break_to_block;
   llvm::BasicBlock *old_continue_to_block;
-  llvm::BasicBlock *&break_to_block;
-  llvm::BasicBlock *&continue_to_block;
+  llvm::BasicBlock **break_to_block;
+  llvm::BasicBlock **continue_to_block;
 
   loop_guard_t(llvm::BasicBlock *new_break_to_block,
                llvm::BasicBlock *new_continue_to_block,
-               llvm::BasicBlock *&break_to_block,
-               llvm::BasicBlock *&continue_to_block)
-      : old_break_to_block(break_to_block),
-        old_continue_to_block(continue_to_block),
-        break_to_block(break_to_block), continue_to_block(continue_to_block) {
-    break_to_block = new_break_to_block;
-    continue_to_block = new_continue_to_block;
+               llvm::BasicBlock **break_to_block_,
+               llvm::BasicBlock **continue_to_block_)
+      : old_break_to_block(*break_to_block_),
+        old_continue_to_block(*continue_to_block_),
+        break_to_block(break_to_block_), continue_to_block(continue_to_block_) {
+    *break_to_block = new_break_to_block;
+    *continue_to_block = new_continue_to_block;
   }
 
   ~loop_guard_t() {
-    break_to_block = old_break_to_block;
-    continue_to_block = old_continue_to_block;
+    *break_to_block = old_break_to_block;
+    *continue_to_block = old_continue_to_block;
   }
 };
 
@@ -194,6 +200,140 @@ void set_env_var(gen_env_t &gen_env,
   assert(get(gen_env, name, type, (llvm::Value *)nullptr) != nullptr);
 }
 
+llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
+                         const std::string &name,
+                         const std::vector<llvm::Value *> &params) {
+  debug_above(7, log("lowering builtin %s(%s)...", name.c_str(),
+                     join_with(params, ", ", [](llvm::Value *lv) {
+                       return llvm_print(lv);
+                     }).c_str()));
+
+  if (name == "__builtin_word_size") {
+    /* scheme({}, {}, Int) */
+  } else if (name == "__builtin_min_int") {
+    /* scheme({}, {}, Int) */
+  } else if (name == "__builtin_max_int") {
+    /* scheme({}, {}, Int) */
+  } else if (name == "__builtin_multiply_int") {
+    /* scheme({}, {}, type_arrows({Int, Int, Int})) */
+  } else if (name == "__builtin_divide_int") {
+    /* scheme({}, {}, type_arrows({Int, Int, Int})) */
+  } else if (name == "__builtin_subtract_int") {
+    /* scheme({}, {}, type_arrows({Int, Int, Int})) */
+  } else if (name == "__builtin_add_int") {
+    /* scheme({}, {}, type_arrows({Int, Int, Int})) */
+    return builder.CreateAdd(params[0], params[1]);
+  } else if (name == "__builtin_negate_int") {
+    /* scheme({}, {}, type_arrows({Int, Int})) */
+    return builder.CreateNeg(params[0]);
+  } else if (name == "__builtin_abs_int") {
+    /* scheme({}, {}, type_arrows({Int, Int})) */
+  } else if (name == "__builtin_multiply_float") {
+    /* scheme({}, {}, type_arrows({Float, Float, Float})) */
+  } else if (name == "__builtin_divide_float") {
+    /* scheme({}, {}, type_arrows({Float, Float, Float})) */
+  } else if (name == "__builtin_subtract_float") {
+    /* scheme({}, {}, type_arrows({Float, Float, Float})) */
+  } else if (name == "__builtin_add_float") {
+    /* scheme({}, {}, type_arrows({Float, Float, Float})) */
+  } else if (name == "__builtin_abs_float") {
+    /* scheme({}, {}, type_arrows({Float, Float})) */
+  } else if (name == "__builtin_int_to_float") {
+    /* scheme({}, {}, type_arrows({Int, Float})) */
+  } else if (name == "__builtin_negate_float") {
+    /* scheme({}, {}, type_arrows({Float, Float})) */
+  } else if (name == "__builtin_add_ptr") {
+    /* scheme({"a"}, {}, type_arrows({tp_a, Int, tp_a})) */
+    return builder.CreateGEP(params[0], std::vector<llvm::Value *>{params[1]});
+  } else if (name == "__builtin_ptr_eq") {
+    /* scheme({"a"}, {}, type_arrows({tp_a, tp_a, Bool})) */
+  } else if (name == "__builtin_ptr_ne") {
+    /* scheme({"a"}, {}, type_arrows({tp_a, tp_a, Bool})) */
+  } else if (name == "__builtin_ptr_load") {
+    /* scheme({"a"}, {}, type_arrows({tp_a, tv_a})) */
+    return builder.CreateLoad(params[0]);
+  } else if (name == "__builtin_get_dim") {
+    /* scheme({"a", "b"}, {}, type_arrows({tv_a, Int, tv_b})) */
+  } else if (name == "__builtin_get_ctor_id") {
+    /* scheme({"a"}, {}, type_arrows({tv_a, Int})) */
+  } else if (name == "__builtin_int_eq") {
+    /* scheme({}, {}, type_arrows({Int, Int, Bool})) */
+  } else if (name == "__builtin_int_ne") {
+    /* scheme({}, {}, type_arrows({Int, Int, Bool})) */
+  } else if (name == "__builtin_int_lt") {
+    /* scheme({}, {}, type_arrows({Int, Int, Bool})) */
+  } else if (name == "__builtin_int_lte") {
+    /* scheme({}, {}, type_arrows({Int, Int, Bool})) */
+  } else if (name == "__builtin_int_gt") {
+    /* scheme({}, {}, type_arrows({Int, Int, Bool})) */
+  } else if (name == "__builtin_int_gte") {
+    /* scheme({}, {}, type_arrows({Int, Int, Bool})) */
+  } else if (name == "__builtin_float_eq") {
+    /* scheme({}, {}, type_arrows({Float, Float, Bool})) */
+  } else if (name == "__builtin_float_ne") {
+    /* scheme({}, {}, type_arrows({Float, Float, Bool})) */
+  } else if (name == "__builtin_float_lt") {
+    /* scheme({}, {}, type_arrows({Float, Float, Bool})) */
+  } else if (name == "__builtin_float_lte") {
+    /* scheme({}, {}, type_arrows({Float, Float, Bool})) */
+  } else if (name == "__builtin_float_gt") {
+    /* scheme({}, {}, type_arrows({Float, Float, Bool})) */
+  } else if (name == "__builtin_float_gte") {
+    /* scheme({}, {}, type_arrows({Float, Float, Bool})) */
+  } else if (name == "__builtin_print") {
+    /* scheme({}, {}, type_arrows({*Char, type_unit(INTERNAL_LOC())})) */
+    auto llvm_module = llvm_get_module(builder);
+    llvm::Type *write_terms[] = {builder.getInt8Ty()->getPointerTo()};
+
+    assert(params.size() == 1);
+
+    // libc dependency
+    auto llvm_write_func_decl = llvm::cast<llvm::Function>(
+        llvm_module->getOrInsertFunction(
+            "puts",
+            llvm::FunctionType::get(builder.getInt64Ty(),
+                                    llvm::ArrayRef<llvm::Type *>(write_terms),
+                                    false /*isVarArg*/)));
+    return builder.CreateIntToPtr(
+        builder.CreateCall(llvm_write_func_decl, params),
+        builder.getInt8Ty()->getPointerTo());
+  } else if (name == "__builtin_exit") {
+    /* scheme({}, {}, type_arrows({Int, type_bottom()})) */
+  } else if (name == "__builtin_calloc") {
+    /* scheme({"a"}, {}, type_arrows({Int, tp_a})) */
+  } else if (name == "__builtin_store_ref") {
+    /* scheme({"a"}, {}, type_arrows({
+     * type_operator(type_id(make_iid(REF_TYPE_OPERATOR)), tv_a), tv_a,
+     * type_unit(INTERNAL_LOC())})) */
+  } else if (name == "__builtin_store_ptr") {
+    /* scheme({"a"}, {}, type_arrows({
+     * type_operator(type_id(make_iid(PTR_TYPE_OPERATOR)), tv_a), tv_a,
+     * type_unit(INTERNAL_LOC())})) */
+  } else if (name == "__builtin_hello") {
+    /* scheme({}, {}, Unit) */
+    auto llvm_module = llvm_get_module(builder);
+    llvm::Type *write_terms[] = {builder.getInt8Ty()->getPointerTo()};
+
+    std::vector<llvm::Value *> params = {
+        llvm_create_global_string_constant(builder, *llvm_module, "hello")};
+
+    // libc dependency
+    auto llvm_write_func_decl = llvm::cast<llvm::Function>(
+        llvm_module->getOrInsertFunction(
+            "puts",
+            llvm::FunctionType::get(builder.getInt64Ty(),
+                                    llvm::ArrayRef<llvm::Type *>(write_terms),
+                                    false /*isVarArg*/)));
+    return builder.CreateIntToPtr(
+        builder.CreateCall(llvm_write_func_decl, params),
+        builder.getInt8Ty()->getPointerTo());
+  }
+
+  log("Need an impl for " c_id("%s"), name.c_str());
+  assert_not_impl();
+  return nullptr;
+}
+
 #if 0
 bool is_terminator(instruction_t::ref inst) {
   if (dyncast<return_t>(inst)) {
@@ -249,12 +389,12 @@ function_t::ref builder_t::create_function(std::string name,
 }
 #endif
 
-llvm::Value * gen(llvm::IRBuilder<> &builder,
+llvm::Value *gen(llvm::IRBuilder<> &builder,
                  llvm::BasicBlock *break_to_block,
                  llvm::BasicBlock *continue_to_block,
                  const bitter::expr_t *expr,
                  const tracked_types_t &typing,
-                 const gen_env_t &gen_env,
+                 gen_env_t &gen_env,
                  const std::unordered_set<std::string> &globals) {
   return gen("", builder, break_to_block, continue_to_block, expr, typing,
              gen_env, globals);
@@ -265,7 +405,7 @@ llvm::Value *gen_lambda(std::string name,
                         const bitter::lambda_t *lambda,
                         types::type_t::ref type,
                         const tracked_types_t &typing,
-                        const gen_env_t &gen_env,
+                        gen_env_t &gen_env,
                         const std::unordered_set<std::string> &globals) {
   /* see if we need to lift any free variables into a closure */
   free_vars_t free_vars;
@@ -285,11 +425,6 @@ llvm::Value *gen_lambda(std::string name,
 
   llvm::Function *llvm_function = llvm_start_function(
       builder, llvm_get_module(builder), actual_type_terms, name);
-
-#if 0
-  function_t::ref function = builder.create_function(
-      name, {lambda->var}, lambda->get_location(), type);
-#endif
 
   llvm::BasicBlock *block = llvm::BasicBlock::Create(builder.getContext(),
                                                      "entry", llvm_function);
@@ -344,6 +479,11 @@ llvm::Value *gen_lambda(std::string name,
    * type */
   assert(closure->getType() == llvm_closure_type->getPointerTo());
 
+  if (name.size() != 0) {
+    /* make sure the closure's name is visible in its scope */
+    set_env_var(gen_env, name, type, closure, true /*allow_shadowing*/);
+  }
+
   // BLOCK
   {
     llvm::IRBuilderBase::InsertPointGuard ipg(builder);
@@ -361,8 +501,8 @@ llvm::Value *gen_lambda(std::string name,
     int arg_index = 1;
     for (auto typed_id : free_vars.typed_ids) {
       // inject the closed over vars into the new environment within the closure
-      auto gep_path = std::vector<llvm::Value *>{builder.getInt32(0),
-                                                 builder.getInt32(arg_index)};
+      llvm::Value *gep_path[] = {builder.getInt32(0),
+                                 builder.getInt32(arg_index)};
       llvm::Value *llvm_captured_value_in_lambda_scope = builder.CreateLoad(
           builder.CreateInBoundsGEP(closure_env, gep_path));
       llvm_captured_value_in_lambda_scope->setName(typed_id.id.name);
@@ -400,7 +540,7 @@ llvm::Value *gen(std::string name,
                  llvm::BasicBlock *continue_to_block,
                  const bitter::expr_t *expr,
                  const tracked_types_t &typing,
-                 const gen_env_t &gen_env,
+                 gen_env_t &gen_env,
                  const std::unordered_set<std::string> &globals) {
   try {
     auto type = get(typing, expr, {});
@@ -412,7 +552,13 @@ llvm::Value *gen(std::string name,
 
     debug_above(8, log("gen(..., %s, ..., ...)", expr->str().c_str()));
     if (auto literal = dcast<const bitter::literal_t *>(expr)) {
-      return gen_literal(name, builder, literal, type);
+      auto llvm_literal = gen_literal(name, builder, literal, type);
+      if (name.size() != 0) {
+        /* ensure symbol visibility in scope */
+        set_env_var(gen_env, name, type, llvm_literal,
+                    true /*allow_shadowing*/);
+      }
+      return llvm_literal;
     } else if (auto static_print = dcast<const bitter::static_print_t *>(
                    expr)) {
       assert(false);
@@ -427,13 +573,14 @@ llvm::Value *gen(std::string name,
       auto lambda_arg = gen(builder, break_to_block, continue_to_block,
                             application->b, typing, gen_env, globals);
 
-      llvm::Value *llvm_function;
+      llvm::Value *llvm_function_to_call;
       llvm::Value *llvm_closure_env;
-      destructure_closure(closure, &llvm_function, &llvm_closure_env);
+      destructure_closure(closure, &llvm_function_to_call, &llvm_closure_env);
 
       llvm::Value *args[] = {lambda_arg, llvm_closure_env};
 
-      return builder.CreateCall(llvm_function,
+      assert(name == "");
+      return builder.CreateCall(llvm_function_to_call,
                                 llvm::ArrayRef<llvm::Value *>(args));
     } else if (auto let = dcast<const bitter::let_t *>(expr)) {
       auto new_env = gen_env;
@@ -443,6 +590,8 @@ llvm::Value *gen(std::string name,
                   get(typing, static_cast<const bitter::expr_t *>(let->body),
                       types::type_t::ref{}),
                   let_value, true /*allow_shadowing*/);
+
+      assert(name == "");
       return gen(builder, break_to_block, continue_to_block, let->body, typing,
                  new_env, globals);
     } else if (auto fix = dcast<const bitter::fix_t *>(expr)) {
@@ -450,123 +599,125 @@ llvm::Value *gen(std::string name,
     } else if (auto condition = dcast<const bitter::conditional_t *>(expr)) {
       auto cond = gen(builder, break_to_block, continue_to_block,
                       condition->cond, typing, gen_env, globals);
-      block_t::ref truthy_branch = builder.create_block(
-          "truthy" + bitter::fresh(), false /*insert_in_new_block*/);
-      block_t::ref falsey_branch = builder.create_block(
-          "falsey" + bitter::fresh(), false /*insert_in_new_block*/);
-      block_t::ref merge_branch;
+      llvm::Function *llvm_function = llvm_get_function(builder);
 
-      builder.create_cond_branch(cond, truthy_branch, falsey_branch);
+      auto tag = bitter::fresh();
+      llvm::BasicBlock *truthy_block = llvm::BasicBlock::Create(
+          builder.getContext(), "truthy." + tag, llvm_function);
+      llvm::BasicBlock *falsey_block = llvm::BasicBlock::Create(
+          builder.getContext(), "falsey." + tag, llvm_function);
+      llvm::BasicBlock *merge_block = nullptr;
 
-      builder.set_insertion_block(truthy_branch);
-      value_t::ref truthy_value = gen(builder, break_to_block,
+      builder.CreateCondBr(cond, truthy_block, falsey_block);
+      builder.SetInsertPoint(truthy_block);
+      llvm::Value *truthy_value = gen(builder, break_to_block,
                                       continue_to_block, condition->truthy,
                                       typing, gen_env, globals);
-      bool truthy_terminates = has_terminator(builder.block->instructions);
-      if (!truthy_terminates) {
-        merge_branch = builder.create_block("merge" + bitter::fresh(),
-                                            false /*insert_in_new_block*/);
-        builder.merge_value_into(condition->truthy->get_location(),
-                                 truthy_value, merge_branch);
+
+      llvm::PHINode *phi_node = nullptr;
+      if (!builder.GetInsertBlock()->getTerminator()) {
+        merge_block = llvm::BasicBlock::Create(builder.getContext(),
+                                               "merge." + tag, llvm_function);
+        phi_node = llvm::PHINode::Create(truthy_value->getType(), 1,
+                                         "phi." + tag, merge_block);
+        phi_node->addIncoming(truthy_value, builder.GetInsertBlock());
+        builder.CreateBr(merge_block);
       }
 
-      builder.set_insertion_block(falsey_branch);
-      value_t::ref falsey_value = gen(builder, break_to_block,
+      builder.SetInsertPoint(falsey_block);
+      llvm::Value *falsey_value = gen(builder, break_to_block,
                                       continue_to_block, condition->falsey,
                                       typing, gen_env, globals);
-      bool falsey_terminates = has_terminator(builder.block->instructions);
-      if (!falsey_terminates) {
-        if (merge_branch == nullptr) {
-          merge_branch = builder.create_block("merge" + bitter::fresh(),
-                                              false /*insert_in_new_block*/);
+      if (!builder.GetInsertBlock()->getTerminator()) {
+        if (phi_node == nullptr) {
+          assert(merge_block == nullptr);
+          merge_block = llvm::BasicBlock::Create(builder.getContext(),
+                                                 "merge." + tag, llvm_function);
+          phi_node = llvm::PHINode::Create(truthy_value->getType(), 1,
+                                           "phi." + tag, merge_block);
         }
-        builder.merge_value_into(condition->falsey->get_location(),
-                                 falsey_value, merge_branch);
+        phi_node->addIncoming(falsey_value, builder.GetInsertBlock());
+        builder.CreateBr(merge_block);
       }
 
-      if (merge_branch != nullptr) {
-        builder.set_insertion_block(merge_branch);
-      }
-
-      if (auto phi_node = builder.get_current_phi_node()) {
+      if (merge_block != nullptr) {
+        builder.SetInsertPoint(merge_block);
+        assert(name == "");
         return phi_node;
       } else {
-        return builder.create_unit(INTERNAL_LOC());
+        return nullptr; // llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo());
       }
     } else if (auto break_ = dcast<const bitter::break_t *>(expr)) {
-      assert(builder.break_to_block != nullptr);
-      return builder.create_branch(break_->get_location(),
-                                   builder.break_to_block);
+      assert(break_to_block != nullptr);
+      return builder.CreateBr(break_to_block);
     } else if (auto continue_ = dcast<const bitter::continue_t *>(expr)) {
-      assert(builder.continue_to_block != nullptr);
-      return builder.create_branch(continue_->get_location(),
-                                   builder.continue_to_block);
+      assert(continue_to_block != nullptr);
+      return builder.CreateBr(continue_to_block);
     } else if (auto while_ = dcast<const bitter::while_t *>(expr)) {
-      auto cond_block = builder.create_block("while_cond" + bitter::fresh(),
-                                             false /*insert_in_new_block*/);
-      builder.create_branch(while_->get_location(), cond_block);
-      builder.set_insertion_block(cond_block);
+      llvm::Function *llvm_function = llvm_get_function(builder);
+      auto tag = bitter::fresh();
+      auto cond_block = llvm::BasicBlock::Create(
+          builder.getContext(), "while_cond." + tag, llvm_function);
+      builder.CreateBr(cond_block);
+      builder.SetInsertPoint(cond_block);
 
       auto cond = gen(builder, break_to_block, continue_to_block,
                       while_->condition, typing, gen_env, globals);
-      auto while_block = builder.create_block("while_block" + bitter::fresh(),
-                                              false /*insert_in_new_block*/);
-      auto else_block = builder.create_block("while_break" + bitter::fresh(),
-                                             false /*insert_in_new_block*/);
+      auto while_block = llvm::BasicBlock::Create(
+          builder.getContext(), "while_block" + tag, llvm_function);
+      auto else_block = llvm::BasicBlock::Create(
+          builder.getContext(), "while_break" + tag, llvm_function);
 
-      builder.create_cond_branch(cond, while_block, else_block);
-      builder.set_insertion_block(while_block);
-      loop_guard_t loop_guard(builder, else_block, cond_block);
+      builder.CreateCondBr(cond, while_block, else_block);
+      builder.SetInsertPoint(while_block);
+      loop_guard_t loop_guard(else_block, cond_block, &break_to_block,
+                              &continue_to_block);
       gen(builder, break_to_block, continue_to_block, while_->block, typing,
           gen_env, globals);
-      builder.ensure_terminator([cond_block, while_](builder_t &builder) {
-        builder.create_branch(while_->get_location(), cond_block);
-      });
 
-      builder.set_insertion_block(else_block);
-      auto unit_ret = builder.create_unit(while_->get_location());
-      // builder.function->render(std::cout) << std::endl;
-      // dbg();
-      return unit_ret;
+      if (builder.GetInsertBlock()->getTerminator() == nullptr) {
+        builder.CreateBr(cond_block);
+      }
+
+      builder.SetInsertPoint(else_block);
+
+      return nullptr;
     } else if (auto block = dcast<const bitter::block_t *>(expr)) {
       size_t inst_counter = block->statements.size() - 1;
 
-      value_t::ref block_value;
+      llvm::Value *value = nullptr;
       for (auto statement : block->statements) {
-        auto value = gen(builder, break_to_block, continue_to_block, statement,
-                         typing, gen_env, globals);
-        if (inst_counter == 0) {
-          block_value = value;
-        }
+        value = gen(builder, break_to_block, continue_to_block, statement,
+                    typing, gen_env, globals);
       }
-      return block_value != nullptr
-                 ? block_value
-                 : builder.create_unit(block->get_location(), name);
+      return value;
     } else if (auto return_ = dcast<const bitter::return_statement_t *>(expr)) {
-      return builder.create_return(gen(builder, break_to_block,
-                                       continue_to_block, return_->value,
-                                       typing, gen_env, globals));
+      return builder.CreateRet(gen(builder, break_to_block, continue_to_block,
+                                   return_->value, typing, gen_env, globals));
     } else if (auto tuple = dcast<const bitter::tuple_t *>(expr)) {
-      std::vector<value_t::ref> dim_values;
+      std::vector<llvm::Value *> dim_values;
       for (auto dim : tuple->dims) {
-        dim_values.push_back(gen(builder, dim, typing, gen_env, globals));
+        dim_values.push_back(gen(builder, break_to_block, continue_to_block,
+                                 dim, typing, gen_env, globals));
       }
-      return builder.create_tuple(tuple->get_location(), dim_values, name);
+      return llvm_tuple_alloc(builder, dim_values);
     } else if (auto tuple_deref = dcast<const bitter::tuple_deref_t *>(expr)) {
       auto td = gen(builder, break_to_block, continue_to_block,
                     tuple_deref->expr, typing, gen_env, globals);
       debug_above(10, log_location(tuple_deref->expr->get_location(),
                                    "created tuple deref %s from %s",
-                                   td->str().c_str(),
+                                   llvm_print(td).c_str(),
                                    tuple_deref->expr->str().c_str()));
-      return builder.create_tuple_deref(tuple_deref->get_location(), td,
-                                        tuple_deref->index, name);
+      llvm::Value *gep_path[] = {builder.getInt32(0),
+                                 builder.getInt32(tuple_deref->index)};
+      return builder.CreateLoad(builder.CreateInBoundsGEP(
+          td->getType()->getPointerElementType(), td, gep_path));
     } else if (auto as = dcast<const bitter::as_t *>(expr)) {
       assert(as->force_cast);
-      return builder.create_cast(as->get_location(),
-                                 gen(builder, break_to_block, continue_to_block,
-                                     as->expr, typing, gen_env, globals),
-                                 as->scheme->instantiate(INTERNAL_LOC()), name);
+      return builder.CreateBitCast(
+          gen(builder, break_to_block, continue_to_block, as->expr, typing,
+              gen_env, globals),
+          get_llvm_type(builder, as->scheme->instantiate(INTERNAL_LOC())));
     } else if (auto sizeof_ = dcast<const bitter::sizeof_t *>(expr)) {
       assert(false);
     } else if (auto match = dcast<const bitter::match_t *>(expr)) {
@@ -574,9 +725,11 @@ llvm::Value *gen(std::string name,
     } else if (auto builtin = dcast<const bitter::builtin_t *>(expr)) {
       std::vector<llvm::Value *> llvm_values;
       for (auto expr : builtin->exprs) {
-        llvm_values.push_back(gen(builder, expr, typing, gen_env, globals));
+        llvm_values.push_back(gen(builder, break_to_block, continue_to_block,
+                                  expr, typing, gen_env, globals));
       }
-      return lower_builtin(builder, builtin->var->id, llvm_values, type, name);
+      assert(name == "");
+      return gen_builtin(builder, builtin->var->id.name, llvm_values);
     }
 
     throw user_error(expr->get_location(), "unhandled ssa-gen for %s :: %s",
@@ -588,307 +741,4 @@ llvm::Value *gen(std::string name,
   }
 }
 
-void builder_t::set_insertion_block(block_t::ref new_block) {
-  block = new_block;
-  function = new_block->parent.lock();
-  module = function->parent.lock();
-}
-
-builder_t builder_t::save_ip() const {
-  return *this;
-}
-
-void builder_t::restore_ip(const builder_t &builder) {
-  *this = builder;
-}
-
-block_t::ref builder_t::create_block(std::string name,
-                                     bool insert_in_new_block) {
-  assert(function != nullptr);
-  function->blocks.push_back(std::make_shared<block_t>(
-      function, name.size() == 0 ? bitter::fresh() : name));
-  if (insert_in_new_block) {
-    block = function->blocks.back();
-  }
-  return function->blocks.back();
-}
-
-void builder_t::insert_instruction(instruction_t::ref instruction) {
-  assert(block != nullptr);
-  std::stringstream ss;
-  instruction->render(ss);
-  // log("adding instruction %s", ss.str().c_str());
-  assert(!has_terminator(block->instructions));
-  block->instructions.push_back(instruction);
-}
-
-void builder_t::merge_value_into(location_t location,
-                                 value_t::ref incoming_value,
-                                 block_t::ref merge_block) {
-  assert(block != nullptr);
-  assert(block != merge_block);
-  if (!has_terminator(block->instructions)) {
-    if (!type_equality(incoming_value->type, type_unit(INTERNAL_LOC()))) {
-      phi_node_t::ref phi_node = merge_block->get_phi_node();
-      if (phi_node == nullptr) {
-        merge_block->instructions.push_front(std::make_shared<phi_node_t>(
-            INTERNAL_LOC(), merge_block, incoming_value->type));
-        phi_node = safe_dyncast<phi_node_t>(merge_block->instructions.front());
-      }
-      phi_node->add_incoming_value(incoming_value, block);
-    }
-    create_branch(location, merge_block);
-  }
-}
-
-void phi_node_t::add_incoming_value(value_t::ref value,
-                                    block_t::ref incoming_block) {
-  for (auto pair : incoming_values) {
-    if (pair.second == incoming_block) {
-      throw user_error(value->get_location(),
-                       "there is already a value from this incoming block");
-    } else if (pair.first == value) {
-      throw user_error(value->get_location(),
-                       "this value is being added as an incoming value twice");
-    }
-  }
-  incoming_values.push_back({value, incoming_block});
-}
-
-phi_node_t::ref block_t::get_phi_node() {
-  if (instructions.size() != 0) {
-    if (auto phi_node = dyncast<phi_node_t>(instructions.front())) {
-      return phi_node;
-    }
-  }
-  return nullptr;
-}
-
-phi_node_t::ref builder_t::get_current_phi_node() {
-  assert(block != nullptr);
-  return block->get_phi_node();
-}
-
-value_t::ref builder_t::create_builtin(identifier_t id,
-                                       const value_t::refs &values,
-                                       types::type_t::ref type,
-                                       std::string name) {
-  debug_above(8,
-              log("creating builtin %s for %s with type %s", id.str().c_str(),
-                  join_str(values, ", ").c_str(), type->str().c_str()));
-  auto builtin = std::make_shared<builtin_t>(id.location, block, id, values,
-                                             type, name);
-  insert_instruction(builtin);
-  return builtin;
-}
-
-value_t::ref builder_t::create_literal(token_t token, types::type_t::ref type) {
-  auto literal = std::make_shared<literal_t>(token, block, type);
-  insert_instruction(literal);
-  return literal;
-}
-
-value_t::ref builder_t::create_call(value_t::ref callable,
-                                    const value_t::refs &params,
-                                    types::type_t::ref type,
-                                    std::string name) {
-  auto callsite = std::make_shared<callsite_t>(callable->get_location(), block,
-                                               callable, params, name, type);
-  insert_instruction(callsite);
-  return callsite;
-}
-
-value_t::ref builder_t::create_cast(location_t location,
-                                    value_t::ref value,
-                                    types::type_t::ref type,
-                                    std::string name) {
-  auto cast = std::make_shared<cast_t>(location, block, value, type, name);
-  if (block != nullptr) {
-    insert_instruction(cast);
-  }
-  return cast;
-}
-
-value_t::ref builder_t::create_tuple(location_t location,
-                                     const std::vector<value_t::ref> &dims,
-                                     std::string name) {
-  if (dims.size() == 0) {
-    return create_unit(location, name);
-  } else {
-    auto tuple = std::make_shared<gen_tuple_t>(location, block, dims, name);
-    if (block != nullptr) {
-      insert_instruction(tuple);
-    }
-    return tuple;
-  }
-}
-
-value_t::ref builder_t::create_unit(location_t location, std::string name) {
-  return std::make_shared<unit_t>(location, block);
-}
-
-value_t::ref builder_t::create_tuple_deref(location_t location,
-                                           value_t::ref value,
-                                           int index,
-                                           std::string name) {
-  auto tuple_deref = std::make_shared<gen_tuple_deref_t>(location, block, value,
-                                                         index, name);
-  insert_instruction(tuple_deref);
-  return tuple_deref;
-}
-
-value_t::ref builder_t::create_branch(location_t location,
-                                      block_t::ref goto_block) {
-  auto goto_ = std::make_shared<goto_t>(location, block, goto_block);
-  insert_instruction(goto_);
-  return goto_;
-}
-
-value_t::ref builder_t::create_cond_branch(value_t::ref cond,
-                                           block_t::ref truthy_branch,
-                                           block_t::ref falsey_branch,
-                                           std::string name) {
-  auto cond_branch = std::make_shared<cond_branch_t>(
-      cond->get_location(), block, cond, truthy_branch, falsey_branch, name);
-  insert_instruction(cond_branch);
-  return cond_branch;
-}
-
-value_t::ref builder_t::create_return(value_t::ref expr) {
-  auto return_ = std::make_shared<return_t>(expr->get_location(), block, expr);
-  insert_instruction(return_);
-  return return_;
-}
-
-std::ostream &cond_branch_t::render(std::ostream &os) const {
-  os << "if " << cond->str() << " then " C_CONTROL "goto " C_RESET;
-  return os << truthy_branch->name << " else " C_CONTROL "goto " C_RESET
-            << falsey_branch->name;
-}
-
-std::ostream &goto_t::render(std::ostream &os) const {
-  return os << C_CONTROL "goto " C_RESET << branch->name;
-}
-
-std::ostream &callsite_t::render(std::ostream &os) const {
-  os << C_ID << name << C_RESET << " := " << callable->str() << "(";
-  return os << join_str(params) << ")";
-}
-
-std::ostream &phi_node_t::render(std::ostream &os) const {
-  os << C_ID << name << C_RESET << " := " << C_WARN "phi" C_RESET "(";
-  os << join_with(incoming_values, ", ",
-                  [](const std::pair<value_t::ref, block_t::ref> &pair) {
-                    return string_format("%s, %s", pair.first->str().c_str(),
-                                         pair.second->name.c_str());
-                  });
-  return os << ")";
-}
-
-std::ostream &cast_t::render(std::ostream &os) const {
-  return os << C_ID << name << C_RESET
-            << " := " << value->str() + " as! " + type->str();
-}
-
-std::ostream &load_t::render(std::ostream &os) const {
-  return os << C_ID << name << C_RESET << " := load " << rhs->str()
-            << " :: " + rhs->type->str();
-}
-
-std::ostream &store_t::render(std::ostream &os) const {
-  return os << "store "
-            << rhs->str() + " :: " + rhs->type->str() + " at address " +
-                   lhs->str() + " :: " + lhs->type->str();
-}
-
-std::ostream &builtin_t::render(std::ostream &os) const {
-  os << C_ID << name << C_RESET << " := " << id.str();
-  if (params.size() != 0) {
-    os << "(";
-    os << join_str(params, ", ");
-    os << ")";
-  }
-  return os;
-}
-
-std::ostream &return_t::render(std::ostream &os) const {
-  return os << C_CONTROL "return " C_RESET << value->str();
-}
-
-std::ostream &literal_t::render(std::ostream &os) const {
-  return os << C_ID << name << C_RESET << " := " << token.text
-            << " :: " << type->str();
-}
-
-std::string argument_t::str() const {
-  return C_ID + name + C_RESET;
-  // return string_format("arg%d", index);
-}
-
-std::ostream &argument_t::render(std::ostream &os) const {
-  return os << str();
-}
-
-std::string function_t::str() const {
-  return C_GOOD "@" + name + C_RESET;
-}
-
-std::string block_t::str() const {
-  auto function = parent.lock();
-  return (function != nullptr) ? (function->name + ":" + name) : name;
-}
-
-std::ostream &function_t::render(std::ostream &os) const {
-  auto lambda_type = safe_dyncast<const types::type_operator_t>(type);
-  types::type_t::refs terms;
-  unfold_binops_rassoc(ARROW_TYPE_OPERATOR, type, terms);
-  assert(terms.size() > 1);
-  auto param_type = terms[0];
-  terms.erase(terms.begin());
-  auto return_type = type_arrows(terms);
-
-  os << "fn " C_GOOD << name << C_RESET "("
-     << join_with(args, ", ", [](const std::shared_ptr<argument_t> &arg) {
-          return arg->str() + " :: " + arg->type->str();
-        });
-  os << ") " << return_type->str();
-
-  if (blocks.size() != 0) {
-    os << " {" << std::endl;
-    for (auto block : blocks) {
-      os << block->name << ":" << std::endl;
-      for (auto inst : block->instructions) {
-        os << "\t";
-        inst->render(os);
-        os << std::endl;
-      }
-    }
-    os << "}" << std::endl;
-  }
-  return os;
-}
-
-std::string gen_tuple_t::str() const {
-  std::stringstream ss;
-  render(ss);
-  return ss.str().c_str();
-}
-
-std::ostream &gen_tuple_t::render(std::ostream &os) const {
-  if (parent.lock() != nullptr) {
-    os << C_ID << name << C_RESET << " := ";
-  }
-
-  return os << C_GOOD << (parent.lock() ? "alloc_tuple" : "global_tuple")
-            << C_RESET "(" << join_str(dims, ", ") << ")";
-}
-
-std::ostream &gen_tuple_deref_t::render(std::ostream &os) const {
-  return os << C_ID << name << C_RESET " := " << value->str() << "[" << index
-            << "] :: " << type->str();
-}
-
-std::string instruction_t::str() const {
-  return C_ID + name + C_RESET;
-}
 } // namespace gen

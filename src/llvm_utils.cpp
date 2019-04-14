@@ -735,12 +735,16 @@ llvm::Type *get_llvm_type(llvm::IRBuilder<> &builder,
       /* anything user-defined gets passed around as an i8* */
       return builder.getInt8Ty()->getPointerTo();
     } else {
+      /* functions are passed around as closures */
+      // TODO: return a closure type
+      assert(false);
       auto ft = llvm_create_function_type(
                     builder, {get_llvm_type(builder, terms[0])},
                     get_llvm_type(builder, type_arrows(terms, 1)))
                     ->getPointerTo();
       debug_above(7, log("get_llvm_type(..., %s) -> %s", type->str().c_str(),
                          llvm_print(ft).c_str()));
+      // TODO: repurpose destructure_closure to check that this is valid
       return ft;
     }
   } else if (auto variable = dyncast<const types::type_variable_t>(type)) {
@@ -853,7 +857,7 @@ void destructure_closure(llvm::Value *closure,
   auto llvm_closure_env_type = struct_type->getElementType(1);
   assert(llvm_closure_env_type == llvm::Type::getInt8Ty(context));
 
-  llvm::IRBuilder<> &builder(context);
+  llvm::IRBuilder<> builder(context);
   auto gep_function_path = std::vector<llvm::Value *>{builder.getInt32(0),
                                                       builder.getInt32(0)};
   auto gep_env_path = std::vector<llvm::Value *>{builder.getInt32(0),
