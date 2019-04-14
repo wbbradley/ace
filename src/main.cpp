@@ -990,7 +990,7 @@ phase_4_t ssa_gen(const phase_3_t phase_3) {
         auto type = get(overload.second->typing, overload.second->expr, {});
         assert(type != nullptr);
 
-        gen::value_t::ref value = gen::maybe_get_env_var(
+        llvm::Value *value = gen::maybe_get_env_var(
             gen_env, {pair.first, overload.second->expr->get_location()}, type);
         assert(value == nullptr);
         auto expr = overload.second->expr;
