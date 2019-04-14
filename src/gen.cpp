@@ -14,21 +14,6 @@
 
 namespace gen {
 
-// llvm::IRBuilderBase::InsertPointGuard ipg(builder);
-#if 0
-struct ip_guard_t {
-  builder_t &builder;
-  builder_t::saved_state saved;
-
-  ip_guard_t(builder_t &builder) : builder(builder), saved(builder.save_ip()) {
-    saved = builder.save_ip();
-  }
-  ~ip_guard_t() {
-    builder.restore_ip(saved);
-  }
-};
-#endif
-
 struct loop_guard_t {
   llvm::BasicBlock *old_break_to_block;
   llvm::BasicBlock *old_continue_to_block;
@@ -61,10 +46,22 @@ struct free_vars_t {
     assert(type != nullptr);
     typed_ids.insert({id, type});
   }
+  bool contains(identifier_t id, types::type_t::ref type) {
+    return in(typed_id_t{id, type}, typed_ids);
+  }
   std::string str() const {
     return string_format("{%s}", join(typed_ids, ", ").c_str());
   }
 };
+
+types::type_t::ref get_nth_type_in_arrow(types::type_t::ref arrow_type,
+                                         const bitter::lambda_t *lambda,
+                                         int n) {
+  types::type_t::refs terms;
+  unfold_binops_rassoc(ARROW_TYPE_OPERATOR, arrow_type, terms);
+  assert(n < terms.size());
+  return terms[n];
+}
 
 void get_free_vars(const bitter::expr_t *expr,
                    const tracked_types_t &typing,
@@ -79,26 +76,27 @@ void get_free_vars(const bitter::expr_t *expr,
       free_vars.add(var->id, get(typing, expr, {}));
     }
   } else if (auto lambda = dcast<const bitter::lambda_t *>(expr)) {
-    bool already_has_lambda_var = in(lambda->var.name, free_vars);
-    std::unordered_set<std::string> new_bindings; // = bindings;
+    auto lambda_type = typing.at(lambda);
+    bool already_has_lambda_var = free_vars.contains(
+        lambda->var, get_nth_type_in_arrow(lambda_type, lambda, 0));
+    std::unordered_set<std::string> new_bindings;
     new_bindings.insert(lambda->var.name);
     get_free_vars(lambda->body, typing, new_bindings, free_vars);
     /* we should never be adding a bound variable name to the closure if it is
      * being overwritten at a lower scope prior to capture */
-    assert_implies(!already_has_lambda_var, !in(lambda->var.name, free_vars));
+    assert_implies(
+        !already_has_lambda_var,
+        !free_vars.contains(lambda->var,
+                            get_nth_type_in_arrow(lambda_type, lambda, 0)));
   } else if (auto application = dcast<const bitter::application_t *>(expr)) {
     get_free_vars(application->a, typing, bindings, free_vars);
     get_free_vars(application->b, typing, bindings, free_vars);
   } else if (auto let = dcast<const bitter::let_t *>(expr)) {
     // TODO: allow let-rec
-    bool already_has_let_var = in(let->var.name, free_vars);
     get_free_vars(let->value, typing, bindings, free_vars);
     auto new_bound_vars = bindings;
     new_bound_vars.insert(let->var.name);
     get_free_vars(let->body, typing, new_bound_vars, free_vars);
-    /* we should never be adding a bound variable name to the closure if it is
-     * being overwritten at a lower scope prior to capture */
-    assert_implies(!already_has_let_var, in(let->var.name, free_vars));
   } else if (auto fix = dcast<const bitter::fix_t *>(expr)) {
     get_free_vars(fix->f, typing, bindings, free_vars);
   } else if (auto condition = dcast<const bitter::conditional_t *>(expr)) {
@@ -141,10 +139,33 @@ void get_free_vars(const bitter::expr_t *expr,
 }
 
 llvm::Value *maybe_get_env_var(const gen_env_t &gen_env,
+                               std::string name,
+                               types::type_t::ref type) {
+  return maybe_get_env_var(gen_env, make_iid(name), type);
+}
+
+llvm::Value *maybe_get_env_var(const gen_env_t &gen_env,
                                identifier_t id,
                                types::type_t::ref type) {
-  type = types::unitize(type);
-  return get(gen_env, id.name, type, (llvm::Value *)nullptr);
+  auto iter_id = gen_env.find(id.name);
+  if (iter_id != gen_env.end()) {
+    type = types::unitize(type);
+    auto iter_type = iter_id->second.find(type);
+    if (iter_type != iter_id->second.end()) {
+      resolver_t *resolver_ptr = iter_type->second.get();
+      assert(resolver_ptr != nullptr);
+
+      /* since this resolver exists, we can assume that we should be able to ask
+       * for its value. */
+      return resolver_ptr->resolve();
+    } else {
+      /* no symbol goes by that type in these parts, mister */
+      return nullptr;
+    }
+  } else {
+    /* we don't know anything about this symbol name */
+    return nullptr;
+  }
 }
 
 llvm::Value *get_env_var(const gen_env_t &gen_env,
@@ -156,10 +177,10 @@ llvm::Value *get_env_var(const gen_env_t &gen_env,
     auto error = user_error(id.location, "we need a definition for %s :: %s",
                             id.str().c_str(), type->str().c_str());
     for (auto pair : gen_env) {
-      for (auto overload : pair.second) {
+      for (auto &overload : pair.second) {
         error.add_info(id.location, "%s :: %s = %s", pair.first.c_str(),
                        overload.first->str().c_str(),
-                       llvm_print(overload.second).c_str());
+                       overload.second->str().c_str());
       }
     }
     throw error;
@@ -178,26 +199,23 @@ void set_env_var(gen_env_t &gen_env,
                      boolstr(allow_shadowing)));
   assert(name.size() != 0);
   type = types::unitize(type);
-  llvm::Value *existing_value = get(gen_env, name, type,
-                                    (llvm::Value *)nullptr);
-  // dbg_when(name == "std.Ref" && type->repr().find("* Char ->") !=
-  // std::string::npos);
+  llvm::Value *existing_value = maybe_get_env_var(gen_env, name, type);
   if (existing_value == nullptr) {
     debug_above(4, log("found no value in the gen_env 0x%08llx for %s :: %s, "
                        "adding a new value",
                        (unsigned long long)&gen_env, name.c_str(),
                        type->str().c_str()));
-    gen_env[name].insert({type, llvm_value});
+    gen_env[name].insert({type, strict_resolver(llvm_value)});
   } else if (allow_shadowing) {
     debug_above(
         4, log("overwriting any existing value in the gen_env for %s :: %s",
                name.c_str(), type->str().c_str()));
-    gen_env[name].insert({type, llvm_value});
+    gen_env[name].insert({type, strict_resolver(llvm_value)});
   } else {
     /* what now? probably shouldn't have happened */
     assert(false);
   }
-  assert(get(gen_env, name, type, (llvm::Value *)nullptr) != nullptr);
+  assert(maybe_get_env_var(gen_env, name, type) != nullptr);
 }
 
 llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,

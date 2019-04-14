@@ -47,6 +47,8 @@ add_executable(zion
 	src/parser.cpp
 	src/patterns.cpp
 	src/prefix.cpp
+	src/resolver.cpp
+	src/resolver_impl.cpp
 	src/scope.cpp
 	src/tests.cpp
 	src/token.cpp

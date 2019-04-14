@@ -30,6 +30,7 @@ identifier_t identifier_t::from_token(token_t token) {
 }
 
 bool identifier_t::operator<(const identifier_t &rhs) const {
+  /* location is not a disambiguator for identifiers */
   return name < rhs.name;
 }
 

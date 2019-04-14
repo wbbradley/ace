@@ -35,6 +35,7 @@ std::string str(identifiers_t ids);
 namespace std {
 template <> struct hash<identifier_t> {
   int operator()(const identifier_t &s) const {
+    /* location is not a disambiguator for identifiers */
     return std::hash<std::string>()(s.name);
   }
 };
