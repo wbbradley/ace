@@ -2,18 +2,23 @@
 #include <memory>
 
 #include "ast.h"
+#include "llvm_utils.h"
+#include "resolver.h"
+#include "types.h"
 #include "unification.h"
 #include "user_error.h"
-#include "llvm_utils.h"
-#include "types.h"
 
 namespace gen {
 
-typedef std::unordered_map<
-    std::string,
-    std::map<types::type_t::ref, llvm::Value *, types::compare_type_t>>
+typedef std::unordered_map<std::string,
+                           std::map<types::type_t::ref,
+                                    std::shared_ptr<resolver_t>,
+                                    types::compare_type_t>>
     gen_env_t;
 
+llvm::Value *maybe_get_env_var(const gen_env_t &gen_env,
+                               std::string name,
+                               types::type_t::ref type);
 llvm::Value *maybe_get_env_var(const gen_env_t &env,
                                identifier_t id,
                                types::type_t::ref type);

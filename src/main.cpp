@@ -942,16 +942,9 @@ phase_3_t specialize(const phase_2_t &phase_2) {
 
 struct phase_4_t {
   phase_3_t phase_3;
-  gen::gen_env_t gen_env;
+  llvm::Module *llvm_module;
   std::ostream &dump(std::ostream &os) {
-    for (auto pair : gen_env) {
-      for (auto overload : pair.second) {
-        os << pair.first << " :: " << overload.first->repr() << std::endl;
-        os << llvm_print(overload.second);
-        os << std::endl;
-      }
-    }
-    return os;
+    return os << llvm_print_module(*llvm_module);
   }
 };
 
@@ -962,92 +955,88 @@ struct code_symbol_t {
   const bitter::expr_t *expr;
 };
 
-phase_4_t ssa_gen(const phase_3_t phase_3) {
-  gen::module_t::ref module = std::make_shared<gen::module_t>();
-  gen::gen_env_t &gen_env = module->gen_env;
+std::unordered_set<std::string> get_globals(const phase_3_t &phase_3) {
+  std::unordered_set<std::string> globals;
+  for (auto pair : phase_3.translation_map) {
+    debug_above(7, log("adding global %s", pair.first.c_str()));
+    globals.insert(pair.first);
+  }
+
+  /* make sure the builtins are in the list of globals so that they don't get
+   * collected when creating closures */
+  for (auto pair : get_builtins()) {
+    globals.insert(pair.first);
+  }
+  return globals;
+}
+
+phase_4_t ssa_gen(const phase_3_t &phase_3) {
+  llvm::LLVMContext context;
+  llvm::Module *module = new llvm::Module("program", context);
+  llvm::IRBuilder<> builder(context);
+
+  gen::gen_env_t gen_env;
+
+  /* resolvers is the list of top-level symbols that need to be resolved. they
+   * can be traversed in any order, and will automatically resolve in dependency
+   * order based on a topological sorting. this could be a bit intense on the
+   * stack, worst case is on the same order as the user's program stack depth.
+   */
+  std::list<std::shared_ptr<gen::resolver_t>> resolvers;
 
   try {
-    std::unordered_set<std::string> globals;
-    for (auto pair : phase_3.translation_map) {
-      debug_above(7, log("adding global %s", pair.first.c_str()));
-      globals.insert(pair.first);
-    }
-
-    /* make sure the builtins are in the list of globals so that they don't get
-     * collected when creating closures */
-    for (auto pair : get_builtins()) {
-      globals.insert(pair.first);
-    }
-
-    std::vector<code_symbol_t> codes;
+    const std::unordered_set<std::string> globals = get_globals(phase_3);
 
     debug_above(6, log("globals are %s", join(globals).c_str()));
     for (auto pair : phase_3.translation_map) {
-      for (auto overload : pair.second) {
+      for (auto &overload : pair.second) {
+        const std::string &name = pair.first;
+        const types::type_t::ref &type = overload.first;
+        translation_t::ref translation = overload.second;
+
         debug_above(4, log("fetching %s expression type from translated types",
                            pair.first.c_str()));
 
-        auto type = get(overload.second->typing, overload.second->expr, {});
-        assert(type != nullptr);
+        assert(type_equality(
+            get(overload.second->typing, overload.second->expr, {}), type));
 
+        /* at this point we should not have a resolver or a declaration or
+         * definition or anything for this symbol */
         llvm::Value *value = gen::maybe_get_env_var(
             gen_env, {pair.first, overload.second->expr->get_location()}, type);
         assert(value == nullptr);
-        auto expr = overload.second->expr;
+
         debug_above(4, log("making a placeholder proxy value for %s :: %s = %s",
                            pair.first.c_str(), type->str().c_str(),
-                           expr->str().c_str()));
-        gen::set_env_var(gen_env, pair.first,
-                         std::make_shared<gen::proxy_value_t>(
-                             overload.second->get_location(),
-                             std::weak_ptr<gen::block_t>{}, pair.first,
-                             overload.first));
-        codes.push_back(code_symbol_t{pair.first, overload.first,
-                                      overload.second->typing, expr});
+                           translation->expr->str().c_str()));
+        std::shared_ptr<gen::resolver_t> resolver = gen::lazy_resolver(
+            name, type,
+            [&builder, name, translation, &gen_env,
+             &globals](llvm::Value **llvm_value) {
+              *llvm_value = gen::gen(name, builder, nullptr /*break_to_block*/,
+                                     nullptr /*continue_to_block*/,
+                                     translation->expr, translation->typing,
+                                     gen_env, globals);
+            });
+
+        resolvers.push_back(resolver);
+        gen_env[name].emplace(type, resolver);
       }
     }
 
-#if 0
-    gen::builder_t program_builder(module);
-    auto init_func = program_builder.create_function(
-        "__program_init", {}, INTERNAL_LOC(),
-        type_arrows({type_unit(INTERNAL_LOC()), type_unit(INTERNAL_LOC())}));
-#endif
     // TODO: differentiate between globals and functions...
     // global initialization will happen inside of the __program_init function
-    gen::builder_t builder(module); // (init_func);
-    // builder.create_block("program_entry");
-
-    for (auto code : codes) {
-      auto name = code.name;
-      auto type = code.type;
-      assert(type != nullptr);
-
-      auto &typing = code.typing;
-      auto expr = code.expr;
-      debug_above(4, log("running gen phase for %s :: %s", name.c_str(),
-                         type->str().c_str()));
-
-      auto value = gen::gen(name, builder, expr, typing, gen_env, globals);
-      std::stringstream ss;
-      value->render(ss);
-      debug_above(4, log("generated %s :: %s == %s", name.c_str(),
-                         type->str().c_str(), ss.str().c_str()));
-      gen::set_env_var(gen_env, name, value, false /*allow_shadowing*/);
+    for (auto resolver : resolvers) {
+      log("resolving %s...", resolver->str().c_str());
+      llvm::Value *value = resolver->resolve();
+      log("resolved to %s", llvm_print(value).c_str());
     }
-
-#if 0
-    builder.ensure_terminator([](gen::builder_t &builder) {
-      builder.create_return(builder.create_unit(INTERNAL_LOC(), ""));
-    });
-#endif
-
-    return phase_4_t{phase_3, gen_env};
   } catch (user_error &e) {
     print_exception(e);
     /* and continue */
   }
-  return phase_4_t{phase_3, {module->gen_env}};
+
+  return phase_4_t{phase_3, module};
 }
 
 struct job_t {
@@ -1187,27 +1176,6 @@ int run_job(const job_t &job) {
       ofs.close();
 
       return user_error::errors_occurred() ? EXIT_FAILURE : EXIT_SUCCESS;
-    }
-  };
-  cmd_map["lower"] = [&](bool explain) {
-    if (explain) {
-      std::cerr << "lower: compiles, specializes, ssa-gens, then lowers output "
-                   "to LLIR"
-                << std::endl;
-      return EXIT_FAILURE;
-    }
-    if (job.args.size() < 1) {
-      return run_job({"help", {}});
-    } else {
-      phase_4_t phase_4 = ssa_gen(specialize(compile(job.args[0])));
-
-      if (user_error::errors_occurred()) {
-        return EXIT_FAILURE;
-      }
-
-      return lower::lower(phase_4.phase_3.phase_2.compilation->program_name +
-                              IMPL_SUFFIX ".main",
-                          phase_4.gen_env);
     }
   };
   if (!in(job.cmd, cmd_map)) {
