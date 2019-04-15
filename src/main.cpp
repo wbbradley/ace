@@ -790,6 +790,7 @@ void specialize_core(defn_map_t const &defn_map,
     // to use this stateful variable "final_name".
     std::string final_name = defn_id.id.name;
 
+#if 0
     if (types::is_callable(type)) {
       /* from this point forward use the -impl suffix */
       //
@@ -845,7 +846,10 @@ void specialize_core(defn_map_t const &defn_map,
       assert(translation_map[defn_id.id.name][type] == nullptr);
       translation_map[defn_id.id.name][type] = callable_decl;
     }
+#endif
 
+    /* wrap this expr in it's asserted type to ensure that it monomorphizes */
+    // TODO: check that this is necessary
     auto as_defn = new as_t(to_check, defn_id.scheme, false);
     check(identifier_t{defn_id.repr_public(), defn_id.id.location}, as_defn,
           env);
@@ -1011,12 +1015,12 @@ phase_4_t ssa_gen(const phase_3_t &phase_3) {
                            translation->expr->str().c_str()));
         std::shared_ptr<gen::resolver_t> resolver = gen::lazy_resolver(
             name, type,
-            [&builder, name, translation, &gen_env,
+            [&builder, &module, name, translation, &gen_env,
              &globals](llvm::Value **llvm_value) {
-              *llvm_value = gen::gen(name, builder, nullptr /*break_to_block*/,
-                                     nullptr /*continue_to_block*/,
-                                     translation->expr, translation->typing,
-                                     gen_env, globals);
+              gen::publishable_t publishable(llvm_value);
+              gen::gen(name, builder, module, nullptr /*break_to_block*/,
+                       nullptr /*continue_to_block*/, translation->expr,
+                       translation->typing, gen_env, globals, &publishable);
             });
 
         resolvers.push_back(resolver);
@@ -1070,7 +1074,7 @@ int run_job(const job_t &job) {
     assert(alphabetize(2) == "c");
     assert(alphabetize(26) == "aa");
     assert(alphabetize(27) == "ab");
-    return run_job({"lower", {}, {"test_basic"}});
+    return run_job({"ssa-gen", {}, {"test_basic"}});
   };
   cmd_map["find"] = [&](bool explain) {
     if (explain) {
@@ -1153,8 +1157,7 @@ int run_job(const job_t &job) {
   };
   cmd_map["ssa-gen"] = [&](bool explain) {
     if (explain) {
-      std::cerr << "ssa-gen: compiles, specializes, then ssa-gens output to "
-                   "Zion SSA form"
+      std::cerr << "ll: compiles, specializes, then generates LLVM output"
                 << std::endl;
       return EXIT_FAILURE;
     }
@@ -1168,7 +1171,7 @@ int run_job(const job_t &job) {
       std::stringstream ss;
       phase_4.dump(ss);
 
-      std::string output_filename = "./zion-output.ssa-gen";
+      std::string output_filename = "./zion-output.ll";
 
       std::ofstream ofs;
       ofs.open(output_filename.c_str(), std::ofstream::out);
