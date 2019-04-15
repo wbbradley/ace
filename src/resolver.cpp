@@ -31,4 +31,15 @@ std::shared_ptr<resolver_t> lazy_resolver(std::string name,
   return std::make_shared<lazy_resolver_t>(name, type, std::move(callback));
 }
 
+publishable_t::publishable_t(llvm::Value **llvm_value)
+    : llvm_value(llvm_value) {
+}
+
+publishable_t::~publishable_t() {
+}
+
+void publishable_t::publish(llvm::Value *llvm_value_) const {
+  *llvm_value = llvm_value_;
+}
+
 } // namespace gen

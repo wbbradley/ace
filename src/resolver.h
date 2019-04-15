@@ -10,6 +10,20 @@ namespace gen {
 
 using lazy_resolver_callback_t = std::function<void(llvm::Value **)>;
 
+struct publisher_t {
+  virtual ~publisher_t() {}
+  virtual void publish(llvm::Value *llvm_value) const = 0;
+};
+
+struct publishable_t : public publisher_t {
+  publishable_t(llvm::Value **llvm_value);
+  ~publishable_t();
+  void publish(llvm::Value *llvm_value_) const override;
+
+private:
+  llvm::Value **llvm_value;
+};
+
 struct resolver_t {
   virtual ~resolver_t() = 0;
   llvm::Value *resolve();

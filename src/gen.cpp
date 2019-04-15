@@ -407,24 +407,15 @@ function_t::ref builder_t::create_function(std::string name,
 }
 #endif
 
-llvm::Value *gen(llvm::IRBuilder<> &builder,
-                 llvm::BasicBlock *break_to_block,
-                 llvm::BasicBlock *continue_to_block,
-                 const bitter::expr_t *expr,
-                 const tracked_types_t &typing,
-                 gen_env_t &gen_env,
-                 const std::unordered_set<std::string> &globals) {
-  return gen("", builder, break_to_block, continue_to_block, expr, typing,
-             gen_env, globals);
-}
-
-llvm::Value *gen_lambda(std::string name,
-                        llvm::IRBuilder<> &builder,
-                        const bitter::lambda_t *lambda,
-                        types::type_t::ref type,
-                        const tracked_types_t &typing,
-                        gen_env_t &gen_env,
-                        const std::unordered_set<std::string> &globals) {
+void gen_lambda(std::string name,
+                llvm::IRBuilder<> &builder,
+                llvm::Module *llvm_module,
+                const bitter::lambda_t *lambda,
+                types::type_t::ref type,
+                const tracked_types_t &typing,
+                gen_env_t &gen_env,
+                const std::unordered_set<std::string> &globals,
+                publisher_t *publisher) {
   /* see if we need to lift any free variables into a closure */
   free_vars_t free_vars;
   get_free_vars(lambda, typing, globals, free_vars);
@@ -441,8 +432,8 @@ llvm::Value *gen_lambda(std::string name,
   types::type_t::refs actual_type_terms = {
       type_terms[0], type_id(make_iid("__closure_t")), return_type};
 
-  llvm::Function *llvm_function = llvm_start_function(
-      builder, llvm_get_module(builder), actual_type_terms, name);
+  llvm::Function *llvm_function = llvm_start_function(builder, llvm_module,
+                                                      actual_type_terms, name);
 
   llvm::BasicBlock *block = llvm::BasicBlock::Create(builder.getContext(),
                                                      "entry", llvm_function);
@@ -481,25 +472,28 @@ llvm::Value *gen_lambda(std::string name,
    *
    * */
   llvm::StructType *llvm_closure_type = llvm::StructType::get(
-      llvm_function->getType()->getPointerTo(),
-      builder.getInt8Ty()->getPointerTo());
+      llvm_function->getType(), builder.getInt8Ty()->getPointerTo());
 
   auto *closure = (llvm_dims.size() == 1 && llvm_dims[0] == llvm_function)
-                      ? llvm::ConstantStruct::get(
-                            llvm_closure_type,
-                            std::vector<llvm::Constant *>(
-                                {llvm_function,
-                                 llvm::Constant::getNullValue(
-                                     builder.getInt8Ty()->getPointerTo())}))
+                      ? llvm_get_global(llvm_module, name + ".closure",
+                                        llvm::ConstantStruct::get(
+                                            llvm_closure_type,
+                                            std::vector<llvm::Constant *>(
+                                                {llvm_function,
+                                                 llvm::Constant::getNullValue(
+                                                     builder.getInt8Ty()
+                                                         ->getPointerTo())})),
+                                        true /*is_constant*/)
                       : llvm_tuple_alloc(builder, llvm_dims);
 
   /* we should always be returning the same type, and it should be the closure
    * type */
+  log("created closure %s", llvm_print(closure).c_str());
   assert(closure->getType() == llvm_closure_type->getPointerTo());
 
-  if (name.size() != 0) {
-    /* make sure the closure's name is visible in its scope */
-    set_env_var(gen_env, name, type, closure, true /*allow_shadowing*/);
+  /* we have a closure which is usable now in this scope */
+  if (publisher != nullptr) {
+    publisher->publish(closure);
   }
 
   // BLOCK
@@ -531,8 +525,9 @@ llvm::Value *gen_lambda(std::string name,
     }
 
     /* now build the body of the function */
-    gen(builder, nullptr /*break_to_block*/, nullptr /*continue_to_block*/,
-        lambda->body, typing, new_env, globals);
+    gen("", builder, llvm_module, nullptr /*break_to_block*/,
+        nullptr /*continue_to_block*/, lambda->body, typing, new_env, globals,
+        nullptr /*publishable*/);
 
     if (builder.GetInsertBlock()->getTerminator() == nullptr) {
       /* ensure that we have a terminator */
@@ -540,8 +535,6 @@ llvm::Value *gen_lambda(std::string name,
           llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo()));
     }
   }
-
-  return closure;
 }
 
 llvm::Value *gen_literal(std::string name,
@@ -552,14 +545,37 @@ llvm::Value *gen_literal(std::string name,
   return nullptr;
 }
 
-llvm::Value *gen(std::string name,
-                 llvm::IRBuilder<> &builder,
+llvm::Value *gen(llvm::IRBuilder<> &builder,
+                 llvm::Module *llvm_module,
                  llvm::BasicBlock *break_to_block,
                  llvm::BasicBlock *continue_to_block,
                  const bitter::expr_t *expr,
                  const tracked_types_t &typing,
                  gen_env_t &gen_env,
                  const std::unordered_set<std::string> &globals) {
+  llvm::Value *llvm_value = nullptr;
+  publishable_t publishable(&llvm_value);
+  gen("", builder, llvm_module, break_to_block, continue_to_block, expr, typing,
+      gen_env, globals, &publishable);
+  return llvm_value;
+}
+
+void gen(std::string name,
+         llvm::IRBuilder<> &builder,
+         llvm::Module *llvm_module,
+         llvm::BasicBlock *break_to_block,
+         llvm::BasicBlock *continue_to_block,
+         const bitter::expr_t *expr,
+         const tracked_types_t &typing,
+         gen_env_t &gen_env,
+         const std::unordered_set<std::string> &globals,
+         publisher_t *publisher) {
+  auto publish = [&publisher](llvm::Value *llvm_value) {
+    if (publisher != nullptr) {
+      publisher->publish(llvm_value);
+    }
+  };
+
   try {
     auto type = get(typing, expr, {});
     if (type == nullptr) {
@@ -570,26 +586,23 @@ llvm::Value *gen(std::string name,
 
     debug_above(8, log("gen(..., %s, ..., ...)", expr->str().c_str()));
     if (auto literal = dcast<const bitter::literal_t *>(expr)) {
-      auto llvm_literal = gen_literal(name, builder, literal, type);
-      if (name.size() != 0) {
-        /* ensure symbol visibility in scope */
-        set_env_var(gen_env, name, type, llvm_literal,
-                    true /*allow_shadowing*/);
-      }
-      return llvm_literal;
+      publish(gen_literal(name, builder, literal, type));
     } else if (auto static_print = dcast<const bitter::static_print_t *>(
                    expr)) {
       assert(false);
     } else if (auto var = dcast<const bitter::var_t *>(expr)) {
-      return get_env_var(gen_env, var->id, type);
+      publish(get_env_var(gen_env, var->id, type));
     } else if (auto lambda = dcast<const bitter::lambda_t *>(expr)) {
-      return gen_lambda(name, builder, lambda, type, typing, gen_env, globals);
+      gen_lambda(name, builder, llvm_module, lambda, type, typing, gen_env,
+                 globals, publisher);
     } else if (auto application = dcast<const bitter::application_t *>(expr)) {
-      auto closure = gen(builder, break_to_block, continue_to_block,
-                         application->a, typing, gen_env, globals);
+      llvm::Value *closure = gen(builder, llvm_module, break_to_block,
+                                 continue_to_block, application->a, typing,
+                                 gen_env, globals);
 
-      auto lambda_arg = gen(builder, break_to_block, continue_to_block,
-                            application->b, typing, gen_env, globals);
+      llvm::Value *lambda_arg = gen(builder, llvm_module, break_to_block,
+                                    continue_to_block, application->b, typing,
+                                    gen_env, globals);
 
       llvm::Value *llvm_function_to_call;
       llvm::Value *llvm_closure_env;
@@ -598,25 +611,31 @@ llvm::Value *gen(std::string name,
       llvm::Value *args[] = {lambda_arg, llvm_closure_env};
 
       assert(name == "");
-      return builder.CreateCall(llvm_function_to_call,
-                                llvm::ArrayRef<llvm::Value *>(args));
+      publish(builder.CreateCall(llvm_function_to_call,
+                                 llvm::ArrayRef<llvm::Value *>(args)));
     } else if (auto let = dcast<const bitter::let_t *>(expr)) {
       auto new_env = gen_env;
-      auto let_value = gen(builder, break_to_block, continue_to_block,
-                           let->value, typing, gen_env, globals);
+      llvm::Value *let_value = nullptr;
+      publishable_t publishable(&let_value);
+      gen(let->var.name, builder, llvm_module, break_to_block,
+          continue_to_block, let->value, typing, gen_env, globals,
+          &publishable);
+
       set_env_var(new_env, let->var.name,
                   get(typing, static_cast<const bitter::expr_t *>(let->body),
                       types::type_t::ref{}),
                   let_value, true /*allow_shadowing*/);
 
       assert(name == "");
-      return gen(builder, break_to_block, continue_to_block, let->body, typing,
-                 new_env, globals);
+      publish(gen(builder, llvm_module, break_to_block, continue_to_block,
+                  let->body, typing, new_env, globals));
     } else if (auto fix = dcast<const bitter::fix_t *>(expr)) {
       assert(false);
     } else if (auto condition = dcast<const bitter::conditional_t *>(expr)) {
-      auto cond = gen(builder, break_to_block, continue_to_block,
-                      condition->cond, typing, gen_env, globals);
+      llvm::Value *cond = gen(builder, llvm_module, break_to_block,
+                              continue_to_block, condition->cond, typing,
+                              gen_env, globals);
+
       llvm::Function *llvm_function = llvm_get_function(builder);
 
       auto tag = bitter::fresh();
@@ -628,7 +647,7 @@ llvm::Value *gen(std::string name,
 
       builder.CreateCondBr(cond, truthy_block, falsey_block);
       builder.SetInsertPoint(truthy_block);
-      llvm::Value *truthy_value = gen(builder, break_to_block,
+      llvm::Value *truthy_value = gen(builder, llvm_module, break_to_block,
                                       continue_to_block, condition->truthy,
                                       typing, gen_env, globals);
 
@@ -643,7 +662,7 @@ llvm::Value *gen(std::string name,
       }
 
       builder.SetInsertPoint(falsey_block);
-      llvm::Value *falsey_value = gen(builder, break_to_block,
+      llvm::Value *falsey_value = gen(builder, llvm_module, break_to_block,
                                       continue_to_block, condition->falsey,
                                       typing, gen_env, globals);
       if (!builder.GetInsertBlock()->getTerminator()) {
@@ -661,17 +680,16 @@ llvm::Value *gen(std::string name,
       if (merge_block != nullptr) {
         builder.SetInsertPoint(merge_block);
         assert(name == "");
-        return phi_node;
-      } else {
-        return nullptr; // llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo());
+        publish(phi_node);
       }
     } else if (auto break_ = dcast<const bitter::break_t *>(expr)) {
       assert(break_to_block != nullptr);
-      return builder.CreateBr(break_to_block);
+      builder.CreateBr(break_to_block);
     } else if (auto continue_ = dcast<const bitter::continue_t *>(expr)) {
       assert(continue_to_block != nullptr);
-      return builder.CreateBr(continue_to_block);
+      builder.CreateBr(continue_to_block);
     } else if (auto while_ = dcast<const bitter::while_t *>(expr)) {
+      assert(publisher == nullptr);
       llvm::Function *llvm_function = llvm_get_function(builder);
       auto tag = bitter::fresh();
       auto cond_block = llvm::BasicBlock::Create(
@@ -679,8 +697,10 @@ llvm::Value *gen(std::string name,
       builder.CreateBr(cond_block);
       builder.SetInsertPoint(cond_block);
 
-      auto cond = gen(builder, break_to_block, continue_to_block,
-                      while_->condition, typing, gen_env, globals);
+      llvm::Value *cond = gen(builder, llvm_module, break_to_block,
+                              continue_to_block, while_->condition, typing,
+                              gen_env, globals);
+
       auto while_block = llvm::BasicBlock::Create(
           builder.getContext(), "while_block" + tag, llvm_function);
       auto else_block = llvm::BasicBlock::Create(
@@ -690,37 +710,39 @@ llvm::Value *gen(std::string name,
       builder.SetInsertPoint(while_block);
       loop_guard_t loop_guard(else_block, cond_block, &break_to_block,
                               &continue_to_block);
-      gen(builder, break_to_block, continue_to_block, while_->block, typing,
-          gen_env, globals);
+      gen("", builder, llvm_module, break_to_block, continue_to_block,
+          while_->block, typing, gen_env, globals, nullptr /*publisher*/);
 
       if (builder.GetInsertBlock()->getTerminator() == nullptr) {
         builder.CreateBr(cond_block);
       }
 
       builder.SetInsertPoint(else_block);
-
-      return nullptr;
     } else if (auto block = dcast<const bitter::block_t *>(expr)) {
       size_t inst_counter = block->statements.size() - 1;
 
       llvm::Value *value = nullptr;
+      publishable_t publishable(&value);
+
       for (auto statement : block->statements) {
-        value = gen(builder, break_to_block, continue_to_block, statement,
-                    typing, gen_env, globals);
+        gen("", builder, llvm_module, break_to_block, continue_to_block,
+            statement, typing, gen_env, globals, &publishable);
       }
-      return value;
+      publish(value);
     } else if (auto return_ = dcast<const bitter::return_statement_t *>(expr)) {
-      return builder.CreateRet(gen(builder, break_to_block, continue_to_block,
-                                   return_->value, typing, gen_env, globals));
+      builder.CreateRet(gen(builder, llvm_module, break_to_block,
+                            continue_to_block, return_->value, typing, gen_env,
+                            globals));
     } else if (auto tuple = dcast<const bitter::tuple_t *>(expr)) {
       std::vector<llvm::Value *> dim_values;
       for (auto dim : tuple->dims) {
-        dim_values.push_back(gen(builder, break_to_block, continue_to_block,
-                                 dim, typing, gen_env, globals));
+        dim_values.push_back(gen(builder, llvm_module, break_to_block,
+                                 continue_to_block, dim, typing, gen_env,
+                                 globals));
       }
-      return llvm_tuple_alloc(builder, dim_values);
+      publish(llvm_tuple_alloc(builder, dim_values));
     } else if (auto tuple_deref = dcast<const bitter::tuple_deref_t *>(expr)) {
-      auto td = gen(builder, break_to_block, continue_to_block,
+      auto td = gen(builder, llvm_module, break_to_block, continue_to_block,
                     tuple_deref->expr, typing, gen_env, globals);
       debug_above(10, log_location(tuple_deref->expr->get_location(),
                                    "created tuple deref %s from %s",
@@ -728,14 +750,14 @@ llvm::Value *gen(std::string name,
                                    tuple_deref->expr->str().c_str()));
       llvm::Value *gep_path[] = {builder.getInt32(0),
                                  builder.getInt32(tuple_deref->index)};
-      return builder.CreateLoad(builder.CreateInBoundsGEP(
-          td->getType()->getPointerElementType(), td, gep_path));
+      publish(builder.CreateLoad(builder.CreateInBoundsGEP(
+          td->getType()->getPointerElementType(), td, gep_path)));
     } else if (auto as = dcast<const bitter::as_t *>(expr)) {
       assert(as->force_cast);
-      return builder.CreateBitCast(
-          gen(builder, break_to_block, continue_to_block, as->expr, typing,
-              gen_env, globals),
-          get_llvm_type(builder, as->scheme->instantiate(INTERNAL_LOC())));
+      publish(builder.CreateBitCast(
+          gen(builder, llvm_module, break_to_block, continue_to_block, as->expr,
+              typing, gen_env, globals),
+          get_llvm_type(builder, as->scheme->instantiate(INTERNAL_LOC()))));
     } else if (auto sizeof_ = dcast<const bitter::sizeof_t *>(expr)) {
       assert(false);
     } else if (auto match = dcast<const bitter::match_t *>(expr)) {
@@ -743,15 +765,16 @@ llvm::Value *gen(std::string name,
     } else if (auto builtin = dcast<const bitter::builtin_t *>(expr)) {
       std::vector<llvm::Value *> llvm_values;
       for (auto expr : builtin->exprs) {
-        llvm_values.push_back(gen(builder, break_to_block, continue_to_block,
-                                  expr, typing, gen_env, globals));
+        llvm_values.push_back(gen(builder, llvm_module, break_to_block,
+                                  continue_to_block, expr, typing, gen_env,
+                                  globals));
       }
       assert(name == "");
-      return gen_builtin(builder, builtin->var->id.name, llvm_values);
+      publish(gen_builtin(builder, builtin->var->id.name, llvm_values));
+    } else {
+      throw user_error(expr->get_location(), "unhandled ssa-gen for %s :: %s",
+                       expr->str().c_str(), type->str().c_str());
     }
-
-    throw user_error(expr->get_location(), "unhandled ssa-gen for %s :: %s",
-                     expr->str().c_str(), type->str().c_str());
   } catch (user_error &e) {
     e.add_info(expr->get_location(), "while in gen phase for %s",
                expr->str().c_str());
