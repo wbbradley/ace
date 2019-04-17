@@ -3,11 +3,6 @@
 #include "types.h"
 #include "zion.h"
 
-llvm::FunctionType *llvm_create_function_type(
-    llvm::IRBuilder<> &builder,
-    const std::vector<llvm::Type *> &llvm_type_args,
-    llvm::Type *llvm_return_type);
-
 llvm::Constant *llvm_create_struct_instance(
     std::string var_name,
     llvm::Module *llvm_module,
@@ -17,6 +12,13 @@ llvm::Constant *llvm_create_struct_instance(
 llvm::Constant *llvm_create_constant_struct_instance(
     llvm::StructType *llvm_struct_type,
     std::vector<llvm::Constant *> llvm_struct_data);
+
+llvm::FunctionType *get_llvm_arrow_function_type(
+    llvm::IRBuilder<> &builder,
+    const types::type_t::refs &terms);
+
+llvm::Type *get_llvm_closure_type(llvm::IRBuilder<> &builder,
+                                  const types::type_t::refs &terms);
 
 std::vector<llvm::Type *> get_llvm_types(llvm::IRBuilder<> &builder,
                                          const types::type_t::refs &types);
@@ -60,16 +62,13 @@ llvm::Value *_llvm_resolve_alloca(llvm::IRBuilder<> &builder,
 llvm::Type *llvm_resolve_type(llvm::Value *llvm_value);
 llvm::StructType *llvm_create_struct_type(
     llvm::IRBuilder<> &builder,
-    std::string name,
     const types::type_t::refs &dimensions);
 llvm::StructType *llvm_create_struct_type(
     llvm::IRBuilder<> &builder,
-    std::string name,
     const std::vector<llvm::Type *> &llvm_types);
 llvm::StructType *llvm_create_struct_type(
     llvm::IRBuilder<> &builder,
-    std::string name,
-    const std::vector<llvm::Value*> &llvm_dims);
+    const std::vector<llvm::Value *> &llvm_dims);
 llvm::Value *llvm_tuple_alloc(llvm::IRBuilder<> &builder,
                               const std::vector<llvm::Value *> llvm_dims);
 llvm::Constant *llvm_sizeof_type(llvm::IRBuilder<> &builder,
@@ -121,6 +120,11 @@ llvm::Function *llvm_start_function(llvm::IRBuilder<> &builder,
                                     const types::type_t::refs &terms,
                                     std::string name);
 
+void get_llvm_function_type_parts(llvm::IRBuilder<> &builder,
+                                  const types::type_t::refs &type_terms,
+                                  std::vector<llvm::Type *> *llvm_param_types,
+                                  llvm::Type **llvm_return_type);
+
 llvm::Constant *llvm_create_global_string_constant(llvm::IRBuilder<> &builder,
                                                    llvm::Module &M,
                                                    std::string str);
@@ -138,5 +142,7 @@ void llvm_generate_dead_return(llvm::IRBuilder<> &builder);
 llvm::Instruction *llvm_dead_return(llvm::IRBuilder<> &builder,
                                     llvm::Type *llvm_return_type);
 
-void check_value_is_closure(llvm::Value *closure);
-void destructure_closure(llvm::Value *closure, llvm::Value **llvm_function, llvm::Value **llvm_closure_env);
+void destructure_closure(llvm::IRBuilder<> &builder,
+                         llvm::Value *closure,
+                         llvm::Value **llvm_function,
+                         llvm::Value **llvm_closure_env);

@@ -945,8 +945,20 @@ phase_3_t specialize(const phase_2_t &phase_2) {
 }
 
 struct phase_4_t {
+  phase_4_t(const phase_4_t &) = delete;
+  phase_4_t(phase_3_t phase_3, llvm::Module *llvm_module)
+      : phase_3(phase_3), llvm_module(llvm_module) {
+  }
+  phase_4_t(phase_4_t &&rhs)
+      : phase_3(rhs.phase_3), llvm_module(rhs.llvm_module) {
+    rhs.llvm_module = nullptr;
+  }
+  ~phase_4_t() {
+    delete llvm_module;
+  }
+
   phase_3_t phase_3;
-  llvm::Module *llvm_module;
+  llvm::Module *llvm_module = nullptr;
   std::ostream &dump(std::ostream &os) {
     return os << llvm_print_module(*llvm_module);
   }
@@ -974,8 +986,7 @@ std::unordered_set<std::string> get_globals(const phase_3_t &phase_3) {
   return globals;
 }
 
-phase_4_t ssa_gen(const phase_3_t &phase_3) {
-  llvm::LLVMContext context;
+phase_4_t ssa_gen(llvm::LLVMContext &context, const phase_3_t &phase_3) {
   llvm::Module *module = new llvm::Module("program", context);
   llvm::IRBuilder<> builder(context);
 
@@ -1040,7 +1051,7 @@ phase_4_t ssa_gen(const phase_3_t &phase_3) {
     /* and continue */
   }
 
-  return phase_4_t{phase_3, module};
+  return phase_4_t(phase_3, module);
 }
 
 struct job_t {
@@ -1164,10 +1175,8 @@ int run_job(const job_t &job) {
     if (job.args.size() != 1) {
       return run_job({"help", {}});
     } else {
-      auto phase_4 = ssa_gen(specialize(compile(job.args[0])));
-      if (user_error::errors_occurred()) {
-        return EXIT_FAILURE;
-      }
+      llvm::LLVMContext context;
+      phase_4_t phase_4 = ssa_gen(context, specialize(compile(job.args[0])));
       std::stringstream ss;
       phase_4.dump(ss);
 
@@ -1177,6 +1186,8 @@ int run_job(const job_t &job) {
       ofs.open(output_filename.c_str(), std::ofstream::out);
       ofs << clean_ansi_escapes(ss.str()) << std::endl;
       ofs.close();
+
+      llvm_verify_module(*phase_4.llvm_module);
 
       return user_error::errors_occurred() ? EXIT_FAILURE : EXIT_SUCCESS;
     }
