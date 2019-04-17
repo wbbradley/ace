@@ -79,7 +79,7 @@ void get_free_vars(const bitter::expr_t *expr,
     auto lambda_type = typing.at(lambda);
     bool already_has_lambda_var = free_vars.contains(
         lambda->var, get_nth_type_in_arrow(lambda_type, lambda, 0));
-    std::unordered_set<std::string> new_bindings;
+    std::unordered_set<std::string> new_bindings = bindings;
     new_bindings.insert(lambda->var.name);
     get_free_vars(lambda->body, typing, new_bindings, free_vars);
     /* we should never be adding a bound variable name to the closure if it is
@@ -94,9 +94,9 @@ void get_free_vars(const bitter::expr_t *expr,
   } else if (auto let = dcast<const bitter::let_t *>(expr)) {
     // TODO: allow let-rec
     get_free_vars(let->value, typing, bindings, free_vars);
-    auto new_bound_vars = bindings;
-    new_bound_vars.insert(let->var.name);
-    get_free_vars(let->body, typing, new_bound_vars, free_vars);
+    auto new_bindings = bindings;
+    new_bindings.insert(let->var.name);
+    get_free_vars(let->body, typing, new_bindings, free_vars);
   } else if (auto fix = dcast<const bitter::fix_t *>(expr)) {
     get_free_vars(fix->f, typing, bindings, free_vars);
   } else if (auto condition = dcast<const bitter::conditional_t *>(expr)) {
@@ -416,24 +416,26 @@ void gen_lambda(std::string name,
                 gen_env_t &gen_env,
                 const std::unordered_set<std::string> &globals,
                 publisher_t *publisher) {
+  if (name == "") {
+    name = "__anonymous";
+  }
   /* see if we need to lift any free variables into a closure */
   free_vars_t free_vars;
   get_free_vars(lambda, typing, globals, free_vars);
 
   types::type_t::refs type_terms;
   unfold_binops_rassoc(ARROW_TYPE_OPERATOR, type, type_terms);
-  /* this function will not be called directly, it will be packaged into a
-   * closure. the type system does not reflect the difference between
-   * functions or closures, but here when we are lowering, we need to be
-   * honest with LLVM. all functions in Zion are capable of taking closure
-   * environments, but not all use them. */
-  assert(type_terms.size() >= 1);
-  auto return_type = type_arrows(type_terms, 1 /*offset*/);
-  types::type_t::refs actual_type_terms = {
-      type_terms[0], type_id(make_iid("__closure_t")), return_type};
 
-  llvm::Function *llvm_function = llvm_start_function(builder, llvm_module,
-                                                      actual_type_terms, name);
+  llvm::FunctionType *llvm_function_type = get_llvm_arrow_function_type(
+      builder, type_terms);
+
+  llvm::Type *llvm_return_type = llvm_function_type->getReturnType();
+  llvm::ArrayRef<llvm::Type *> llvm_param_types = llvm_function_type->params();
+
+  llvm::Function *llvm_function = llvm::Function::Create(
+      llvm_function_type, llvm::Function::ExternalLinkage, name,
+      llvm_module != nullptr ? llvm_module : llvm_get_module(builder));
+  llvm_function->setDoesNotThrow();
 
   llvm::BasicBlock *block = llvm::BasicBlock::Create(builder.getContext(),
                                                      "entry", llvm_function);
@@ -473,27 +475,40 @@ void gen_lambda(std::string name,
    * */
   llvm::StructType *llvm_closure_type = llvm::StructType::get(
       llvm_function->getType(), builder.getInt8Ty()->getPointerTo());
+  auto _llvm_closure_type = get_llvm_closure_type(builder, type_terms);
+  log("llvm_closure_type = %s", llvm_print(llvm_closure_type).c_str());
+  log("_llvm_closure_type = %s", llvm_print(_llvm_closure_type).c_str());
+  assert(llvm_closure_type->getPointerTo() == _llvm_closure_type);
 
-  auto *closure = (llvm_dims.size() == 1 && llvm_dims[0] == llvm_function)
-                      ? llvm_get_global(llvm_module, name + ".closure",
-                                        llvm::ConstantStruct::get(
-                                            llvm_closure_type,
-                                            std::vector<llvm::Constant *>(
-                                                {llvm_function,
-                                                 llvm::Constant::getNullValue(
-                                                     builder.getInt8Ty()
-                                                         ->getPointerTo())})),
-                                        true /*is_constant*/)
-                      : llvm_tuple_alloc(builder, llvm_dims);
+  log("llvm_dims count is %d", int(llvm_dims.size()));
+
+  llvm::Value *opaque_closure = nullptr;
+  llvm::Value *closure = nullptr;
+  if (llvm_dims.size() == 1 && llvm_dims[0] == llvm_function) {
+    opaque_closure = llvm_get_global(
+        llvm_module, name + ".closure",
+        llvm::ConstantStruct::get(
+            llvm_closure_type,
+            std::vector<llvm::Constant *>(
+                {llvm_function, llvm::Constant::getNullValue(
+                                    builder.getInt8Ty()->getPointerTo())})),
+        true /*is_constant*/);
+  } else {
+    closure = llvm_tuple_alloc(builder, llvm_dims);
+    opaque_closure = builder.CreateBitCast(closure,
+                                           llvm_closure_type->getPointerTo());
+  }
+  assert(opaque_closure->getType() == llvm_closure_type->getPointerTo());
 
   /* we should always be returning the same type, and it should be the closure
    * type */
-  log("created closure %s", llvm_print(closure).c_str());
-  assert(closure->getType() == llvm_closure_type->getPointerTo());
+  log("created closure %s", llvm_print(closure ? closure : opaque_closure).c_str());
+  log("%s == llvm_closure_type->getPointerTo()",
+      llvm_print(llvm_closure_type->getPointerTo()).c_str());
 
   /* we have a closure which is usable now in this scope */
   if (publisher != nullptr) {
-    publisher->publish(closure);
+    publisher->publish(opaque_closure);
   }
 
   // BLOCK
@@ -503,25 +518,36 @@ void gen_lambda(std::string name,
 
     /* put the param in scope */
     auto new_env = gen_env;
+    if (name != "") {
+      /* inject the closure itself so that it can self refer */
+      // set_env_var(new_env, name, type, opaque_closure, true
+      // /*allow_shadowing*/);
+    }
     set_env_var(new_env, lambda->var.name, type_terms[0],
                 &*llvm_function->args().begin(), true /*allow_shadowing*/);
 
-    llvm::Value *closure_env = builder.CreateBitCast(
-        llvm_function->arg_end() - 1, closure->getType(), "closure_env");
+    if (closure != nullptr) {
+      assert(free_vars.typed_ids.size() != 0);
+      llvm::Value *closure_env = builder.CreateBitCast(
+          llvm_function->arg_end() - 1, closure->getType(), "closure_env");
+      log("closure_env in gen_lambda is %s", llvm_print(closure_env).c_str());
 
-    // TODO: consider injecting the lambda's name to avoid recursion issues...
-    int arg_index = 1;
-    for (auto typed_id : free_vars.typed_ids) {
-      // inject the closed over vars into the new environment within the closure
-      llvm::Value *gep_path[] = {builder.getInt32(0),
-                                 builder.getInt32(arg_index)};
-      llvm::Value *llvm_captured_value_in_lambda_scope = builder.CreateLoad(
-          builder.CreateInBoundsGEP(closure_env, gep_path));
-      llvm_captured_value_in_lambda_scope->setName(typed_id.id.name);
-      set_env_var(new_env, typed_id.id.name, dim_types[arg_index - 1],
-                  llvm_captured_value_in_lambda_scope,
-                  true /*allow_shadowing*/);
-      ++arg_index;
+      int arg_index = 1;
+      for (auto typed_id : free_vars.typed_ids) {
+        // inject the closed over vars into the new environment within the
+        // closure
+        llvm::Value *gep_path[] = {builder.getInt32(0),
+                                   builder.getInt32(arg_index)};
+        llvm::Value *llvm_captured_value_in_lambda_scope = builder.CreateLoad(
+            builder.CreateInBoundsGEP(closure_env, gep_path));
+        llvm_captured_value_in_lambda_scope->setName(typed_id.id.name);
+        set_env_var(new_env, typed_id.id.name, dim_types[arg_index - 1],
+                    llvm_captured_value_in_lambda_scope,
+                    true /*allow_shadowing*/);
+        ++arg_index;
+      }
+    } else {
+      assert(free_vars.typed_ids.size() == 0);
     }
 
     /* now build the body of the function */
@@ -541,7 +567,23 @@ llvm::Value *gen_literal(std::string name,
                          llvm::IRBuilder<> &builder,
                          const bitter::literal_t *literal,
                          types::type_t::ref type) {
-  assert(false);
+  auto &token = literal->token;
+  debug_above(6, log("emitting literal %s :: %s", token.str().c_str(),
+                     type->str().c_str()));
+  if (type_equality(type, type_id(make_iid(INT_TYPE)))) {
+    return builder.getZionInt(atoll(token.text.c_str()));
+  } else if (type_equality(type,
+                           type_operator({type_id(make_iid(PTR_TYPE_OPERATOR)),
+                                          type_id(make_iid(CHAR_TYPE))}))) {
+    /* char * */
+    auto llvm_literal = llvm_create_global_string_constant(
+        builder, *llvm_get_module(builder), unescape_json_quotes(token.text));
+    debug_above(
+        6, log("emitting llvm literal %s", llvm_print(llvm_literal).c_str()));
+    return llvm_literal;
+  }
+
+  assert_not_impl();
   return nullptr;
 }
 
@@ -604,13 +646,13 @@ void gen(std::string name,
                                     continue_to_block, application->b, typing,
                                     gen_env, globals);
 
-      llvm::Value *llvm_function_to_call;
-      llvm::Value *llvm_closure_env;
-      destructure_closure(closure, &llvm_function_to_call, &llvm_closure_env);
+      llvm::Value *llvm_function_to_call = nullptr;
+      llvm::Value *llvm_closure_env = nullptr;
+      destructure_closure(builder, closure, &llvm_function_to_call,
+                          &llvm_closure_env);
 
       llvm::Value *args[] = {lambda_arg, llvm_closure_env};
 
-      assert(name == "");
       publish(builder.CreateCall(llvm_function_to_call,
                                  llvm::ArrayRef<llvm::Value *>(args)));
     } else if (auto let = dcast<const bitter::let_t *>(expr)) {
@@ -622,11 +664,10 @@ void gen(std::string name,
           &publishable);
 
       set_env_var(new_env, let->var.name,
-                  get(typing, static_cast<const bitter::expr_t *>(let->body),
+                  get(typing, static_cast<const bitter::expr_t *>(let->value),
                       types::type_t::ref{}),
                   let_value, true /*allow_shadowing*/);
 
-      assert(name == "");
       publish(gen(builder, llvm_module, break_to_block, continue_to_block,
                   let->body, typing, new_env, globals));
     } else if (auto fix = dcast<const bitter::fix_t *>(expr)) {
@@ -679,7 +720,6 @@ void gen(std::string name,
 
       if (merge_block != nullptr) {
         builder.SetInsertPoint(merge_block);
-        assert(name == "");
         publish(phi_node);
       }
     } else if (auto break_ = dcast<const bitter::break_t *>(expr)) {
@@ -769,7 +809,6 @@ void gen(std::string name,
                                   continue_to_block, expr, typing, gen_env,
                                   globals));
       }
-      assert(name == "");
       publish(gen_builtin(builder, builtin->var->id.name, llvm_values));
     } else {
       throw user_error(expr->get_location(), "unhandled ssa-gen for %s :: %s",

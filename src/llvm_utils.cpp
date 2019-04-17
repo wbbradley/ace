@@ -66,15 +66,6 @@ llvm::Value *llvm_create_double(llvm::IRBuilder<> &builder, double value) {
   return llvm::ConstantFP::get(builder.getContext(), llvm::APFloat(value));
 }
 
-llvm::FunctionType *llvm_create_function_type(
-    llvm::IRBuilder<> &builder,
-    const std::vector<llvm::Type *> &llvm_type_args,
-    llvm::Type *llvm_return_type) {
-  return llvm::FunctionType::get(llvm_return_type,
-                                 llvm::ArrayRef<llvm::Type *>(llvm_type_args),
-                                 false /*isVarArg*/);
-}
-
 llvm::Type *llvm_resolve_type(llvm::Value *llvm_value) {
   if (llvm::AllocaInst *alloca = llvm::dyn_cast<llvm::AllocaInst>(llvm_value)) {
     assert(llvm_value->getType()->isPointerTy());
@@ -211,6 +202,7 @@ std::string llvm_print(llvm::Value &llvm_value) {
   llvm_value.getType()->print(os);
   os.flush();
   ss << C_RESET;
+  assert(ss.str().find("<badref>") == std::string::npos);
   return ss.str();
 }
 
@@ -376,39 +368,31 @@ llvm::Constant *llvm_create_constant_struct_instance(
 
 llvm::StructType *llvm_create_struct_type(
     llvm::IRBuilder<> &builder,
-    std::string name,
     const std::vector<llvm::Type *> &llvm_types_) {
   llvm::ArrayRef<llvm::Type *> llvm_types{llvm_types_};
   auto llvm_struct_type = llvm::StructType::get(builder.getContext(),
                                                 llvm_types);
 
-  /* give the struct a helpful name internally */
-  llvm_struct_type->setName(name);
-
-  debug_above(3, log(log_info, "created struct type " c_id("%s") " %s",
-                     name.c_str(), llvm_print(llvm_struct_type).c_str()));
+  debug_above(3, log(log_info, "created struct type %s",
+                     llvm_print(llvm_struct_type).c_str()));
 
   return llvm_struct_type;
 }
 
 llvm::StructType *llvm_create_struct_type(
     llvm::IRBuilder<> &builder,
-    std::string name,
     const types::type_t::refs &dimensions) {
-  return llvm_create_struct_type(builder, name,
-                                 get_llvm_types(builder, dimensions));
+  return llvm_create_struct_type(builder, get_llvm_types(builder, dimensions));
 }
 
 llvm::StructType *llvm_create_struct_type(
     llvm::IRBuilder<> &builder,
-    std::string name,
-    const std::vector<llvm::Value*> &llvm_dims) {
-  std::vector<llvm::Type*> llvm_types;
-  for (auto llvm_dim: llvm_dims) {
+    const std::vector<llvm::Value *> &llvm_dims) {
+  std::vector<llvm::Type *> llvm_types;
+  for (auto llvm_dim : llvm_dims) {
     llvm_types.push_back(llvm_dim->getType());
   }
-  return llvm_create_struct_type(builder, name,
-                                 llvm_types);
+  return llvm_create_struct_type(builder, llvm_types);
 }
 
 void llvm_verify_function(location_t location, llvm::Function *llvm_function) {
@@ -442,6 +426,7 @@ void llvm_verify_module(llvm::Module &llvm_module) {
                      llvm_module.getName().str().c_str(), ss.str().c_str(),
                      llvm_print_module(llvm_module).c_str());
   }
+  std::cerr << ss.str() << std::endl;
 }
 
 llvm::Constant *llvm_sizeof_type(llvm::IRBuilder<> &builder,
@@ -482,13 +467,8 @@ llvm::Function *llvm_start_function(llvm::IRBuilder<> &builder,
   debug_above(7, log("llvm_start_function(..., ..., {%s}, %s)...",
                      join_str(terms).c_str(), name.c_str()));
   assert(llvm_module != nullptr);
-  assert(terms.size() == 3);
-  std::vector<llvm::Type *> llvm_type_terms = get_llvm_types(builder, terms);
 
-  /* get the llvm function type for the data ctor */
-  llvm::FunctionType *llvm_fn_type = llvm_create_function_type(
-      builder, vec_slice(llvm_type_terms, 0, llvm_type_terms.size() - 1),
-      llvm_type_terms.back());
+  auto llvm_fn_type = get_llvm_arrow_function_type(builder, terms);
 
   /* now let's generate our actual data ctor fn */
   auto llvm_function = llvm::Function::Create(
@@ -496,23 +476,6 @@ llvm::Function *llvm_start_function(llvm::IRBuilder<> &builder,
       llvm_module != nullptr ? llvm_module : llvm_get_module(builder));
 
   llvm_function->setDoesNotThrow();
-
-#if 0
-	/* start emitting code into the new function. caller should have an
-	 * insert point guard */
-	llvm::BasicBlock *llvm_entry_block = llvm::BasicBlock::Create(builder.getContext(),
-			"entry", llvm_function);
-	llvm::BasicBlock *llvm_body_block = llvm::BasicBlock::Create(builder.getContext(),
-			"body", llvm_function);
-
-	builder.SetInsertPoint(llvm_entry_block);
-	/* leave an empty entry block so that we can insert GC stuff in there, but be able to
-	 * seek to the end of it and not get into business logic */
-	assert(!builder.GetInsertBlock()->getTerminator());
-	builder.CreateBr(llvm_body_block);
-
-	builder.SetInsertPoint(llvm_body_block);
-#endif
 
   return llvm_function;
 }
@@ -549,6 +512,7 @@ llvm::GlobalVariable *llvm_get_global(llvm::Module *llvm_module,
                                       std::string name,
                                       llvm::Constant *llvm_constant,
                                       bool is_constant) {
+  assert(llvm_module != nullptr);
   auto llvm_global_variable = new llvm::GlobalVariable(
       *llvm_module, llvm_constant->getType(), is_constant,
       llvm::GlobalValue::PrivateLinkage, llvm_constant, name, nullptr,
@@ -707,6 +671,32 @@ llvm::Value *llvm_last_param(llvm::Function *llvm_function) {
   return last;
 }
 
+llvm::FunctionType *get_llvm_arrow_function_type(
+    llvm::IRBuilder<> &builder,
+    const types::type_t::refs &terms) {
+  assert(terms.size() > 1);
+  llvm::Type *param_types[] = {get_llvm_type(builder, terms[0]),
+                               builder.getInt8Ty()->getPointerTo()};
+  llvm::Type *return_type = (terms.size() == 2)
+                                ? get_llvm_type(builder, terms[1])
+                                : get_llvm_closure_type(
+                                      builder,
+                                      vec_slice(terms, 1, terms.size()));
+
+  /* get the llvm function type for the data ctor */
+  return llvm::FunctionType::get(return_type,
+                                 llvm::ArrayRef<llvm::Type *>(param_types),
+                                 false /*isVarArg*/);
+}
+
+llvm::Type *get_llvm_closure_type(llvm::IRBuilder<> &builder,
+                                  const types::type_t::refs &terms) {
+  return llvm::StructType::get(
+             get_llvm_arrow_function_type(builder, terms)->getPointerTo(),
+             builder.getInt8Ty()->getPointerTo())
+      ->getPointerTo();
+}
+
 llvm::Type *get_llvm_type(llvm::IRBuilder<> &builder,
                           const types::type_t::ref &type) {
   debug_above(7, log("get_llvm_type(%s)...", type->str().c_str()));
@@ -725,27 +715,19 @@ llvm::Type *get_llvm_type(llvm::IRBuilder<> &builder,
     }
     std::vector<llvm::Type *> llvm_types = get_llvm_types(
         builder, tuple_type->dimensions);
-    llvm::StructType *llvm_struct_type = llvm_create_struct_type(
-        builder, type->repr(), llvm_types);
+    llvm::StructType *llvm_struct_type = llvm_create_struct_type(builder,
+                                                                 llvm_types);
     return llvm_struct_type->getPointerTo();
   } else if (auto operator_ = dyncast<const types::type_operator_t>(type)) {
     types::type_t::refs terms;
     unfold_binops_rassoc(ARROW_TYPE_OPERATOR, type, terms);
-    if (terms.size() <= 1) {
-      /* anything user-defined gets passed around as an i8* */
+    if (terms.size() == 1) {
+      /* user defined types are recast at their usage site, not passed around
+       * structurally */
       return builder.getInt8Ty()->getPointerTo();
     } else {
-      /* functions are passed around as closures */
-      // TODO: return a closure type
-      assert(false);
-      auto ft = llvm_create_function_type(
-                    builder, {get_llvm_type(builder, terms[0])},
-                    get_llvm_type(builder, type_arrows(terms, 1)))
-                    ->getPointerTo();
-      debug_above(7, log("get_llvm_type(..., %s) -> %s", type->str().c_str(),
-                         llvm_print(ft).c_str()));
-      // TODO: repurpose destructure_closure to check that this is valid
-      return ft;
+      assert(terms.size() > 1);
+      return get_llvm_closure_type(builder, terms);
     }
   } else if (auto variable = dyncast<const types::type_variable_t>(type)) {
     assert(false);
@@ -780,16 +762,16 @@ std::vector<llvm::Type *> llvm_get_types(
 
 llvm::Value *llvm_tuple_alloc(llvm::IRBuilder<> &builder,
                               const std::vector<llvm::Value *> llvm_dims) {
-  llvm::StructType *llvm_tuple_type = llvm_create_struct_type(builder, "tuple", llvm_dims);
-  std::vector<llvm::Type *> alloc_terms{builder.getInt64Ty()};
+  llvm::StructType *llvm_tuple_type = llvm_create_struct_type(builder,
+                                                              llvm_dims);
+  llvm::Type *alloc_terms[] = {builder.getInt64Ty()};
   debug_above(6, log("need to allocate a tuple of type %s",
                      llvm_print(llvm_tuple_type).c_str()));
   auto llvm_module = llvm_get_module(builder);
   auto llvm_alloc_func_decl = llvm::cast<llvm::Function>(
       llvm_module->getOrInsertFunction(
-          "malloc",
-          llvm_create_function_type(builder, alloc_terms,
-                                    builder.getInt8Ty()->getPointerTo())));
+          "malloc", llvm::FunctionType::get(builder.getInt8Ty()->getPointerTo(),
+                                            alloc_terms, false /*isVarArg*/)));
   llvm::Value *llvm_allocated_tuple = builder.CreateBitCast(
       builder.CreateCall(llvm_alloc_func_decl,
                          std::vector<llvm::Value *>{
@@ -824,12 +806,8 @@ llvm::Value *llvm_tuple_alloc(llvm::IRBuilder<> &builder,
   return llvm_allocated_tuple;
 }
 
-void check_value_is_closure(llvm::Value *closure) {
-  llvm::Value *_;
-  destructure_closure(closure, &_, &_);
-}
-
-void destructure_closure(llvm::Value *closure,
+void destructure_closure(llvm::IRBuilder<> &builder, 
+                         llvm::Value *closure,
                          llvm::Value **llvm_function,
                          llvm::Value **llvm_closure_env) {
   auto &context = closure->getContext();
@@ -851,19 +829,22 @@ void destructure_closure(llvm::Value *closure,
 
   // Must accept the closure env.
   assert(params.size() >= 1);
-  assert(params.back() == llvm::Type::getInt8Ty(context));
+  assert(params.back() == llvm::Type::getInt8Ty(context)->getPointerTo());
 
   // Second part of the tuple is the closure env pointer (i8*)
   auto llvm_closure_env_type = struct_type->getElementType(1);
-  assert(llvm_closure_env_type == llvm::Type::getInt8Ty(context));
+  assert(llvm_closure_env_type ==
+         llvm::Type::getInt8Ty(context)->getPointerTo());
 
-  llvm::IRBuilder<> builder(context);
-  auto gep_function_path = std::vector<llvm::Value *>{builder.getInt32(0),
-                                                      builder.getInt32(0)};
-  auto gep_env_path = std::vector<llvm::Value *>{builder.getInt32(0),
-                                                 builder.getInt32(1)};
-  *llvm_function = builder.CreateLoad(
-      builder.CreateInBoundsGEP(closure, gep_function_path));
-  *llvm_closure_env = builder.CreateLoad(
-      builder.CreateInBoundsGEP(closure, gep_env_path));
+  llvm::Value *gep_function_path[] = {builder.getInt32(0), builder.getInt32(0)};
+  llvm::Value *gep_env_path[] = {builder.getInt32(0), builder.getInt32(1)};
+
+  log("destructure_closure has closure = %s", llvm_print(closure).c_str());
+  *llvm_function = builder.CreateLoad(builder.CreateInBoundsGEP(
+      closure, llvm::ArrayRef<llvm::Value *>(gep_function_path)));
+  *llvm_closure_env = builder.CreateLoad(builder.CreateInBoundsGEP(
+      closure, llvm::ArrayRef<llvm::Value *>(gep_env_path)));
+  log("destructure_closure -> (%s, %s)", llvm_print(*llvm_function).c_str(),
+      llvm_print(*llvm_closure_env).c_str());
+  dbg_when(llvm_print(*llvm_function).find("badref") != std::string::npos);
 }
