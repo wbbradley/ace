@@ -1031,7 +1031,7 @@ phase_4_t ssa_gen(llvm::LLVMContext &context, const phase_3_t &phase_3) {
               gen::publishable_t publishable(llvm_value);
               gen::gen(name, builder, module, nullptr /*break_to_block*/,
                        nullptr /*continue_to_block*/, translation->expr,
-                       translation->typing, gen_env, globals, &publishable);
+                       translation->typing, gen_env, {}, globals, &publishable);
             });
 
         resolvers.push_back(resolver);

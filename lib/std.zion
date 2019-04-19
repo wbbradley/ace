@@ -379,6 +379,7 @@ fn id(x) => x
 fn print(x) {
     return match str(x) {
         Vector(Ref(sz), _, _) {
+            __builtin_hello
             __builtin_print(sz)
         }
     }

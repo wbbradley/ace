@@ -1,6 +1,7 @@
 #include "gen.h"
 
 #include "ast.h"
+#include "logger.h"
 #include "ptr.h"
 #include "typed_id.h"
 #include "types.h"
@@ -38,11 +39,13 @@ struct loop_guard_t {
 };
 
 struct free_vars_t {
+  std::set<typed_id_t> globals;
   std::set<typed_id_t> typed_ids;
   int count() const {
     return typed_ids.size();
   }
   void add(identifier_t id, types::type_t::ref type) {
+    log("adding free var %s", id.str().c_str());
     assert(type != nullptr);
     typed_ids.insert({id, type});
   }
@@ -54,9 +57,7 @@ struct free_vars_t {
   }
 };
 
-types::type_t::ref get_nth_type_in_arrow(types::type_t::ref arrow_type,
-                                         const bitter::lambda_t *lambda,
-                                         int n) {
+types::type_t::ref get_nth_type_in_arrow(types::type_t::ref arrow_type, int n) {
   types::type_t::refs terms;
   unfold_binops_rassoc(ARROW_TYPE_OPERATOR, arrow_type, terms);
   assert(n < terms.size());
@@ -65,77 +66,85 @@ types::type_t::ref get_nth_type_in_arrow(types::type_t::ref arrow_type,
 
 void get_free_vars(const bitter::expr_t *expr,
                    const tracked_types_t &typing,
-                   const std::unordered_set<std::string> &bindings,
+                   const std::unordered_set<std::string> &globals,
+                   const std::unordered_set<std::string> &locals,
                    free_vars_t &free_vars) {
-  debug_above(7, log("get_free_vars(%s, {%s}, ...)", expr->str().c_str(),
-                     join(bindings, ", ").c_str()));
   if (auto literal = dcast<const bitter::literal_t *>(expr)) {
   } else if (auto static_print = dcast<const bitter::static_print_t *>(expr)) {
   } else if (auto var = dcast<const bitter::var_t *>(expr)) {
-    if (!in(var->id.name, bindings)) {
+    if (!in(var->id.name, globals) && !in(var->id.name, locals)) {
+      /* we need to capture this variable in order to put it into our closure */
       free_vars.add(var->id, get(typing, expr, {}));
     }
   } else if (auto lambda = dcast<const bitter::lambda_t *>(expr)) {
+    log("checking lambda %s", lambda->str().c_str());
     auto lambda_type = typing.at(lambda);
     bool already_has_lambda_var = free_vars.contains(
-        lambda->var, get_nth_type_in_arrow(lambda_type, lambda, 0));
-    std::unordered_set<std::string> new_bindings = bindings;
-    new_bindings.insert(lambda->var.name);
-    get_free_vars(lambda->body, typing, new_bindings, free_vars);
+        lambda->var, get_nth_type_in_arrow(lambda_type, 0));
+    auto new_globals = globals;
+    new_globals.insert(lambda->var.name);
+    get_free_vars(lambda->body, typing, new_globals, {}, free_vars);
     /* we should never be adding a bound variable name to the closure if it is
      * being overwritten at a lower scope prior to capture */
-    assert_implies(
-        !already_has_lambda_var,
-        !free_vars.contains(lambda->var,
-                            get_nth_type_in_arrow(lambda_type, lambda, 0)));
+    assert_implies(!already_has_lambda_var,
+                   !free_vars.contains(lambda->var,
+                                       get_nth_type_in_arrow(lambda_type, 0)));
   } else if (auto application = dcast<const bitter::application_t *>(expr)) {
-    get_free_vars(application->a, typing, bindings, free_vars);
-    get_free_vars(application->b, typing, bindings, free_vars);
+    get_free_vars(application->a, typing, globals, locals, free_vars);
+    get_free_vars(application->b, typing, globals, locals, free_vars);
   } else if (auto let = dcast<const bitter::let_t *>(expr)) {
     // TODO: allow let-rec
-    get_free_vars(let->value, typing, bindings, free_vars);
-    auto new_bindings = bindings;
-    new_bindings.insert(let->var.name);
-    get_free_vars(let->body, typing, new_bindings, free_vars);
+    get_free_vars(let->value, typing, globals, locals, free_vars);
+    auto new_locals = locals;
+    new_locals.insert(let->var.name);
+    get_free_vars(let->body, typing, globals, new_locals, free_vars);
   } else if (auto fix = dcast<const bitter::fix_t *>(expr)) {
-    get_free_vars(fix->f, typing, bindings, free_vars);
+    get_free_vars(fix->f, typing, globals, locals, free_vars);
   } else if (auto condition = dcast<const bitter::conditional_t *>(expr)) {
-    get_free_vars(condition->cond, typing, bindings, free_vars);
-    get_free_vars(condition->truthy, typing, bindings, free_vars);
-    get_free_vars(condition->falsey, typing, bindings, free_vars);
+    get_free_vars(condition->cond, typing, globals, locals, free_vars);
+    get_free_vars(condition->truthy, typing, globals, locals, free_vars);
+    get_free_vars(condition->falsey, typing, globals, locals, free_vars);
   } else if (auto break_ = dcast<const bitter::break_t *>(expr)) {
   } else if (auto while_ = dcast<const bitter::while_t *>(expr)) {
-    get_free_vars(while_->condition, typing, bindings, free_vars);
-    get_free_vars(while_->block, typing, bindings, free_vars);
+    get_free_vars(while_->condition, typing, globals, locals, free_vars);
+    get_free_vars(while_->block, typing, globals, locals, free_vars);
   } else if (auto block = dcast<const bitter::block_t *>(expr)) {
     for (auto statement : block->statements) {
-      get_free_vars(statement, typing, bindings, free_vars);
+      get_free_vars(statement, typing, globals, locals, free_vars);
     }
   } else if (auto return_ = dcast<const bitter::return_statement_t *>(expr)) {
-    get_free_vars(return_->value, typing, bindings, free_vars);
+    get_free_vars(return_->value, typing, globals, locals, free_vars);
   } else if (auto tuple = dcast<const bitter::tuple_t *>(expr)) {
     for (auto dim : tuple->dims) {
-      get_free_vars(dim, typing, bindings, free_vars);
+      get_free_vars(dim, typing, globals, locals, free_vars);
     }
   } else if (auto tuple_deref = dcast<const bitter::tuple_deref_t *>(expr)) {
-    get_free_vars(tuple_deref->expr, typing, bindings, free_vars);
+    get_free_vars(tuple_deref->expr, typing, globals, locals, free_vars);
   } else if (auto as = dcast<const bitter::as_t *>(expr)) {
-    get_free_vars(as->expr, typing, bindings, free_vars);
+    get_free_vars(as->expr, typing, globals, locals, free_vars);
   } else if (auto sizeof_ = dcast<const bitter::sizeof_t *>(expr)) {
   } else if (auto builtin = dcast<const bitter::builtin_t *>(expr)) {
     for (auto expr : builtin->exprs) {
-      get_free_vars(expr, typing, bindings, free_vars);
+      get_free_vars(expr, typing, globals, locals, free_vars);
     }
   } else if (auto match = dcast<const bitter::match_t *>(expr)) {
-    get_free_vars(match->scrutinee, typing, bindings, free_vars);
+    /* by this point, all match expressions should have been transformed into
+     * conditionals */
+    assert(false);
+#if 0
+    get_free_vars(match->scrutinee, typing, globals, locals, free_vars);
     for (auto pattern_block : match->pattern_blocks) {
       auto new_bindings = bindings;
       pattern_block->predicate->get_bound_vars(new_bindings);
       get_free_vars(pattern_block->result, typing, new_bindings, free_vars);
     }
+#endif
   } else {
     assert(false);
   }
+  debug_above(2, log("get_free_vars(..., {%s}, {%s}, %s)", expr->str().c_str(),
+                     // join(globals, ", ").c_str(),
+                     join(locals, ", ").c_str(), free_vars.str().c_str()));
 }
 
 llvm::Value *maybe_get_env_var(const gen_env_t &gen_env,
@@ -168,9 +177,11 @@ llvm::Value *maybe_get_env_var(const gen_env_t &gen_env,
   }
 }
 
-llvm::Value *get_env_var(const gen_env_t &gen_env,
+llvm::Value *get_env_var(llvm::IRBuilder<> &builder,
+                         const gen_env_t &gen_env,
                          identifier_t id,
                          types::type_t::ref type) {
+  llvm::IRBuilderBase::InsertPointGuard ipg(builder);
   llvm::Value *llvm_value = maybe_get_env_var(gen_env, id, type);
   if (llvm_value == nullptr) {
     type = types::unitize(type);
@@ -184,6 +195,18 @@ llvm::Value *get_env_var(const gen_env_t &gen_env,
       }
     }
     throw error;
+  }
+  log("get_env_var(%s, %s) -> %s", id.str().c_str(), type->str().c_str(),
+      llvm_print(llvm_value).c_str());
+  if (auto arg = llvm::dyn_cast<llvm::Argument>(llvm_value)) {
+    log("%s is an argument %s to %s", id.str().c_str(),
+        llvm_print(llvm_value).c_str(),
+        arg->getParent()->getName().str().c_str());
+    auto cur_func = llvm_get_function(builder);
+    log("the current function is %s", cur_func->getName().str().c_str());
+    assert(arg->getParent() == llvm_get_function(builder));
+  } else {
+    log("not sure where %s is", id.str().c_str());
   }
   return llvm_value;
 }
@@ -214,6 +237,10 @@ void set_env_var(gen_env_t &gen_env,
   } else {
     /* what now? probably shouldn't have happened */
     assert(false);
+  }
+  for (auto pair : gen_env[name]) {
+    log("gen_env[%s] .= {%s, %s}", name.c_str(), type->str().c_str(),
+        llvm_print(llvm_value).c_str());
   }
   assert(maybe_get_env_var(gen_env, name, type) != nullptr);
 }
@@ -413,15 +440,20 @@ void gen_lambda(std::string name,
                 const bitter::lambda_t *lambda,
                 types::type_t::ref type,
                 const tracked_types_t &typing,
-                gen_env_t &gen_env,
+                const gen_env_t &gen_env_globals,
+                const gen_env_t &gen_env_locals,
                 const std::unordered_set<std::string> &globals,
                 publisher_t *publisher) {
   if (name == "") {
     name = "__anonymous";
   }
+
+  INDENT(2, string_format("gen_lambda(%s, ..., %s, %s, ...)", name.c_str(),
+                          lambda->str().c_str(), type->str().c_str()));
+
   /* see if we need to lift any free variables into a closure */
   free_vars_t free_vars;
-  get_free_vars(lambda, typing, globals, free_vars);
+  get_free_vars(lambda, typing, globals, {}, free_vars);
 
   types::type_t::refs type_terms;
   unfold_binops_rassoc(ARROW_TYPE_OPERATOR, type, type_terms);
@@ -450,7 +482,8 @@ void gen_lambda(std::string name,
    * and as such requires that we add code to capture the free_vars and place
    * them in our nested environment, but pointing to the closure, not to the
    * outer environment. */
-  debug_above(8, log("for %s we need closure by value of %s", name.c_str(),
+  debug_above(8, log("for %s aka %s we need closure by value of %s",
+                     llvm_function->getName().str().c_str(), name.c_str(),
                      free_vars.str().c_str()));
 
   for (auto typed_id : free_vars.typed_ids) {
@@ -458,7 +491,8 @@ void gen_lambda(std::string name,
      * it means that get_free_vars is talking about a variable that just
      * doesn't exist yet, and thus will need to be captured by a nested
      * closure. */
-    llvm_dims.push_back(get_env_var(gen_env, typed_id.id, typed_id.type));
+    llvm_dims.push_back(
+        get_env_var(builder, gen_env_locals, typed_id.id, typed_id.type));
     dim_types.push_back(typed_id.type);
   }
 
@@ -502,7 +536,8 @@ void gen_lambda(std::string name,
 
   /* we should always be returning the same type, and it should be the closure
    * type */
-  log("created closure %s", llvm_print(closure ? closure : opaque_closure).c_str());
+  log("created closure %s",
+      llvm_print(closure ? closure : opaque_closure).c_str());
   log("%s == llvm_closure_type->getPointerTo()",
       llvm_print(llvm_closure_type->getPointerTo()).c_str());
 
@@ -517,13 +552,13 @@ void gen_lambda(std::string name,
     builder.SetInsertPoint(block);
 
     /* put the param in scope */
-    auto new_env = gen_env;
+    gen_env_t new_env_locals;
     if (name != "") {
       /* inject the closure itself so that it can self refer */
       // set_env_var(new_env, name, type, opaque_closure, true
       // /*allow_shadowing*/);
     }
-    set_env_var(new_env, lambda->var.name, type_terms[0],
+    set_env_var(new_env_locals, lambda->var.name, type_terms[0],
                 &*llvm_function->args().begin(), true /*allow_shadowing*/);
 
     if (closure != nullptr) {
@@ -541,7 +576,13 @@ void gen_lambda(std::string name,
         llvm::Value *llvm_captured_value_in_lambda_scope = builder.CreateLoad(
             builder.CreateInBoundsGEP(closure_env, gep_path));
         llvm_captured_value_in_lambda_scope->setName(typed_id.id.name);
-        set_env_var(new_env, typed_id.id.name, dim_types[arg_index - 1],
+
+        log("adding closed over var %s to new_env as %s :: %s",
+            typed_id.id.name.c_str(),
+            llvm_print(llvm_captured_value_in_lambda_scope).c_str(),
+            dim_types[arg_index - 1]->str().c_str());
+
+        set_env_var(new_env_locals, typed_id.id.name, dim_types[arg_index - 1],
                     llvm_captured_value_in_lambda_scope,
                     true /*allow_shadowing*/);
         ++arg_index;
@@ -550,16 +591,19 @@ void gen_lambda(std::string name,
       assert(free_vars.typed_ids.size() == 0);
     }
 
+    log("generating body for %s = %s", name.c_str(),
+        lambda->body->str().c_str());
     /* now build the body of the function */
     gen("", builder, llvm_module, nullptr /*break_to_block*/,
-        nullptr /*continue_to_block*/, lambda->body, typing, new_env, globals,
-        nullptr /*publishable*/);
+        nullptr /*continue_to_block*/, lambda->body, typing, gen_env_globals,
+        new_env_locals, globals, nullptr /*publishable*/);
 
     if (builder.GetInsertBlock()->getTerminator() == nullptr) {
       /* ensure that we have a terminator */
       builder.CreateRet(
           llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo()));
     }
+    llvm_verify_function(INTERNAL_LOC(), llvm_function);
   }
 }
 
@@ -593,12 +637,13 @@ llvm::Value *gen(llvm::IRBuilder<> &builder,
                  llvm::BasicBlock *continue_to_block,
                  const bitter::expr_t *expr,
                  const tracked_types_t &typing,
-                 gen_env_t &gen_env,
+                 const gen_env_t &gen_env_globals,
+                 const gen_env_t &gen_env_locals,
                  const std::unordered_set<std::string> &globals) {
   llvm::Value *llvm_value = nullptr;
   publishable_t publishable(&llvm_value);
   gen("", builder, llvm_module, break_to_block, continue_to_block, expr, typing,
-      gen_env, globals, &publishable);
+      gen_env_globals, gen_env_locals, globals, &publishable);
   return llvm_value;
 }
 
@@ -609,7 +654,8 @@ void gen(std::string name,
          llvm::BasicBlock *continue_to_block,
          const bitter::expr_t *expr,
          const tracked_types_t &typing,
-         gen_env_t &gen_env,
+         const gen_env_t &gen_env_globals,
+         const gen_env_t &gen_env_locals,
          const std::unordered_set<std::string> &globals,
          publisher_t *publisher) {
   auto publish = [&publisher](llvm::Value *llvm_value) {
@@ -633,49 +679,58 @@ void gen(std::string name,
                    expr)) {
       assert(false);
     } else if (auto var = dcast<const bitter::var_t *>(expr)) {
-      publish(get_env_var(gen_env, var->id, type));
+      auto value = maybe_get_env_var(gen_env_locals, var->id, type);
+      if (value == nullptr) {
+        log("falling back to globals to find %s :: %s", var->id.str().c_str(),
+            type->str().c_str());
+        publish(get_env_var(builder, gen_env_globals, var->id, type));
+      } else {
+        publish(value);
+      }
     } else if (auto lambda = dcast<const bitter::lambda_t *>(expr)) {
-      gen_lambda(name, builder, llvm_module, lambda, type, typing, gen_env,
-                 globals, publisher);
+      /* gen_lambda needs access to locals in order to capture closed over
+       * variables */
+      gen_lambda(name, builder, llvm_module, lambda, type, typing,
+                 gen_env_globals, gen_env_locals, globals, publisher);
     } else if (auto application = dcast<const bitter::application_t *>(expr)) {
       llvm::Value *closure = gen(builder, llvm_module, break_to_block,
                                  continue_to_block, application->a, typing,
-                                 gen_env, globals);
+                                 gen_env_globals, gen_env_locals, globals);
 
       llvm::Value *lambda_arg = gen(builder, llvm_module, break_to_block,
                                     continue_to_block, application->b, typing,
-                                    gen_env, globals);
+                                    gen_env_globals, gen_env_locals, globals);
 
       llvm::Value *llvm_function_to_call = nullptr;
-      llvm::Value *llvm_closure_env = nullptr;
-      destructure_closure(builder, closure, &llvm_function_to_call,
-                          &llvm_closure_env);
+      destructure_closure(builder, closure, &llvm_function_to_call, nullptr);
 
-      llvm::Value *args[] = {lambda_arg, llvm_closure_env};
+      llvm::Value *args[] = {
+          lambda_arg,
+          builder.CreateBitCast(closure, builder.getInt8Ty()->getPointerTo())};
 
       publish(builder.CreateCall(llvm_function_to_call,
                                  llvm::ArrayRef<llvm::Value *>(args)));
     } else if (auto let = dcast<const bitter::let_t *>(expr)) {
-      auto new_env = gen_env;
       llvm::Value *let_value = nullptr;
       publishable_t publishable(&let_value);
       gen(let->var.name, builder, llvm_module, break_to_block,
-          continue_to_block, let->value, typing, gen_env, globals,
-          &publishable);
+          continue_to_block, let->value, typing, gen_env_globals,
+          gen_env_locals, globals, &publishable);
 
-      set_env_var(new_env, let->var.name,
+      auto new_env_locals = gen_env_locals;
+      set_env_var(new_env_locals, let->var.name,
                   get(typing, static_cast<const bitter::expr_t *>(let->value),
                       types::type_t::ref{}),
                   let_value, true /*allow_shadowing*/);
 
       publish(gen(builder, llvm_module, break_to_block, continue_to_block,
-                  let->body, typing, new_env, globals));
+                  let->body, typing, gen_env_globals, new_env_locals, globals));
     } else if (auto fix = dcast<const bitter::fix_t *>(expr)) {
       assert(false);
     } else if (auto condition = dcast<const bitter::conditional_t *>(expr)) {
       llvm::Value *cond = gen(builder, llvm_module, break_to_block,
                               continue_to_block, condition->cond, typing,
-                              gen_env, globals);
+                              gen_env_globals, gen_env_locals, globals);
 
       llvm::Function *llvm_function = llvm_get_function(builder);
 
@@ -688,9 +743,9 @@ void gen(std::string name,
 
       builder.CreateCondBr(cond, truthy_block, falsey_block);
       builder.SetInsertPoint(truthy_block);
-      llvm::Value *truthy_value = gen(builder, llvm_module, break_to_block,
-                                      continue_to_block, condition->truthy,
-                                      typing, gen_env, globals);
+      llvm::Value *truthy_value = gen(
+          builder, llvm_module, break_to_block, continue_to_block,
+          condition->truthy, typing, gen_env_globals, gen_env_locals, globals);
 
       llvm::PHINode *phi_node = nullptr;
       if (!builder.GetInsertBlock()->getTerminator()) {
@@ -703,9 +758,9 @@ void gen(std::string name,
       }
 
       builder.SetInsertPoint(falsey_block);
-      llvm::Value *falsey_value = gen(builder, llvm_module, break_to_block,
-                                      continue_to_block, condition->falsey,
-                                      typing, gen_env, globals);
+      llvm::Value *falsey_value = gen(
+          builder, llvm_module, break_to_block, continue_to_block,
+          condition->falsey, typing, gen_env_globals, gen_env_locals, globals);
       if (!builder.GetInsertBlock()->getTerminator()) {
         if (phi_node == nullptr) {
           assert(merge_block == nullptr);
@@ -739,7 +794,7 @@ void gen(std::string name,
 
       llvm::Value *cond = gen(builder, llvm_module, break_to_block,
                               continue_to_block, while_->condition, typing,
-                              gen_env, globals);
+                              gen_env_globals, gen_env_locals, globals);
 
       auto while_block = llvm::BasicBlock::Create(
           builder.getContext(), "while_block" + tag, llvm_function);
@@ -751,7 +806,8 @@ void gen(std::string name,
       loop_guard_t loop_guard(else_block, cond_block, &break_to_block,
                               &continue_to_block);
       gen("", builder, llvm_module, break_to_block, continue_to_block,
-          while_->block, typing, gen_env, globals, nullptr /*publisher*/);
+          while_->block, typing, gen_env_globals, gen_env_locals, globals,
+          nullptr /*publisher*/);
 
       if (builder.GetInsertBlock()->getTerminator() == nullptr) {
         builder.CreateBr(cond_block);
@@ -766,24 +822,26 @@ void gen(std::string name,
 
       for (auto statement : block->statements) {
         gen("", builder, llvm_module, break_to_block, continue_to_block,
-            statement, typing, gen_env, globals, &publishable);
+            statement, typing, gen_env_globals, gen_env_locals, globals,
+            &publishable);
       }
       publish(value);
     } else if (auto return_ = dcast<const bitter::return_statement_t *>(expr)) {
       builder.CreateRet(gen(builder, llvm_module, break_to_block,
-                            continue_to_block, return_->value, typing, gen_env,
-                            globals));
+                            continue_to_block, return_->value, typing,
+                            gen_env_globals, gen_env_locals, globals));
     } else if (auto tuple = dcast<const bitter::tuple_t *>(expr)) {
       std::vector<llvm::Value *> dim_values;
       for (auto dim : tuple->dims) {
         dim_values.push_back(gen(builder, llvm_module, break_to_block,
-                                 continue_to_block, dim, typing, gen_env,
-                                 globals));
+                                 continue_to_block, dim, typing,
+                                 gen_env_globals, gen_env_locals, globals));
       }
       publish(llvm_tuple_alloc(builder, dim_values));
     } else if (auto tuple_deref = dcast<const bitter::tuple_deref_t *>(expr)) {
       auto td = gen(builder, llvm_module, break_to_block, continue_to_block,
-                    tuple_deref->expr, typing, gen_env, globals);
+                    tuple_deref->expr, typing, gen_env_globals, gen_env_locals,
+                    globals);
       debug_above(10, log_location(tuple_deref->expr->get_location(),
                                    "created tuple deref %s from %s",
                                    llvm_print(td).c_str(),
@@ -796,7 +854,7 @@ void gen(std::string name,
       assert(as->force_cast);
       publish(builder.CreateBitCast(
           gen(builder, llvm_module, break_to_block, continue_to_block, as->expr,
-              typing, gen_env, globals),
+              typing, gen_env_globals, gen_env_locals, globals),
           get_llvm_type(builder, as->scheme->instantiate(INTERNAL_LOC()))));
     } else if (auto sizeof_ = dcast<const bitter::sizeof_t *>(expr)) {
       assert(false);
@@ -806,8 +864,8 @@ void gen(std::string name,
       std::vector<llvm::Value *> llvm_values;
       for (auto expr : builtin->exprs) {
         llvm_values.push_back(gen(builder, llvm_module, break_to_block,
-                                  continue_to_block, expr, typing, gen_env,
-                                  globals));
+                                  continue_to_block, expr, typing,
+                                  gen_env_globals, gen_env_locals, globals));
       }
       publish(gen_builtin(builder, builtin->var->id.name, llvm_values));
     } else {
