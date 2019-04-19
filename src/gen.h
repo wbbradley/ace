@@ -22,7 +22,8 @@ llvm::Value *maybe_get_env_var(const gen_env_t &gen_env,
 llvm::Value *maybe_get_env_var(const gen_env_t &env,
                                identifier_t id,
                                types::type_t::ref type);
-llvm::Value *get_env_var(const gen_env_t &env,
+llvm::Value *get_env_var(llvm::IRBuilder<> &builder,
+                         const gen_env_t &env,
                          identifier_t id,
                          types::type_t::ref type);
 
@@ -39,7 +40,8 @@ void gen(std::string name,
          llvm::BasicBlock *continue_to_block,
          const bitter::expr_t *expr,
          const tracked_types_t &typing,
-         gen_env_t &gen_env,
+         const gen_env_t &gen_env_globals,
+         const gen_env_t &gen_env_locals,
          const std::unordered_set<std::string> &globals,
          publisher_t *publisher);
 } // namespace gen

@@ -806,7 +806,7 @@ llvm::Value *llvm_tuple_alloc(llvm::IRBuilder<> &builder,
   return llvm_allocated_tuple;
 }
 
-void destructure_closure(llvm::IRBuilder<> &builder, 
+void destructure_closure(llvm::IRBuilder<> &builder,
                          llvm::Value *closure,
                          llvm::Value **llvm_function,
                          llvm::Value **llvm_closure_env) {
@@ -839,12 +839,13 @@ void destructure_closure(llvm::IRBuilder<> &builder,
   llvm::Value *gep_function_path[] = {builder.getInt32(0), builder.getInt32(0)};
   llvm::Value *gep_env_path[] = {builder.getInt32(0), builder.getInt32(1)};
 
-  log("destructure_closure has closure = %s", llvm_print(closure).c_str());
-  *llvm_function = builder.CreateLoad(builder.CreateInBoundsGEP(
-      closure, llvm::ArrayRef<llvm::Value *>(gep_function_path)));
-  *llvm_closure_env = builder.CreateLoad(builder.CreateInBoundsGEP(
-      closure, llvm::ArrayRef<llvm::Value *>(gep_env_path)));
-  log("destructure_closure -> (%s, %s)", llvm_print(*llvm_function).c_str(),
-      llvm_print(*llvm_closure_env).c_str());
+  if (llvm_function != nullptr) {
+    *llvm_function = builder.CreateLoad(builder.CreateInBoundsGEP(
+        closure, llvm::ArrayRef<llvm::Value *>(gep_function_path)));
+  }
+  if (llvm_closure_env != nullptr) {
+    *llvm_closure_env = builder.CreateLoad(builder.CreateInBoundsGEP(
+        closure, llvm::ArrayRef<llvm::Value *>(gep_env_path)));
+  }
   dbg_when(llvm_print(*llvm_function).find("badref") != std::string::npos);
 }
