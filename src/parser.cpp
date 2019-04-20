@@ -1453,15 +1453,13 @@ types::type_t::ref create_ctor_type(location_t location,
 }
 
 expr_t *create_ctor(location_t location,
-                    maybe<int> ctor_id,
+                    int ctor_id,
                     const type_decl_t &type_decl,
                     types::type_t::refs param_types) {
   std::vector<expr_t *> dims;
-  if (ctor_id.valid) {
-    /* add the ctor's id value as the first element in the tuple */
-    dims.push_back(
-        new literal_t({location, tk_integer, string_format("%d", ctor_id.t)}));
-  }
+  /* add the ctor's id value as the first element in the tuple */
+  dims.push_back(
+      new literal_t({location, tk_integer, string_format("%d", ctor_id)}));
 
   std::vector<identifier_t> params;
   for (int i = 0; i < param_types.size(); ++i) {
@@ -1474,8 +1472,7 @@ expr_t *create_ctor(location_t location,
                           scheme({}, {}, type_decl.get_type()),
                           true /*force_cast*/);
 
-  assert_implies(ctor_id.valid, dims.size() == params.size() + 1);
-  assert_implies(!ctor_id.valid, dims.size() == params.size());
+  assert(dims.size() == params.size() + 1);
   for (int i = params.size() - 1; i >= 0; --i) {
     /* (λx y z . return! (ctor_id, x, y, z) as! type_decl) */
     expr = new lambda_t(params[i], param_types[i], nullptr,
@@ -1533,9 +1530,11 @@ data_type_decl_t parse_struct_decl(parse_state_t &ps,
 
   data_ctors[ctor_id.name] = create_ctor_type(ctor_id.location, type_decl,
                                               dims);
-  decls.push_back(new decl_t(
-      ctor_id, create_ctor(ctor_id.location, maybe<int>(0, false /*valid*/),
-                           type_decl, dims)));
+  decls.push_back(
+      new decl_t(ctor_id, create_ctor(ctor_id.location,
+                                      // TODO: replace this construct with a
+                                      // newtype tuple once newtype exists.
+                                      0 /*ctor_id*/, type_decl, dims)));
   // log("parsed struct with decls %s", join_str(decls, ", ").c_str());
 
   return {type_decl, decls};
@@ -1571,9 +1570,8 @@ data_type_decl_t parse_data_type_decl(parse_state_t &ps,
     }
     data_ctors[ctor_id.name] = create_ctor_type(ctor_id.location, type_decl,
                                                 param_types);
-    decls.push_back(
-        new decl_t(ctor_id, create_ctor(ctor_id.location, maybe<int>(i),
-                                        type_decl, param_types)));
+    decls.push_back(new decl_t(
+        ctor_id, create_ctor(ctor_id.location, i, type_decl, param_types)));
     ctor_id_map[ctor_id.name] = i;
 
     if (ps.token.tk == tk_rcurly) {

@@ -289,4 +289,5 @@ compilation_t::ref parse_program(
     return nullptr;
   }
 }
+
 } // namespace compiler

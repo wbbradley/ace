@@ -1,7 +1,7 @@
 #include "resolver.h"
 
-#include <string>
 #include <memory>
+#include <string>
 
 #include "resolver_impl.h"
 #include "types.h"

@@ -262,7 +262,7 @@ std::ostream &tuple_deref_t::render(std::ostream &os,
                                     int parent_precedence) const {
   const int precedence = 20;
   expr->render(os, precedence);
-  return os << "[" << index << " of " << max << "]";
+  return os << "[" << index << "]";
 }
 
 location_t builtin_t::get_location() const {
