@@ -277,10 +277,6 @@ instance HasLength [a] {
     fn len(v) => !v.size
 }
 
-instance HasLength *Char {
-    fn len(sz) => __builtin_strlen(sz)
-}
-
 fn alloc(count Int) *a {
     return __builtin_calloc(sizeof(a) * count)
 }

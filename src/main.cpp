@@ -1030,10 +1030,14 @@ phase_4_t ssa_gen(llvm::LLVMContext &context, const phase_3_t &phase_3) {
         translation_t::ref translation = overload.second;
 
         debug_above(4, log("fetching %s expression type from translated types",
-                           pair.first.c_str()));
-
-        assert(type_equality(
-            get(overload.second->typing, overload.second->expr, {}), type));
+                           name.c_str()));
+        debug_above(
+            4,
+            log("%s should be the same type as %s",
+                get(translation->typing, translation->expr, {})->str().c_str(),
+                type->str().c_str()));
+        assert(type_equality(get(translation->typing, translation->expr, {}),
+                             type));
 
         /* at this point we should not have a resolver or a declaration or
          * definition or anything for this symbol */
@@ -1135,8 +1139,8 @@ int run_job(const job_t &job) {
                        ? atoi(getenv("ZION_MAX_TUPLE"))
                        : 16;
 
-  std::map<std::string, std::function<int(bool)>> cmd_map;
-  cmd_map["test"] = [&](bool explain) {
+  std::map<std::string, std::function<int(const job_t&, bool)>> cmd_map;
+  cmd_map["test"] = [&](const job_t &job, bool explain) {
     if (explain) {
       std::cerr << "test: run tests" << std::endl;
       return EXIT_FAILURE;
@@ -1146,9 +1150,9 @@ int run_job(const job_t &job) {
     assert(alphabetize(2) == "c");
     assert(alphabetize(26) == "aa");
     assert(alphabetize(27) == "ab");
-    return run_job({"ssa-gen", {}, {"test_basic"}});
+    return run_job({"gen", {}, {"test_basic"}});
   };
-  cmd_map["find"] = [&](bool explain) {
+  cmd_map["find"] = [&](const job_t &job, bool explain) {
     if (explain) {
       std::cerr << "find: resolve module filenames" << std::endl;
       return EXIT_FAILURE;
@@ -1161,7 +1165,7 @@ int run_job(const job_t &job) {
             .c_str());
     return EXIT_SUCCESS;
   };
-  cmd_map["parse"] = [&](bool explain) {
+  cmd_map["parse"] = [&](const job_t &job, bool explain) {
     if (explain) {
       std::cerr << "parse: parses Zion into an intermediate lambda calculus"
                 << std::endl;
@@ -1190,7 +1194,7 @@ int run_job(const job_t &job) {
     }
     return EXIT_FAILURE;
   };
-  cmd_map["compile"] = [&](bool explain) {
+  cmd_map["compile"] = [&](const job_t &job, bool explain) {
     if (explain) {
       std::cerr << "compile: parses and compiles Zion into an intermediate "
                    "lambda calculus. this performs type checking"
@@ -1209,7 +1213,7 @@ int run_job(const job_t &job) {
       return user_error::errors_occurred() ? EXIT_FAILURE : EXIT_SUCCESS;
     }
   };
-  cmd_map["specialize"] = [&](bool explain) {
+  cmd_map["specialize"] = [&](const job_t &job, bool explain) {
     if (explain) {
       std::cerr << "specialize: compiles, then specializes the Zion lambda "
                    "calculus to a monomorphized form"
@@ -1227,7 +1231,7 @@ int run_job(const job_t &job) {
       return user_error::errors_occurred() ? EXIT_FAILURE : EXIT_SUCCESS;
     }
   };
-  cmd_map["ssa-gen"] = [&](bool explain) {
+  cmd_map["gen"] = [&](const job_t &job, bool explain) {
     if (explain) {
       std::cerr << "ll: compiles, specializes, then generates LLVM output"
                 << std::endl;
@@ -1258,6 +1262,14 @@ int run_job(const job_t &job) {
     }
   };
   if (!in(job.cmd, cmd_map)) {
+    job_t new_job;
+    new_job.args.insert(new_job.args.begin(), job.cmd);
+    new_job.cmd = "gen";
+    return cmd_map["gen"](new_job, false /*explain*/);
+  } else {
+    return cmd_map[job.cmd](job, get_help);
+  }
+#if 0
     std::cerr << "bad CLI invocation of " << job.cmd << " "
               << join(job.args, " ") << std::endl;
     for (auto pair : cmd_map) {
@@ -1267,6 +1279,7 @@ int run_job(const job_t &job) {
   } else {
     return cmd_map[job.cmd](get_help);
   }
+#endif
 }
 
 int main(int argc, char *argv[]) {
