@@ -421,8 +421,8 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
         builder.getInt8Ty()->getPointerTo());
   }
 
-  debug_above(5, log("Need an impl for " c_id("%s"), name.c_str()));
-  assert_not_impl();
+  log("Need an impl for " c_id("%s"), name.c_str());
+  panic("quitting...");
   return nullptr;
 }
 
@@ -921,7 +921,7 @@ void gen(std::string name,
       }
       publish(gen_builtin(builder, builtin->var->id.name, llvm_values));
     } else {
-      throw user_error(expr->get_location(), "unhandled ssa-gen for %s :: %s",
+      throw user_error(expr->get_location(), "unhandled gen for %s :: %s",
                        expr->str().c_str(), type->str().c_str());
     }
   } catch (user_error &e) {

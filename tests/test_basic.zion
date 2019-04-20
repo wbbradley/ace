@@ -1,4 +1,5 @@
 fn main() {
-    f := fn (x) => x + 4
-    print(f(3))
+  if False {
+    print(3)
+  }
 }

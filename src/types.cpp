@@ -846,7 +846,7 @@ void insert_needed_defn(needed_defns_t &needed_defns,
                         const defn_id_t &defn_id,
                         location_t location,
                         const defn_id_t &for_defn_id) {
-  needed_defns[defn_id].push_back({location, for_defn_id});
+  needed_defns[defn_id.unitize()].push_back({location, for_defn_id.unitize()});
 }
 
 types::type_t::ref type_deref(location_t location, types::type_t::ref type) {
