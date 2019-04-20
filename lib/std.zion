@@ -25,8 +25,9 @@ instance Show () {
 
 instance Show Int {
     fn str(x) {
-        __builtin_hello
-        return "0"
+        sz := __builtin_itoa(x)
+        length := __builtin_strlen(sz)
+        return Vector(Ref(sz), Ref(length), Ref(0))
     }
 }
 
@@ -236,12 +237,17 @@ data Either a b {
 }
 
 struct Vector a {
+    # TODO: make sure offset in struct is correct RE dim_offset
     array Ref (*a)
     size Ref Int
     capacity Ref Int
 }
 
-fn __string_ref(sz * Char, size Int) [Char] {
+fn __string_ref(sz *Char, size Int) [Char] {
+    __builtin_print(sz)
+    __builtin_print_int(31)
+    __builtin_print_int(size)
+    __builtin_print_int(37)
     return Vector(Ref(sz), Ref(size), Ref(0))
 }
 
@@ -269,6 +275,10 @@ class HasLength a {
 
 instance HasLength [a] {
     fn len(v) => !v.size
+}
+
+instance HasLength *Char {
+    fn len(sz) => __builtin_strlen(sz)
 }
 
 fn alloc(count Int) *a {
@@ -379,7 +389,6 @@ fn id(x) => x
 fn print(x) {
     return match str(x) {
         Vector(Ref(sz), _, _) {
-            __builtin_hello
             __builtin_print(sz)
         }
     }

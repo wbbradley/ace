@@ -45,7 +45,7 @@ struct free_vars_t {
     return typed_ids.size();
   }
   void add(identifier_t id, types::type_t::ref type) {
-    log("adding free var %s", id.str().c_str());
+    debug_above(5, log("adding free var %s", id.str().c_str()));
     assert(type != nullptr);
     typed_ids.insert({id, type});
   }
@@ -77,7 +77,7 @@ void get_free_vars(const bitter::expr_t *expr,
       free_vars.add(var->id, get(typing, expr, {}));
     }
   } else if (auto lambda = dcast<const bitter::lambda_t *>(expr)) {
-    log("checking lambda %s", lambda->str().c_str());
+    debug_above(5, log("checking lambda %s", lambda->str().c_str()));
     auto lambda_type = typing.at(lambda);
     bool already_has_lambda_var = free_vars.contains(
         lambda->var, get_nth_type_in_arrow(lambda_type, 0));
@@ -196,18 +196,18 @@ llvm::Value *get_env_var(llvm::IRBuilder<> &builder,
     }
     throw error;
   }
-  log("get_env_var(%s, %s) -> %s", id.str().c_str(), type->str().c_str(),
-      llvm_print(llvm_value).c_str());
+  debug_above(5, log("get_env_var(%s, %s) -> %s", id.str().c_str(),
+                     type->str().c_str(), llvm_print(llvm_value).c_str()));
   if (auto arg = llvm::dyn_cast<llvm::Argument>(llvm_value)) {
-    log("%s is an argument %s to %s", id.str().c_str(),
-        llvm_print(llvm_value).c_str(),
-        arg->getParent()->getName().str().c_str());
+    debug_above(5, log("%s is an argument %s to %s", id.str().c_str(),
+                       llvm_print(llvm_value).c_str(),
+                       arg->getParent()->getName().str().c_str()));
     auto cur_func = llvm_get_function(builder);
-    log("the current function is %s", cur_func->getName().str().c_str());
+    debug_above(5, log("the current function is %s",
+                       cur_func->getName().str().c_str()));
     assert(arg->getParent() == llvm_get_function(builder));
-  } else {
-    log("not sure where %s is", id.str().c_str());
   }
+  assert(llvm_value != nullptr);
   return llvm_value;
 }
 
@@ -239,8 +239,8 @@ void set_env_var(gen_env_t &gen_env,
     assert(false);
   }
   for (auto pair : gen_env[name]) {
-    log("gen_env[%s] .= {%s, %s}", name.c_str(), type->str().c_str(),
-        llvm_print(llvm_value).c_str());
+    debug_above(5, log("gen_env[%s] .= {%s, %s}", name.c_str(),
+                       type->str().c_str(), llvm_print(llvm_value).c_str()));
   }
   assert(maybe_get_env_var(gen_env, name, type) != nullptr);
 }
@@ -292,8 +292,10 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
     return builder.CreateGEP(params[0], std::vector<llvm::Value *>{params[1]});
   } else if (name == "__builtin_ptr_eq") {
     /* scheme({"a"}, {}, type_arrows({tp_a, tp_a, Bool})) */
+    assert(false);
   } else if (name == "__builtin_ptr_ne") {
     /* scheme({"a"}, {}, type_arrows({tp_a, tp_a, Bool})) */
+    assert(false);
   } else if (name == "__builtin_ptr_load") {
     /* scheme({"a"}, {}, type_arrows({tp_a, tv_a})) */
     return builder.CreateLoad(params[0]);
@@ -335,13 +337,57 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
     // libc dependency
     auto llvm_write_func_decl = llvm::cast<llvm::Function>(
         llvm_module->getOrInsertFunction(
-            "puts",
+            "zion_puts",
             llvm::FunctionType::get(builder.getInt64Ty(),
                                     llvm::ArrayRef<llvm::Type *>(write_terms),
                                     false /*isVarArg*/)));
     return builder.CreateIntToPtr(
         builder.CreateCall(llvm_write_func_decl, params),
         builder.getInt8Ty()->getPointerTo());
+  } else if (name == "__builtin_print_int") {
+    /* scheme({}, {}, type_arrows({*Char, type_unit(INTERNAL_LOC())})) */
+    auto llvm_module = llvm_get_module(builder);
+    llvm::Type *print_int_terms[] = {builder.getInt64Ty()};
+
+    assert(params.size() == 1);
+
+    // libc dependency
+    auto llvm_print_int_func_decl = llvm::cast<llvm::Function>(
+        llvm_module->getOrInsertFunction(
+            "zion_print_int64",
+            llvm::FunctionType::get(
+                builder.getInt8Ty()->getPointerTo(),
+                llvm::ArrayRef<llvm::Type *>(print_int_terms),
+                false /*isVarArg*/)));
+    return builder.CreateCall(llvm_print_int_func_decl, params);
+  } else if (name == "__builtin_itoa") {
+    /* scheme({}, {}, type_arrows({Int, *Char})) */
+    auto llvm_module = llvm_get_module(builder);
+    llvm::Type *itoa_terms[] = {builder.getInt64Ty()};
+
+    assert(params.size() == 1);
+
+    auto llvm_itoa_func_decl = llvm::cast<llvm::Function>(
+        llvm_module->getOrInsertFunction(
+            "zion_itoa",
+            llvm::FunctionType::get(builder.getInt8Ty()->getPointerTo(),
+                                    llvm::ArrayRef<llvm::Type *>(itoa_terms),
+                                    false /*isVarArg*/)));
+    return builder.CreateCall(llvm_itoa_func_decl, params);
+  } else if (name == "__builtin_strlen") {
+    /* scheme({}, {}, type_arrows({*Char, Int})) */
+    auto llvm_module = llvm_get_module(builder);
+    llvm::Type *param_types[] = {builder.getInt8Ty()->getPointerTo()};
+
+    assert(params.size() == 1);
+
+    auto ffi_function = llvm::cast<llvm::Function>(
+        llvm_module->getOrInsertFunction(
+            "zion_strlen",
+            llvm::FunctionType::get(builder.getInt64Ty(),
+                                    llvm::ArrayRef<llvm::Type *>(param_types),
+                                    false /*isVarArg*/)));
+    return builder.CreateCall(ffi_function, params);
   } else if (name == "__builtin_exit") {
     /* scheme({}, {}, type_arrows({Int, type_bottom()})) */
   } else if (name == "__builtin_calloc") {
@@ -354,18 +400,19 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
     /* scheme({"a"}, {}, type_arrows({
      * type_operator(type_id(make_iid(PTR_TYPE_OPERATOR)), tv_a), tv_a,
      * type_unit(INTERNAL_LOC())})) */
-  } else if (name == "__builtin_hello") {
+  } else if (name == "__builtin_hello" || name == "__builtin_goodbye") {
     /* scheme({}, {}, Unit) */
     auto llvm_module = llvm_get_module(builder);
     llvm::Type *write_terms[] = {builder.getInt8Ty()->getPointerTo()};
 
-    std::vector<llvm::Value *> params = {
-        llvm_create_global_string_constant(builder, *llvm_module, "hello")};
+    std::vector<llvm::Value *> params = {llvm_create_global_string_constant(
+        builder, *llvm_module,
+        name == "__builtin_hello" ? "hello" : "goodbye")};
 
     // libc dependency
     auto llvm_write_func_decl = llvm::cast<llvm::Function>(
         llvm_module->getOrInsertFunction(
-            "puts",
+            "zion_puts",
             llvm::FunctionType::get(builder.getInt64Ty(),
                                     llvm::ArrayRef<llvm::Type *>(write_terms),
                                     false /*isVarArg*/)));
@@ -374,7 +421,7 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
         builder.getInt8Ty()->getPointerTo());
   }
 
-  log("Need an impl for " c_id("%s"), name.c_str());
+  debug_above(5, log("Need an impl for " c_id("%s"), name.c_str()));
   assert_not_impl();
   return nullptr;
 }
@@ -510,11 +557,13 @@ void gen_lambda(std::string name,
   llvm::StructType *llvm_closure_type = llvm::StructType::get(
       llvm_function->getType(), builder.getInt8Ty()->getPointerTo());
   auto _llvm_closure_type = get_llvm_closure_type(builder, type_terms);
-  log("llvm_closure_type = %s", llvm_print(llvm_closure_type).c_str());
-  log("_llvm_closure_type = %s", llvm_print(_llvm_closure_type).c_str());
+  debug_above(
+      5, log("llvm_closure_type = %s", llvm_print(llvm_closure_type).c_str()));
+  debug_above(5, log("_llvm_closure_type = %s",
+                     llvm_print(_llvm_closure_type).c_str()));
   assert(llvm_closure_type->getPointerTo() == _llvm_closure_type);
 
-  log("llvm_dims count is %d", int(llvm_dims.size()));
+  debug_above(5, log("llvm_dims count is %d", int(llvm_dims.size())));
 
   llvm::Value *opaque_closure = nullptr;
   llvm::Value *closure = nullptr;
@@ -536,10 +585,10 @@ void gen_lambda(std::string name,
 
   /* we should always be returning the same type, and it should be the closure
    * type */
-  log("created closure %s",
-      llvm_print(closure ? closure : opaque_closure).c_str());
-  log("%s == llvm_closure_type->getPointerTo()",
-      llvm_print(llvm_closure_type->getPointerTo()).c_str());
+  debug_above(5, log("created closure %s",
+                     llvm_print(closure ? closure : opaque_closure).c_str()));
+  debug_above(5, log("%s == llvm_closure_type->getPointerTo()",
+                     llvm_print(llvm_closure_type->getPointerTo()).c_str()));
 
   /* we have a closure which is usable now in this scope */
   if (publisher != nullptr) {
@@ -565,7 +614,8 @@ void gen_lambda(std::string name,
       assert(free_vars.typed_ids.size() != 0);
       llvm::Value *closure_env = builder.CreateBitCast(
           llvm_function->arg_end() - 1, closure->getType(), "closure_env");
-      log("closure_env in gen_lambda is %s", llvm_print(closure_env).c_str());
+      debug_above(5, log("closure_env in gen_lambda is %s",
+                         llvm_print(closure_env).c_str()));
 
       int arg_index = 1;
       for (auto typed_id : free_vars.typed_ids) {
@@ -577,10 +627,11 @@ void gen_lambda(std::string name,
             builder.CreateInBoundsGEP(closure_env, gep_path));
         llvm_captured_value_in_lambda_scope->setName(typed_id.id.name);
 
-        log("adding closed over var %s to new_env as %s :: %s",
-            typed_id.id.name.c_str(),
-            llvm_print(llvm_captured_value_in_lambda_scope).c_str(),
-            dim_types[arg_index - 1]->str().c_str());
+        debug_above(5,
+                    log("adding closed over var %s to new_env as %s :: %s",
+                        typed_id.id.name.c_str(),
+                        llvm_print(llvm_captured_value_in_lambda_scope).c_str(),
+                        dim_types[arg_index - 1]->str().c_str()));
 
         set_env_var(new_env_locals, typed_id.id.name, dim_types[arg_index - 1],
                     llvm_captured_value_in_lambda_scope,
@@ -591,8 +642,8 @@ void gen_lambda(std::string name,
       assert(free_vars.typed_ids.size() == 0);
     }
 
-    log("generating body for %s = %s", name.c_str(),
-        lambda->body->str().c_str());
+    debug_above(3, log("generating body for %s = %s", name.c_str(),
+                       lambda->body->str().c_str()));
     /* now build the body of the function */
     gen("", builder, llvm_module, nullptr /*break_to_block*/,
         nullptr /*continue_to_block*/, lambda->body, typing, gen_env_globals,
@@ -667,8 +718,9 @@ void gen(std::string name,
   try {
     auto type = get(typing, expr, {});
     if (type == nullptr) {
-      log_location(log_error, expr->get_location(),
-                   "expression lacks typing %s", expr->str().c_str());
+      debug_above(5, log_location(log_error, expr->get_location(),
+                                  "expression lacks typing %s",
+                                  expr->str().c_str()));
       dbg();
     }
 
@@ -681,8 +733,8 @@ void gen(std::string name,
     } else if (auto var = dcast<const bitter::var_t *>(expr)) {
       auto value = maybe_get_env_var(gen_env_locals, var->id, type);
       if (value == nullptr) {
-        log("falling back to globals to find %s :: %s", var->id.str().c_str(),
-            type->str().c_str());
+        debug_above(5, log("falling back to globals to find %s :: %s",
+                           var->id.str().c_str(), type->str().c_str()));
         publish(get_env_var(builder, gen_env_globals, var->id, type));
       } else {
         publish(value);

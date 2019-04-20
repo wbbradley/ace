@@ -1,10 +1,9 @@
 #pragma once
 
-#include "resolver.h"
-
 #include <string>
 
 #include "llvm_utils.h"
+#include "resolver.h"
 
 namespace gen {
 

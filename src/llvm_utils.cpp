@@ -770,13 +770,16 @@ llvm::Value *llvm_tuple_alloc(llvm::IRBuilder<> &builder,
   auto llvm_module = llvm_get_module(builder);
   auto llvm_alloc_func_decl = llvm::cast<llvm::Function>(
       llvm_module->getOrInsertFunction(
-          "malloc", llvm::FunctionType::get(builder.getInt8Ty()->getPointerTo(),
-                                            alloc_terms, false /*isVarArg*/)));
+          "zion_malloc",
+          llvm::FunctionType::get(builder.getInt8Ty()->getPointerTo(),
+                                  alloc_terms, false /*isVarArg*/)));
   llvm::Value *llvm_allocated_tuple = builder.CreateBitCast(
       builder.CreateCall(llvm_alloc_func_decl,
                          std::vector<llvm::Value *>{
                              llvm_sizeof_type(builder, llvm_tuple_type)}),
       llvm_tuple_type->getPointerTo());
+  llvm_allocated_tuple->setName(
+      string_format("tuple/%d", int(llvm_dims.size())));
 
   llvm::Value *llvm_zero = llvm::ConstantInt::get(
       llvm::Type::getInt32Ty(builder.getContext()), 0);
@@ -793,6 +796,8 @@ llvm::Value *llvm_tuple_alloc(llvm::IRBuilder<> &builder,
                        llvm_print(llvm_allocated_tuple->getType()).c_str(), i));
     llvm::Value *llvm_member_address = builder.CreateInBoundsGEP(
         llvm_tuple_type, llvm_allocated_tuple, llvm_gep_args);
+    llvm_member_address->setName(
+        string_format("&tuple/%d[%d]", int(llvm_dims.size()), i));
     debug_above(7, log("GEP returned %s with type %s",
                        llvm_print(llvm_member_address).c_str(),
                        llvm_print(llvm_member_address->getType()).c_str()));

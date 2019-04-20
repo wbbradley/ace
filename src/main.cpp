@@ -123,7 +123,9 @@ const types::scheme_t::map &get_builtins() {
 
     map = std::make_unique<types::scheme_t::map>();
 
+    // TODO: unify this map with the implementation of these in gen.cpp
     (*map)["__builtin_hello"] = scheme({}, {}, Unit);
+    (*map)["__builtin_goodbye"] = scheme({}, {}, Unit);
     (*map)["__builtin_word_size"] = scheme({}, {}, Int);
     (*map)["__builtin_min_int"] = scheme({}, {}, Int);
     (*map)["__builtin_max_int"] = scheme({}, {}, Int);
@@ -180,6 +182,10 @@ const types::scheme_t::map &get_builtins() {
                                            type_arrows({Float, Float, Bool}));
     (*map)["__builtin_print"] = scheme(
         {}, {}, type_arrows({PtrToChar, type_unit(INTERNAL_LOC())}));
+    (*map)["__builtin_print_int"] = scheme(
+        {}, {}, type_arrows({Int, type_unit(INTERNAL_LOC())}));
+    (*map)["__builtin_itoa"] = scheme({}, {}, type_arrows({Int, PtrToChar}));
+    (*map)["__builtin_strlen"] = scheme({}, {}, type_arrows({PtrToChar, Int}));
     (*map)["__builtin_exit"] = scheme({}, {},
                                       type_arrows({Int, type_bottom()}));
     (*map)["__builtin_calloc"] = scheme({"a"}, {}, type_arrows({Int, tp_a}));
@@ -946,20 +952,30 @@ phase_3_t specialize(const phase_2_t &phase_2) {
 
 struct phase_4_t {
   phase_4_t(const phase_4_t &) = delete;
-  phase_4_t(phase_3_t phase_3, llvm::Module *llvm_module)
-      : phase_3(phase_3), llvm_module(llvm_module) {
+  phase_4_t(phase_3_t phase_3,
+            gen::gen_env_t &&gen_env,
+            llvm::Module *llvm_module,
+            llvm::DIBuilder *dbuilder)
+      : phase_3(phase_3), gen_env(std::move(gen_env)), llvm_module(llvm_module),
+        dbuilder(dbuilder) {
   }
   phase_4_t(phase_4_t &&rhs)
-      : phase_3(rhs.phase_3), llvm_module(rhs.llvm_module) {
+      : phase_3(rhs.phase_3), gen_env(std::move(rhs.gen_env)),
+        llvm_module(rhs.llvm_module), dbuilder(rhs.dbuilder) {
     rhs.llvm_module = nullptr;
+    rhs.dbuilder = nullptr;
   }
   ~phase_4_t() {
+    delete dbuilder;
     delete llvm_module;
   }
 
   phase_3_t phase_3;
+  gen::gen_env_t gen_env;
   llvm::Module *llvm_module = nullptr;
+  llvm::DIBuilder *dbuilder = nullptr;
   std::ostream &dump(std::ostream &os) {
+    dbuilder->finalize();
     return os << llvm_print_module(*llvm_module);
   }
 };
@@ -988,6 +1004,10 @@ std::unordered_set<std::string> get_globals(const phase_3_t &phase_3) {
 
 phase_4_t ssa_gen(llvm::LLVMContext &context, const phase_3_t &phase_3) {
   llvm::Module *module = new llvm::Module("program", context);
+  llvm::DIBuilder *dbuilder = new llvm::DIBuilder(*module);
+  dbuilder->createCompileUnit(llvm::dwarf::DW_LANG_C,
+                              dbuilder->createFile("lib/std.zion", "."),
+                              "Zion Compiler", 0, "", 0);
   llvm::IRBuilder<> builder(context);
 
   gen::gen_env_t gen_env;
@@ -1051,7 +1071,7 @@ phase_4_t ssa_gen(llvm::LLVMContext &context, const phase_3_t &phase_3) {
     /* and continue */
   }
 
-  return phase_4_t(phase_3, module);
+  return phase_4_t(phase_3, std::move(gen_env), module, dbuilder);
 }
 
 struct job_t {
@@ -1059,6 +1079,47 @@ struct job_t {
   std::vector<std::string> opts;
   std::vector<std::string> args;
 };
+
+void build_main_function(llvm::IRBuilder<> &builder,
+                         llvm::Module *llvm_module,
+                         const gen::gen_env_t &gen_env,
+                         std::string program_name) {
+  std::string main_closure = program_name + ".main";
+  types::type_t::ref main_type = type_arrows(
+      {type_unit(INTERNAL_LOC()), type_unit(INTERNAL_LOC())});
+
+  llvm::Type *llvm_main_args_types[] = {
+      builder.getInt32Ty(),
+      builder.getInt8Ty()->getPointerTo()->getPointerTo()};
+  llvm::Function *llvm_function = llvm::Function::Create(
+      llvm::FunctionType::get(
+          builder.getInt32Ty(),
+          llvm::ArrayRef<llvm::Type *>(llvm_main_args_types),
+          false /*isVarArgs*/),
+      llvm::Function::ExternalLinkage, "main", llvm_module);
+
+  llvm_function->setDoesNotThrow();
+
+  llvm::BasicBlock *block = llvm::BasicBlock::Create(
+      builder.getContext(), "program_entry", llvm_function);
+  builder.SetInsertPoint(block);
+
+  llvm::Value *llvm_main_closure = gen::get_env_var(
+      builder, gen_env, make_iid(main_closure), main_type);
+
+  llvm::Value *gep_path[] = {builder.getInt32(0), builder.getInt32(0)};
+  llvm::Value *main_func = builder.CreateLoad(
+      builder.CreateInBoundsGEP(llvm_main_closure, gep_path));
+  log("main_func type is %s", llvm_print(main_func->getType()).c_str());
+  log("llvm_main_closure type is %s",
+      llvm_print(llvm_main_closure->getType()).c_str());
+  llvm::Value *main_args[] = {
+      llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo()),
+      builder.CreateBitCast(llvm_main_closure,
+                            builder.getInt8Ty()->getPointerTo())};
+  builder.CreateCall(main_func, llvm::ArrayRef<llvm::Value *>(main_args));
+  builder.CreateRet(builder.getInt32(0));
+}
 
 int run_job(const job_t &job) {
   get_help = in_vector("-help", job.opts) || in_vector("--help", job.opts);
@@ -1177,10 +1238,14 @@ int run_job(const job_t &job) {
     } else {
       llvm::LLVMContext context;
       phase_4_t phase_4 = ssa_gen(context, specialize(compile(job.args[0])));
-      std::stringstream ss;
-      phase_4.dump(ss);
 
       std::string output_filename = "./zion-output.ll";
+      llvm::IRBuilder<> builder(context);
+      build_main_function(builder, phase_4.llvm_module, phase_4.gen_env,
+                          phase_4.phase_3.phase_2.compilation->program_name);
+
+      std::stringstream ss;
+      phase_4.dump(ss);
 
       std::ofstream ofs;
       ofs.open(output_filename.c_str(), std::ofstream::out);

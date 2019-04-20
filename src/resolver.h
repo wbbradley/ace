@@ -1,7 +1,7 @@
 #pragma once
 
-#include <string>
 #include <memory>
+#include <string>
 
 #include "llvm_utils.h"
 #include "types.h"
@@ -11,7 +11,8 @@ namespace gen {
 using lazy_resolver_callback_t = std::function<void(llvm::Value **)>;
 
 struct publisher_t {
-  virtual ~publisher_t() {}
+  virtual ~publisher_t() {
+  }
   virtual void publish(llvm::Value *llvm_value) const = 0;
 };
 

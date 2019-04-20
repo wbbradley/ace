@@ -232,6 +232,8 @@ expr_t *translate_next(const defn_id_t &for_defn_id,
 
   types::type_t::refs tuple_dims;
   for (auto i = 0; i < dim_offset; ++i) {
+    // TODO: check whether this makes any sense due to the fragile nature
+    // here that the values are all the same size as the unit.
     tuple_dims.push_back(type_unit(INTERNAL_LOC()));
   }
   for (auto param_type : param_types) {
@@ -284,6 +286,8 @@ expr_t *ctor_predicate_t::translate(
   static auto Bool = type_bool(INTERNAL_LOC());
   types::type_t::refs ctor_terms = tenv.get_data_ctor_terms(scrutinee_type,
                                                             ctor_name);
+  assert(ctor_terms.size() >= 1);
+  ctor_terms = vec_slice(ctor_terms, 0, ctor_terms.size() - 1);
 
   if (do_checks) {
     int ctor_id = tenv.get_ctor_id(ctor_name.name);
