@@ -77,3 +77,19 @@ bitter::module_t *parse_module(
     parse_state_t &ps,
     std::vector<bitter::module_t *> auto_import_modules,
     std::set<identifier_t> &module_deps);
+
+types::type_t::ref parse_type(parse_state_t &ps);
+bitter::expr_t *parse_literal(parse_state_t &ps);
+bitter::expr_t *parse_expr(parse_state_t &ps);
+bitter::expr_t *parse_assignment(parse_state_t &ps);
+bitter::expr_t *parse_tuple_expr(parse_state_t &ps);
+bitter::expr_t *parse_let(parse_state_t &ps, identifier_t var_id, bool is_let);
+bitter::expr_t *parse_block(parse_state_t &ps, bool expression_means_return);
+bitter::conditional_t *parse_if(parse_state_t &ps);
+bitter::while_t *parse_while(parse_state_t &ps);
+bitter::expr_t *parse_lambda(parse_state_t &ps);
+bitter::match_t *parse_match(parse_state_t &ps);
+bitter::predicate_t *parse_predicate(parse_state_t &ps,
+                                     bool allow_else,
+                                     maybe<identifier_t> name_assignment);
+

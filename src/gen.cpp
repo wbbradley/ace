@@ -705,11 +705,12 @@ void gen(std::string name,
          llvm::BasicBlock *continue_to_block,
          const bitter::expr_t *expr,
          const tracked_types_t &typing,
+         const types::type_env_t &type_env,
          const gen_env_t &gen_env_globals,
          const gen_env_t &gen_env_locals,
          const std::unordered_set<std::string> &globals,
-         publisher_t *publisher) {
-  auto publish = [&publisher](llvm::Value *llvm_value) {
+         publisher_t * const publisher) {
+  auto publish = [publisher](llvm::Value *llvm_value) {
     if (publisher != nullptr) {
       publisher->publish(llvm_value);
     }
@@ -904,10 +905,16 @@ void gen(std::string name,
           td->getType()->getPointerElementType(), td, gep_path)));
     } else if (auto as = dcast<const bitter::as_t *>(expr)) {
       assert(as->force_cast);
-      publish(builder.CreateBitCast(
-          gen(builder, llvm_module, break_to_block, continue_to_block, as->expr,
-              typing, gen_env_globals, gen_env_locals, globals),
-          get_llvm_type(builder, as->scheme->instantiate(INTERNAL_LOC()))));
+      auto expr_value = gen(builder, llvm_module, break_to_block,
+                            continue_to_block, as->expr, typing,
+                            gen_env_globals, gen_env_locals, globals);
+      auto cast_type = get_llvm_type(builder,
+                                     type_env,
+                                     as->scheme->instantiate(INTERNAL_LOC()));
+      log("casting %s (which is %s) to type %s (which is %s)",
+          as->expr->str().c_str(), llvm_print(expr_value).c_str(),
+          as->scheme->str().c_str(), llvm_print(cast_type).c_str());
+      publish(builder.CreateBitCast(expr_value, cast_type));
     } else if (auto sizeof_ = dcast<const bitter::sizeof_t *>(expr)) {
       assert(false);
     } else if (auto match = dcast<const bitter::match_t *>(expr)) {

@@ -2,6 +2,7 @@
 #include <tuple>
 #include <vector>
 
+#include "env.h"
 #include "types.h"
 
 struct constraint_info_t {

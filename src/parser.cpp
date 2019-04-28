@@ -15,21 +15,6 @@
 
 using namespace bitter;
 
-types::type_t::ref parse_type(parse_state_t &ps);
-expr_t *parse_literal(parse_state_t &ps);
-expr_t *parse_expr(parse_state_t &ps);
-expr_t *parse_assignment(parse_state_t &ps);
-expr_t *parse_tuple_expr(parse_state_t &ps);
-expr_t *parse_let(parse_state_t &ps, identifier_t var_id, bool is_let);
-expr_t *parse_block(parse_state_t &ps, bool expression_means_return);
-conditional_t *parse_if(parse_state_t &ps);
-while_t *parse_while(parse_state_t &ps);
-expr_t *parse_lambda(parse_state_t &ps);
-match_t *parse_match(parse_state_t &ps);
-predicate_t *parse_predicate(parse_state_t &ps,
-                             bool allow_else,
-                             maybe<identifier_t> name_assignment);
-
 identifier_t make_accessor_id(identifier_t id) {
   return identifier_t{"__get_" + id.name, id.location};
 }
@@ -1547,17 +1532,27 @@ data_type_decl_t parse_data_type_decl(parse_state_t &ps,
   std::vector<decl_t *> decls;
 
   chomp_token(tk_lcurly);
-  for (int i = 0; true; ++i) {
+  struct data_ctor_parts_t {
+    token_t ctor_token;
+    types::type_t::refs param_types;
+  };
+  std::list<std::unique_ptr<data_ctor_parts_t>> data_ctors_parts;
+
+  size_t param_types_count = 0;
+  while (true) {
     expect_token(tk_identifier);
 
-    auto ctor_id = iid(ps.token_and_advance());
-    types::type_t::refs param_types;
+    std::unique_ptr<data_ctor_parts_t> data_ctor_parts =
+        std::make_unique<data_ctor_parts_t>();
+    data_ctor_parts->ctor_token = ps.token_and_advance();
     if (ps.token.tk == tk_lparen) {
       ps.advance();
       /* this is a data ctor */
       while (true) {
         /* parse the types of the dimensions (unnamed for now) */
-        param_types.push_back(parse_type(ps));
+        data_ctor_parts->param_types.push_back(parse_type(ps));
+        /* keep track of whether any of the values in this data type require
+         * extra storage. NB: Bool only being 1 word in size relies on this. */
         if (ps.token.tk == tk_comma) {
           ps.advance();
         } else {
@@ -1565,18 +1560,45 @@ data_type_decl_t parse_data_type_decl(parse_state_t &ps,
           break;
         }
       }
+      param_types_count += data_ctor_parts->param_types.size();
     } else {
       /* this is a constant (like an enum) */
     }
-    data_ctors[ctor_id.name] = create_ctor_type(ctor_id.location, type_decl,
-                                                param_types);
-    decls.push_back(new decl_t(
-        ctor_id, create_ctor(ctor_id.location, i, type_decl, param_types)));
-    ctor_id_map[ctor_id.name] = i;
+
+    data_ctors_parts.emplace_back(std::move(data_ctor_parts));
 
     if (ps.token.tk == tk_rcurly) {
       ps.advance();
       break;
+    }
+  }
+
+  if (param_types_count == 0) {
+    /* this is just an ENUM. this type can be simplified to just an Int */
+    int i = 0;
+    for (auto &data_ctor_parts : data_ctors_parts) {
+      auto ctor_id = iid(data_ctor_parts->ctor_token);
+      log_location(ctor_id.location, "creating enum type for %s",
+                   ctor_id.str().c_str());
+      data_ctors[ctor_id.name] = type_decl.get_type();
+      decls.push_back(new decl_t(
+          ctor_id,
+          new as_t(new literal_t(token_t{ctor_id.location, tk_integer,
+                                         std::to_string(i)}),
+                   type_decl.get_type()->generalize({}), true /*force_cast*/)));
+      ctor_id_map[ctor_id.name] = i++;
+    }
+  } else {
+    int i = 0;
+    for (auto &data_ctor_parts : data_ctors_parts) {
+      auto ctor_id = iid(data_ctor_parts->ctor_token);
+      log_location(ctor_id.location, "creating constructor type for %s", ctor_id.str().c_str());
+      data_ctors[ctor_id.name] = create_ctor_type(ctor_id.location, type_decl,
+                                                  data_ctor_parts->param_types);
+      decls.push_back(
+          new decl_t(ctor_id, create_ctor(ctor_id.location, i, type_decl,
+                                          data_ctor_parts->param_types)));
+      ctor_id_map[ctor_id.name] = i++;
     }
   }
 
