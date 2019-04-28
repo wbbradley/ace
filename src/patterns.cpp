@@ -292,7 +292,7 @@ expr_t *ctor_predicate_t::translate(
   if (do_checks) {
     int ctor_id = tenv.get_ctor_id(ctor_name.name);
 
-    auto cmp_type = type_arrows({Int, Int, type_id(make_iid(BOOL_TYPE))});
+    auto cmp_type = type_arrows({Int, Int, Bool});
     auto cmp_defn_id = defn_id_t{make_iid("std.=="), cmp_type->generalize({})};
     auto ctor_id_cmp = new var_t(cmp_defn_id.id);
     typing[ctor_id_cmp] = cmp_type;

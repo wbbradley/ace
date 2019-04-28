@@ -698,7 +698,9 @@ llvm::Type *get_llvm_closure_type(llvm::IRBuilder<> &builder,
 }
 
 llvm::Type *get_llvm_type(llvm::IRBuilder<> &builder,
-                          const types::type_t::ref &type) {
+                          const types::type_env_t &type_env,
+                          types::type_t::ref type) {
+  type = type->eval(type_env);
   debug_above(7, log("get_llvm_type(%s)...", type->str().c_str()));
   if (auto id = dyncast<const types::type_id_t>(type)) {
     const std::string &name = id->id.name;

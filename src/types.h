@@ -1,12 +1,12 @@
 #pragma once
+#include <memory>
+
 #include "ast_decls.h"
 #include "defn_id.h"
 #include "identifier.h"
 #include "token.h"
 #include "utils.h"
 #include "zion.h"
-
-struct env_t;
 
 extern const char *NULL_TYPE;
 extern const char *STD_MAP_TYPE;
@@ -16,12 +16,13 @@ extern const char *BOTTOM_TYPE;
 /* used to reset the generic type id counter */
 void reset_generics();
 
-using env_ref_t = const env_t &;
-
 namespace types {
+
+struct type_t;
 
 typedef std::map<std::string, int> name_index_t;
 typedef std::map<std::string, std::set<std::string>> predicate_map;
+typedef std::map<std::string, std::shared_ptr<const type_t>> type_env_t;
 
 struct signature;
 struct scheme_t;
@@ -46,6 +47,7 @@ struct type_t : public std::enable_shared_from_this<type_t> {
   /* NB: Also assumes you have rebound the bindings at the callsite. */
   virtual predicate_map get_predicate_map() const = 0;
 
+  virtual type_t::ref eval(const type_env_t &type_env) const = 0;
   std::shared_ptr<scheme_t> generalize(const types::predicate_map &pm) const;
   std::string repr(const map &bindings) const;
   std::string repr() const {
