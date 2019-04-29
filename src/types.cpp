@@ -154,6 +154,10 @@ predicate_map type_id_t::get_predicate_map() const {
   return {};
 }
 
+type_t::ref type_id_t::eval(const type_env_t &type_env) const {
+  return get(type_env, id.name, shared_from_this());
+}
+
 type_t::ref type_id_t::rebind(const map &bindings) const {
   return shared_from_this();
 }
@@ -221,6 +225,10 @@ predicate_map type_variable_t::get_predicate_map() const {
   return pm;
 }
 
+type_t::ref type_variable_t::eval(const type_env_t &type_env) const {
+  return shared_from_this();
+}
+
 type_t::ref type_variable_t::rebind(const map &bindings) const {
   return get(bindings, id.name, shared_from_this());
 }
@@ -280,6 +288,20 @@ predicate_map type_operator_t::get_predicate_map() const {
   return merge(oper->get_predicate_map(), operand->get_predicate_map());
 }
 
+type_t::ref type_operator_t::eval(const type_env_t &type_env) const {
+  if (type_env.size() == 0) {
+    return shared_from_this();
+  }
+
+  auto new_oper = oper->eval(type_env);
+  auto new_operand = operand->eval(type_env);
+  if (new_oper != oper || new_operand != operand) {
+    return ::type_operator(new_oper, new_operand);
+  } else {
+    return shared_from_this();
+  }
+}
+
 type_t::ref type_operator_t::rebind(const map &bindings) const {
   if (bindings.size() == 0) {
     return shared_from_this();
@@ -336,6 +358,28 @@ predicate_map type_tuple_t::get_predicate_map() const {
     mutating_merge(dimension->get_predicate_map(), pm);
   }
   return pm;
+}
+
+type_t::ref type_tuple_t::eval(const type_env_t &type_env) const {
+  if (type_env.size() == 0) {
+    return shared_from_this();
+  }
+
+  bool anything_affected = false;
+  refs type_dimensions;
+  for (auto dimension : dimensions) {
+    auto new_dim = dimension->eval(type_env);
+    if (new_dim != dimension) {
+      anything_affected = true;
+    }
+    type_dimensions.push_back(new_dim);
+  }
+
+  if (anything_affected) {
+    return ::type_tuple(type_dimensions);
+  } else {
+    return shared_from_this();
+  }
 }
 
 type_t::ref type_tuple_t::rebind(const map &bindings) const {
@@ -452,6 +496,15 @@ type_t::ref type_lambda_t::rebind(const map &bindings_) const {
     bindings.erase(binding_iter);
   }
   return ::type_lambda(binding, body->rebind(bindings));
+}
+
+type_t::ref type_lambda_t::eval(const type_env_t &type_env) const {
+  auto new_body = body->eval(type_env);
+  if (new_body != body) {
+    return ::type_lambda(binding, new_body);
+  } else {
+    return shared_from_this();
+  }
 }
 
 type_t::ref type_lambda_t::remap_vars(

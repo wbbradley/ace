@@ -26,6 +26,7 @@ location_t strict_resolver_t::get_location() const {
   // TODO: plumbing
   return INTERNAL_LOC();
 }
+
 lazy_resolver_t::lazy_resolver_t(std::string name,
                                  types::type_t::ref type,
                                  lazy_resolver_callback_t &&callback)
@@ -42,16 +43,22 @@ llvm::Value *lazy_resolver_t::resolve_impl() {
   case sc_unresolved:
     assert(value == nullptr);
     sort_color = sc_resolving;
-    callback(&value);
+    switch (callback(&value)) {
+    case rs_resolve_again:
+      sort_color = sc_unresolved;
+      break;
+    case rs_cache_resolution:
+      sort_color = sc_resolved;
+      break;
+    }
     assert(value != nullptr);
-    assert(llvm::dyn_cast<llvm::GlobalValue>(value) != nullptr);
-    sort_color = sc_resolved;
+    debug_above(5,
+                log("lazy_resolver_t resolved %s", llvm_print(value).c_str()));
     return value;
   case sc_resolving:
     /* we are already resolving this object, but progress on that front got far
      * enough that we can give back a value to be used elsewhere */
     if (value != nullptr) {
-      assert(llvm::dyn_cast<llvm::GlobalValue>(value) != nullptr);
       return value;
     } else {
       throw user_error(
@@ -60,7 +67,6 @@ llvm::Value *lazy_resolver_t::resolve_impl() {
     }
   case sc_resolved:
     assert(value != nullptr);
-    assert(llvm::dyn_cast<llvm::GlobalValue>(value) != nullptr);
     return value;
   }
 }

@@ -33,15 +33,16 @@ void set_env_var(gen_env_t &gen_env,
                  llvm::Value *llvm_value,
                  bool allow_shadowing);
 
-void gen(std::string name,
-         llvm::IRBuilder<> &builder,
-         llvm::Module *llvm_module,
-         llvm::BasicBlock *break_to_block,
-         llvm::BasicBlock *continue_to_block,
-         const bitter::expr_t *expr,
-         const tracked_types_t &typing,
-         const gen_env_t &gen_env_globals,
-         const gen_env_t &gen_env_locals,
-         const std::unordered_set<std::string> &globals,
-         publisher_t *publisher);
+resolution_status_t gen(std::string name,
+                        llvm::IRBuilder<> &builder,
+                        llvm::Module *llvm_module,
+                        llvm::BasicBlock *break_to_block,
+                        llvm::BasicBlock *continue_to_block,
+                        const bitter::expr_t *expr,
+                        const tracked_types_t &typing,
+                        const types::type_env_t &type_env,
+                        const gen_env_t &gen_env_globals,
+                        const gen_env_t &gen_env_locals,
+                        const std::unordered_set<std::string> &globals,
+                        publisher_t *publisher);
 } // namespace gen

@@ -80,7 +80,7 @@ struct compare_type_t {
   }
 };
 
-struct type_variable_t : public type_t {
+struct type_variable_t final : public type_t {
   type_variable_t(identifier_t id, std::set<std::string> predicates);
   type_variable_t(identifier_t id);
   type_variable_t(
@@ -88,103 +88,108 @@ struct type_variable_t : public type_t {
   identifier_t id;
   std::set<std::string> predicates;
 
-  virtual std::ostream &emit(std::ostream &os,
-                             const map &bindings,
-                             int parent_precedence) const;
-  virtual int ftv_count() const;
-  virtual predicate_map get_predicate_map() const;
-  virtual type_t::ref rebind(const map &bindings) const;
-  virtual type_t::ref remap_vars(
-      const std::map<std::string, std::string> &map) const;
-  virtual type_t::ref prefix_ids(const std::set<std::string> &bindings,
-                                 const std::string &pre) const;
-  virtual location_t get_location() const;
+  std::ostream &emit(std::ostream &os,
+                     const map &bindings,
+                     int parent_precedence) const override;
+  int ftv_count() const override;
+  predicate_map get_predicate_map() const override;
+  type_t::ref eval(const type_env_t &type_env) const override;
+  type_t::ref rebind(const map &bindings) const override;
+  type_t::ref remap_vars(
+      const std::map<std::string, std::string> &map) const override;
+  type_t::ref prefix_ids(const std::set<std::string> &bindings,
+                         const std::string &pre) const override;
+  location_t get_location() const override;
 };
 
-struct type_id_t : public type_t {
+struct type_id_t final : public type_t {
   type_id_t(identifier_t id);
   identifier_t id;
 
-  virtual std::ostream &emit(std::ostream &os,
-                             const map &bindings,
-                             int parent_precedence) const;
-  virtual int ftv_count() const;
-  virtual predicate_map get_predicate_map() const;
-  virtual type_t::ref rebind(const map &bindings) const;
-  virtual type_t::ref remap_vars(
-      const std::map<std::string, std::string> &map) const;
-  virtual type_t::ref prefix_ids(const std::set<std::string> &bindings,
-                                 const std::string &pre) const;
-  virtual location_t get_location() const;
+  std::ostream &emit(std::ostream &os,
+                     const map &bindings,
+                     int parent_precedence) const override;
+  int ftv_count() const override;
+  predicate_map get_predicate_map() const override;
+  type_t::ref eval(const type_env_t &type_env) const override;
+  type_t::ref rebind(const map &bindings) const override;
+  type_t::ref remap_vars(
+      const std::map<std::string, std::string> &map) const override;
+  type_t::ref prefix_ids(const std::set<std::string> &bindings,
+                         const std::string &pre) const override;
+  location_t get_location() const override;
 };
 
-struct type_operator_t : public type_t {
+struct type_operator_t final : public type_t {
   typedef std::shared_ptr<const type_operator_t> ref;
 
   type_operator_t(type_t::ref oper, type_t::ref operand);
   type_t::ref oper;
   type_t::ref operand;
 
-  virtual int get_precedence() const {
+  int get_precedence() const override {
     return 7;
   }
 
-  virtual std::ostream &emit(std::ostream &os,
-                             const map &bindings,
-                             int parent_precedence) const;
-  virtual int ftv_count() const;
-  virtual predicate_map get_predicate_map() const;
-  virtual type_t::ref rebind(const map &bindings) const;
-  virtual type_t::ref remap_vars(
-      const std::map<std::string, std::string> &map) const;
-  virtual type_t::ref prefix_ids(const std::set<std::string> &bindings,
-                                 const std::string &pre) const;
-  virtual location_t get_location() const;
+  std::ostream &emit(std::ostream &os,
+                     const map &bindings,
+                     int parent_precedence) const override;
+  int ftv_count() const override;
+  predicate_map get_predicate_map() const override;
+  type_t::ref eval(const type_env_t &type_env) const override;
+  type_t::ref rebind(const map &bindings) const override;
+  type_t::ref remap_vars(
+      const std::map<std::string, std::string> &map) const override;
+  type_t::ref prefix_ids(const std::set<std::string> &bindings,
+                         const std::string &pre) const override;
+  location_t get_location() const override;
 };
 
-struct type_tuple_t : public type_t {
+struct type_tuple_t final : public type_t {
   typedef std::shared_ptr<const type_tuple_t> ref;
 
   type_tuple_t(type_t::refs dimensions);
 
-  virtual std::ostream &emit(std::ostream &os,
-                             const map &bindings,
-                             int parent_precedence) const;
-  virtual int ftv_count() const;
-  virtual predicate_map get_predicate_map() const;
-  virtual type_t::ref rebind(const map &bindings) const;
-  virtual type_t::ref remap_vars(
-      const std::map<std::string, std::string> &map) const;
-  virtual type_t::ref prefix_ids(const std::set<std::string> &bindings,
-                                 const std::string &pre) const;
-  virtual location_t get_location() const;
+  std::ostream &emit(std::ostream &os,
+                     const map &bindings,
+                     int parent_precedence) const override;
+  int ftv_count() const override;
+  predicate_map get_predicate_map() const override;
+  type_t::ref eval(const type_env_t &type_env) const override;
+  type_t::ref rebind(const map &bindings) const override;
+  type_t::ref remap_vars(
+      const std::map<std::string, std::string> &map) const override;
+  type_t::ref prefix_ids(const std::set<std::string> &bindings,
+                         const std::string &pre) const override;
+  location_t get_location() const override;
 
   type_t::refs dimensions;
 };
 
-struct type_lambda_t : public type_t {
+struct type_lambda_t final : public type_t {
   type_lambda_t(identifier_t binding, type_t::ref body);
   identifier_t binding;
   type_t::ref body;
 
-  virtual int get_precedence() const {
+  int get_precedence() const override {
     return 6;
   }
-  virtual std::ostream &emit(std::ostream &os,
-                             const map &bindings,
-                             int parent_precedence) const;
-  virtual int ftv_count() const;
-  virtual predicate_map get_predicate_map() const;
-  virtual type_t::ref rebind(const map &bindings) const;
-  virtual type_t::ref remap_vars(
-      const std::map<std::string, std::string> &map) const;
-  virtual type_t::ref prefix_ids(const std::set<std::string> &bindings,
-                                 const std::string &pre) const;
-  virtual type_t::ref apply(types::type_t::ref type) const;
-  virtual location_t get_location() const;
+  std::ostream &emit(std::ostream &os,
+                     const map &bindings,
+                     int parent_precedence) const override;
+  int ftv_count() const override;
+  predicate_map get_predicate_map() const override;
+  type_t::ref eval(const type_env_t &type_env) const override;
+  type_t::ref rebind(const map &bindings) const override;
+  type_t::ref remap_vars(
+      const std::map<std::string, std::string> &map) const override;
+  type_t::ref prefix_ids(const std::set<std::string> &bindings,
+                         const std::string &pre) const override;
+  type_t::ref apply(types::type_t::ref type) const override;
+  location_t get_location() const override;
 };
 
-struct scheme_t : public std::enable_shared_from_this<scheme_t> {
+struct scheme_t final : public std::enable_shared_from_this<scheme_t> {
   typedef std::shared_ptr<scheme_t> ref;
   typedef std::vector<ref> refs;
   typedef std::map<std::string, ref> map;
@@ -249,8 +254,6 @@ types::type_t::ref type_arrow(location_t location,
                               types::type_t::ref b);
 types::type_t::ref type_arrow(types::type_t::ref a, types::type_t::ref b);
 types::type_t::ref type_arrows(types::type_t::refs types, int offset = 0);
-types::type_t::ref type_integer(types::type_t::ref size,
-                                types::type_t::ref is_signed);
 types::type_t::ref type_id(identifier_t var);
 types::type_t::ref type_variable(identifier_t id,
                                  const std::set<std::string> &predicates);
