@@ -1578,8 +1578,8 @@ data_type_decl_t parse_data_type_decl(parse_state_t &ps,
     int i = 0;
     for (auto &data_ctor_parts : data_ctors_parts) {
       auto ctor_id = iid(data_ctor_parts->ctor_token);
-      log_location(ctor_id.location, "creating enum type for %s",
-                   ctor_id.str().c_str());
+      debug_above(3, log_location(ctor_id.location, "creating enum type for %s",
+                                  ctor_id.str().c_str()));
       data_ctors[ctor_id.name] = type_decl.get_type();
       decls.push_back(new decl_t(
           ctor_id,
@@ -1592,7 +1592,9 @@ data_type_decl_t parse_data_type_decl(parse_state_t &ps,
     int i = 0;
     for (auto &data_ctor_parts : data_ctors_parts) {
       auto ctor_id = iid(data_ctor_parts->ctor_token);
-      log_location(ctor_id.location, "creating constructor type for %s", ctor_id.str().c_str());
+      debug_above(3, log_location(ctor_id.location,
+                                  "creating constructor type for %s",
+                                  ctor_id.str().c_str()));
       data_ctors[ctor_id.name] = create_ctor_type(ctor_id.location, type_decl,
                                                   data_ctor_parts->param_types);
       decls.push_back(

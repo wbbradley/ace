@@ -1,5 +1,9 @@
 fn main() {
-  if False {
-    print(3)
-  }
+    f := True
+    p := fn(x) () {
+        if x {
+            print(3)
+        }
+    }
+    p(f)
 }
