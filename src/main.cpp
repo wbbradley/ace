@@ -1011,6 +1011,8 @@ phase_4_t ssa_gen(llvm::LLVMContext &context, const phase_3_t &phase_3) {
   llvm::IRBuilder<> builder(context);
 
   gen::gen_env_t gen_env;
+  types::type_env_t type_env;
+  type_env[BOOL_TYPE] = type_id(make_iid(INT_TYPE));
 
   /* resolvers is the list of top-level symbols that need to be resolved. they
    * can be traversed in any order, and will automatically resolve in dependency
@@ -1048,14 +1050,16 @@ phase_4_t ssa_gen(llvm::LLVMContext &context, const phase_3_t &phase_3) {
         debug_above(4, log("making a placeholder proxy value for %s :: %s = %s",
                            pair.first.c_str(), type->str().c_str(),
                            translation->expr->str().c_str()));
+
         std::shared_ptr<gen::resolver_t> resolver = gen::lazy_resolver(
             name, type,
-            [&builder, &module, name, translation, &gen_env,
-             &globals](llvm::Value **llvm_value) {
+            [&builder, &module, name, translation, &type_env, &gen_env,
+             &globals](llvm::Value **llvm_value) -> gen::resolution_status_t {
               gen::publishable_t publishable(llvm_value);
-              gen::gen(name, builder, module, nullptr /*break_to_block*/,
+              return gen::gen(name, builder, module, nullptr /*break_to_block*/,
                        nullptr /*continue_to_block*/, translation->expr,
-                       translation->typing, gen_env, {}, globals, &publishable);
+                       translation->typing, type_env, gen_env, {}, globals,
+                       &publishable);
             });
 
         resolvers.push_back(resolver);

@@ -15,14 +15,18 @@ llvm::Constant *llvm_create_constant_struct_instance(
 
 llvm::FunctionType *get_llvm_arrow_function_type(
     llvm::IRBuilder<> &builder,
+    const types::type_env_t &type_env,
     const types::type_t::refs &terms);
 
 llvm::Type *get_llvm_closure_type(llvm::IRBuilder<> &builder,
+                                  const types::type_env_t &type_env,
                                   const types::type_t::refs &terms);
 
 std::vector<llvm::Type *> get_llvm_types(llvm::IRBuilder<> &builder,
+                                         const types::type_env_t &type_env,
                                          const types::type_t::refs &types);
 llvm::Type *get_llvm_type(llvm::IRBuilder<> &builder,
+                          const types::type_env_t &type_env,
                           const types::type_t::ref &type);
 
 llvm::Value *llvm_create_bool(llvm::IRBuilder<> &builder, bool value);
@@ -49,19 +53,17 @@ std::string llvm_print(llvm::Value *llvm_value);
 std::string llvm_print(llvm::Type *llvm_type);
 std::string llvm_print_function(llvm::Function *llvm_function);
 
-// TODO: consider consolidating mem management into just one of these...
 llvm::AllocaInst *llvm_create_entry_block_alloca(llvm::Function *llvm_function,
+                                                 types::type_env_t &type_env,
                                                  types::type_t::ref type,
                                                  std::string var_name);
-llvm::AllocaInst *llvm_call_gcroot(llvm::Function *llvm_function,
-                                   types::type_t::ref type,
-                                   std::string var_name);
 
 llvm::Value *_llvm_resolve_alloca(llvm::IRBuilder<> &builder,
                                   llvm::Value *llvm_value);
 llvm::Type *llvm_resolve_type(llvm::Value *llvm_value);
 llvm::StructType *llvm_create_struct_type(
     llvm::IRBuilder<> &builder,
+    types::type_env_t &type_env, 
     const types::type_t::refs &dimensions);
 llvm::StructType *llvm_create_struct_type(
     llvm::IRBuilder<> &builder,
@@ -115,10 +117,6 @@ llvm::Type *llvm_deref_type(llvm::Type *llvm_pointer_type);
 llvm::CallInst *llvm_create_call_inst(llvm::IRBuilder<> &builder,
                                       llvm::Value *llvm_callee_value,
                                       std::vector<llvm::Value *> llvm_values);
-llvm::Function *llvm_start_function(llvm::IRBuilder<> &builder,
-                                    llvm::Module *llvm_module,
-                                    const types::type_t::refs &terms,
-                                    std::string name);
 
 void get_llvm_function_type_parts(llvm::IRBuilder<> &builder,
                                   const types::type_t::refs &type_terms,

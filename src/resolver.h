@@ -8,7 +8,12 @@
 
 namespace gen {
 
-using lazy_resolver_callback_t = std::function<void(llvm::Value **)>;
+enum resolution_status_t {
+  rs_resolve_again,
+  rs_cache_resolution,
+};
+
+typedef std::function<resolution_status_t(llvm::Value **)> lazy_resolver_callback_t;
 
 struct publisher_t {
   virtual ~publisher_t() {
