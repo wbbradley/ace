@@ -704,7 +704,7 @@ resolution_status_t gen(std::string name,
       dbg();
     }
 
-    debug_above(8, log("gen(..., %s, ..., ...)", expr->str().c_str()));
+    debug_above(2, log_location(expr->get_location(), "gen(..., %s, ..., ...)", expr->str().c_str()));
     if (auto literal = dcast<const bitter::literal_t *>(expr)) {
       return gen_literal(name, builder, literal, type, publisher);
     } else if (auto static_print = dcast<const bitter::static_print_t *>(
@@ -781,6 +781,10 @@ resolution_status_t gen(std::string name,
           builder.getContext(), "falsey." + tag, llvm_function);
       llvm::BasicBlock *merge_block = nullptr;
 
+      assert(cond->getType() == builder.getInt64Ty());
+
+      llvm::IntegerType *llvm_cond_type = llvm::dyn_cast<llvm::IntegerType>(cond->getType());
+      cond = builder.CreateICmpNE(cond, llvm::ConstantInt::get(llvm_cond_type, 0));
       builder.CreateCondBr(cond, truthy_block, falsey_block);
       builder.SetInsertPoint(truthy_block);
 
@@ -909,9 +913,10 @@ resolution_status_t gen(std::string name,
                             gen_env_globals, gen_env_locals, globals);
       auto cast_type = get_llvm_type(builder, type_env,
                                      as->scheme->instantiate(INTERNAL_LOC()));
-      log("casting %s (which is %s) to type %s (which is %s)",
-          as->expr->str().c_str(), llvm_print(expr_value).c_str(),
-          as->scheme->str().c_str(), llvm_print(cast_type).c_str());
+      debug_above(
+          6, log("casting %s (which is %s) to type %s (which is %s)",
+                 as->expr->str().c_str(), llvm_print(expr_value).c_str(),
+                 as->scheme->str().c_str(), llvm_print(cast_type).c_str()));
       if (cast_type == expr_value->getType()) {
         /* slight cleanup to avoid extraneous bitcast */
         publish(expr_value);

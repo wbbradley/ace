@@ -502,9 +502,9 @@ llvm::GlobalVariable *llvm_get_global(llvm::Module *llvm_module,
 
   // llvm_global_variable->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
   auto v = llvm_global_variable;
-  log("llvm_get_global(..., %s, %s, %s) -> %s", name.c_str(),
+  debug_above(4, log("llvm_get_global(..., %s, %s, %s) -> %s", name.c_str(),
       llvm_print(llvm_constant).c_str(), boolstr(is_constant),
-      llvm_print(v).c_str());
+      llvm_print(v).c_str()));
   return v;
 }
 
@@ -691,7 +691,7 @@ llvm::Type *get_llvm_type(llvm::IRBuilder<> &builder,
                           const types::type_env_t &type_env,
                           const types::type_t::ref &type_) {
   auto type = type_->eval(type_env);
-  log("get_llvm_type(%s)...", type->str().c_str());
+  debug_above(3, log("get_llvm_type(%s)...", type->str().c_str()));
   if (auto id = dyncast<const types::type_id_t>(type)) {
     const std::string &name = id->id.name;
     if (name == INT_TYPE) {
@@ -755,6 +755,9 @@ std::vector<llvm::Type *> llvm_get_types(
 
 llvm::Value *llvm_tuple_alloc(llvm::IRBuilder<> &builder,
                               const std::vector<llvm::Value *> llvm_dims) {
+  if (llvm_dims.size() == 0) {
+    return llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo());
+  }
   llvm::StructType *llvm_tuple_type = llvm_create_struct_type(builder,
                                                               llvm_dims);
   llvm::Type *alloc_terms[] = {builder.getInt64Ty()};

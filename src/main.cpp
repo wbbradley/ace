@@ -975,7 +975,9 @@ struct phase_4_t {
   llvm::Module *llvm_module = nullptr;
   llvm::DIBuilder *dbuilder = nullptr;
   std::ostream &dump(std::ostream &os) {
-    dbuilder->finalize();
+    if (dbuilder != nullptr) {
+      dbuilder->finalize();
+    }
     return os << llvm_print_module(*llvm_module);
   }
 };
@@ -1004,10 +1006,12 @@ std::unordered_set<std::string> get_globals(const phase_3_t &phase_3) {
 
 phase_4_t ssa_gen(llvm::LLVMContext &context, const phase_3_t &phase_3) {
   llvm::Module *module = new llvm::Module("program", context);
-  llvm::DIBuilder *dbuilder = new llvm::DIBuilder(*module);
+  llvm::DIBuilder *dbuilder = nullptr; // new llvm::DIBuilder(*module);
+  /*
   dbuilder->createCompileUnit(llvm::dwarf::DW_LANG_C,
                               dbuilder->createFile("lib/std.zion", "."),
                               "Zion Compiler", 0, "", 0);
+                              */
   llvm::IRBuilder<> builder(context);
 
   gen::gen_env_t gen_env;
@@ -1057,9 +1061,9 @@ phase_4_t ssa_gen(llvm::LLVMContext &context, const phase_3_t &phase_3) {
              &globals](llvm::Value **llvm_value) -> gen::resolution_status_t {
               gen::publishable_t publishable(llvm_value);
               return gen::gen(name, builder, module, nullptr /*break_to_block*/,
-                       nullptr /*continue_to_block*/, translation->expr,
-                       translation->typing, type_env, gen_env, {}, globals,
-                       &publishable);
+                              nullptr /*continue_to_block*/, translation->expr,
+                              translation->typing, type_env, gen_env, {},
+                              globals, &publishable);
             });
 
         resolvers.push_back(resolver);
@@ -1070,9 +1074,9 @@ phase_4_t ssa_gen(llvm::LLVMContext &context, const phase_3_t &phase_3) {
     // TODO: differentiate between globals and functions...
     // global initialization will happen inside of the __program_init function
     for (auto resolver : resolvers) {
-      log("resolving %s...", resolver->str().c_str());
+      debug_above(2, log("resolving %s...", resolver->str().c_str()));
       llvm::Value *value = resolver->resolve();
-      log("resolved to %s", llvm_print(value).c_str());
+      debug_above(2, log("resolved to %s", llvm_print(value).c_str()));
     }
   } catch (user_error &e) {
     print_exception(e);
@@ -1118,9 +1122,6 @@ void build_main_function(llvm::IRBuilder<> &builder,
   llvm::Value *gep_path[] = {builder.getInt32(0), builder.getInt32(0)};
   llvm::Value *main_func = builder.CreateLoad(
       builder.CreateInBoundsGEP(llvm_main_closure, gep_path));
-  log("main_func type is %s", llvm_print(main_func->getType()).c_str());
-  log("llvm_main_closure type is %s",
-      llvm_print(llvm_main_closure->getType()).c_str());
   llvm::Value *main_args[] = {
       llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo()),
       builder.CreateBitCast(llvm_main_closure,
