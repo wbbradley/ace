@@ -72,6 +72,7 @@ llvm::StructType *llvm_create_struct_type(
     llvm::IRBuilder<> &builder,
     const std::vector<llvm::Value *> &llvm_dims);
 llvm::Value *llvm_tuple_alloc(llvm::IRBuilder<> &builder,
+                              llvm::Module *llvm_module,
                               const std::vector<llvm::Value *> llvm_dims);
 llvm::Constant *llvm_sizeof_type(llvm::IRBuilder<> &builder,
                                  llvm::Type *llvm_type);

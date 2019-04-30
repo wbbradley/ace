@@ -4,7 +4,7 @@
 #include <unistd.h>
 
 void *zion_malloc(uint64_t cb) {
-	void *pv = malloc(cb);
+	void *pv = calloc(cb, 1);
 	// printf("allocating %d bytes -> 0x%08llx\n", (int)cb, (long long)pv);
 	return pv;
 }

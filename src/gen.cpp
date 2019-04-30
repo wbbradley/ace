@@ -95,9 +95,9 @@ void get_free_vars(const bitter::expr_t *expr,
   } else if (auto let = dcast<const bitter::let_t *>(expr)) {
     // TODO: allow let-rec
     get_free_vars(let->value, typing, globals, locals, free_vars);
-    auto new_locals = locals;
-    new_locals.insert(let->var.name);
-    get_free_vars(let->body, typing, globals, new_locals, free_vars);
+    auto new_globals = globals;
+    new_globals.insert(let->var.name);
+    get_free_vars(let->body, typing, new_globals, locals, free_vars);
   } else if (auto fix = dcast<const bitter::fix_t *>(expr)) {
     get_free_vars(fix->f, typing, globals, locals, free_vars);
   } else if (auto condition = dcast<const bitter::conditional_t *>(expr)) {
@@ -247,7 +247,10 @@ void set_env_var(gen_env_t &gen_env,
 
 llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
                          const std::string &name,
-                         const std::vector<llvm::Value *> &params) {
+                         const std::vector<llvm::Value *> &params,
+                         const types::type_t::refs &types,
+                         const types::type_t::ref &type_builtin,
+                         const types::type_env_t &type_env) {
   debug_above(7, log("lowering builtin %s(%s)...", name.c_str(),
                      join_with(params, ", ", [](llvm::Value *lv) {
                        return llvm_print(lv);
@@ -255,16 +258,20 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
 
   if (name == "__builtin_word_size") {
     /* scheme({}, {}, Int) */
+    return builder.getInt64(64 / 8);
   } else if (name == "__builtin_min_int") {
     /* scheme({}, {}, Int) */
   } else if (name == "__builtin_max_int") {
     /* scheme({}, {}, Int) */
   } else if (name == "__builtin_multiply_int") {
     /* scheme({}, {}, type_arrows({Int, Int, Int})) */
+    return builder.CreateMul(params[0], params[1]);
   } else if (name == "__builtin_divide_int") {
     /* scheme({}, {}, type_arrows({Int, Int, Int})) */
+    return builder.CreateSDiv(params[0], params[1]);
   } else if (name == "__builtin_subtract_int") {
     /* scheme({}, {}, type_arrows({Int, Int, Int})) */
+    return builder.CreateSub(params[0], params[1]);
   } else if (name == "__builtin_add_int") {
     /* scheme({}, {}, type_arrows({Int, Int, Int})) */
     return builder.CreateAdd(params[0], params[1]);
@@ -273,6 +280,9 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
     return builder.CreateNeg(params[0]);
   } else if (name == "__builtin_abs_int") {
     /* scheme({}, {}, type_arrows({Int, Int})) */
+    return builder.CreateSelect(
+        builder.CreateICmpSLT(params[0], builder.getInt64(0)),
+        builder.CreateMul(params[0], builder.getInt64(-1)), params[0]);
   } else if (name == "__builtin_multiply_float") {
     /* scheme({}, {}, type_arrows({Float, Float, Float})) */
   } else if (name == "__builtin_divide_float") {
@@ -292,10 +302,18 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
     return builder.CreateGEP(params[0], std::vector<llvm::Value *>{params[1]});
   } else if (name == "__builtin_ptr_eq") {
     /* scheme({"a"}, {}, type_arrows({tp_a, tp_a, Bool})) */
-    assert(false);
+    return builder.CreateZExt(
+        builder.CreateICmpEQ(
+            builder.CreatePtrToInt(params[0], builder.getInt64Ty()),
+            builder.CreatePtrToInt(params[1], builder.getInt64Ty())),
+        builder.getInt64Ty());
   } else if (name == "__builtin_ptr_ne") {
     /* scheme({"a"}, {}, type_arrows({tp_a, tp_a, Bool})) */
-    assert(false);
+    return builder.CreateZExt(
+        builder.CreateICmpNE(
+            builder.CreatePtrToInt(params[0], builder.getInt64Ty()),
+            builder.CreatePtrToInt(params[1], builder.getInt64Ty())),
+        builder.getInt64Ty());
   } else if (name == "__builtin_ptr_load") {
     /* scheme({"a"}, {}, type_arrows({tp_a, tv_a})) */
     return builder.CreateLoad(params[0]);
@@ -305,28 +323,52 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
     /* scheme({"a"}, {}, type_arrows({tv_a, Int})) */
   } else if (name == "__builtin_int_eq") {
     /* scheme({}, {}, type_arrows({Int, Int, Bool})) */
+    return builder.CreateZExt(builder.CreateICmpEQ(params[0], params[1]),
+                              builder.getInt64Ty());
   } else if (name == "__builtin_int_ne") {
     /* scheme({}, {}, type_arrows({Int, Int, Bool})) */
+    return builder.CreateZExt(builder.CreateICmpNE(params[0], params[1]),
+                              builder.getInt64Ty());
   } else if (name == "__builtin_int_lt") {
     /* scheme({}, {}, type_arrows({Int, Int, Bool})) */
+    return builder.CreateZExt(builder.CreateICmpSLT(params[0], params[1]),
+                              builder.getInt64Ty());
   } else if (name == "__builtin_int_lte") {
     /* scheme({}, {}, type_arrows({Int, Int, Bool})) */
+    return builder.CreateZExt(builder.CreateICmpSLE(params[0], params[1]),
+                              builder.getInt64Ty());
   } else if (name == "__builtin_int_gt") {
     /* scheme({}, {}, type_arrows({Int, Int, Bool})) */
+    return builder.CreateZExt(builder.CreateICmpSGT(params[0], params[1]),
+                              builder.getInt64Ty());
   } else if (name == "__builtin_int_gte") {
     /* scheme({}, {}, type_arrows({Int, Int, Bool})) */
+    return builder.CreateZExt(builder.CreateICmpSGE(params[0], params[1]),
+                              builder.getInt64Ty());
   } else if (name == "__builtin_float_eq") {
     /* scheme({}, {}, type_arrows({Float, Float, Bool})) */
+    return builder.CreateZExt(builder.CreateFCmpOEQ(params[0], params[1]),
+                              builder.getInt64Ty());
   } else if (name == "__builtin_float_ne") {
     /* scheme({}, {}, type_arrows({Float, Float, Bool})) */
+    return builder.CreateZExt(builder.CreateFCmpONE(params[0], params[1]),
+                              builder.getInt64Ty());
   } else if (name == "__builtin_float_lt") {
     /* scheme({}, {}, type_arrows({Float, Float, Bool})) */
+    return builder.CreateZExt(builder.CreateFCmpOLT(params[0], params[1]),
+                              builder.getInt64Ty());
   } else if (name == "__builtin_float_lte") {
     /* scheme({}, {}, type_arrows({Float, Float, Bool})) */
+    return builder.CreateZExt(builder.CreateFCmpOLE(params[0], params[1]),
+                              builder.getInt64Ty());
   } else if (name == "__builtin_float_gt") {
     /* scheme({}, {}, type_arrows({Float, Float, Bool})) */
+    return builder.CreateZExt(builder.CreateFCmpOGT(params[0], params[1]),
+                              builder.getInt64Ty());
   } else if (name == "__builtin_float_gte") {
     /* scheme({}, {}, type_arrows({Float, Float, Bool})) */
+    return builder.CreateZExt(builder.CreateFCmpOGE(params[0], params[1]),
+                              builder.getInt64Ty());
   } else if (name == "__builtin_print") {
     /* scheme({}, {}, type_arrows({*Char, type_unit(INTERNAL_LOC())})) */
     auto llvm_module = llvm_get_module(builder);
@@ -392,14 +434,52 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
     /* scheme({}, {}, type_arrows({Int, type_bottom()})) */
   } else if (name == "__builtin_calloc") {
     /* scheme({"a"}, {}, type_arrows({Int, tp_a})) */
+    auto llvm_module = llvm_get_module(builder);
+    llvm::Type *param_types[] = {builder.getInt64Ty()};
+
+    assert(params.size() == 1);
+
+    auto ffi_function = llvm::cast<llvm::Function>(
+        llvm_module->getOrInsertFunction(
+            "zion_malloc",
+            llvm::FunctionType::get(builder.getInt8Ty()->getPointerTo(),
+                                    llvm::ArrayRef<llvm::Type *>(param_types),
+                                    false /*isVarArg*/)));
+    return llvm_maybe_pointer_cast(
+        builder, builder.CreateCall(ffi_function, params),
+        get_llvm_type(builder, type_env, type_builtin));
   } else if (name == "__builtin_store_ref") {
     /* scheme({"a"}, {}, type_arrows({
      * type_operator(type_id(make_iid(REF_TYPE_OPERATOR)), tv_a), tv_a,
      * type_unit(INTERNAL_LOC())})) */
+    /* store the rhs in the lhs */
+    debug_above(4, log("trying to do a __builtin_store_ref(%s :: %s, %s :: %s)",
+                       llvm_print(params[0]).c_str(), types[0]->str().c_str(),
+                       llvm_print(params[1]).c_str(), types[1]->str().c_str()));
+    llvm::Type *llvm_operand_type = get_llvm_type(builder, type_env, types[1]);
+    assert(llvm_operand_type == params[1]->getType());
+
+    llvm::StructType *llvm_ref_tuple_type = llvm::StructType::get(
+        builder.getInt64Ty(), llvm_operand_type);
+
+    builder.CreateStore(params[1], builder.CreateConstInBoundsGEP2_32(
+                                       llvm_ref_tuple_type,
+                                       llvm_maybe_pointer_cast(
+                                           builder, params[0],
+                                           llvm_ref_tuple_type->getPointerTo()),
+                                       0, 1));
+    return llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo());
   } else if (name == "__builtin_store_ptr") {
     /* scheme({"a"}, {}, type_arrows({
      * type_operator(type_id(make_iid(PTR_TYPE_OPERATOR)), tv_a), tv_a,
      * type_unit(INTERNAL_LOC())})) */
+    llvm::Type *llvm_operand_type = get_llvm_type(builder, type_env, types[1]);
+    assert(llvm_operand_type == params[1]->getType());
+
+    builder.CreateStore(
+        params[1], llvm_maybe_pointer_cast(builder, params[0],
+                                           llvm_operand_type->getPointerTo()));
+    return llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo());
   } else if (name == "__builtin_hello" || name == "__builtin_goodbye") {
     /* scheme({}, {}, Unit) */
     auto llvm_module = llvm_get_module(builder);
@@ -524,7 +604,7 @@ void gen_lambda(std::string name,
                                     builder.getInt8Ty()->getPointerTo())})),
         true /*is_constant*/);
   } else {
-    closure = llvm_tuple_alloc(builder, llvm_dims);
+    closure = llvm_tuple_alloc(builder, llvm_module, llvm_dims);
     opaque_closure = builder.CreateBitCast(closure,
                                            llvm_closure_type->getPointerTo());
   }
@@ -891,7 +971,7 @@ resolution_status_t gen(std::string name,
                                  continue_to_block, dim, typing, type_env,
                                  gen_env_globals, gen_env_locals, globals));
       }
-      publish(llvm_tuple_alloc(builder, dim_values));
+      publish(llvm_tuple_alloc(builder, llvm_module, dim_values));
       return rs_cache_resolution;
     } else if (auto tuple_deref = dcast<const bitter::tuple_deref_t *>(expr)) {
       auto td = gen(builder, llvm_module, break_to_block, continue_to_block,
@@ -921,7 +1001,7 @@ resolution_status_t gen(std::string name,
         /* slight cleanup to avoid extraneous bitcast */
         publish(expr_value);
       } else {
-        publish(builder.CreateBitCast(expr_value, cast_type));
+        publish(builder.CreateBitOrPointerCast(expr_value, cast_type));
       }
       return rs_cache_resolution;
     } else if (auto sizeof_ = dcast<const bitter::sizeof_t *>(expr)) {
@@ -930,12 +1010,15 @@ resolution_status_t gen(std::string name,
       assert(false);
     } else if (auto builtin = dcast<const bitter::builtin_t *>(expr)) {
       std::vector<llvm::Value *> llvm_values;
+      types::type_t::refs types;
       for (auto expr : builtin->exprs) {
         llvm_values.push_back(gen(builder, llvm_module, break_to_block,
                                   continue_to_block, expr, typing, type_env,
                                   gen_env_globals, gen_env_locals, globals));
+        types.push_back(typing.at(expr));
       }
-      publish(gen_builtin(builder, builtin->var->id.name, llvm_values));
+      publish(gen_builtin(builder, builtin->var->id.name, llvm_values, types,
+                          typing.at(builtin), type_env));
       return rs_cache_resolution;
     }
     throw user_error(expr->get_location(), "unhandled gen for %s :: %s",
