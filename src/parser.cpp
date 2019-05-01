@@ -1479,6 +1479,10 @@ data_type_decl_t parse_struct_decl(parse_state_t &ps,
   types::type_t::refs dims;
   identifiers_t member_ids;
 
+  member_ids.push_back(make_iid("ctor_id"));
+  /* ctor_id */
+  dims.push_back(type_id(make_iid(INT_TYPE)));
+
   chomp_token(tk_lcurly);
   for (int i = 0; true; ++i) {
     if (ps.token.tk == tk_rcurly) {
@@ -1495,7 +1499,7 @@ data_type_decl_t parse_struct_decl(parse_state_t &ps,
     dims.push_back(parse_type(ps));
   }
 
-  for (int i = 0; i < dims.size(); ++i) {
+  for (int i = 1 /*skip the ctor_id*/; i < dims.size(); ++i) {
     decls.push_back(new decl_t(
         /* accessor function names look like __.x */
         make_accessor_id(member_ids[i]),
@@ -1509,6 +1513,9 @@ data_type_decl_t parse_struct_decl(parse_state_t &ps,
   }
 
   chomp_token(tk_rcurly);
+
+  /* we don't need the ctor_id below */
+  dims = vec_slice(dims, 1, dims.size());
 
   /* there is only one ctor for structs which are just product types */
   auto ctor_id = type_decl.id;
