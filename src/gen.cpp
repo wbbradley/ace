@@ -319,8 +319,14 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
     return builder.CreateLoad(params[0]);
   } else if (name == "__builtin_get_dim") {
     /* scheme({"a", "b"}, {}, type_arrows({tv_a, Int, tv_b})) */
-  } else if (name == "__builtin_get_ctor_id") {
-    /* scheme({"a"}, {}, type_arrows({tv_a, Int})) */
+  } else if (name == "__builtin_cmp_ctor_id") {
+    /* scheme({"a"}, {}, type_arrows({tv_a, Int, Bool})) */
+    return builder.CreateZExt(
+        builder.CreateICmpNE(
+            builder.CreateLoad(builder.CreateBitOrPointerCast(
+                params[0], builder.getInt64Ty()->getPointerTo())),
+            params[1]),
+        builder.getInt64Ty());
   } else if (name == "__builtin_int_eq") {
     /* scheme({}, {}, type_arrows({Int, Int, Bool})) */
     return builder.CreateZExt(builder.CreateICmpEQ(params[0], params[1]),
@@ -784,7 +790,8 @@ resolution_status_t gen(std::string name,
       dbg();
     }
 
-    debug_above(2, log_location(expr->get_location(), "gen(..., %s, ..., ...)", expr->str().c_str()));
+    INDENT(2, string_format("gen(..., %s, ..., ...) :: %s", expr->str().c_str(),
+                            type->str().c_str()));
     if (auto literal = dcast<const bitter::literal_t *>(expr)) {
       return gen_literal(name, builder, literal, type, publisher);
     } else if (auto static_print = dcast<const bitter::static_print_t *>(
@@ -807,6 +814,12 @@ resolution_status_t gen(std::string name,
                  gen_env_globals, gen_env_locals, globals, publisher);
       return rs_cache_resolution;
     } else if (auto application = dcast<const bitter::application_t *>(expr)) {
+      debug_above(4, log("applying (%s :: %s) (%s :: %s)...",
+                         application->a->str().c_str(),
+                         typing.at(application->a)->str().c_str(),
+                         application->b->str().c_str(),
+                         typing.at(application->b)->str().c_str()));
+
       llvm::Value *closure = gen(builder, llvm_module, break_to_block,
                                  continue_to_block, application->a, typing,
                                  type_env, gen_env_globals, gen_env_locals,
@@ -823,6 +836,11 @@ resolution_status_t gen(std::string name,
       llvm::Value *args[] = {
           lambda_arg,
           builder.CreateBitCast(closure, builder.getInt8Ty()->getPointerTo())};
+
+      debug_above(4, log("calling builder.CreateCall(%s, {%s, %s})",
+                         llvm_print(llvm_function_to_call->getType()).c_str(),
+                         llvm_print(args[0]->getType()).c_str(),
+                         llvm_print(args[1]->getType()).c_str()));
 
       publish(builder.CreateCall(llvm_function_to_call,
                                  llvm::ArrayRef<llvm::Value *>(args)));
@@ -863,8 +881,10 @@ resolution_status_t gen(std::string name,
 
       assert(cond->getType() == builder.getInt64Ty());
 
-      llvm::IntegerType *llvm_cond_type = llvm::dyn_cast<llvm::IntegerType>(cond->getType());
-      cond = builder.CreateICmpNE(cond, llvm::ConstantInt::get(llvm_cond_type, 0));
+      llvm::IntegerType *llvm_cond_type = llvm::dyn_cast<llvm::IntegerType>(
+          cond->getType());
+      cond = builder.CreateICmpNE(cond,
+                                  llvm::ConstantInt::get(llvm_cond_type, 0));
       builder.CreateCondBr(cond, truthy_block, falsey_block);
       builder.SetInsertPoint(truthy_block);
 
@@ -914,7 +934,6 @@ resolution_status_t gen(std::string name,
       builder.CreateBr(continue_to_block);
       return rs_cache_resolution;
     } else if (auto while_ = dcast<const bitter::while_t *>(expr)) {
-      assert(publisher == nullptr);
       llvm::Function *llvm_function = llvm_get_function(builder);
       auto tag = bitter::fresh();
       auto cond_block = llvm::BasicBlock::Create(
@@ -932,6 +951,8 @@ resolution_status_t gen(std::string name,
       auto else_block = llvm::BasicBlock::Create(
           builder.getContext(), "while_break" + tag, llvm_function);
 
+      cond = builder.CreateICmpNE(cond,
+                                  llvm::ConstantInt::get(cond->getType(), 0));
       builder.CreateCondBr(cond, while_block, else_block);
       builder.SetInsertPoint(while_block);
       loop_guard_t loop_guard(else_block, cond_block, &break_to_block,
@@ -951,9 +972,8 @@ resolution_status_t gen(std::string name,
 
       llvm::Value *value = nullptr;
       for (auto statement : block->statements) {
-        gen(builder, llvm_module, break_to_block, continue_to_block,
-            statement, typing, type_env, gen_env_globals, gen_env_locals,
-            globals, &value);
+        gen(builder, llvm_module, break_to_block, continue_to_block, statement,
+            typing, type_env, gen_env_globals, gen_env_locals, globals, &value);
       }
       publish(value);
       return rs_cache_resolution;

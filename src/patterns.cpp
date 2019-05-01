@@ -41,6 +41,8 @@ expr_t *build_patterns(const defn_id_t &for_defn_id,
 
     auto scrutinee = new var_t(scrutinee_id);
     typing[scrutinee] = scrutinee_type;
+    debug_above(5, log("scrutinee_type of %s is %s", scrutinee->str().c_str(),
+        scrutinee_type->str().c_str()));
     auto expr = new let_t(
         scrutinee_id_with_name_assignment, scrutinee,
         pattern_block->predicate->translate(
@@ -291,27 +293,17 @@ expr_t *ctor_predicate_t::translate(
 
   if (do_checks) {
     int ctor_id = tenv.get_ctor_id(ctor_name.name);
-
-    auto cmp_type = type_arrows({Int, Int, Bool});
-    auto cmp_defn_id = defn_id_t{make_iid("std.=="), cmp_type->generalize({})};
-    auto ctor_id_cmp = new var_t(cmp_defn_id.id);
-    typing[ctor_id_cmp] = cmp_type;
-    insert_needed_defn(needed_defns, cmp_defn_id, get_location(), for_defn_id);
-
-    auto cmp_ctor_id = new var_t(make_iid("__builtin_cmp_ctor_id"));
+    var_t *cmp_ctor_id = new var_t(make_iid("__builtin_cmp_ctor_id"));
     typing[cmp_ctor_id] = type_arrows({scrutinee_type, Int, Bool});
 
     auto ctor_id_literal = new literal_t(
-        token_t{location, tk_integer, string_format("%d", ctor_id)});
+        token_t{location, tk_integer, std::to_string(ctor_id)});
     typing[ctor_id_literal] = Int;
 
-    auto scrutinee = new var_t(scrutinee_id);
+    expr_t *scrutinee = new var_t(scrutinee_id);
     typing[scrutinee] = scrutinee_type;
 
-    auto partial_cmp = new application_t(ctor_id_cmp, scrutinee);
-    typing[partial_cmp] = type_arrows({Int, Bool});
-
-    auto condition = new application_t(partial_cmp, ctor_id_literal);
+    auto condition = new builtin_t(cmp_ctor_id, {scrutinee, ctor_id_literal});
     typing[condition] = type_bool(INTERNAL_LOC());
 
     bool truthy_returns = false;
