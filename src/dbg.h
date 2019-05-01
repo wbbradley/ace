@@ -88,7 +88,7 @@ extern int __dbg_level;
 #define debug_above(level, x)                                                  \
   do {                                                                         \
     if (debug_level() >= (level))                                              \
-      ((std::cout << level << "| "), (x));                                     \
+      (x);                                                                     \
   } while (0)
 #define debug_above_else(level, x, y) ((debug_level() >= (level)) ? (x) : (y))
 #define debug_ex(x) debug_above(2, x)

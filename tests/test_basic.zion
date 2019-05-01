@@ -1,9 +1,7 @@
 fn main() {
-    f := True
-    p := fn(x) () {
-        if x {
-            print(3)
-        }
+    print("hey")
+    for x in range(2) {
+        print(x)
     }
-    p(f)
+    print("ho")
 }

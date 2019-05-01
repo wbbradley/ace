@@ -30,7 +30,9 @@ fn add_one_queen(new_row, columns, prev_solutions) [[Int]] {
     reserve(solutions, 92)
 
     for solution in prev_solutions {
+        static_print(solution)
         for new_column in range(columns) {
+            static_print(new_column)
             if no_conflict(new_row, new_column, solution) {
                 append(solutions, copy_and_extend(solution, new_column))
             }

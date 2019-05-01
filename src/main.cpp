@@ -160,8 +160,8 @@ const types::scheme_t::map &get_builtins() {
     (*map)["__builtin_ptr_load"] = scheme({"a"}, {}, type_arrows({tp_a, tv_a}));
     (*map)["__builtin_get_dim"] = scheme({"a", "b"}, {},
                                          type_arrows({tv_a, Int, tv_b}));
-    (*map)["__builtin_get_ctor_id"] = scheme({"a"}, {},
-                                             type_arrows({tv_a, Int}));
+    (*map)["__builtin_cmp_ctor_id"] = scheme({"a"}, {},
+                                             type_arrows({tv_a, Int, Bool}));
     (*map)["__builtin_int_eq"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
     (*map)["__builtin_int_ne"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
     (*map)["__builtin_int_lt"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
@@ -1155,7 +1155,7 @@ int run_job(const job_t &job) {
     assert(alphabetize(2) == "c");
     assert(alphabetize(26) == "aa");
     assert(alphabetize(27) == "ab");
-    return run_job({"gen", {}, {"test_basic"}});
+    return run_job({"ll", {}, {"test_basic"}});
   };
   cmd_map["find"] = [&](const job_t &job, bool explain) {
     if (explain) {
@@ -1236,7 +1236,7 @@ int run_job(const job_t &job) {
       return user_error::errors_occurred() ? EXIT_FAILURE : EXIT_SUCCESS;
     }
   };
-  cmd_map["gen"] = [&](const job_t &job, bool explain) {
+  cmd_map["ll"] = [&](const job_t &job, bool explain) {
     if (explain) {
       std::cerr << "ll: compiles, specializes, then generates LLVM output"
                 << std::endl;
@@ -1248,7 +1248,8 @@ int run_job(const job_t &job) {
       llvm::LLVMContext context;
       phase_4_t phase_4 = ssa_gen(context, specialize(compile(job.args[0])));
 
-      std::string output_filename = "./zion-output.ll";
+      std::string output_filename =
+          "./" + phase_4.phase_3.phase_2.compilation->program_name + ".ll";
       llvm::IRBuilder<> builder(context);
       build_main_function(builder, phase_4.llvm_module, phase_4.gen_env,
                           phase_4.phase_3.phase_2.compilation->program_name);
@@ -1269,8 +1270,8 @@ int run_job(const job_t &job) {
   if (!in(job.cmd, cmd_map)) {
     job_t new_job;
     new_job.args.insert(new_job.args.begin(), job.cmd);
-    new_job.cmd = "gen";
-    return cmd_map["gen"](new_job, false /*explain*/);
+    new_job.cmd = "ll";
+    return cmd_map["ll"](new_job, false /*explain*/);
   } else {
     return cmd_map[job.cmd](job, get_help);
   }

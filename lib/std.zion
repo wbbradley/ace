@@ -244,10 +244,6 @@ struct Vector a {
 }
 
 fn __string_ref(sz *Char, size Int) [Char] {
-    __builtin_print(sz)
-    __builtin_print_int(31)
-    __builtin_print_int(size)
-    __builtin_print_int(37)
     return Vector(Ref(sz), Ref(size), Ref(0))
 }
 
