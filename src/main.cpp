@@ -1015,8 +1015,6 @@ phase_4_t ssa_gen(llvm::LLVMContext &context, const phase_3_t &phase_3) {
   llvm::IRBuilder<> builder(context);
 
   gen::gen_env_t gen_env;
-  types::type_env_t type_env;
-  type_env[BOOL_TYPE] = type_id(make_iid(INT_TYPE));
 
   /* resolvers is the list of top-level symbols that need to be resolved. they
    * can be traversed in any order, and will automatically resolve in dependency
@@ -1029,6 +1027,7 @@ phase_4_t ssa_gen(llvm::LLVMContext &context, const phase_3_t &phase_3) {
     const std::unordered_set<std::string> globals = get_globals(phase_3);
 
     debug_above(6, log("globals are %s", join(globals).c_str()));
+    log("type_env is %s", str(phase_3.phase_2.compilation->type_env).c_str());
     for (auto pair : phase_3.translation_map) {
       for (auto &overload : pair.second) {
         const std::string &name = pair.first;
@@ -1057,12 +1056,13 @@ phase_4_t ssa_gen(llvm::LLVMContext &context, const phase_3_t &phase_3) {
 
         std::shared_ptr<gen::resolver_t> resolver = gen::lazy_resolver(
             name, type,
-            [&builder, &module, name, translation, &type_env, &gen_env,
+            [&builder, &module, name, translation, &phase_3, &gen_env,
              &globals](llvm::Value **llvm_value) -> gen::resolution_status_t {
               gen::publishable_t publishable(llvm_value);
               return gen::gen(name, builder, module, nullptr /*break_to_block*/,
                               nullptr /*continue_to_block*/, translation->expr,
-                              translation->typing, type_env, gen_env, {},
+                              translation->typing,
+                              phase_3.phase_2.compilation->type_env, gen_env, {},
                               globals, &publishable);
             });
 
@@ -1270,6 +1270,7 @@ int run_job(const job_t &job) {
   if (!in(job.cmd, cmd_map)) {
     job_t new_job;
     new_job.args.insert(new_job.args.begin(), job.cmd);
+    // TODO: make a "run" command that is the default
     new_job.cmd = "ll";
     return cmd_map["ll"](new_job, false /*explain*/);
   } else {

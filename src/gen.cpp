@@ -246,11 +246,12 @@ void set_env_var(gen_env_t &gen_env,
 }
 
 llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
-                         const std::string &name,
+                         const identifier_t &id,
                          const std::vector<llvm::Value *> &params,
                          const types::type_t::refs &types,
                          const types::type_t::ref &type_builtin,
                          const types::type_env_t &type_env) {
+  const std::string &name = id.name;
   debug_above(7, log("lowering builtin %s(%s)...", name.c_str(),
                      join_with(params, ", ", [](llvm::Value *lv) {
                        return llvm_print(lv);
@@ -493,7 +494,8 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
 
     std::vector<llvm::Value *> params = {llvm_create_global_string_constant(
         builder, *llvm_module,
-        name == "__builtin_hello" ? "hello" : "goodbye")};
+        string_format("%s: %s", id.location.repr().c_str(),
+                      name == "__builtin_hello" ? "hello" : "goodbye"))};
 
     // libc dependency
     auto llvm_write_func_decl = llvm::cast<llvm::Function>(
@@ -1037,7 +1039,7 @@ resolution_status_t gen(std::string name,
                                   gen_env_globals, gen_env_locals, globals));
         types.push_back(typing.at(expr));
       }
-      publish(gen_builtin(builder, builtin->var->id.name, llvm_values, types,
+      publish(gen_builtin(builder, builtin->var->id, llvm_values, types,
                           typing.at(builtin), type_env));
       return rs_cache_resolution;
     }

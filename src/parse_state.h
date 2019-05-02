@@ -45,7 +45,7 @@ struct parse_state_t {
   std::set<token_t> &link_ins;
   ctor_id_map_t ctor_id_map;
   data_ctors_map_t data_ctors_map;
-  std::set<identifier_t> newtypes;
+  types::type_env_t type_env;
 
   /* scoped expression contexts */
   std::list<scope_t> scopes;

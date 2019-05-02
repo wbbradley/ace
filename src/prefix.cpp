@@ -236,7 +236,7 @@ module_t *prefix(const std::set<std::string> &bindings, module_t *module) {
                       prefix(bindings, module->name, module->ctor_id_map,
                              true /*include_keys*/),
                       prefix(bindings, module->name, module->data_ctors_map),
-                      prefix(bindings, module->name, module->newtypes));
+                      prefix(bindings, module->name, module->type_env));
 }
 
 types::scheme_t::ref prefix(const std::set<std::string> &bindings,
