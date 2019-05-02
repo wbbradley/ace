@@ -255,6 +255,11 @@ instance Show Char {
     }
 }
 
+instance Show [Char] {
+    fn str(xs) => xs
+}
+
+/*
 instance Show [a] {
     fn str(xs) {
         y := new [Char]
@@ -264,6 +269,7 @@ instance Show [a] {
         return y
     }
 }
+*/
 
 class HasLength a {
     fn len(a) Int
@@ -345,6 +351,11 @@ fn append(vec [a], val a) {
         vec.capacity = 4
     }
 
+    if !vec.capacity == 0 {
+        __builtin_hello
+        /* TODO: handle constant strings */
+    }
+
     __builtin_store_ptr(__builtin_add_ptr(!vec.array, !vec.size), val)
 }
 
@@ -378,9 +389,15 @@ instance Iterable Vector {
 
 let unit = ()
 fn id(x) => x
+
 fn print(x) {
+    __builtin_hello
     return match str(x) {
         Vector(Ref(sz), _, _) {
+            __builtin_hello
+            if sz == null {
+                __builtin_goodbye
+            }
             __builtin_print(sz)
         }
     }
@@ -392,7 +409,9 @@ fn panic(x) {
 }
 
 fn concat(xs [a], ys [a]) {
+    __builtin_hello
     for y in ys {
+        __builtin_hello
         append(xs, y)
     }
 }

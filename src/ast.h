@@ -439,11 +439,11 @@ struct module_t {
            const std::vector<instance_t *> &instances,
            const ctor_id_map_t &ctor_id_map,
            const data_ctors_map_t &data_ctors_map,
-           const std::set<identifier_t> &newtypes)
+           const types::type_env_t &type_env)
       : name(name), decls(decls), type_decls(type_decls),
         type_classes(type_classes), instances(instances),
         ctor_id_map(ctor_id_map), data_ctors_map(data_ctors_map),
-        newtypes(newtypes) {
+        type_env(type_env) {
   }
 
   std::string const name;
@@ -453,7 +453,7 @@ struct module_t {
   std::vector<instance_t *> const instances;
   ctor_id_map_t const ctor_id_map;
   data_ctors_map_t const data_ctors_map;
-  std::set<identifier_t> const newtypes;
+  types::type_env_t const type_env;
 };
 
 struct program_t {

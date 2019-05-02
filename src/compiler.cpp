@@ -245,6 +245,7 @@ compilation_t::ref parse_program(
     std::vector<instance_t *> program_instances;
     ctor_id_map_t ctor_id_map;
     data_ctors_map_t data_ctors_map;
+    types::type_env_t type_env;
 
     /* next, merge the entire set of modules into one program */
     for (module_t *module : gps.modules) {
@@ -276,6 +277,11 @@ compilation_t::ref parse_program(
         assert(!in(pair.first, data_ctors_map));
         data_ctors_map[pair.first] = pair.second;
       }
+
+      for (auto pair : module_rebound->type_env) {
+        assert(!in(pair.first, type_env));
+        type_env[pair.first] = pair.second;
+      }
     }
 
     return std::make_shared<compilation_t>(
@@ -283,7 +289,8 @@ compilation_t::ref parse_program(
         new program_t(program_decls, program_type_classes, program_instances,
                       new application_t(new var_t(make_iid("main")),
                                         new tuple_t(INTERNAL_LOC(), {}))),
-        gps.comments, gps.link_ins, ctor_id_map, data_ctors_map);
+        gps.comments, gps.link_ins, ctor_id_map, data_ctors_map,
+        type_env);
   } catch (user_error &e) {
     print_exception(e);
     return nullptr;

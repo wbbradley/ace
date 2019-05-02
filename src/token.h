@@ -99,6 +99,7 @@ K(instance);
 K(let);
 K(unreachable);
 K(new);
+K(newtype);
 K(not);
 K(null);
 K(or);

@@ -1410,7 +1410,7 @@ type_decl_t parse_type_decl(parse_state_t &ps) {
   }
 
   std::vector<identifier_t> params;
-  while (true) {
+  while (!ps.line_broke()) {
     if (ps.token.tk == tk_identifier) {
       if (!islower(ps.token.text[0])) {
         throw user_error(ps.token.location,
@@ -1418,7 +1418,6 @@ type_decl_t parse_type_decl(parse_state_t &ps) {
       }
       params.push_back(iid(ps.token_and_advance()));
     } else {
-      expect_token(tk_lcurly);
       break;
     }
   }
@@ -1428,6 +1427,7 @@ type_decl_t parse_type_decl(parse_state_t &ps) {
 types::type_t::ref create_ctor_type(location_t location,
                                     const type_decl_t &type_decl,
                                     types::type_t::refs param_types) {
+  /* push the return type on as the final type */
   param_types.push_back(type_decl.get_type());
   auto type = type_arrows(param_types);
 
@@ -1474,7 +1474,7 @@ struct data_type_decl_t {
 
 data_type_decl_t parse_struct_decl(parse_state_t &ps,
                                    types::type_t::map &data_ctors) {
-  auto type_decl = parse_type_decl(ps);
+  type_decl_t type_decl = parse_type_decl(ps);
   std::vector<decl_t *> decls;
   types::type_t::refs dims;
   identifiers_t member_ids;
@@ -1532,10 +1532,40 @@ data_type_decl_t parse_struct_decl(parse_state_t &ps,
   return {type_decl, decls};
 }
 
+data_type_decl_t parse_newtype_decl(parse_state_t &ps,
+                                    types::type_t::map &data_ctors,
+                                    ctor_id_map_t &ctor_id_map) {
+  type_decl_t type_decl = parse_type_decl(ps);
+
+  chomp_token(tk_assign);
+  types::type_t::ref rhs_type = parse_type(ps);
+
+  identifier_t param_iid = make_iid(bitter::fresh());
+  std::vector<decl_t *> decls;
+  decls.push_back(new decl_t(
+      type_decl.id,
+      new lambda_t(param_iid, rhs_type, type_decl.get_type(),
+                   new as_t(new var_t(param_iid),
+                            type_decl.get_type()->generalize({}),
+                            true /*force_cast*/))));
+  data_ctors[type_decl.id.name] = create_ctor_type(
+      type_decl.id.location, type_decl, {rhs_type});
+  assert(!in(type_decl.id.name, ps.type_env));
+  /* because this is a newtype, we need to remember the type mapping within the
+   * type environment for reference later in pattern matching, and in code
+   * generation. */
+  types::type_t::ref body = rhs_type;
+  for (auto param: type_decl.params) {
+    body = type_lambda(param, body);
+  }
+  ps.type_env[type_decl.id.name] = body;
+  return {type_decl, decls};
+}
+
 data_type_decl_t parse_data_type_decl(parse_state_t &ps,
                                       types::type_t::map &data_ctors,
                                       ctor_id_map_t &ctor_id_map) {
-  auto type_decl = parse_type_decl(ps);
+  type_decl_t type_decl = parse_type_decl(ps);
   std::vector<decl_t *> decls;
 
   chomp_token(tk_lcurly);
@@ -1582,6 +1612,9 @@ data_type_decl_t parse_data_type_decl(parse_state_t &ps,
 
   if (param_types_count == 0) {
     /* this is just an ENUM. this type can be simplified to just an Int */
+    ps.type_env[type_decl.id.name] = type_id(make_iid(INT_TYPE));
+
+    /* build the decls for the various values */
     int i = 0;
     for (auto &data_ctor_parts : data_ctors_parts) {
       auto ctor_id = iid(data_ctor_parts->ctor_token);
@@ -1644,7 +1677,7 @@ instance_t *parse_type_class_instance(parse_state_t &ps) {
 }
 
 type_class_t *parse_type_class(parse_state_t &ps) {
-  auto type_decl = parse_type_decl(ps);
+  type_decl_t type_decl = parse_type_decl(ps);
 
   if (type_decl.params.size() != 1) {
     throw user_error(
@@ -1760,13 +1793,22 @@ module_t *parse_module(parse_state_t &ps,
       for (auto &decl : data_type.decls) {
         decls.push_back(decl);
       }
-      ps.newtypes.insert(data_type.type_decl.id);
       ps.data_ctors_map[data_type.type_decl.id.name] = data_ctors;
-    } else if (ps.token.is_ident(K(data))) {
-      /* module-level types */
+    } else if (ps.token.is_ident(K(newtype))) {
+      /* module-level newtypes */
       ps.advance();
       types::type_t::map data_ctors;
-      auto data_type = parse_data_type_decl(ps, data_ctors, ps.ctor_id_map);
+      data_type_decl_t data_type = parse_newtype_decl(ps, data_ctors, ps.ctor_id_map);
+      type_decls.push_back(data_type.type_decl);
+      for (auto &decl : data_type.decls) {
+        decls.push_back(decl);
+      }
+      ps.data_ctors_map[data_type.type_decl.id.name] = data_ctors;
+    } else if (ps.token.is_ident(K(data))) {
+      /* module-level data types */
+      ps.advance();
+      types::type_t::map data_ctors;
+      data_type_decl_t data_type = parse_data_type_decl(ps, data_ctors, ps.ctor_id_map);
       type_decls.push_back(data_type.type_decl);
       for (auto &decl : data_type.decls) {
         decls.push_back(decl);
@@ -1795,5 +1837,5 @@ module_t *parse_module(parse_state_t &ps,
   }
   return new module_t(ps.module_name, decls, type_decls, type_classes,
                       instances, ps.ctor_id_map, ps.data_ctors_map,
-                      ps.newtypes);
+                      ps.type_env);
 }
