@@ -357,6 +357,7 @@ fn append(vec [a], val a) {
     }
 
     __builtin_store_ptr(__builtin_add_ptr(!vec.array, !vec.size), val)
+    vec.size = !vec.size + 1
 }
 
 fn reserve(vec [a], cap Int) {

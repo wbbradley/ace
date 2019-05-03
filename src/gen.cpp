@@ -701,7 +701,13 @@ resolution_status_t gen_literal(std::string name,
   auto &token = literal->token;
   debug_above(6, log("emitting literal %s :: %s", token.str().c_str(),
                      type->str().c_str()));
-  if (type_equality(type, type_id(make_iid(INT_TYPE)))) {
+  if (type_equality(type, type_id(make_iid(CHAR_TYPE)))) {
+    assert(!(literal->token.text[1] & 0x80));
+    if (publisher != nullptr) {
+      publisher->publish(builder.getInt8(literal->token.text[1]));
+    }
+    return rs_resolve_again;
+  } else if (type_equality(type, type_id(make_iid(INT_TYPE)))) {
     auto llvm_value = builder.getZionInt(atoll(token.text.c_str()));
     if (publisher != nullptr) {
       publisher->publish(llvm_value);
