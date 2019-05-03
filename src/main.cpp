@@ -1144,7 +1144,7 @@ int run_job(const job_t &job) {
                        ? atoi(getenv("ZION_MAX_TUPLE"))
                        : 16;
 
-  std::map<std::string, std::function<int(const job_t&, bool)>> cmd_map;
+  std::map<std::string, std::function<int(const job_t &, bool)>> cmd_map;
   cmd_map["test"] = [&](const job_t &job, bool explain) {
     if (explain) {
       std::cerr << "test: run tests" << std::endl;
@@ -1267,12 +1267,23 @@ int run_job(const job_t &job) {
       return user_error::errors_occurred() ? EXIT_FAILURE : EXIT_SUCCESS;
     }
   };
+  cmd_map["run"] = [&](const job_t &job, bool explain) {
+    if (explain) {
+      std::cerr << "run: compiles, specializes, generates LLVM output, then "
+                   "runs the generated binary"
+                << std::endl;
+      return EXIT_FAILURE;
+    }
+    int ret = cmd_map["ll"](job, false);
+    printf("cmd_map[\"ll\"](job, false); -> %d\n", ret);
+    return user_error::errors_occurred() ? EXIT_FAILURE : EXIT_SUCCESS;
+  };
+
   if (!in(job.cmd, cmd_map)) {
     job_t new_job;
     new_job.args.insert(new_job.args.begin(), job.cmd);
-    // TODO: make a "run" command that is the default
-    new_job.cmd = "ll";
-    return cmd_map["ll"](new_job, false /*explain*/);
+    new_job.cmd = "run";
+    return cmd_map["run"](new_job, false /*explain*/);
   } else {
     return cmd_map[job.cmd](job, get_help);
   }
@@ -1316,4 +1327,4 @@ int main(int argc, char *argv[]) {
     /* and continue */
     return EXIT_FAILURE;
   }
-}
+  }
