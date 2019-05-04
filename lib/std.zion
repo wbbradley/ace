@@ -347,8 +347,11 @@ instance Eq [a] {
 fn append(vec [a], val a) {
     if !vec.array == null {
         vec.array = alloc(4)
-        vec.size = 0
+        vec.size = 1
         vec.capacity = 4
+        vec[0] = val
+        return
+        # __builtin_store_ptr(__builtin_add_ptr(!vec.array, 0), val)
     }
 
     if !vec.capacity == 0 {
@@ -392,10 +395,8 @@ let unit = ()
 fn id(x) => x
 
 fn print(x) {
-    __builtin_hello
     return match str(x) {
         Vector(Ref(sz), _, _) {
-            __builtin_hello
             if sz == null {
                 __builtin_goodbye
             }

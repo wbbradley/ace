@@ -66,13 +66,22 @@ target_link_libraries(zion -L${LLVM_LIBRARY_DIR} -lLLVM)
 
 enable_testing()
 
+# Explicitly test that assertions work as expected and cause a failure code in the built process
+add_test(
+	NAME test_failed_assert
+	COMMAND ${CMAKE_SOURCE_DIR}/tests/test-assert-fail.sh ${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR})
+
+# Test that assertions work OK when passing
+add_test(
+	NAME test_assert
+	COMMAND zion test_assert)
+
+# Run built-in unit tests
 add_test(
 	NAME unit_tests
 	COMMAND zion test)
 
-add_test(
-	NAME expect_tests
-	COMMAND ./expect-tests.sh .)
+
 
 
 option(TIDY "Compile with clang-tidy" OFF)

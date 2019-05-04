@@ -215,55 +215,46 @@ expr_t *wrap_with_iter(parse_state_t &ps, expr_t *expr) {
 }
 
 expr_t *parse_for_block(parse_state_t &ps) {
-        chomp_ident(K(for));
+  chomp_ident("for");
 
-        if (ps.token.tk == tk_lparen) {
-          // TODO: handle destructuring tuples
-          assert(false);
-          return nullptr;
-        } else {
-          expect_token(tk_identifier);
-          auto var = iid(ps.token_and_advance());
-          auto in_token = ps.token;
-          chomp_ident(K(in));
-          auto iterable = parse_expr(ps);
-          auto block = parse_block(ps, false /*expression_means_return*/);
-          /*
-           * let iter = iter(iterable) in while true {
-           *     match iter() {
-           *         Just(var) block
-           *         Nothing   break
-           *     }
-           */
-          auto iterator_id = identifier_t{fresh(), var.location};
-          return new let_t(
-              iterator_id,
-              new application_t(new var_t(ps.id_mapped(
-                                    identifier_t{"iter", in_token.location})),
-                                iterable),
-              new while_t(
-                  new var_t(
-                      ps.id_mapped(identifier_t{"True", in_token.location})),
-                  new match_t(
-                      new application_t(new var_t(iterator_id),
-                                        unit_expr(iterator_id.location)),
-                      {new pattern_block_t(
-                           new ctor_predicate_t(
-                               iterator_id.location,
-                               {new irrefutable_predicate_t(
-                                   var.location, maybe<identifier_t>(var))},
-                               ps.id_mapped(
-                                   identifier_t{"Just", iterator_id.location}),
-                               maybe<identifier_t>()),
-                           block),
-                       new pattern_block_t(
-                           new ctor_predicate_t(
-                               iterator_id.location, {},
-                               ps.id_mapped(identifier_t{"Nothing",
-                                                         iterator_id.location}),
-                               maybe<identifier_t>()),
-                           new break_t(in_token.location))})));
-        }
+  if (ps.token.tk == tk_lparen) {
+    // TODO: handle destructuring tuples
+    assert(false);
+    return nullptr;
+  } else {
+    expect_token(tk_identifier);
+    auto var = iid(ps.token_and_advance());
+    auto in_token = ps.token;
+    chomp_ident(K(in));
+    auto iterable = parse_expr(ps);
+    auto block = parse_block(ps, false /*expression_means_return*/);
+    auto iterator_id = identifier_t{fresh(), var.location};
+    return new let_t(
+        iterator_id,
+        new application_t(
+            new var_t(ps.id_mapped(identifier_t{"iter", in_token.location})),
+            iterable),
+        new while_t(
+            new var_t(ps.id_mapped(identifier_t{"True", in_token.location})),
+            new match_t(
+                new application_t(new var_t(iterator_id),
+                                  unit_expr(iterator_id.location)),
+                {new pattern_block_t(
+                     new ctor_predicate_t(
+                         iterator_id.location,
+                         {new irrefutable_predicate_t(
+                             var.location, maybe<identifier_t>(var))},
+                         ps.id_mapped(
+                             identifier_t{"Just", iterator_id.location}),
+                         maybe<identifier_t>()),
+                     block),
+                 new pattern_block_t(
+                     new ctor_predicate_t(iterator_id.location, {},
+                                          ps.id_mapped(identifier_t{
+                                              "Nothing", iterator_id.location}),
+                                          maybe<identifier_t>()),
+                     new break_t(in_token.location))})));
+  }
 }
 
 expr_t *parse_defer(parse_state_t &ps) {
@@ -292,6 +283,32 @@ expr_t *parse_static_print(parse_state_t &ps) {
   return sp;
 }
 
+expr_t *parse_assert(parse_state_t &ps) {
+  token_t assert_token = ps.token;
+  chomp_ident(K(assert));
+  chomp_token(tk_lparen);
+
+  expr_t *condition = parse_expr(ps);
+  expr_t *assertion = new conditional_t(
+      condition, // The condition we are asserting
+      unit_expr(ps.token.location),
+      new block_t({
+          new application_t(
+              new var_t(make_iid("std.print")),
+              new literal_t(token_t(ps.token.location, tk_string,
+                                    escape_json_quotes(string_format(
+                                        "%s: assertion failed: (%s) is False",
+                                        ps.token.location.str().c_str(),
+                                        condition->str().c_str()))))),
+          new builtin_t(
+              new var_t(make_iid("__builtin_exit")),
+              {new literal_t(token_t(assert_token.location, tk_integer, "1"))}),
+          unit_expr(ps.token.location),
+      }));
+  chomp_token(tk_rparen);
+  return assertion;
+}
+
 expr_t *parse_statement(parse_state_t &ps) {
   assert(ps.token.tk != tk_rcurly);
 
@@ -305,36 +322,37 @@ expr_t *parse_statement(parse_state_t &ps) {
                           true /*allow_tuple_destructuring*/);
   } else if (ps.token.is_ident(K(if))) {
     return parse_if(ps);
-  } else if (ps.token.is_ident(K(while))) {
+  } else if (ps.token.is_ident(K(assert))) {
+    return parse_assert(ps);
+  } else if (ps.token.is_ident("while")) {
     return parse_while(ps);
-        } else if (ps.token.is_ident(K(for))) {
-          return parse_for_block(ps);
-        } else if (ps.token.is_ident(K(match))) {
-          return parse_match(ps);
-        } else if (ps.token.is_ident(K(new))) {
-          return parse_new_expr(ps);
-        } else if (ps.token.is_ident(K(static_print))) {
-          return parse_static_print(ps);
-        } else if (ps.token.is_ident(K(fn))) {
-          ps.advance();
-          if (ps.token.tk == tk_identifier) {
-            return new let_t(
-                identifier_t::from_token(ps.token), parse_lambda(ps),
-                parse_block(ps, false /*expression_means_return*/));
-          } else {
-            return parse_lambda(ps);
-          }
-        } else if (ps.token.is_ident(K(return ))) {
-          return parse_return_statement(ps);
-        } else if (ps.token.is_ident(K(unreachable))) {
-          return new var_t(iid(ps.token));
-        } else if (ps.token.is_ident(K(continue))) {
-          return new continue_t(ps.token_and_advance().location);
-        } else if (ps.token.is_ident(K(break))) {
-          return new break_t(ps.token_and_advance().location);
-        } else {
-          return parse_assignment(ps);
-        }
+  } else if (ps.token.is_ident("for")) {
+    return parse_for_block(ps);
+  } else if (ps.token.is_ident(K(match))) {
+    return parse_match(ps);
+  } else if (ps.token.is_ident(K(new))) {
+    return parse_new_expr(ps);
+  } else if (ps.token.is_ident(K(static_print))) {
+    return parse_static_print(ps);
+  } else if (ps.token.is_ident(K(fn))) {
+    ps.advance();
+    if (ps.token.tk == tk_identifier) {
+      return new let_t(identifier_t::from_token(ps.token), parse_lambda(ps),
+                       parse_block(ps, false /*expression_means_return*/));
+    } else {
+      return parse_lambda(ps);
+    }
+  } else if (ps.token.is_ident(K(return ))) {
+    return parse_return_statement(ps);
+  } else if (ps.token.is_ident(K(unreachable))) {
+    return new var_t(iid(ps.token));
+  } else if (ps.token.is_ident(K(continue))) {
+    return new continue_t(ps.token_and_advance().location);
+  } else if (ps.token.is_ident(K(break))) {
+    return new break_t(ps.token_and_advance().location);
+  } else {
+    return parse_assignment(ps);
+  }
 }
 
 expr_t *parse_var_ref(parse_state_t &ps) {
@@ -1543,19 +1561,18 @@ data_type_decl_t parse_newtype_decl(parse_state_t &ps,
   identifier_t param_iid = make_iid(bitter::fresh());
   std::vector<decl_t *> decls;
   decls.push_back(new decl_t(
-      type_decl.id,
-      new lambda_t(param_iid, rhs_type, type_decl.get_type(),
-                   new as_t(new var_t(param_iid),
-                            type_decl.get_type()->generalize({}),
-                            true /*force_cast*/))));
-  data_ctors[type_decl.id.name] = create_ctor_type(
-      type_decl.id.location, type_decl, {rhs_type});
+      type_decl.id, new lambda_t(param_iid, rhs_type, type_decl.get_type(),
+                                 new as_t(new var_t(param_iid),
+                                          type_decl.get_type()->generalize({}),
+                                          true /*force_cast*/))));
+  data_ctors[type_decl.id.name] = create_ctor_type(type_decl.id.location,
+                                                   type_decl, {rhs_type});
   assert(!in(type_decl.id.name, ps.type_env));
   /* because this is a newtype, we need to remember the type mapping within the
    * type environment for reference later in pattern matching, and in code
    * generation. */
   types::type_t::ref body = rhs_type;
-  for (auto param: type_decl.params) {
+  for (auto param : type_decl.params) {
     body = type_lambda(param, body);
   }
   ps.type_env[type_decl.id.name] = body;
@@ -1798,7 +1815,8 @@ module_t *parse_module(parse_state_t &ps,
       /* module-level newtypes */
       ps.advance();
       types::type_t::map data_ctors;
-      data_type_decl_t data_type = parse_newtype_decl(ps, data_ctors, ps.ctor_id_map);
+      data_type_decl_t data_type = parse_newtype_decl(ps, data_ctors,
+                                                      ps.ctor_id_map);
       type_decls.push_back(data_type.type_decl);
       for (auto &decl : data_type.decls) {
         decls.push_back(decl);
@@ -1808,7 +1826,8 @@ module_t *parse_module(parse_state_t &ps,
       /* module-level data types */
       ps.advance();
       types::type_t::map data_ctors;
-      data_type_decl_t data_type = parse_data_type_decl(ps, data_ctors, ps.ctor_id_map);
+      data_type_decl_t data_type = parse_data_type_decl(ps, data_ctors,
+                                                        ps.ctor_id_map);
       type_decls.push_back(data_type.type_decl);
       for (auto &decl : data_type.decls) {
         decls.push_back(decl);

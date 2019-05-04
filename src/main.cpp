@@ -186,8 +186,7 @@ const types::scheme_t::map &get_builtins() {
         {}, {}, type_arrows({Int, type_unit(INTERNAL_LOC())}));
     (*map)["__builtin_itoa"] = scheme({}, {}, type_arrows({Int, PtrToChar}));
     (*map)["__builtin_strlen"] = scheme({}, {}, type_arrows({PtrToChar, Int}));
-    (*map)["__builtin_exit"] = scheme({}, {},
-                                      type_arrows({Int, type_bottom()}));
+    (*map)["__builtin_exit"] = scheme({}, {}, type_arrows({Int, type_unit(INTERNAL_LOC())}));
     (*map)["__builtin_calloc"] = scheme({"a"}, {}, type_arrows({Int, tp_a}));
     (*map)["__builtin_store_ref"] = scheme(
         {"a"}, {},
@@ -955,25 +954,29 @@ struct phase_4_t {
   phase_4_t(phase_3_t phase_3,
             gen::gen_env_t &&gen_env,
             llvm::Module *llvm_module,
-            llvm::DIBuilder *dbuilder)
+            llvm::DIBuilder *dbuilder,
+            std::string output_llvm_filename)
       : phase_3(phase_3), gen_env(std::move(gen_env)), llvm_module(llvm_module),
-        dbuilder(dbuilder) {
+        dbuilder(dbuilder), output_llvm_filename(output_llvm_filename) {
   }
   phase_4_t(phase_4_t &&rhs)
       : phase_3(rhs.phase_3), gen_env(std::move(rhs.gen_env)),
-        llvm_module(rhs.llvm_module), dbuilder(rhs.dbuilder) {
+        llvm_module(rhs.llvm_module), dbuilder(rhs.dbuilder), output_llvm_filename(rhs.output_llvm_filename) {
     rhs.llvm_module = nullptr;
     rhs.dbuilder = nullptr;
   }
   ~phase_4_t() {
     delete dbuilder;
     delete llvm_module;
+    // FUTURE: unlink(output_llvm_filename.c_str());
   }
 
   phase_3_t phase_3;
   gen::gen_env_t gen_env;
   llvm::Module *llvm_module = nullptr;
   llvm::DIBuilder *dbuilder = nullptr;
+  std::string output_llvm_filename;
+
   std::ostream &dump(std::ostream &os) {
     if (dbuilder != nullptr) {
       dbuilder->finalize();
@@ -1003,94 +1006,6 @@ std::unordered_set<std::string> get_globals(const phase_3_t &phase_3) {
   }
   return globals;
 }
-
-phase_4_t ssa_gen(llvm::LLVMContext &context, const phase_3_t &phase_3) {
-  llvm::Module *module = new llvm::Module("program", context);
-  llvm::DIBuilder *dbuilder = nullptr; // new llvm::DIBuilder(*module);
-  /*
-  dbuilder->createCompileUnit(llvm::dwarf::DW_LANG_C,
-                              dbuilder->createFile("lib/std.zion", "."),
-                              "Zion Compiler", 0, "", 0);
-                              */
-  llvm::IRBuilder<> builder(context);
-
-  gen::gen_env_t gen_env;
-
-  /* resolvers is the list of top-level symbols that need to be resolved. they
-   * can be traversed in any order, and will automatically resolve in dependency
-   * order based on a topological sorting. this could be a bit intense on the
-   * stack, worst case is on the same order as the user's program stack depth.
-   */
-  std::list<std::shared_ptr<gen::resolver_t>> resolvers;
-
-  try {
-    const std::unordered_set<std::string> globals = get_globals(phase_3);
-
-    debug_above(6, log("globals are %s", join(globals).c_str()));
-    log("type_env is %s", str(phase_3.phase_2.compilation->type_env).c_str());
-    for (auto pair : phase_3.translation_map) {
-      for (auto &overload : pair.second) {
-        const std::string &name = pair.first;
-        const types::type_t::ref &type = overload.first;
-        translation_t::ref translation = overload.second;
-
-        debug_above(4, log("fetching %s expression type from translated types",
-                           name.c_str()));
-        debug_above(
-            4,
-            log("%s should be the same type as %s",
-                get(translation->typing, translation->expr, {})->str().c_str(),
-                type->str().c_str()));
-        assert(type_equality(get(translation->typing, translation->expr, {}),
-                             type));
-
-        /* at this point we should not have a resolver or a declaration or
-         * definition or anything for this symbol */
-        llvm::Value *value = gen::maybe_get_env_var(
-            gen_env, {pair.first, overload.second->expr->get_location()}, type);
-        assert(value == nullptr);
-
-        debug_above(4, log("making a placeholder proxy value for %s :: %s = %s",
-                           pair.first.c_str(), type->str().c_str(),
-                           translation->expr->str().c_str()));
-
-        std::shared_ptr<gen::resolver_t> resolver = gen::lazy_resolver(
-            name, type,
-            [&builder, &module, name, translation, &phase_3, &gen_env,
-             &globals](llvm::Value **llvm_value) -> gen::resolution_status_t {
-              gen::publishable_t publishable(llvm_value);
-              return gen::gen(name, builder, module, nullptr /*break_to_block*/,
-                              nullptr /*continue_to_block*/, translation->expr,
-                              translation->typing,
-                              phase_3.phase_2.compilation->type_env, gen_env, {},
-                              globals, &publishable);
-            });
-
-        resolvers.push_back(resolver);
-        gen_env[name].emplace(type, resolver);
-      }
-    }
-
-    // TODO: differentiate between globals and functions...
-    // global initialization will happen inside of the __program_init function
-    for (auto resolver : resolvers) {
-      debug_above(2, log("resolving %s...", resolver->str().c_str()));
-      llvm::Value *value = resolver->resolve();
-      debug_above(2, log("resolved to %s", llvm_print(value).c_str()));
-    }
-  } catch (user_error &e) {
-    print_exception(e);
-    /* and continue */
-  }
-
-  return phase_4_t(phase_3, std::move(gen_env), module, dbuilder);
-}
-
-struct job_t {
-  std::string cmd;
-  std::vector<std::string> opts;
-  std::vector<std::string> args;
-};
 
 void build_main_function(llvm::IRBuilder<> &builder,
                          llvm::Module *llvm_module,
@@ -1130,6 +1045,108 @@ void build_main_function(llvm::IRBuilder<> &builder,
   builder.CreateRet(builder.getInt32(0));
 }
 
+phase_4_t ssa_gen(llvm::LLVMContext &context, const phase_3_t &phase_3) {
+  llvm::Module *llvm_module = new llvm::Module("program", context);
+  llvm::DIBuilder *dbuilder = nullptr; // new llvm::DIBuilder(*module);
+  /*
+  dbuilder->createCompileUnit(llvm::dwarf::DW_LANG_C,
+                              dbuilder->createFile("lib/std.zion", "."),
+                              "Zion Compiler", 0, "", 0);
+                              */
+  llvm::IRBuilder<> builder(context);
+
+  gen::gen_env_t gen_env;
+
+  /* resolvers is the list of top-level symbols that need to be resolved. they
+   * can be traversed in any order, and will automatically resolve in dependency
+   * order based on a topological sorting. this could be a bit intense on the
+   * stack, worst case is on the same order as the user's program stack depth.
+   */
+  std::list<std::shared_ptr<gen::resolver_t>> resolvers;
+  std::string output_filename;
+
+  try {
+    const std::unordered_set<std::string> globals = get_globals(phase_3);
+
+    debug_above(6, log("globals are %s", join(globals).c_str()));
+    debug_above(2, log("type_env is %s", str(phase_3.phase_2.compilation->type_env).c_str()));
+    for (auto pair : phase_3.translation_map) {
+      for (auto &overload : pair.second) {
+        const std::string &name = pair.first;
+        const types::type_t::ref &type = overload.first;
+        translation_t::ref translation = overload.second;
+
+        debug_above(4, log("fetching %s expression type from translated types",
+                           name.c_str()));
+        debug_above(
+            4,
+            log("%s should be the same type as %s",
+                get(translation->typing, translation->expr, {})->str().c_str(),
+                type->str().c_str()));
+        assert(type_equality(get(translation->typing, translation->expr, {}),
+                             type));
+
+        /* at this point we should not have a resolver or a declaration or
+         * definition or anything for this symbol */
+        llvm::Value *value = gen::maybe_get_env_var(
+            gen_env, {pair.first, overload.second->expr->get_location()}, type);
+        assert(value == nullptr);
+
+        debug_above(4, log("making a placeholder proxy value for %s :: %s = %s",
+                           pair.first.c_str(), type->str().c_str(),
+                           translation->expr->str().c_str()));
+
+        std::shared_ptr<gen::resolver_t> resolver = gen::lazy_resolver(
+            name, type,
+            [&builder, &llvm_module, name, translation, &phase_3, &gen_env,
+             &globals](llvm::Value **llvm_value) -> gen::resolution_status_t {
+              gen::publishable_t publishable(llvm_value);
+              return gen::gen(
+                  name, builder, llvm_module, nullptr /*break_to_block*/,
+                  nullptr /*continue_to_block*/, translation->expr,
+                  translation->typing, phase_3.phase_2.compilation->type_env,
+                  gen_env, {}, globals, &publishable);
+            });
+
+        resolvers.push_back(resolver);
+        gen_env[name].emplace(type, resolver);
+      }
+    }
+
+    // TODO: differentiate between globals and functions...
+    // global initialization will happen inside of the __program_init function
+    for (auto resolver : resolvers) {
+      debug_above(2, log("resolving %s...", resolver->str().c_str()));
+      llvm::Value *value = resolver->resolve();
+      debug_above(2, log("resolved to %s", llvm_print(value).c_str()));
+    }
+
+    output_filename = "./" + phase_3.phase_2.compilation->program_name + ".ll";
+    llvm::IRBuilder<> builder(context);
+    build_main_function(builder, llvm_module, gen_env,
+                        phase_3.phase_2.compilation->program_name);
+
+    llvm_verify_module(*llvm_module);
+
+    std::ofstream ofs;
+    ofs.open(output_filename.c_str(), std::ofstream::out);
+    ofs << llvm_print_module(*llvm_module) << std::endl;
+    ofs.close();
+
+  } catch (user_error &e) {
+    print_exception(e);
+    /* and continue */
+  }
+
+  return phase_4_t(phase_3, std::move(gen_env), llvm_module, dbuilder, output_filename);
+}
+
+struct job_t {
+  std::string cmd;
+  std::vector<std::string> opts;
+  std::vector<std::string> args;
+};
+
 int run_job(const job_t &job) {
   get_help = in_vector("-help", job.opts) || in_vector("--help", job.opts);
   debug_compiled_env = (getenv("SHOW_ENV") != nullptr) ||
@@ -1155,7 +1172,7 @@ int run_job(const job_t &job) {
     assert(alphabetize(2) == "c");
     assert(alphabetize(26) == "aa");
     assert(alphabetize(27) == "ab");
-    return run_job({"ll", {}, {"test_basic"}});
+    return run_job({"run", {}, {"test_basic"}});
   };
   cmd_map["find"] = [&](const job_t &job, bool explain) {
     if (explain) {
@@ -1248,22 +1265,6 @@ int run_job(const job_t &job) {
       llvm::LLVMContext context;
       phase_4_t phase_4 = ssa_gen(context, specialize(compile(job.args[0])));
 
-      std::string output_filename =
-          "./" + phase_4.phase_3.phase_2.compilation->program_name + ".ll";
-      llvm::IRBuilder<> builder(context);
-      build_main_function(builder, phase_4.llvm_module, phase_4.gen_env,
-                          phase_4.phase_3.phase_2.compilation->program_name);
-
-      std::stringstream ss;
-      phase_4.dump(ss);
-
-      std::ofstream ofs;
-      ofs.open(output_filename.c_str(), std::ofstream::out);
-      ofs << clean_ansi_escapes(ss.str()) << std::endl;
-      ofs.close();
-
-      llvm_verify_module(*phase_4.llvm_module);
-
       return user_error::errors_occurred() ? EXIT_FAILURE : EXIT_SUCCESS;
     }
   };
@@ -1274,14 +1275,42 @@ int run_job(const job_t &job) {
                 << std::endl;
       return EXIT_FAILURE;
     }
-    int ret = cmd_map["ll"](job, false);
-    printf("cmd_map[\"ll\"](job, false); -> %d\n", ret);
-    return user_error::errors_occurred() ? EXIT_FAILURE : EXIT_SUCCESS;
+    llvm::LLVMContext context;
+    phase_4_t phase_4 = ssa_gen(context, specialize(compile(job.args[0])));
+    if (std::system(
+            string_format(
+                // We are using clang to lower the code from LLVM, and link it
+                // to the runtime.
+                "clang $ZION_OPT_FLAGS "
+                // NB: we don't embed the target triple into the LL, so any
+                // targeted triple causes an ugly error from clang, so I just
+                // ignore it here.
+                "-Wno-override-module "
+                // TODO: plumb host targeting through clang here
+                "--target=$(llvm-config --host-target) "
+                // TODO: plumb zion_rt.c properly into installation location.
+                // probably something like /usr/share/zion/rt
+                "$HOME/src/zion/src/zion_rt.c "
+                "%s "
+                "-o %s", // 2>$TMPDIR/%s-build.log",
+                phase_4.output_llvm_filename.c_str(),
+                phase_4.phase_3.phase_2.compilation->program_name.c_str(),
+                phase_4.phase_3.phase_2.compilation->program_name.c_str())
+                .c_str()) != 0) {
+      throw user_error(INTERNAL_LOC(), "failed to compile binary");
+    }
+    int ret = std::system(
+        string_format("command ./%s %s",
+                      phase_4.phase_3.phase_2.compilation->program_name.c_str(),
+                      "")
+            .c_str());
+    return WEXITSTATUS(ret);
   };
 
   if (!in(job.cmd, cmd_map)) {
     job_t new_job;
     new_job.args.insert(new_job.args.begin(), job.cmd);
+    std::copy(job.args.begin(), job.args.end(), std::back_inserter(new_job.args));
     new_job.cmd = "run";
     return cmd_map["run"](new_job, false /*explain*/);
   } else {

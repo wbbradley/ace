@@ -1,21 +1,24 @@
-ZION=$(HOME)/var/zion/zion
+BUILD_DIR=$(HOME)/var/zion
+ZION=$(BUILD_DIR)/zion
+SRC_DIR=$(pwd)
 
 .PHONY: zion
-zion: $(HOME)/var/zion/build.ninja
+zion: $(BUILD_DIR)/build.ninja
 	-rm zion 2>/dev/null
-	ninja -j8 -C $(HOME)/var/zion zion
+	ninja -j8 -C $(BUILD_DIR) zion
 	ln -s $(ZION) zion
 
 clean:
-	(cd $(HOME)/var && rm -rf zion)
-	-rm zion
+	(cd $(BUILD_DIR)/.. && rm -rf $(notdir $(BUILD_DIR))) 2>/dev/null
+	-rm zion 2>/dev/null
 
-$(HOME)/var/zion/build.ninja: $(LLVM_DIR)/LLVMConfig.cmake CMakeLists.txt
-	-mkdir -p $(HOME)/var/zion
-	(cd $(HOME)/var/zion && cmake $(HOME)/src/zion -G Ninja)
+$(BUILD_DIR)/build.ninja: $(LLVM_DIR)/LLVMConfig.cmake CMakeLists.txt
+	-mkdir -p $(BUILD_DIR)
+	cmake . -B $(BUILD_DIR) -G Ninja
 
-test: $(ZION)
-	$(ZION) compile test_basic
+test:
+	make zion
+	CTEST_OUTPUT_ON_FAILURE=TRUE ninja -j8 -C $(BUILD_DIR) test
 
 .PHONY: format
 format:

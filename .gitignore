@@ -1,4 +1,9 @@
-profiler.trace
+*.trace
+
+# Remove test binary executables that may have been generated in the source tree during testing
+test_[_a-z]*
+!test_[_a-z]*.*
+
 *.ssa-gen
 .*.swo
 a.out
@@ -6,9 +11,8 @@ test.c
 test
 build-*
 env
-value_semantics
-python_main
 zion
+!zion.*
 logs
 *.llir
 *.log
@@ -29,9 +33,7 @@ rt_gc
 *.zx
 CMakeCache.txt
 CMakeFiles/
-cmake_install.cmake
-Makefile
+*.cmake
 Makefile.bak
-CTestTestfile.cmake
 Testing/
 tests-passed
