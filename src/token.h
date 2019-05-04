@@ -83,6 +83,7 @@ K(_);
 K(__filename__);
 K(and);
 K(as);
+K(assert);
 K(break);
 K(class);
 K(continue);

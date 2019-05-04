@@ -529,3 +529,14 @@ std::string alphabetize(int i) {
   }
   return x;
 }
+
+std::string join(int argc, const char *argv[]) {
+  std::stringstream ss;
+  const char *sep = "";
+  for (int i = 0; i < argc; ++i) {
+    ss << sep << argv[i];
+    sep = " ";
+  }
+  return ss.str();
+}
+

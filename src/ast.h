@@ -294,6 +294,8 @@ struct builtin_t : public expr_t {
 
 struct literal_t : public expr_t, public predicate_t {
   literal_t(token_t token) : token(token) {
+    // Strings are currently passed in as quoted.
+    assert_implies(token.tk == tk_string, token.text[0] == '\"');
   }
   std::ostream &render(std::ostream &os, int parent_precedence) const override;
 

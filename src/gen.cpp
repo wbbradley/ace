@@ -438,7 +438,21 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
                                     false /*isVarArg*/)));
     return builder.CreateCall(ffi_function, params);
   } else if (name == "__builtin_exit") {
-    /* scheme({}, {}, type_arrows({Int, type_bottom()})) */
+    /* scheme({}, {}, type_arrows({Int, type_unit()})) */
+    auto llvm_module = llvm_get_module(builder);
+    llvm::Type *param_types[] = {builder.getInt64Ty()};
+
+    assert(params.size() == 1);
+
+    auto ffi_function = llvm::cast<llvm::Function>(
+        llvm_module->getOrInsertFunction(
+            "exit",
+            llvm::FunctionType::get(builder.getInt64Ty(),
+                                    llvm::ArrayRef<llvm::Type *>(param_types),
+                                    false /*isVarArg*/)));
+    return builder.CreateBitOrPointerCast(
+        builder.CreateCall(ffi_function, params),
+        builder.getInt8Ty()->getPointerTo());
   } else if (name == "__builtin_calloc") {
     /* scheme({"a"}, {}, type_arrows({Int, tp_a})) */
     auto llvm_module = llvm_get_module(builder);
@@ -905,9 +919,11 @@ resolution_status_t gen(std::string name,
       if (!builder.GetInsertBlock()->getTerminator()) {
         merge_block = llvm::BasicBlock::Create(builder.getContext(),
                                                "merge." + tag, llvm_function);
-        phi_node = llvm::PHINode::Create(truthy_value->getType(), 1,
-                                         "phi." + tag, merge_block);
-        phi_node->addIncoming(truthy_value, builder.GetInsertBlock());
+        if (truthy_value != nullptr) {
+          phi_node = llvm::PHINode::Create(truthy_value->getType(), 1,
+                                           "phi." + tag, merge_block);
+          phi_node->addIncoming(truthy_value, builder.GetInsertBlock());
+        }
         builder.CreateBr(merge_block);
       }
 
@@ -917,20 +933,27 @@ resolution_status_t gen(std::string name,
                                       typing, type_env, gen_env_globals,
                                       gen_env_locals, globals);
       if (!builder.GetInsertBlock()->getTerminator()) {
-        if (phi_node == nullptr) {
-          assert(merge_block == nullptr);
+        if (merge_block == nullptr) {
           merge_block = llvm::BasicBlock::Create(builder.getContext(),
                                                  "merge." + tag, llvm_function);
-          phi_node = llvm::PHINode::Create(truthy_value->getType(), 1,
-                                           "phi." + tag, merge_block);
         }
-        phi_node->addIncoming(falsey_value, builder.GetInsertBlock());
+        if (falsey_value != nullptr) {
+          if (phi_node == nullptr) {
+            phi_node = llvm::PHINode::Create(falsey_value->getType(), 1,
+                                             "phi." + tag, merge_block);
+          }
+          phi_node->addIncoming(falsey_value, builder.GetInsertBlock());
+        }
         builder.CreateBr(merge_block);
       }
 
       if (merge_block != nullptr) {
         builder.SetInsertPoint(merge_block);
-        publish(phi_node);
+        if (phi_node != nullptr) {
+          publish(phi_node);
+        } else {
+          assert(type_equality(type, type_unit(INTERNAL_LOC())));
+        }
       }
       return rs_cache_resolution;
     } else if (auto break_ = dcast<const bitter::break_t *>(expr)) {

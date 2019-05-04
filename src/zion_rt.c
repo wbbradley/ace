@@ -23,7 +23,7 @@ void *zion_print_int64(int64_t x) {
 char *zion_itoa(int64_t x) {
 	// TODO: change this to use GC
 	char *sz;
-    if (asprintf(&sz, "%lld", x) < 0) {
+    if (asprintf(&sz, "%lld", x) < 1) {
       perror("Failed in zion_itoa");
 	  exit(1);
     }
