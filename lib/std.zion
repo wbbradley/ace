@@ -115,6 +115,10 @@ instance Eq Maybe a {
     fn !=(a, b) => not (a == b)
 }
 
+instance Eq Char {
+    fn ==(a, b) => __builtin_char_eq(a, b)
+    fn !=(a, b) => __builtin_char_ne(a, b)
+}
 
 class Num a {
     has Eq
@@ -163,6 +167,23 @@ instance Ord Int {
     }
 }
 
+instance Ord Char {
+    fn <(a, b) => __builtin_char_lt(a, b)
+    fn <=(a, b) => __builtin_char_lte(a, b)
+    fn >(a, b) => __builtin_char_gt(a, b)
+    fn >=(a, b) => __builtin_char_gte(a, b)
+
+    fn compare(a, b) {
+        if a < b {
+            return LT
+        } else if b < a {
+            return GT
+        } else {
+            return EQ
+        }
+    }
+}
+
 instance Ord Float {
     fn <(a, b) => __builtin_float_lt(a, b)
     fn <=(a, b) => __builtin_float_lte(a, b)
@@ -188,6 +209,16 @@ instance Num Int {
     fn /(a, b) => __builtin_divide_int(a, b)
     fn negate(a) => __builtin_negate_int(a)
     fn abs(a) => __builtin_abs_int(a)
+}
+
+instance Num Char {
+    fn from_int(a) => __builtin_int_to_char(a)
+    fn +(a, b) => __builtin_add_char(a, b)
+    fn *(a, b) => __builtin_multiply_char(a, b)
+    fn -(a, b) => __builtin_subtract_char(a, b)
+    fn /(a, b) => __builtin_divide_char(a, b)
+    fn negate(a) => __builtin_negate_char(a)
+    fn abs(a) => __builtin_abs_char(a)
 }
 
 instance Bounded Int {
@@ -326,6 +357,7 @@ instance Eq [a] {
             if xs[!i] != ys[!i] {
                 return False
             }
+            i = !i + 1
         }
         return True
     }
@@ -339,6 +371,7 @@ instance Eq [a] {
             if xs[!i] != ys[!i] {
                 return True
             }
+            i = !i + 1
         }
         return False
     }

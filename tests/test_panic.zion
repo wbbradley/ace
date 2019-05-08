@@ -1,0 +1,3 @@
+fn main() {
+    panic("This should cause a failure code.")
+}

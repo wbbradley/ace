@@ -31,11 +31,6 @@ types::type_t::ref program_main_type = type_arrows(
     {type_unit(INTERNAL_LOC()), type_unit(INTERNAL_LOC())});
 types::scheme_t::ref program_main_scheme = scheme({}, {}, program_main_type);
 
-int usage() {
-  log(log_error, "available commands: test, compile");
-  return EXIT_FAILURE;
-}
-
 int run_program(std::string executable, std::vector<const char *> args) {
   pid_t pid = fork();
 
@@ -138,6 +133,16 @@ const types::scheme_t::map &get_builtins() {
     (*map)["__builtin_add_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
     (*map)["__builtin_negate_int"] = scheme({}, {}, type_arrows({Int, Int}));
     (*map)["__builtin_abs_int"] = scheme({}, {}, type_arrows({Int, Int}));
+    (*map)["__builtin_multiply_char"] = scheme({}, {},
+                                               type_arrows({Char, Char, Char}));
+    (*map)["__builtin_divide_char"] = scheme({}, {},
+                                             type_arrows({Char, Char, Char}));
+    (*map)["__builtin_subtract_char"] = scheme({}, {},
+                                               type_arrows({Char, Char, Char}));
+    (*map)["__builtin_add_char"] = scheme({}, {},
+                                          type_arrows({Char, Char, Char}));
+    (*map)["__builtin_negate_char"] = scheme({}, {}, type_arrows({Char, Char}));
+    (*map)["__builtin_abs_char"] = scheme({}, {}, type_arrows({Char, Char}));
     (*map)["__builtin_multiply_float"] = scheme(
         {}, {}, type_arrows({Float, Float, Float}));
     (*map)["__builtin_divide_float"] = scheme(
@@ -162,12 +167,25 @@ const types::scheme_t::map &get_builtins() {
                                          type_arrows({tv_a, Int, tv_b}));
     (*map)["__builtin_cmp_ctor_id"] = scheme({"a"}, {},
                                              type_arrows({tv_a, Int, Bool}));
+    (*map)["__builtin_int_to_char"] = scheme({}, {}, type_arrows({Int, Char}));
     (*map)["__builtin_int_eq"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
     (*map)["__builtin_int_ne"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
     (*map)["__builtin_int_lt"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
     (*map)["__builtin_int_lte"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
     (*map)["__builtin_int_gt"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
     (*map)["__builtin_int_gte"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
+    (*map)["__builtin_char_eq"] = scheme({}, {},
+                                         type_arrows({Char, Char, Bool}));
+    (*map)["__builtin_char_ne"] = scheme({}, {},
+                                         type_arrows({Char, Char, Bool}));
+    (*map)["__builtin_char_lt"] = scheme({}, {},
+                                         type_arrows({Char, Char, Bool}));
+    (*map)["__builtin_char_lte"] = scheme({}, {},
+                                          type_arrows({Char, Char, Bool}));
+    (*map)["__builtin_char_gt"] = scheme({}, {},
+                                         type_arrows({Char, Char, Bool}));
+    (*map)["__builtin_char_gte"] = scheme({}, {},
+                                          type_arrows({Char, Char, Bool}));
     (*map)["__builtin_float_eq"] = scheme({}, {},
                                           type_arrows({Float, Float, Bool}));
     (*map)["__builtin_float_ne"] = scheme({}, {},
@@ -186,7 +204,8 @@ const types::scheme_t::map &get_builtins() {
         {}, {}, type_arrows({Int, type_unit(INTERNAL_LOC())}));
     (*map)["__builtin_itoa"] = scheme({}, {}, type_arrows({Int, PtrToChar}));
     (*map)["__builtin_strlen"] = scheme({}, {}, type_arrows({PtrToChar, Int}));
-    (*map)["__builtin_exit"] = scheme({}, {}, type_arrows({Int, type_unit(INTERNAL_LOC())}));
+    (*map)["__builtin_exit"] = scheme(
+        {}, {}, type_arrows({Int, type_unit(INTERNAL_LOC())}));
     (*map)["__builtin_calloc"] = scheme({"a"}, {}, type_arrows({Int, tp_a}));
     (*map)["__builtin_store_ref"] = scheme(
         {"a"}, {},

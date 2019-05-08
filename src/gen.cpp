@@ -284,6 +284,26 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
     return builder.CreateSelect(
         builder.CreateICmpSLT(params[0], builder.getInt64(0)),
         builder.CreateMul(params[0], builder.getInt64(-1)), params[0]);
+  } else if (name == "__builtin_multiply_char") {
+    /* scheme({}, {}, type_arrows({Char, Char, Char})) */
+    return builder.CreateMul(params[0], params[1]);
+  } else if (name == "__builtin_divide_char") {
+    /* scheme({}, {}, type_arrows({Char, Char, Char})) */
+    return builder.CreateSDiv(params[0], params[1]);
+  } else if (name == "__builtin_subtract_char") {
+    /* scheme({}, {}, type_arrows({Char, Char, Char})) */
+    return builder.CreateSub(params[0], params[1]);
+  } else if (name == "__builtin_add_char") {
+    /* scheme({}, {}, type_arrows({Char, Char, Char})) */
+    return builder.CreateAdd(params[0], params[1]);
+  } else if (name == "__builtin_negate_char") {
+    /* scheme({}, {}, type_arrows({Char, Char})) */
+    return builder.CreateNeg(params[0]);
+  } else if (name == "__builtin_abs_char") {
+    /* scheme({}, {}, type_arrows({Char, Char})) */
+    return builder.CreateSelect(
+        builder.CreateICmpSLT(params[0], builder.getInt8(0)),
+        builder.CreateMul(params[0], builder.getInt8(-1)), params[0]);
   } else if (name == "__builtin_multiply_float") {
     /* scheme({}, {}, type_arrows({Float, Float, Float})) */
   } else if (name == "__builtin_divide_float") {
@@ -328,6 +348,9 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
                 params[0], builder.getInt64Ty()->getPointerTo())),
             params[1]),
         builder.getInt64Ty());
+  } else if (name == "__builtin_int_to_char") {
+    /* scheme({}, {}, type_arrows({Int, Char})) */
+    return builder.CreateSExtOrTrunc(params[0], builder.getInt8Ty());
   } else if (name == "__builtin_int_eq") {
     /* scheme({}, {}, type_arrows({Int, Int, Bool})) */
     return builder.CreateZExt(builder.CreateICmpEQ(params[0], params[1]),
@@ -349,6 +372,30 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
     return builder.CreateZExt(builder.CreateICmpSGT(params[0], params[1]),
                               builder.getInt64Ty());
   } else if (name == "__builtin_int_gte") {
+    /* scheme({}, {}, type_arrows({Int, Int, Bool})) */
+    return builder.CreateZExt(builder.CreateICmpSGE(params[0], params[1]),
+                              builder.getInt64Ty());
+  } else if (name == "__builtin_char_eq") {
+    /* scheme({}, {}, type_arrows({Int, Int, Bool})) */
+    return builder.CreateZExt(builder.CreateICmpEQ(params[0], params[1]),
+                              builder.getInt64Ty());
+  } else if (name == "__builtin_char_ne") {
+    /* scheme({}, {}, type_arrows({Int, Int, Bool})) */
+    return builder.CreateZExt(builder.CreateICmpNE(params[0], params[1]),
+                              builder.getInt64Ty());
+  } else if (name == "__builtin_char_lt") {
+    /* scheme({}, {}, type_arrows({Int, Int, Bool})) */
+    return builder.CreateZExt(builder.CreateICmpSLT(params[0], params[1]),
+                              builder.getInt64Ty());
+  } else if (name == "__builtin_char_lte") {
+    /* scheme({}, {}, type_arrows({Int, Int, Bool})) */
+    return builder.CreateZExt(builder.CreateICmpSLE(params[0], params[1]),
+                              builder.getInt64Ty());
+  } else if (name == "__builtin_char_gt") {
+    /* scheme({}, {}, type_arrows({Int, Int, Bool})) */
+    return builder.CreateZExt(builder.CreateICmpSGT(params[0], params[1]),
+                              builder.getInt64Ty());
+  } else if (name == "__builtin_char_gte") {
     /* scheme({}, {}, type_arrows({Int, Int, Bool})) */
     return builder.CreateZExt(builder.CreateICmpSGE(params[0], params[1]),
                               builder.getInt64Ty());
@@ -806,9 +853,9 @@ resolution_status_t gen(std::string name,
   try {
     auto type = get(typing, expr, {});
     if (type == nullptr) {
-      debug_above(5, log_location(log_error, expr->get_location(),
-                                  "expression lacks typing %s",
-                                  expr->str().c_str()));
+      log_location(log_error, expr->get_location(),
+                   "expression lacks typing %s in typing 0x%08llx", expr->str().c_str(),
+                   (long long)&typing);
       dbg();
     }
 
