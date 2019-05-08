@@ -170,8 +170,9 @@ expr_t *literal_t::translate(const defn_id_t &for_defn_id,
   auto type = tenv.get_type(this);
   assert(type != nullptr);
 
-  auto literal_cmp = new var_t(make_iid("std.=="));
-  auto cmp_type = type_arrows({type, type, type_id(make_iid(BOOL_TYPE))});
+  auto Bool = type_id(make_iid(BOOL_TYPE));
+  var_t *literal_cmp = new var_t(make_iid("std.=="));
+  types::type_t::ref cmp_type = type_arrows({type, type, Bool});
 
   typing[literal_cmp] = cmp_type;
   insert_needed_defn(needed_defns,
@@ -180,16 +181,28 @@ expr_t *literal_t::translate(const defn_id_t &for_defn_id,
 
   bool truthy_returns = false;
   bool falsey_returns = false;
+
   auto scrutinee = new var_t(scrutinee_id);
   typing[scrutinee] = type;
 
+  auto cmp_scrutinee = new application_t(literal_cmp, scrutinee);
+  typing[cmp_scrutinee] = type_arrows({type, Bool});
+
+  auto literal_value_copy = new literal_t(token);
+  typing[literal_value_copy] = type;
+
+  auto condition = new application_t(cmp_scrutinee, literal_value_copy);
+  typing[condition] = Bool;
+
   auto cond = new conditional_t(
-      new application_t(new application_t(literal_cmp, scrutinee),
-                        new literal_t(token)),
+      condition,
       matched(bound_vars, tenv, typing, needed_defns, truthy_returns),
       failed(bound_vars, tenv, typing, needed_defns, falsey_returns));
   assert(!returns);
   returns = returns || (truthy_returns && falsey_returns);
+  assert(typing.count(cond) == 0);
+  assert(typing.count(cond->truthy) == 1);
+  typing[cond] = typing.at(cond->truthy);
   return cond;
 }
 

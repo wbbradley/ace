@@ -30,7 +30,7 @@ types::type_t::ref infer_core(expr_t *expr,
                               constraints_t &constraints) {
   debug_above(8, log("infer(%s, ..., ...)", expr->str().c_str()));
   if (auto literal = dcast<literal_t *>(expr)) {
-    return literal->infer(env, constraints);
+    return literal->non_tracking_infer();
   } else if (auto static_print = dcast<static_print_t *>(expr)) {
     infer(static_print->expr, env, constraints);
     return type_unit(static_print->location);
@@ -184,7 +184,7 @@ types::type_t::ref infer_core(expr_t *expr,
       /* recurse through the pattern_block->predicate to generate more
        * constraints */
       auto local_env = env_t{env};
-      auto tp = pattern_block->predicate->infer(local_env, constraints);
+      auto tp = pattern_block->predicate->tracking_infer(local_env, constraints);
       append(constraints, tp, t1,
              {"pattern must match type of scrutinee",
               pattern_block->predicate->get_location()});
@@ -210,8 +210,12 @@ types::type_t::ref infer(expr_t *expr, env_t &env, constraints_t &constraints) {
   return env.track(expr, infer_core(expr, env, constraints));
 }
 
-types::type_t::ref literal_t::infer(env_t &env,
-                                    constraints_t &constraints) const {
+types::type_t::ref literal_t::tracking_infer(env_t &env,
+                                             constraints_t &constraints) const {
+  return env.track(this, non_tracking_infer());
+}
+
+types::type_t::ref literal_t::non_tracking_infer() const {
   switch (token.tk) {
   case tk_integer:
     return type_id(identifier_t{INT_TYPE, token.location});
@@ -226,16 +230,17 @@ types::type_t::ref literal_t::infer(env_t &env,
   }
 }
 
-types::type_t::ref tuple_predicate_t::infer(env_t &env,
-                                            constraints_t &constraints) const {
+types::type_t::ref tuple_predicate_t::tracking_infer(
+    env_t &env,
+    constraints_t &constraints) const {
   types::type_t::refs types;
   for (auto param : params) {
-    types.push_back(param->infer(env, constraints));
+    types.push_back(param->tracking_infer(env, constraints));
   }
   return type_tuple(types);
 }
 
-types::type_t::ref irrefutable_predicate_t::infer(
+types::type_t::ref irrefutable_predicate_t::tracking_infer(
     env_t &env,
     constraints_t &constraints) const {
   auto tv = type_variable(location);
@@ -246,8 +251,9 @@ types::type_t::ref irrefutable_predicate_t::infer(
   return tv;
 }
 
-types::type_t::ref ctor_predicate_t::infer(env_t &env,
-                                           constraints_t &constraints) const {
+types::type_t::ref ctor_predicate_t::tracking_infer(
+    env_t &env,
+    constraints_t &constraints) const {
   types::type_t::refs ctor_params = env.get_fresh_data_ctor_terms(ctor_name);
 
   debug_above(8, log("got fresh ctor params %s :: %s", ctor_name.str().c_str(),
@@ -264,7 +270,7 @@ types::type_t::ref ctor_predicate_t::infer(env_t &env,
 
   types::type_t::ref result_type;
   for (int i = 0; i < params.size(); ++i) {
-    auto tp = params[i]->infer(env, constraints);
+    auto tp = params[i]->tracking_infer(env, constraints);
     append(constraints, tp, ctor_params[i],
            {string_format("checking subpattern %s", params[i]->str().c_str()),
             params[i]->get_location()});

@@ -1,0 +1,6 @@
+fn main() {
+    s := 3
+    match s {
+        3 => print("PASS")
+    } else => print("FAIL")
+}

@@ -81,7 +81,21 @@ add_test(
 	NAME unit_tests
 	COMMAND zion test)
 
+add_test(
+	NAME test_panic
+	COMMAND ${CMAKE_SOURCE_DIR}/tests/expect-fail.sh ${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR} test_panic)
 
+add_test(
+	NAME test_pass
+	COMMAND ${CMAKE_SOURCE_DIR}/tests/expect-pass.sh ${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR} test_pass)
+
+add_test(
+	NAME test_strings
+	COMMAND ${CMAKE_SOURCE_DIR}/tests/expect-pass.sh ${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR} test_strings)
+
+add_test(
+	NAME test_match_int
+	COMMAND ${CMAKE_SOURCE_DIR}/tests/expect-pass.sh ${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR} test_match_int)
 
 
 option(TIDY "Compile with clang-tidy" OFF)
