@@ -342,12 +342,29 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
     /* scheme({"a", "b"}, {}, type_arrows({tv_a, Int, tv_b})) */
   } else if (name == "__builtin_cmp_ctor_id") {
     /* scheme({"a"}, {}, type_arrows({tv_a, Int, Bool})) */
-    return builder.CreateZExt(
-        builder.CreateICmpNE(
-            builder.CreateLoad(builder.CreateBitOrPointerCast(
-                params[0], builder.getInt64Ty()->getPointerTo())),
-            params[1]),
-        builder.getInt64Ty());
+    auto real_type = types[0]->eval(type_env);
+    // eventually this will probably not be the right place to handle this.
+    assert_implies(real_type != types[0], type_equality(real_type, type_id(make_iid(INT_TYPE))));
+
+    if (types::is_type_id(real_type, INT_TYPE)) {
+      log("treating %s :: %s as an Int",
+          llvm_print(params[0]).c_str(),
+          types[0]->str().c_str());
+
+      return builder.CreateZExt(
+          builder.CreateICmpEQ(
+              builder.CreateBitOrPointerCast(params[0], builder.getInt64Ty()),
+              params[1]),
+          builder.getInt64Ty());
+    } else {
+      /* load the ctor_id from the managed type */
+      return builder.CreateZExt(
+          builder.CreateICmpEQ(
+              builder.CreateLoad(builder.CreateBitOrPointerCast(
+                  params[0], builder.getInt64Ty()->getPointerTo())),
+              params[1]),
+          builder.getInt64Ty());
+    }
   } else if (name == "__builtin_int_to_char") {
     /* scheme({}, {}, type_arrows({Int, Char})) */
     return builder.CreateSExtOrTrunc(params[0], builder.getInt8Ty());
