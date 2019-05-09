@@ -1,15 +1,9 @@
-newtype String = Vector Char
 
 fn main() {
     f := new [Char]
-    concat(f, "hey")
-    match f {
-        Vector(Ref(sz), _, _) {
-            if sz == null {
-                __builtin_goodbye
-            }
-        }
-    }
-    __builtin_hello
-    print(f)
+    append(f, 'h')
+    append(f, 'i')
+    assert(2 == len(f))
+    assert(f == "hi")
+    print("PASS")
 }

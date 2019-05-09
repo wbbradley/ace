@@ -1,0 +1,9 @@
+fn main() {
+    x := -8
+    y := 9
+    assert(y > x)
+    assert(y >= x)
+    assert(x < y)
+    assert(x <= y)
+    print("PASS")
+}

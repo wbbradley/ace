@@ -1,0 +1,7 @@
+fn main() {
+    assert(match compare(-8, 9) {
+        LT => True
+        _  => False
+    })
+    print("PASS")
+}

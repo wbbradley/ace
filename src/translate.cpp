@@ -298,9 +298,8 @@ types::type_t::refs translation_env_t::get_data_ctor_terms(
   debug_above(7, log("looking for %s in data_ctors_map of size %d",
                      id->str().c_str(), int(data_ctors_map.size())));
   debug_above(8, log("%s", ::str(data_ctors_map).c_str()));
-  auto iter = data_ctors_map.find(id->id.name);
-  assert(iter != data_ctors_map.end());
-  auto &data_ctors = iter->second;
+  assert(data_ctors_map.count(id->id.name) != 0);
+  auto &data_ctors = data_ctors_map.at(id->id.name);
 
   auto ctor_type = get(data_ctors, ctor_id.name, {});
   if (ctor_type == nullptr) {
@@ -331,9 +330,10 @@ std::map<std::string, types::type_t::refs> translation_env_t::
   debug_above(7, log("looking for %s in data_ctors_map of size %d",
                      id->str().c_str(), int(data_ctors_map.size())));
   debug_above(7, log("%s", ::str(data_ctors_map).c_str()));
-  auto iter = data_ctors_map.find(id->id.name);
-  assert(iter != data_ctors_map.end());
-  auto &data_ctors = iter->second;
+
+  assert(data_ctors_map.count(id->id.name) != 0);
+  auto &data_ctors = data_ctors_map.at(id->id.name);
+
   std::map<std::string, types::type_t::refs> data_ctors_terms;
 
   for (auto pair : data_ctors) {
