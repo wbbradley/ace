@@ -6,7 +6,7 @@
 
 Zion 1.0 was an exploration of ad-hoc polymorphism with a very complex type system. Zion 2.0 will
 use a simpler but more powerful type system (System F with extensions for Type Classes, pattern
-matching, etc...). It will keep its strict semantics and its C-style syntax.
+matching, etc...). It will use strict semantics and C-style syntax.
 
 More to come...
 

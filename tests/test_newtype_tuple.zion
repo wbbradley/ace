@@ -1,0 +1,18 @@
+newtype Vec2D = (Int, Int)
+
+fn main() {
+    v := Vec2D((3, 4))
+    match v {
+        Vec2D((x, 4)) {
+            assert(x == 3)
+            print("PASS")
+        }
+        Vec2D((3, 3)) {
+            print("FAIL")
+        }
+        _ {
+            print("FAIL")
+        }
+    }
+}
+
