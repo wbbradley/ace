@@ -742,10 +742,11 @@ typedef std::map<
     std::map<types::type_t::ref, translation_t::ref, types::compare_type_t>>
     translation_map_t;
 
-void specialize_core(defn_map_t const &defn_map,
-                     types::scheme_t::map const &typing,
-                     ctor_id_map_t const &ctor_id_map,
-                     data_ctors_map_t const &data_ctors_map,
+void specialize_core(const types::type_env_t &type_env,
+                     const defn_map_t &defn_map,
+                     const types::scheme_t::map &typing,
+                     const ctor_id_map_t &ctor_id_map,
+                     const data_ctors_map_t &data_ctors_map,
                      defn_id_t defn_id,
                      /* output */ translation_map_t &translation_map,
                      /* output */ needed_defns_t &needed_defns) {
@@ -814,64 +815,6 @@ void specialize_core(defn_map_t const &defn_map,
     // to use this stateful variable "final_name".
     std::string final_name = defn_id.id.name;
 
-#if 0
-    if (types::is_callable(type)) {
-      /* from this point forward use the -impl suffix */
-      //
-      // fn add(x, y) => x + y
-      // add        = (add-impl, ())
-      // add-impl   = fn (x, env) => new (add-impl-2, (add-impl-2, x))
-      //
-      final_name += IMPL_SUFFIX; // "-impl"
-
-      assert(get(translation_map, defn_id.id.name + IMPL_SUFFIX, type,
-                 translation_t::ref{}) == nullptr);
-
-      debug_above(4, log("specializing callable %s :: %s, should be creating "
-                         "something like (%s, ())",
-                         defn_id.id.name.c_str(), type->str().c_str(),
-                         (defn_id.id.name + IMPL_SUFFIX).c_str()));
-
-      expr_t *empty_closure = unit_expr(INTERNAL_LOC());
-      (*tracked_types)[empty_closure] = type_unit(INTERNAL_LOC());
-      expr_t *callable_var_ref = new var_t(
-          identifier_t{final_name, INTERNAL_LOC()});
-      (*tracked_types)[callable_var_ref] = type;
-      expr_t *casted_callable_var_ref = new as_t(
-          callable_var_ref, type->generalize({}), true /*force_cast*/);
-      (*tracked_types)[casted_callable_var_ref] = type;
-
-      expr_t *encoded_callable = new tuple_t(
-          INTERNAL_LOC(), std::vector<bitter::expr_t *>{casted_callable_var_ref,
-                                                        empty_closure});
-
-      types::type_t::ref closure_type = type_tuple(
-          {type, type_unit(INTERNAL_LOC())});
-      translation_env_t tenv{tracked_types, ctor_id_map, data_ctors_map};
-      (*tracked_types)[encoded_callable] = closure_type;
-
-      expr_t *as_function = new as_t(encoded_callable, type->generalize({}),
-                                     true);
-      (*tracked_types)[as_function] = type;
-
-      std::unordered_set<std::string> bound_vars;
-      bool returns = false;
-      auto callable_decl = translate(defn_id, as_function, bound_vars, tenv,
-                                     needed_defns, returns);
-      assert(!returns);
-
-#ifdef ZION_DEBUG
-      std::stringstream ss;
-      callable_decl->expr->render(ss, 0);
-      debug_above(4, log("setting %s :: %s = %s", defn_id.id.name.c_str(),
-                         closure_type->str().c_str(),
-                         ss.str().c_str())); // callable_decl->str().c_str());
-#endif
-      assert(translation_map[defn_id.id.name][type] == nullptr);
-      translation_map[defn_id.id.name][type] = callable_decl;
-    }
-#endif
-
     /* wrap this expr in it's asserted type to ensure that it monomorphizes */
     // TODO: check that this is necessary
     auto as_defn = new as_t(to_check, defn_id.scheme, false);
@@ -892,8 +835,8 @@ void specialize_core(defn_map_t const &defn_map,
     INDENT(6, string_format("----------- specialize %s ------------",
                             defn_id.str().c_str()));
     bool returns = true;
-    auto translated_decl = translate(defn_id, as_defn, bound_vars, tenv,
-                                     needed_defns, returns);
+    auto translated_decl = translate(defn_id, as_defn, bound_vars, type_env,
+                                     tenv, needed_defns, returns);
 
     assert(returns);
 
@@ -942,9 +885,9 @@ phase_3_t specialize(const phase_2_t &phase_2) {
   while (needed_defns.size() != 0) {
     auto next_defn_id = needed_defns.begin()->first;
     try {
-      specialize_core(phase_2.defn_map, phase_2.typing, phase_2.ctor_id_map,
-                      phase_2.data_ctors_map, next_defn_id, translation_map,
-                      needed_defns);
+      specialize_core(phase_2.compilation->type_env, phase_2.defn_map, phase_2.typing,
+                      phase_2.ctor_id_map, phase_2.data_ctors_map, next_defn_id,
+                      translation_map, needed_defns);
     } catch (user_error &e) {
       print_exception(e);
       /* and continue */
