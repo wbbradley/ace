@@ -344,11 +344,11 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
     /* scheme({"a"}, {}, type_arrows({tv_a, Int, Bool})) */
     auto real_type = types[0]->eval(type_env);
     // eventually this will probably not be the right place to handle this.
-    assert_implies(real_type != types[0], type_equality(real_type, type_id(make_iid(INT_TYPE))));
+    assert_implies(real_type != types[0],
+                   type_equality(real_type, type_id(make_iid(INT_TYPE))));
 
     if (types::is_type_id(real_type, INT_TYPE)) {
-      log("treating %s :: %s as an Int",
-          llvm_print(params[0]).c_str(),
+      log("treating %s :: %s as an Int", llvm_print(params[0]).c_str(),
           types[0]->str().c_str());
 
       return builder.CreateZExt(
@@ -871,8 +871,8 @@ resolution_status_t gen(std::string name,
     auto type = get(typing, expr, {});
     if (type == nullptr) {
       log_location(log_error, expr->get_location(),
-                   "expression lacks typing %s in typing 0x%08llx", expr->str().c_str(),
-                   (long long)&typing);
+                   "expression lacks typing %s in typing 0x%08llx",
+                   expr->str().c_str(), (long long)&typing);
       dbg();
     }
 

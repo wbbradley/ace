@@ -184,7 +184,8 @@ types::type_t::ref infer_core(expr_t *expr,
       /* recurse through the pattern_block->predicate to generate more
        * constraints */
       auto local_env = env_t{env};
-      auto tp = pattern_block->predicate->tracking_infer(local_env, constraints);
+      auto tp = pattern_block->predicate->tracking_infer(local_env,
+                                                         constraints);
       append(constraints, tp, t1,
              {"pattern must match type of scrutinee",
               pattern_block->predicate->get_location()});

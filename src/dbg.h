@@ -1,6 +1,6 @@
 #pragma once
-#include <signal.h>
 #include <iostream>
+#include <signal.h>
 
 #include "location.h"
 #include "utils.h"

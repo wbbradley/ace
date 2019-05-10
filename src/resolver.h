@@ -13,7 +13,8 @@ enum resolution_status_t {
   rs_cache_resolution,
 };
 
-typedef std::function<resolution_status_t(llvm::Value **)> lazy_resolver_callback_t;
+typedef std::function<resolution_status_t(llvm::Value **)>
+    lazy_resolver_callback_t;
 
 struct publisher_t {
   virtual ~publisher_t() {

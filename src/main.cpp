@@ -885,9 +885,10 @@ phase_3_t specialize(const phase_2_t &phase_2) {
   while (needed_defns.size() != 0) {
     auto next_defn_id = needed_defns.begin()->first;
     try {
-      specialize_core(phase_2.compilation->type_env, phase_2.defn_map, phase_2.typing,
-                      phase_2.ctor_id_map, phase_2.data_ctors_map, next_defn_id,
-                      translation_map, needed_defns);
+      specialize_core(phase_2.compilation->type_env, phase_2.defn_map,
+                      phase_2.typing, phase_2.ctor_id_map,
+                      phase_2.data_ctors_map, next_defn_id, translation_map,
+                      needed_defns);
     } catch (user_error &e) {
       print_exception(e);
       /* and continue */
@@ -923,7 +924,8 @@ struct phase_4_t {
   }
   phase_4_t(phase_4_t &&rhs)
       : phase_3(rhs.phase_3), gen_env(std::move(rhs.gen_env)),
-        llvm_module(rhs.llvm_module), dbuilder(rhs.dbuilder), output_llvm_filename(rhs.output_llvm_filename) {
+        llvm_module(rhs.llvm_module), dbuilder(rhs.dbuilder),
+        output_llvm_filename(rhs.output_llvm_filename) {
     rhs.llvm_module = nullptr;
     rhs.dbuilder = nullptr;
   }
@@ -1031,7 +1033,8 @@ phase_4_t ssa_gen(llvm::LLVMContext &context, const phase_3_t &phase_3) {
     const std::unordered_set<std::string> globals = get_globals(phase_3);
 
     debug_above(6, log("globals are %s", join(globals).c_str()));
-    debug_above(2, log("type_env is %s", str(phase_3.phase_2.compilation->type_env).c_str()));
+    debug_above(2, log("type_env is %s",
+                       str(phase_3.phase_2.compilation->type_env).c_str()));
     for (auto pair : phase_3.translation_map) {
       for (auto &overload : pair.second) {
         const std::string &name = pair.first;
@@ -1100,7 +1103,8 @@ phase_4_t ssa_gen(llvm::LLVMContext &context, const phase_3_t &phase_3) {
     /* and continue */
   }
 
-  return phase_4_t(phase_3, std::move(gen_env), llvm_module, dbuilder, output_filename);
+  return phase_4_t(phase_3, std::move(gen_env), llvm_module, dbuilder,
+                   output_filename);
 }
 
 struct job_t {
@@ -1272,7 +1276,8 @@ int run_job(const job_t &job) {
   if (!in(job.cmd, cmd_map)) {
     job_t new_job;
     new_job.args.insert(new_job.args.begin(), job.cmd);
-    std::copy(job.args.begin(), job.args.end(), std::back_inserter(new_job.args));
+    std::copy(job.args.begin(), job.args.end(),
+              std::back_inserter(new_job.args));
     new_job.cmd = "run";
     return cmd_map["run"](new_job, false /*explain*/);
   } else {
@@ -1318,4 +1323,4 @@ int main(int argc, char *argv[]) {
     /* and continue */
     return EXIT_FAILURE;
   }
-  }
+}
