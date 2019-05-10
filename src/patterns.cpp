@@ -5,6 +5,7 @@
 #include "ast.h"
 #include "compiler.h"
 #include "translate.h"
+#include "unification.h"
 #include "zion.h"
 
 using namespace bitter;
@@ -312,6 +313,39 @@ expr_t *ctor_predicate_t::translate(
                                                             ctor_name);
   assert(ctor_terms.size() >= 1);
   ctor_terms = vec_slice(ctor_terms, 0, ctor_terms.size() - 1);
+
+  types::type_t::ref resolved_scrutinee_type = scrutinee_type->eval(type_env);
+
+  debug_above(4, log("scrutinee type %s resolved to %s",
+                     scrutinee_type->str().c_str(),
+                     resolved_scrutinee_type->str().c_str()));
+
+  if (!type_equality(resolved_scrutinee_type, scrutinee_type)) {
+    /* we found a newtype? */
+
+    // There can be only one. There must be one.
+    assert(params.size() == 1);
+
+    auto scrutinee = new var_t(scrutinee_id);
+    typing[scrutinee] = scrutinee_type;
+    auto casted_scrutinee = new as_t(scrutinee,
+                                     resolved_scrutinee_type->generalize({}),
+                                     true /*force_cast*/);
+    typing[casted_scrutinee] = resolved_scrutinee_type;
+
+    identifier_t param_id = params[0]->instantiate_name_assignment();
+    auto new_bound_vars = bound_vars;
+    new_bound_vars.insert(param_id.name);
+    auto let_body = params[0]->translate(
+        for_defn_id, param_id, resolved_scrutinee_type, do_checks,
+        new_bound_vars, type_env, tenv, typing, needed_defns, returns, matched,
+        failed);
+    auto casted_pattern_match = new let_t(param_id, casted_scrutinee, let_body);
+    typing[casted_pattern_match] = typing.at(let_body);
+    debug_above(4, log("emitting newtype pattern match %s",
+                       casted_pattern_match->str().c_str()));
+    return casted_pattern_match;
+  }
 
   if (do_checks) {
     int ctor_id = tenv.get_ctor_id(ctor_name.name);

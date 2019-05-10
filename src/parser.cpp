@@ -1562,9 +1562,10 @@ data_type_decl_t parse_newtype_decl(parse_state_t &ps,
   std::vector<decl_t *> decls;
   decls.push_back(new decl_t(
       type_decl.id, new lambda_t(param_iid, rhs_type, type_decl.get_type(),
-                                 new as_t(new var_t(param_iid),
-                                          type_decl.get_type()->generalize({}),
-                                          true /*force_cast*/))));
+                                 new return_statement_t(new as_t(
+                                     new var_t(param_iid),
+                                     type_decl.get_type()->generalize({}),
+                                     true /*force_cast*/)))));
   data_ctors[type_decl.id.name] = create_ctor_type(type_decl.id.location,
                                                    type_decl, {rhs_type});
   assert(!in(type_decl.id.name, ps.type_env));

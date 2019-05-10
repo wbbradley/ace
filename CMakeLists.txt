@@ -81,13 +81,20 @@ add_test(
 	NAME unit_tests
 	COMMAND zion test)
 
-foreach(test test_panic)
+foreach(test
+	   	test_panic)
 	add_test(
 		NAME ${test}
 		COMMAND ${CMAKE_SOURCE_DIR}/tests/expect-fail.sh ${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR} ${test})
 endforeach(test)
 
-foreach(test test_basic test_pass test_strings test_match_int)
+foreach(test
+	   	test_basic
+	   	test_pass
+	   	test_strings
+	   	test_match_int
+	   	test_newtype
+	   	test_newtype_tuple)
 	add_test(
 		NAME ${test}
 		COMMAND ${CMAKE_SOURCE_DIR}/tests/expect-pass.sh ${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR} ${test})
