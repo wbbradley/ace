@@ -11,6 +11,7 @@ using namespace bitter;
 expr_t *texpr(const defn_id_t &for_defn_id,
               bitter::expr_t *expr,
               const std::unordered_set<std::string> &bound_vars,
+              const types::type_env_t &type_env,
               const translation_env_t &tenv,
               tracked_types_t &typing,
               needed_defns_t &needed_defns,
@@ -67,8 +68,9 @@ expr_t *texpr(const defn_id_t &for_defn_id,
       return literal;
     } else if (auto static_print = dcast<static_print_t *>(expr)) {
       bool fake_returns = false;
-      auto inner_expr = texpr(for_defn_id, static_print->expr, bound_vars, tenv,
-                              typing, needed_defns, fake_returns);
+      auto inner_expr = texpr(for_defn_id, static_print->expr, bound_vars,
+                              type_env, tenv, typing, needed_defns,
+                              fake_returns);
       log_location(static_print->expr->get_location(), "type is %s",
                    typing[inner_expr]->str().c_str());
       log_location(static_print->get_location(), "while translating %s",
@@ -94,8 +96,8 @@ expr_t *texpr(const defn_id_t &for_defn_id,
       auto new_bound_vars = bound_vars;
       new_bound_vars.insert(lambda->var.name);
       bool lambda_returns = false;
-      auto new_body = texpr(for_defn_id, lambda->body, new_bound_vars, tenv,
-                            typing, needed_defns, lambda_returns);
+      auto new_body = texpr(for_defn_id, lambda->body, new_bound_vars, type_env,
+                            tenv, typing, needed_defns, lambda_returns);
       types::type_t::refs lambda_terms;
       unfold_binops_rassoc(ARROW_TYPE_OPERATOR, type, lambda_terms);
       assert(lambda_terms.size() >= 2);
@@ -111,34 +113,34 @@ expr_t *texpr(const defn_id_t &for_defn_id,
       typing[new_lambda] = type;
       return new_lambda;
     } else if (auto application = dcast<application_t *>(expr)) {
-      auto a = texpr(for_defn_id, application->a, bound_vars, tenv, typing,
-                     needed_defns, returns);
-      auto b = texpr(for_defn_id, application->b, bound_vars, tenv, typing,
-                     needed_defns, returns);
+      auto a = texpr(for_defn_id, application->a, bound_vars, type_env, tenv,
+                     typing, needed_defns, returns);
+      auto b = texpr(for_defn_id, application->b, bound_vars, type_env, tenv,
+                     typing, needed_defns, returns);
       auto new_app = new application_t(a, b);
       typing[new_app] = type;
       return new_app;
     } else if (auto let = dcast<let_t *>(expr)) {
-      auto new_value = texpr(for_defn_id, let->value, bound_vars, tenv, typing,
-                             needed_defns, returns);
+      auto new_value = texpr(for_defn_id, let->value, bound_vars, type_env,
+                             tenv, typing, needed_defns, returns);
       auto new_bound_vars = bound_vars;
       new_bound_vars.insert(let->var.name);
-      auto new_body = texpr(for_defn_id, let->body, new_bound_vars, tenv,
-                            typing, needed_defns, returns);
+      auto new_body = texpr(for_defn_id, let->body, new_bound_vars, type_env,
+                            tenv, typing, needed_defns, returns);
       auto new_let = new let_t(let->var, new_value, new_body);
       typing[new_let] = type;
       return new_let;
     } else if (auto fix = dcast<fix_t *>(expr)) {
       assert(false);
     } else if (auto condition = dcast<conditional_t *>(expr)) {
-      auto cond = texpr(for_defn_id, condition->cond, bound_vars, tenv, typing,
-                        needed_defns, returns);
+      auto cond = texpr(for_defn_id, condition->cond, bound_vars, type_env,
+                        tenv, typing, needed_defns, returns);
       bool truthy_returns = false;
-      auto truthy = texpr(for_defn_id, condition->truthy, bound_vars, tenv,
-                          typing, needed_defns, truthy_returns);
+      auto truthy = texpr(for_defn_id, condition->truthy, bound_vars, type_env,
+                          tenv, typing, needed_defns, truthy_returns);
       bool falsey_returns = false;
-      auto falsey = texpr(for_defn_id, condition->falsey, bound_vars, tenv,
-                          typing, needed_defns, falsey_returns);
+      auto falsey = texpr(for_defn_id, condition->falsey, bound_vars, type_env,
+                          tenv, typing, needed_defns, falsey_returns);
       if (truthy_returns && falsey_returns) {
         returns = true;
       }
@@ -151,18 +153,18 @@ expr_t *texpr(const defn_id_t &for_defn_id,
         if (returns && !starts_already_returned) {
           throw user_error(stmt->get_location(), "this code will never run");
         }
-        statements.push_back(texpr(for_defn_id, stmt, bound_vars, tenv, typing,
-                                   needed_defns, returns));
+        statements.push_back(texpr(for_defn_id, stmt, bound_vars, type_env,
+                                   tenv, typing, needed_defns, returns));
       }
       auto new_block = new block_t(statements);
       typing[new_block] = type;
       return new_block;
     } else if (auto while_ = dcast<while_t *>(expr)) {
       bool block_returns = false;
-      auto condition = texpr(for_defn_id, while_->condition, bound_vars, tenv,
-                             typing, needed_defns, returns);
-      auto block = texpr(for_defn_id, while_->block, bound_vars, tenv, typing,
-                         needed_defns, block_returns);
+      auto condition = texpr(for_defn_id, while_->condition, bound_vars,
+                             type_env, tenv, typing, needed_defns, returns);
+      auto block = texpr(for_defn_id, while_->block, bound_vars, type_env, tenv,
+                         typing, needed_defns, block_returns);
       /* NB: we don't really care if the block returns because we can't validate
        * that the loop ever actually runs */
       auto new_while = new while_t(condition, block);
@@ -178,8 +180,8 @@ expr_t *texpr(const defn_id_t &for_defn_id,
       return new_continue;
     } else if (auto return_ = dcast<return_statement_t *>(expr)) {
       auto ret = new return_statement_t(texpr(for_defn_id, return_->value,
-                                              bound_vars, tenv, typing,
-                                              needed_defns, returns));
+                                              bound_vars, type_env, tenv,
+                                              typing, needed_defns, returns));
       typing[ret] = type_unit(return_->get_location());
       returns = true;
       return ret;
@@ -190,18 +192,18 @@ expr_t *texpr(const defn_id_t &for_defn_id,
           throw user_error(expr->get_location(),
                            "this code will never run due to a prior return");
         }
-        dims.push_back(texpr(for_defn_id, dim, bound_vars, tenv, typing,
-                             needed_defns, returns));
+        dims.push_back(texpr(for_defn_id, dim, bound_vars, type_env, tenv,
+                             typing, needed_defns, returns));
       }
       auto new_tuple = new tuple_t(tuple->get_location(), dims);
       typing[new_tuple] = type;
       return new_tuple;
     } else if (auto match = dcast<match_t *>(expr)) {
-      return translate_match_expr(for_defn_id, match, bound_vars, tenv, typing,
-                                  needed_defns, returns);
+      return translate_match_expr(for_defn_id, match, bound_vars, type_env,
+                                  tenv, typing, needed_defns, returns);
     } else if (auto as = dcast<as_t *>(expr)) {
-      auto expr = texpr(for_defn_id, as->expr, bound_vars, tenv, typing,
-                        needed_defns, returns);
+      auto expr = texpr(for_defn_id, as->expr, bound_vars, type_env, tenv,
+                        typing, needed_defns, returns);
       if (as->force_cast) {
         auto new_as = new as_t(expr, scheme({}, {}, type), true /*force_cast*/);
         typing[new_as] = type;
@@ -213,12 +215,13 @@ expr_t *texpr(const defn_id_t &for_defn_id,
     } else if (auto builtin = dcast<builtin_t *>(expr)) {
       std::vector<expr_t *> exprs;
       for (auto expr : builtin->exprs) {
-        exprs.push_back(texpr(for_defn_id, expr, bound_vars, tenv, typing,
-                              needed_defns, returns));
+        exprs.push_back(texpr(for_defn_id, expr, bound_vars, type_env, tenv,
+                              typing, needed_defns, returns));
       }
       auto new_builtin = new builtin_t(
           dynamic_cast<var_t *>(texpr(for_defn_id, builtin->var, bound_vars,
-                                      tenv, typing, needed_defns, returns)),
+                                      type_env, tenv, typing, needed_defns,
+                                      returns)),
           exprs);
       typing[new_builtin] = type;
       return new_builtin;
@@ -230,8 +233,8 @@ expr_t *texpr(const defn_id_t &for_defn_id,
       return new_sizeof;
     } else if (auto tuple_deref = dcast<tuple_deref_t *>(expr)) {
       auto new_tuple_deref = new tuple_deref_t(
-          texpr(for_defn_id, tuple_deref->expr, bound_vars, tenv, typing,
-                needed_defns, returns),
+          texpr(for_defn_id, tuple_deref->expr, bound_vars, type_env, tenv,
+                typing, needed_defns, returns),
           tuple_deref->index, tuple_deref->max);
       typing[new_tuple_deref] = type;
       return new_tuple_deref;
@@ -250,12 +253,13 @@ expr_t *texpr(const defn_id_t &for_defn_id,
 translation_t::ref translate(const defn_id_t &for_defn_id,
                              bitter::expr_t *expr,
                              const std::unordered_set<std::string> &bound_vars,
+                             const types::type_env_t &type_env,
                              const translation_env_t &tenv,
                              needed_defns_t &needed_defns,
                              bool &returns) {
   tracked_types_t typing;
-  expr_t *translated_expr = texpr(for_defn_id, expr, bound_vars, tenv, typing,
-                                  needed_defns, returns);
+  expr_t *translated_expr = texpr(for_defn_id, expr, bound_vars, type_env, tenv,
+                                  typing, needed_defns, returns);
   return std::make_shared<translation_t>(translated_expr, typing);
 }
 
