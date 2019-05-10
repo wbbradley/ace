@@ -382,9 +382,10 @@ llvm::StructType *llvm_create_struct_type(
 
 llvm::StructType *llvm_create_struct_type(
     llvm::IRBuilder<> &builder,
-    types::type_env_t &type_env, 
+    types::type_env_t &type_env,
     const types::type_t::refs &dimensions) {
-  return llvm_create_struct_type(builder, get_llvm_types(builder, type_env, dimensions));
+  return llvm_create_struct_type(builder,
+                                 get_llvm_types(builder, type_env, dimensions));
 }
 
 llvm::StructType *llvm_create_struct_type(
@@ -503,8 +504,8 @@ llvm::GlobalVariable *llvm_get_global(llvm::Module *llvm_module,
   // llvm_global_variable->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
   auto v = llvm_global_variable;
   debug_above(4, log("llvm_get_global(..., %s, %s, %s) -> %s", name.c_str(),
-      llvm_print(llvm_constant).c_str(), boolstr(is_constant),
-      llvm_print(v).c_str()));
+                     llvm_print(llvm_constant).c_str(), boolstr(is_constant),
+                     llvm_print(v).c_str()));
   return v;
 }
 
@@ -654,8 +655,7 @@ llvm::FunctionType *get_llvm_arrow_function_type(
   llvm::Type *return_type = (terms.size() == 2)
                                 ? get_llvm_type(builder, type_env, terms[1])
                                 : get_llvm_closure_type(
-                                      builder,
-                                      type_env,
+                                      builder, type_env,
                                       vec_slice(terms, 1, terms.size()));
 
   /* get the llvm function type for the data ctor */

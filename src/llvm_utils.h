@@ -63,7 +63,7 @@ llvm::Value *_llvm_resolve_alloca(llvm::IRBuilder<> &builder,
 llvm::Type *llvm_resolve_type(llvm::Value *llvm_value);
 llvm::StructType *llvm_create_struct_type(
     llvm::IRBuilder<> &builder,
-    types::type_env_t &type_env, 
+    types::type_env_t &type_env,
     const types::type_t::refs &dimensions);
 llvm::StructType *llvm_create_struct_type(
     llvm::IRBuilder<> &builder,

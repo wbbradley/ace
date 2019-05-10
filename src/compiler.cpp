@@ -289,8 +289,7 @@ compilation_t::ref parse_program(
         new program_t(program_decls, program_type_classes, program_instances,
                       new application_t(new var_t(make_iid("main")),
                                         new tuple_t(INTERNAL_LOC(), {}))),
-        gps.comments, gps.link_ins, ctor_id_map, data_ctors_map,
-        type_env);
+        gps.comments, gps.link_ins, ctor_id_map, data_ctors_map, type_env);
   } catch (user_error &e) {
     print_exception(e);
     return nullptr;

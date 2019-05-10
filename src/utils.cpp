@@ -539,4 +539,3 @@ std::string join(int argc, const char *argv[]) {
   }
   return ss.str();
 }
-
