@@ -124,6 +124,13 @@ expr_t *parse_let(parse_state_t &ps, identifier_t var_id, bool is_let) {
         unit_expr(INTERNAL_LOC()));
   }
 
+  if (ps.token.is_ident(K(as))) {
+    /* allow type specifications in decls to help with inference */
+    ps.advance();
+    initializer = new as_t(initializer, scheme({}, {}, parse_type(ps)),
+                           false /*force_cast*/);
+  }
+
   if (!is_let) {
     initializer = new application_t(
         new var_t(ps.id_mapped(identifier_t{"Ref", location})), initializer);

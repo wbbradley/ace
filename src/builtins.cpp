@@ -18,3 +18,4 @@ const char *FLOAT_TYPE = "Float";
 const char *BOOL_TYPE = "std.Bool";
 const char *MAYBE_TYPE = "std.Maybe";
 const char *VECTOR_TYPE = "std.Vector";
+const char *STRING_TYPE = "std.String";

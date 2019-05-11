@@ -1,9 +1,8 @@
 
 fn main() {
-    f := new [Char]
-    append(f, 'h')
-    append(f, 'i')
-    assert(2 == len(f))
-    assert(f == "hi")
+    var f = ""
+    f = !f + "h"
+    assert(2 == len(!f))
+    assert(!f == "hi")
     print("PASS")
 }

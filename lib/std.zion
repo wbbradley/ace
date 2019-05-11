@@ -15,8 +15,10 @@ class HasDefault a {
     fn new() a
 }
 
+newtype String = (*Char, Int)
+
 class Show a {
-    fn str(a) [Char]
+    fn str(a) String
 }
 
 instance Show () {
@@ -27,7 +29,7 @@ instance Show Int {
     fn str(x) {
         sz := __builtin_itoa(x)
         length := __builtin_strlen(sz)
-        return Vector(Ref(sz), Ref(length), Ref(0))
+        return String((sz, length))
     }
 }
 
@@ -35,19 +37,14 @@ instance Show Ref a {
     fn str(a) => str(!a)
 }
 
+instance Show String {
+    str = id
+}
+
 data Ref a {
     Ref(a)
 }
 
-instance Show Ref {
-    fn str(x) {
-        s := new [Char]
-        concat(s, "Ref(")
-        concat(s, str(x))
-        concat(s, ")")
-        return s
-    }
-}
 
 class LoadableValue f {
     fn load_value(f a) a
@@ -59,7 +56,7 @@ class StorableValue f {
 
 instance LoadableValue Ref {
     fn load_value(a) => match a {
-        Ref(a) => a
+        Ref(x) => x
     }
 }
 
@@ -120,10 +117,52 @@ instance Eq Char {
     fn !=(a, b) => __builtin_char_ne(a, b)
 }
 
+instance Eq String {
+    fn ==(a, b) {
+        match a {
+            String((a, alen)) {
+                match b {
+                    String((b, blen)) {
+                        if alen != blen {
+                            return False
+                        } else {
+                            return __builtin_memcmp(a, b, alen) == 0
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn !=(a, b) => not (a == b)
+}
+
+class Addition a {
+    fn +(a, a) a
+}
+
+instance Addition String {
+    fn +(a, b) {
+        match a {
+            String((xs, xlen)) {
+                match b {
+                    String((ys, ylen)) {
+                        zlen := xlen + ylen
+                        zs := __builtin_calloc(zlen) as *Char
+                        __builtin_memcpy(zs, xs, xlen)
+                        __builtin_memcpy(__builtin_ptr_add(zs, xlen), ys, ylen)
+                        return String((zs, zlen))
+                    }
+                }
+            }
+        }
+    }
+}
+
 class Num a {
     has Eq
+    has Addition
     fn from_int(Int) a
-    fn +(a, a) a
     fn *(a, a) a
     fn -(a, a) a
     fn /(a, a) a
@@ -201,9 +240,12 @@ instance Ord Float {
     }
 }
 
+instance Addition Int {
+    fn +(a, b) => __builtin_add_int(a, b)
+}
+
 instance Num Int {
     from_int = id
-    fn +(a, b) => __builtin_add_int(a, b)
     fn *(a, b) => __builtin_multiply_int(a, b)
     fn -(a, b) => __builtin_subtract_int(a, b)
     fn /(a, b) => __builtin_divide_int(a, b)
@@ -211,9 +253,12 @@ instance Num Int {
     fn abs(a) => __builtin_abs_int(a)
 }
 
+instance Addition Char {
+    fn +(a, b) => __builtin_add_char(a, b)
+}
+
 instance Num Char {
     fn from_int(a) => __builtin_int_to_char(a)
-    fn +(a, b) => __builtin_add_char(a, b)
     fn *(a, b) => __builtin_multiply_char(a, b)
     fn -(a, b) => __builtin_subtract_char(a, b)
     fn /(a, b) => __builtin_divide_char(a, b)
@@ -226,9 +271,12 @@ instance Bounded Int {
     fn max_bound() => __builtin_max_int
 }
 
+instance Addition Float {
+    fn +(a, b) => __builtin_add_float(a, b)
+}
+
 instance Num Float {
     fn from_int(a) => __builtin_int_to_float(a)
-    fn +(a, b) => __builtin_add_float(a, b)
     fn *(a, b) => __builtin_multiply_float(a, b)
     fn -(a, b) => __builtin_subtract_float(a, b)
     fn /(a, b) => __builtin_divide_float(a, b)
@@ -245,11 +293,7 @@ instance Show Maybe a {
     fn str(ma) {
         match ma {
             Just(a) {
-                s := new [Char]
-                concat(s, "Just(")
-                concat(s, str(a))
-                concat(s, ")")
-                return s
+                return "Just(" + str(a) + ")"
             }
             Nothing {
                 return "Nothing"
@@ -274,33 +318,15 @@ struct Vector a {
     capacity Ref Int
 }
 
-fn __string_ref(sz *Char, size Int) [Char] {
-    return Vector(Ref(sz), Ref(size), Ref(0))
-}
+fn __string_ref(sz *Char, size Int) => String((sz, size))
 
 instance Show Char {
     fn str(ch) {
-        y := new [Char]
-        append(y, ch)
-        return y
+        ys := __builtin_calloc(1)
+        ys[0] = ch
+        return String((ys, 1))
     }
 }
-
-instance Show [Char] {
-    fn str(xs) => xs
-}
-
-/*
-instance Show [a] {
-    fn str(xs) {
-        y := new [Char]
-        for x in xs {
-            concat(y, str(x))
-        }
-        return y
-    }
-}
-*/
 
 class HasLength a {
     fn len(a) Int
@@ -308,6 +334,12 @@ class HasLength a {
 
 instance HasLength [a] {
     fn len(v) => !v.size
+}
+
+instance HasLength String {
+    fn len(s) => match s {
+        String((sz, l)) => l
+    }
 }
 
 fn alloc(count Int) *a {
@@ -320,7 +352,7 @@ class HasIndexableItems f {
 
 instance HasIndexableItems * {
     fn get_indexed_item(p *a, index Int) a {
-        return !__builtin_add_ptr(p, index)
+        return !__builtin_ptr_add(p, index)
     }
 }
 
@@ -336,7 +368,7 @@ class HasAssignableIndexableItems f {
 
 instance HasAssignableIndexableItems * {
     fn set_indexed_item(p *a, index Int, a a) {
-        __builtin_store_ptr(__builtin_add_ptr(p, index), a)
+        __builtin_store_ptr(__builtin_ptr_add(p, index), a)
     }
 }
 
@@ -384,7 +416,7 @@ fn append(vec [a], val a) {
         vec.capacity = 4
         vec[0] = val
         return
-        # __builtin_store_ptr(__builtin_add_ptr(!vec.array, 0), val)
+        # __builtin_store_ptr(__builtin_ptr_add(!vec.array, 0), val)
     }
 
     if !vec.capacity == 0 {
@@ -392,7 +424,7 @@ fn append(vec [a], val a) {
         /* TODO: handle constant strings */
     }
 
-    __builtin_store_ptr(__builtin_add_ptr(!vec.array, !vec.size), val)
+    __builtin_store_ptr(__builtin_ptr_add(!vec.array, !vec.size), val)
     vec.size = !vec.size + 1
 }
 
@@ -429,11 +461,8 @@ fn id(x) => x
 
 fn print(x) {
     return match str(x) {
-        Vector(Ref(sz), _, _) {
-            if sz == null {
-                __builtin_goodbye
-            }
-            __builtin_print(sz)
+        String((sz, length)) {
+            __builtin_write(1, sz, length)
         }
     }
 }
@@ -444,9 +473,8 @@ fn panic(x) {
 }
 
 fn concat(xs [a], ys [a]) {
-    __builtin_hello
+    # resize(xs, len(xs) + len(ys))
     for y in ys {
-        __builtin_hello
         append(xs, y)
     }
 }
