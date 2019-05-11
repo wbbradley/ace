@@ -169,6 +169,13 @@ llvm::Value *maybe_get_env_var(const gen_env_t &gen_env,
       return resolver_ptr->resolve();
     } else {
       /* no symbol goes by that type in these parts, mister */
+      if (iter_id->second.size() != 0) {
+        log("we couldn't find %s :: %s in the env, but we did find %s :: %s",
+            id.name.c_str(),
+            type->str().c_str(),
+            id.name.c_str(),
+            iter_id->second.begin()->first->str().c_str());
+      }
       return nullptr;
     }
   } else {
@@ -318,7 +325,7 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
     /* scheme({}, {}, type_arrows({Int, Float})) */
   } else if (name == "__builtin_negate_float") {
     /* scheme({}, {}, type_arrows({Float, Float})) */
-  } else if (name == "__builtin_add_ptr") {
+  } else if (name == "__builtin_ptr_add") {
     /* scheme({"a"}, {}, type_arrows({tp_a, Int, tp_a})) */
     return builder.CreateGEP(params[0], std::vector<llvm::Value *>{params[1]});
   } else if (name == "__builtin_ptr_eq") {
@@ -457,6 +464,23 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
     return builder.CreateIntToPtr(
         builder.CreateCall(llvm_write_func_decl, params),
         builder.getInt8Ty()->getPointerTo());
+  } else if (name == "__builtin_write") {
+    /* scheme({}, {}, type_arrows({Int, PtrToChar, Int, Int})) */
+    auto llvm_module = llvm_get_module(builder);
+    llvm::Type *write_terms[] = {builder.getInt64Ty(),
+                                 builder.getInt8Ty()->getPointerTo(),
+                                 builder.getInt64Ty()};
+
+    assert(params.size() == 3);
+
+    // libc dependency
+    auto llvm_write_func_decl = llvm::cast<llvm::Function>(
+        llvm_module->getOrInsertFunction(
+            "write",
+            llvm::FunctionType::get(builder.getInt64Ty(),
+                                    llvm::ArrayRef<llvm::Type *>(write_terms),
+                                    false /*isVarArg*/)));
+    return builder.CreateCall(llvm_write_func_decl, params);
   } else if (name == "__builtin_print_int") {
     /* scheme({}, {}, type_arrows({*Char, type_unit(INTERNAL_LOC())})) */
     auto llvm_module = llvm_get_module(builder);
@@ -565,6 +589,39 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
         params[1], llvm_maybe_pointer_cast(builder, params[0],
                                            llvm_operand_type->getPointerTo()));
     return llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo());
+  } else if (name == "__builtin_memcpy") {
+    /* scheme({}, {}, type_arrows({PtrToChar, PtrToChar, Int,
+     * type_unit(INTERNAL_LOC())})) */
+    auto llvm_module = llvm_get_module(builder);
+    llvm::Type *param_types[] = {builder.getInt8Ty()->getPointerTo(),
+                                 builder.getInt8Ty()->getPointerTo(),
+                                 builder.getInt64Ty()};
+
+    assert(params.size() == 3);
+
+    auto ffi_function = llvm::cast<llvm::Function>(
+        llvm_module->getOrInsertFunction(
+            "memcpy",
+            llvm::FunctionType::get(builder.getInt8Ty()->getPointerTo(),
+                                    llvm::ArrayRef<llvm::Type *>(param_types),
+                                    false /*isVarArg*/)));
+    return builder.CreateCall(ffi_function, params);
+  } else if (name == "__builtin_memcmp") {
+    /* scheme({}, {}, type_arrows({PtrToChar, PtrToChar, Int, Int})) */
+    auto llvm_module = llvm_get_module(builder);
+    llvm::Type *param_types[] = {builder.getInt8Ty()->getPointerTo(),
+                                 builder.getInt8Ty()->getPointerTo(),
+                                 builder.getInt64Ty()};
+
+    assert(params.size() == 3);
+
+    auto ffi_function = llvm::cast<llvm::Function>(
+        llvm_module->getOrInsertFunction(
+            "memcmp",
+            llvm::FunctionType::get(builder.getInt64Ty(),
+                                    llvm::ArrayRef<llvm::Type *>(param_types),
+                                    false /*isVarArg*/)));
+    return builder.CreateCall(ffi_function, params);
   } else if (name == "__builtin_hello" || name == "__builtin_goodbye") {
     /* scheme({}, {}, Unit) */
     auto llvm_module = llvm_get_module(builder);
@@ -1139,8 +1196,10 @@ resolution_status_t gen(std::string name,
     throw user_error(expr->get_location(), "unhandled gen for %s :: %s",
                      expr->str().c_str(), type->str().c_str());
   } catch (user_error &e) {
-    e.add_info(expr->get_location(), "while in gen phase for %s",
-               expr->str().c_str());
+    assert(typing.count(expr) != 0);
+    e.add_info(expr->get_location(), "while in gen phase for %s :: %s",
+               expr->str().c_str(),
+               typing.at(expr)->str().c_str());
     throw;
   }
 }

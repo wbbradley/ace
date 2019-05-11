@@ -690,7 +690,7 @@ types::type_t::ref type_vector_type(types::type_t::ref element) {
 }
 
 types::type_t::ref type_string(location_t location) {
-  return type_vector_type(type_id(identifier_t{CHAR_TYPE, location}));
+  return type_id(identifier_t{STRING_TYPE, location});
 }
 
 types::type_t::ref type_int(location_t location) {

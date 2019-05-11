@@ -316,9 +316,9 @@ expr_t *ctor_predicate_t::translate(
 
   types::type_t::ref resolved_scrutinee_type = scrutinee_type->eval(type_env);
 
-  debug_above(4, log("scrutinee type %s resolved to %s",
-                     scrutinee_type->str().c_str(),
-                     resolved_scrutinee_type->str().c_str()));
+  log_location(get_location(), "scrutinee type %s resolved to %s",
+               scrutinee_type->str().c_str(),
+               resolved_scrutinee_type->str().c_str());
 
   if (!type_equality(resolved_scrutinee_type, scrutinee_type)) {
     /* we found a newtype? */
@@ -364,18 +364,19 @@ expr_t *ctor_predicate_t::translate(
 
     bool truthy_returns = false;
     bool falsey_returns = false;
-    auto cond = new conditional_t(
-        condition,
-        (params.size() != 0)
-            ? translate_next(for_defn_id, scrutinee_id, scrutinee_type,
-                             ctor_terms, do_checks, bound_vars, params, 0,
-                             1 /*dim_offset*/, type_env, tenv, typing,
-                             needed_defns, truthy_returns, matched, failed)
-            : matched(bound_vars, type_env, tenv, typing, needed_defns,
-                      truthy_returns),
-        failed(bound_vars, type_env, tenv, typing, needed_defns,
-               falsey_returns));
-    typing[cond] = type_unit(INTERNAL_LOC());
+    auto match_body = (params.size() != 0)
+                          ? translate_next(
+                                for_defn_id, scrutinee_id, scrutinee_type,
+                                ctor_terms, do_checks, bound_vars, params, 0,
+                                1 /*dim_offset*/, type_env, tenv, typing,
+                                needed_defns, truthy_returns, matched, failed)
+                          : matched(bound_vars, type_env, tenv, typing,
+                                    needed_defns, truthy_returns);
+    auto cond = new conditional_t(condition, match_body,
+                                  failed(bound_vars, type_env, tenv, typing,
+                                         needed_defns, falsey_returns));
+    assert(typing.count(match_body) != 0);
+    typing[cond] = typing.at(match_body);
     assert(!returns);
     returns = returns || (truthy_returns && falsey_returns);
     return cond;
@@ -444,5 +445,9 @@ expr_t *irrefutable_predicate_t::translate(
     bool &returns,
     translate_continuation_t &matched,
     translate_continuation_t &) const {
+  log_location(get_location(),
+               "matched irrefutable predicate for %s. scrutinee_id = %s :: %s",
+               for_defn_id.str().c_str(), scrutinee_id.str().c_str(),
+               scrutinee_type->str().c_str());
   return matched(bound_vars, type_env, tenv, typing, needed_defns, returns);
 }

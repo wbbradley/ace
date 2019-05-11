@@ -31,8 +31,7 @@ expr_t *texpr(const defn_id_t &for_defn_id,
             type_operator(type_id(make_iid(PTR_TYPE_OPERATOR)),
                           type_id(make_iid(CHAR_TYPE))),
             type_int(INTERNAL_LOC()),
-            type_operator(type_id(make_iid(VECTOR_TYPE)),
-                          type_id(make_iid(CHAR_TYPE))),
+            type_string(literal->token.location),
         };
         auto vector_ctor_type = type_arrows(string_ref_terms);
         auto ctor_var = new var_t(vector_ctor);

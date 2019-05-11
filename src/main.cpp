@@ -109,7 +109,7 @@ const types::scheme_t::map &get_builtins() {
     auto Float = type_id(make_iid(FLOAT_TYPE));
     auto Bool = type_id(make_iid(BOOL_TYPE));
     auto Char = type_id(make_iid(CHAR_TYPE));
-    auto String = type_operator(type_id(make_iid(VECTOR_TYPE)), Char);
+    auto String = type_id(make_iid(STRING_TYPE));
     auto PtrToChar = type_operator(type_id(make_iid(PTR_TYPE_OPERATOR)), Char);
     auto tv_a = type_variable(make_iid("a"));
     auto tp_a = type_ptr(tv_a);
@@ -156,7 +156,7 @@ const types::scheme_t::map &get_builtins() {
                                               type_arrows({Int, Float}));
     (*map)["__builtin_negate_float"] = scheme({}, {},
                                               type_arrows({Float, Float}));
-    (*map)["__builtin_add_ptr"] = scheme({"a"}, {},
+    (*map)["__builtin_ptr_add"] = scheme({"a"}, {},
                                          type_arrows({tp_a, Int, tp_a}));
     (*map)["__builtin_ptr_eq"] = scheme({"a"}, {},
                                         type_arrows({tp_a, tp_a, Bool}));
@@ -198,6 +198,12 @@ const types::scheme_t::map &get_builtins() {
                                           type_arrows({Float, Float, Bool}));
     (*map)["__builtin_float_gte"] = scheme({}, {},
                                            type_arrows({Float, Float, Bool}));
+    (*map)["__builtin_memcpy"] = scheme(
+        {}, {}, type_arrows({PtrToChar, PtrToChar, Int, type_unit(INTERNAL_LOC())}));
+    (*map)["__builtin_memcmp"] = scheme(
+        {}, {}, type_arrows({PtrToChar, PtrToChar, Int, Int}));
+    (*map)["__builtin_write"] = scheme(
+        {}, {}, type_arrows({Int, PtrToChar, Int, Int}));
     (*map)["__builtin_print"] = scheme(
         {}, {}, type_arrows({PtrToChar, type_unit(INTERNAL_LOC())}));
     (*map)["__builtin_print_int"] = scheme(
@@ -387,10 +393,8 @@ void check_instance_for_type_class_overload(
 
       /* keep track of any instance requirements that were referenced inside the
        * implementation of the type class instance components */
-      if (local_env.instance_requirements.size() != 0) {
-        for (auto ir : local_env.instance_requirements) {
-          env.instance_requirements.push_back(ir);
-        }
+      for (auto ir : local_env.instance_requirements) {
+        env.instance_requirements.push_back(ir);
       }
 
       env.map[instance_decl_id.name] = expected_scheme;

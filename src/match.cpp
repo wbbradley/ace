@@ -359,6 +359,8 @@ Pattern::ref from_type(location_t location,
     return std::make_shared<CtorPattern>(location, cpv);
   } else if (type_equality(type, type_int(INTERNAL_LOC()))) {
     return allIntegers;
+  } else if (unify(type, type_ptr(type_variable(location))).result) {
+    return all_of(location, {}, tenv, type);
   } else {
     auto ctors_terms = tenv.get_data_ctors_terms(type);
     std::vector<CtorPatternValue> cpvs;
