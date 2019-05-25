@@ -660,6 +660,7 @@ bool zion_lexer_t::_get_tokens() {
       break;
     case gts_single_quoted_escape:
       gts = gts_single_quoted_got_char;
+      token_text.reset();
       switch (ch) {
       case 'a':
         token_text.append('\a');
@@ -713,6 +714,8 @@ bool zion_lexer_t::_get_tokens() {
       if (ch != '\'') {
         gts = gts_error;
       } else {
+        m_is.get(ch);
+        scan_ahead = false;
         tk = tk_char;
         gts = gts_end;
       }

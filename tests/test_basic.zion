@@ -1,8 +1,7 @@
 
 fn main() {
-    var f = "" as String
-    f = !f + "h"
-    print(len("a" + "b"))
+    var f = concat("", "hi")
+    print(len(concat("a", "b")))
     assert(2 == len(!f))
     assert(!f == "hi")
     print("PASS")

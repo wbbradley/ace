@@ -152,27 +152,21 @@ instance Eq String {
     fn !=(a, b) => not (a == b)
 }
 
-class Addition a {
-    fn +(a, a) a
-}
-
-instance Addition String {
-    fn +(a, b) {
-        match a {
-            String((xs, xlen)) {
-                match b {
-                    String((ys, ylen)) {
-                        zlen := xlen + ylen
-                        if xlen == 0 {
-                            return b
-                        } else if ylen == 0 {
-                            return a
-                        } else {
-                            zs := __builtin_calloc(zlen) as *Char
-                            __builtin_memcpy(zs, xs, xlen)
-                            __builtin_memcpy(__builtin_ptr_add(zs, xlen), ys, ylen)
-                            return String((zs, zlen))
-                        }
+fn concat(a, b) {
+    match a {
+        String((xs, xlen)) {
+            match b {
+                String((ys, ylen)) {
+                    zlen := xlen + ylen
+                    if xlen == 0 {
+                        return b
+                    } else if ylen == 0 {
+                        return a
+                    } else {
+                        zs := __builtin_calloc(zlen) as *Char
+                        __builtin_memcpy(zs, xs, xlen)
+                        __builtin_memcpy(__builtin_ptr_add(zs, xlen), ys, ylen)
+                        return String((zs, zlen))
                     }
                 }
             }
@@ -196,8 +190,8 @@ instance FromStringLiteral String {
 
 class Num a {
     has Eq
-    has Addition
     fn from_int(Int) a
+    fn +(a, a) a
     fn *(a, a) a
     fn -(a, a) a
     fn /(a, a) a
@@ -275,27 +269,21 @@ instance Ord Float {
     }
 }
 
-instance Addition Int {
-    fn +(a, b) => __builtin_add_int(a, b)
-}
-
 instance Num Int {
     from_int = id
-    fn *(a, b) => __builtin_multiply_int(a, b)
+    fn +(a, b) => __builtin_add_int(a, b)
     fn -(a, b) => __builtin_subtract_int(a, b)
+    fn *(a, b) => __builtin_multiply_int(a, b)
     fn /(a, b) => __builtin_divide_int(a, b)
     fn negate(a) => __builtin_negate_int(a)
     fn abs(a) => __builtin_abs_int(a)
 }
 
-instance Addition Char {
-    fn +(a, b) => __builtin_add_char(a, b)
-}
-
 instance Num Char {
     fn from_int(a) => __builtin_int_to_char(a)
-    fn *(a, b) => __builtin_multiply_char(a, b)
+    fn +(a, b) => __builtin_add_char(a, b)
     fn -(a, b) => __builtin_subtract_char(a, b)
+    fn *(a, b) => __builtin_multiply_char(a, b)
     fn /(a, b) => __builtin_divide_char(a, b)
     fn negate(a) => __builtin_negate_char(a)
     fn abs(a) => __builtin_abs_char(a)
@@ -306,14 +294,11 @@ instance Bounded Int {
     fn max_bound() => __builtin_max_int
 }
 
-instance Addition Float {
-    fn +(a, b) => __builtin_add_float(a, b)
-}
-
 instance Num Float {
     fn from_int(a) => __builtin_int_to_float(a)
-    fn *(a, b) => __builtin_multiply_float(a, b)
+    fn +(a, b) => __builtin_add_float(a, b)
     fn -(a, b) => __builtin_subtract_float(a, b)
+    fn *(a, b) => __builtin_multiply_float(a, b)
     fn /(a, b) => __builtin_divide_float(a, b)
     fn negate(a) => __builtin_negate_float(a)
     fn abs(a) => __builtin_abs_float(a)
@@ -328,7 +313,7 @@ instance Show Maybe a {
     fn str(ma) {
         match ma {
             Just(a) {
-                return "Just(" + str(a) + ")"
+                return concat(concat("Just(", str(a)), ")")
             }
             Nothing {
                 return "Nothing"
@@ -502,10 +487,16 @@ fn panic(x) {
     __builtin_exit(1)
 }
 
-fn concat(xs [a], ys [a]) {
-    # resize(xs, len(xs) + len(ys))
-    for y in ys {
-        append(xs, y)
+class MutatingConcat a {
+    fn mutating_concat(a, a) ()
+}
+
+instance MutatingConcat [a] {
+    fn mutating_concat(xs [a], ys [a]) {
+        # resize(xs, len(xs) + len(ys))
+        for y in ys {
+            append(xs, y)
+        }
     }
 }
 

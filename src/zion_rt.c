@@ -20,7 +20,7 @@ void *zion_print_int64(int64_t x) {
 }
 
 int zion_write_char(int64_t fd, char x) {
-  char sz[2] = {x, 0};
+  char sz[] = {x};
   return write(fd, sz, 1);
 }
 

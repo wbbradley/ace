@@ -855,7 +855,8 @@ resolution_status_t gen_literal(std::string name,
   if (type_equality(type, type_id(make_iid(CHAR_TYPE)))) {
     assert(!(literal->token.text[1] & 0x80));
     if (publisher != nullptr) {
-      publisher->publish(builder.getInt8(literal->token.text[1]));
+      assert(literal->token.text.size() == 1);
+      publisher->publish(builder.getInt8(literal->token.text[0]));
     }
     return rs_resolve_again;
   } else if (type_equality(type, type_id(make_iid(INT_TYPE)))) {

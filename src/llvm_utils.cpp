@@ -355,7 +355,7 @@ void llvm_verify_module(llvm::Module &llvm_module) {
                      llvm_module.getName().str().c_str(), ss.str().c_str(),
                      llvm_print_module(llvm_module).c_str());
   }
-  std::cerr << ss.str() << std::endl;
+  // std::cerr << ss.str() << std::endl;
 }
 
 llvm::Constant *llvm_sizeof_type(llvm::IRBuilder<> &builder,
