@@ -170,11 +170,11 @@ llvm::Value *maybe_get_env_var(const gen_env_t &gen_env,
     } else {
       /* no symbol goes by that type in these parts, mister */
       if (iter_id->second.size() != 0) {
-        log("we couldn't find %s :: %s in the env, but we did find %s :: %s",
-            id.name.c_str(),
-            type->str().c_str(),
-            id.name.c_str(),
-            iter_id->second.begin()->first->str().c_str());
+        debug_above(4,
+                    log("we couldn't find %s :: %s in the env, but we did find "
+                        "%s :: %s",
+                        id.name.c_str(), type->str().c_str(), id.name.c_str(),
+                        iter_id->second.begin()->first->str().c_str()));
       }
       return nullptr;
     }
@@ -477,6 +477,22 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
     auto llvm_write_func_decl = llvm::cast<llvm::Function>(
         llvm_module->getOrInsertFunction(
             "write",
+            llvm::FunctionType::get(builder.getInt64Ty(),
+                                    llvm::ArrayRef<llvm::Type *>(write_terms),
+                                    false /*isVarArg*/)));
+    return builder.CreateCall(llvm_write_func_decl, params);
+  } else if (name == "__builtin_write_char") {
+    /* scheme({}, {}, type_arrows({Int, Char, Int, Int})) */
+    auto llvm_module = llvm_get_module(builder);
+    llvm::Type *write_terms[] = {builder.getInt64Ty(),
+                                 builder.getInt8Ty()};
+
+    assert(params.size() == 2);
+
+    // libc dependency
+    auto llvm_write_func_decl = llvm::cast<llvm::Function>(
+        llvm_module->getOrInsertFunction(
+            "zion_write_char",
             llvm::FunctionType::get(builder.getInt64Ty(),
                                     llvm::ArrayRef<llvm::Type *>(write_terms),
                                     false /*isVarArg*/)));
@@ -1198,8 +1214,7 @@ resolution_status_t gen(std::string name,
   } catch (user_error &e) {
     assert(typing.count(expr) != 0);
     e.add_info(expr->get_location(), "while in gen phase for %s :: %s",
-               expr->str().c_str(),
-               typing.at(expr)->str().c_str());
+               expr->str().c_str(), typing.at(expr)->str().c_str());
     throw;
   }
 }

@@ -74,7 +74,7 @@ types::type_t::ref infer_core(expr_t *expr,
         {} /*map*/,    nullptr /*return_type*/, {} /*instance_requirements*/,
         tracked_types, env.ctor_id_map,         env.data_ctors_map};
 
-    auto bindings = solver({}, local_constraints, local_env);
+    auto bindings = solver(local_constraints, local_env);
     auto schema = scheme({}, {}, t1);
     for (auto pair : *tracked_types) {
       env.track(pair.first, pair.second);
@@ -223,7 +223,7 @@ types::type_t::ref literal_t::non_tracking_infer() const {
   case tk_float:
     return type_id(identifier_t{FLOAT_TYPE, token.location});
   case tk_string:
-    return type_string(token.location);
+    return type_ptr(type_id(identifier_t{CHAR_TYPE, token.location}));
   case tk_char:
     return type_id(identifier_t{CHAR_TYPE, token.location});
   default:
@@ -286,8 +286,9 @@ std::string constraint_info_t::str() const {
   return string_format("%s at %s", reason.c_str(), location.str().c_str());
 }
 
-constraint_t constraint_t::rebind(const types::type_t::map &env) const {
-  return {a->rebind(env), b->rebind(env), info};
+void constraint_t::rebind(const types::type_t::map &env) {
+  a = a->rebind(env);
+  b = b->rebind(env);
 }
 
 std::string constraint_t::str() const {

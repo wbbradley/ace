@@ -21,7 +21,7 @@ namespace types {
 struct type_t;
 
 typedef std::map<std::string, int> name_index_t;
-typedef std::map<std::string, std::set<std::string>> predicate_map;
+typedef std::map<std::string, std::set<std::string>> predicate_map_t;
 typedef std::map<std::string, std::shared_ptr<const type_t>> type_env_t;
 
 struct signature;
@@ -45,10 +45,10 @@ struct type_t : public std::enable_shared_from_this<type_t> {
   virtual int ftv_count() const = 0;
 
   /* NB: Also assumes you have rebound the bindings at the callsite. */
-  virtual predicate_map get_predicate_map() const = 0;
+  virtual predicate_map_t get_predicate_map() const = 0;
 
   virtual type_t::ref eval(const type_env_t &type_env) const = 0;
-  std::shared_ptr<scheme_t> generalize(const types::predicate_map &pm) const;
+  std::shared_ptr<scheme_t> generalize(const types::predicate_map_t &pm) const;
   std::string repr(const map &bindings) const;
   std::string repr() const {
     return this->repr({});
@@ -92,7 +92,7 @@ struct type_variable_t final : public type_t {
                      const map &bindings,
                      int parent_precedence) const override;
   int ftv_count() const override;
-  predicate_map get_predicate_map() const override;
+  predicate_map_t get_predicate_map() const override;
   type_t::ref eval(const type_env_t &type_env) const override;
   type_t::ref rebind(const map &bindings) const override;
   type_t::ref remap_vars(
@@ -110,7 +110,7 @@ struct type_id_t final : public type_t {
                      const map &bindings,
                      int parent_precedence) const override;
   int ftv_count() const override;
-  predicate_map get_predicate_map() const override;
+  predicate_map_t get_predicate_map() const override;
   type_t::ref eval(const type_env_t &type_env) const override;
   type_t::ref rebind(const map &bindings) const override;
   type_t::ref remap_vars(
@@ -135,7 +135,7 @@ struct type_operator_t final : public type_t {
                      const map &bindings,
                      int parent_precedence) const override;
   int ftv_count() const override;
-  predicate_map get_predicate_map() const override;
+  predicate_map_t get_predicate_map() const override;
   type_t::ref eval(const type_env_t &type_env) const override;
   type_t::ref rebind(const map &bindings) const override;
   type_t::ref remap_vars(
@@ -154,7 +154,7 @@ struct type_tuple_t final : public type_t {
                      const map &bindings,
                      int parent_precedence) const override;
   int ftv_count() const override;
-  predicate_map get_predicate_map() const override;
+  predicate_map_t get_predicate_map() const override;
   type_t::ref eval(const type_env_t &type_env) const override;
   type_t::ref rebind(const map &bindings) const override;
   type_t::ref remap_vars(
@@ -178,7 +178,7 @@ struct type_lambda_t final : public type_t {
                      const map &bindings,
                      int parent_precedence) const override;
   int ftv_count() const override;
-  predicate_map get_predicate_map() const override;
+  predicate_map_t get_predicate_map() const override;
   type_t::ref eval(const type_env_t &type_env) const override;
   type_t::ref rebind(const map &bindings) const override;
   type_t::ref remap_vars(
@@ -195,7 +195,7 @@ struct scheme_t final : public std::enable_shared_from_this<scheme_t> {
   typedef std::map<std::string, ref> map;
 
   scheme_t(std::vector<std::string> vars,
-           const predicate_map &predicates,
+           const predicate_map_t &predicates,
            types::type_t::ref type)
       : vars(vars), predicates(predicates), type(type) {
   }
@@ -206,13 +206,13 @@ struct scheme_t final : public std::enable_shared_from_this<scheme_t> {
   /* count of the bounded type variables */
   int btvs() const;
 
-  predicate_map get_predicate_map();
+  predicate_map_t get_predicate_map();
   std::string str();
   std::string repr();
   location_t get_location() const;
 
   std::vector<std::string> vars;
-  predicate_map predicates;
+  predicate_map_t predicates;
   types::type_t::ref type;
 };
 
@@ -264,7 +264,7 @@ types::type_t::ref type_operator(types::type_t::ref operator_,
 types::type_t::ref type_operator(const types::type_t::refs &xs);
 types::type_t::ref type_deref(types::type_t::ref type);
 types::scheme_t::ref scheme(std::vector<std::string> vars,
-                            const types::predicate_map &predicates,
+                            const types::predicate_map_t &predicates,
                             types::type_t::ref type);
 types::type_tuple_t::ref type_tuple(types::type_t::refs dimensions);
 types::type_t::ref type_ptr(types::type_t::ref raw);
@@ -276,7 +276,7 @@ types::type_t::ref type_tuple_accessor(int i,
 
 std::string str(types::type_t::refs refs);
 std::string str(const types::type_t::map &coll);
-std::string str(const types::predicate_map &pm);
+std::string str(const types::predicate_map_t &pm);
 std::string str(const data_ctors_map_t &data_ctors_map);
 std::ostream &operator<<(std::ostream &out, const types::type_t::ref &type);
 bool operator<(const types::type_t::ref &lhs, const types::type_t::ref &rhs);
@@ -288,13 +288,13 @@ void unfold_binops_rassoc(std::string id,
                           types::type_t::ref t,
                           types::type_t::refs &unfolding);
 void unfold_ops_lassoc(types::type_t::ref t, types::type_t::refs &unfolding);
-void mutating_merge(const types::predicate_map::value_type &pair,
-                    types::predicate_map &c);
-void mutating_merge(const types::predicate_map &a, types::predicate_map &c);
-types::predicate_map merge(const types::predicate_map &a,
-                           const types::predicate_map &b);
-types::predicate_map safe_merge(const types::predicate_map &a,
-                                const types::predicate_map &b);
+void mutating_merge(const types::predicate_map_t::value_type &pair,
+                    types::predicate_map_t &c);
+void mutating_merge(const types::predicate_map_t &a, types::predicate_map_t &c);
+types::predicate_map_t merge(const types::predicate_map_t &a,
+                             const types::predicate_map_t &b);
+types::predicate_map_t safe_merge(const types::predicate_map_t &a,
+                                  const types::predicate_map_t &b);
 
 std::ostream &join_dimensions(std::ostream &os,
                               const types::type_t::refs &dimensions,

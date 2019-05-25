@@ -1,6 +1,7 @@
 #include "defn_id.h"
 
 #include "types.h"
+#include "user_error.h"
 
 location_t defn_id_t::get_location() const {
   return id.location;
@@ -11,9 +12,16 @@ std::string defn_id_t::str() const {
 }
 
 defn_id_t defn_id_t::unitize() const {
-  assert(scheme->btvs() == 0);
-  return {id,
-          types::unitize(scheme->instantiate(INTERNAL_LOC()))->generalize({})};
+  auto defn_id = defn_id_t{
+      id, types::unitize(scheme->instantiate(INTERNAL_LOC()))->generalize({})};
+
+  if (scheme->btvs() != 0) {
+    throw user_error(scheme->get_location(),
+                     "(%s) attempt to unitize a scheme %s with class constraints",
+                     defn_id.str().c_str(),
+                     scheme->str().c_str());
+  }
+  return std::move(defn_id);
 }
 
 std::string defn_id_t::repr() const {

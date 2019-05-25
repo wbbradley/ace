@@ -1,7 +1,8 @@
 
 fn main() {
-    var f = ""
+    var f = "" as String
     f = !f + "h"
+    print(len("a" + "b"))
     assert(2 == len(!f))
     assert(!f == "hi")
     print("PASS")

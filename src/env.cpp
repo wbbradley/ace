@@ -27,8 +27,15 @@ types::type_t::ref env_t::lookup_env(identifier_t id) const {
   if (type != nullptr) {
     return type;
   }
-  throw user_error(id.location, "unbound variable " C_ID "%s" C_RESET,
-                   id.name.c_str());
+  auto error = user_error(id.location, "unbound variable " C_ID "%s" C_RESET,
+                          id.name.c_str());
+  /*
+  for (auto pair : map) {
+    error.add_info(pair.second->get_location(), "env includes %s :: %s",
+                   pair.first.c_str(), pair.second->str().c_str());
+  }
+  */
+  throw error;
 }
 
 void env_t::rebind(const types::type_t::map &bindings) {
@@ -100,12 +107,12 @@ void env_t::extend(identifier_t id,
                      scheme->str().c_str()));
 }
 
-types::predicate_map env_t::get_predicate_map() const {
-  types::predicate_map predicate_map;
+types::predicate_map_t env_t::get_predicate_map() const {
+  types::predicate_map_t predicates;
   for (auto pair : map) {
-    mutating_merge(pair.second->get_predicate_map(), predicate_map);
+    mutating_merge(pair.second->get_predicate_map(), predicates);
   }
-  return predicate_map;
+  return predicates;
 }
 
 std::string str(const types::scheme_t::map &m) {

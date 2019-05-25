@@ -77,7 +77,7 @@ void check(identifier_t id, expr_t *expr, env_t &env) {
   // std::cout << C_ID "------------------------------" C_RESET << std::endl;
   // log("type checking %s", id.str().c_str());
   types::type_t::ref ty = infer(expr, env, constraints);
-  auto bindings = solver({}, constraints, env);
+  types::type_t::map bindings = solver(constraints, env);
 
   // log("GOT ty = %s", ty->str().c_str());
   ty = ty->rebind(bindings);
@@ -199,11 +199,14 @@ const types::scheme_t::map &get_builtins() {
     (*map)["__builtin_float_gte"] = scheme({}, {},
                                            type_arrows({Float, Float, Bool}));
     (*map)["__builtin_memcpy"] = scheme(
-        {}, {}, type_arrows({PtrToChar, PtrToChar, Int, type_unit(INTERNAL_LOC())}));
+        {}, {},
+        type_arrows({PtrToChar, PtrToChar, Int, type_unit(INTERNAL_LOC())}));
     (*map)["__builtin_memcmp"] = scheme(
         {}, {}, type_arrows({PtrToChar, PtrToChar, Int, Int}));
-    (*map)["__builtin_write"] = scheme(
-        {}, {}, type_arrows({Int, PtrToChar, Int, Int}));
+    (*map)["__builtin_write"] = scheme({}, {},
+                                       type_arrows({Int, PtrToChar, Int, Int}));
+    (*map)["__builtin_write_char"] = scheme({}, {},
+                                            type_arrows({Int, Char, Int}));
     (*map)["__builtin_print"] = scheme(
         {}, {}, type_arrows({PtrToChar, type_unit(INTERNAL_LOC())}));
     (*map)["__builtin_print_int"] = scheme(
@@ -360,13 +363,13 @@ void check_instance_for_type_class_overload(
 
       env_t local_env{env};
       local_env.instance_requirements.resize(0);
-      auto instance_decl_id = make_instance_decl_id(type_class->id.name,
-                                                    instance, decl->var);
-      auto expected_scheme = type->rebind(subst)->generalize(
+      identifier_t instance_decl_id = make_instance_decl_id(
+          type_class->id.name, instance, decl->var);
+      types::scheme_t::ref expected_scheme = type->rebind(subst)->generalize(
           local_env.get_predicate_map());
 
-      auto instance_decl_expr = new as_t(decl->value, expected_scheme,
-                                         false /*force_cast*/);
+      expr_t *instance_decl_expr = new as_t(decl->value, expected_scheme,
+                                            false /*force_cast*/);
       check(instance_decl_id, instance_decl_expr, local_env);
       debug_above(
           5,
@@ -458,8 +461,12 @@ std::vector<decl_t *> check_instances(
 
   for (instance_t *instance : instances) {
     try {
-      auto iter = type_class_map.find(instance->type_class_id.name);
-      if (iter == type_class_map.end()) {
+      type_class_t *type_class = get(type_class_map,
+                                     instance->type_class_id.name,
+                                     static_cast<type_class_t *>(nullptr));
+
+      if (type_class == nullptr) {
+        /* Error Handling */
         auto error = user_error(instance->type_class_id.location,
                                 "could not find type class for instance %s %s",
                                 instance->type_class_id.str().c_str(),
@@ -477,8 +484,6 @@ std::vector<decl_t *> check_instances(
 
       /* first put an instance requirement on any superclasses of the associated
        * type_class */
-      type_class_t *type_class = iter->second;
-
       check_instance_for_type_class_overloads(
           instance, type_class, instance_decls, overrides_map, env);
 
@@ -804,6 +809,8 @@ void specialize_core(const types::type_env_t &type_env,
               {} /*tracked_types*/,
               ctor_id_map,
               data_ctors_map};
+    // TODO: clean this up. it is ugly. we're accessing the base class
+    // translation_env_t's tracked_types
     auto tracked_types = std::make_shared<tracked_types_t>();
     env.tracked_types = tracked_types;
 
@@ -815,9 +822,7 @@ void specialize_core(const types::type_env_t &type_env,
     }
 
     expr_t *to_check = decl_to_check->value;
-    // TODO: find a cleaner way to structure this function so that we don't have
-    // to use this stateful variable "final_name".
-    std::string final_name = defn_id.id.name;
+    const std::string final_name = defn_id.id.name;
 
     /* wrap this expr in it's asserted type to ensure that it monomorphizes */
     // TODO: check that this is necessary
@@ -825,13 +830,23 @@ void specialize_core(const types::type_env_t &type_env,
     check(identifier_t{defn_id.repr_public(), defn_id.id.location}, as_defn,
           env);
 
+    if (debug_compiled_env) {
+      for (auto pair : *tracked_types) {
+        log_location(pair.first->get_location(), "%s :: %s",
+                     pair.first->str().c_str(), pair.second->str().c_str());
+      }
+    }
+
+    // TODO: this may be the right spot to look through the tracked_types and
+    // determine how to rebind any type variables with btvs > 0 so that we can
+    // resolve instance defaults... we'll need to check to ensure that we are
+    // properly adding to needed_defns
 #if 0
-        if (debug_compiled_env) {
-            for (auto pair : *tracked_types) {
-                log_location(pair.first->get_location(), "%s :: %s",
-                             pair.first->str().c_str(), pair.second->str().c_str());
-            }
-        }
+    for (auto pair : tracked_types) {
+      const bitter::expr_t *expr;
+      types::type_t::ref type;
+      std::tie(std::ref(expr), std::ref(type)) = pair;
+    }
 #endif
 
     translation_env_t tenv{tracked_types, ctor_id_map, data_ctors_map};

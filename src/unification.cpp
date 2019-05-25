@@ -159,29 +159,29 @@ unification_t unify(type_t::ref a, type_t::ref b) {
       {}};
 }
 
-types::type_t::map solver(const types::type_t::map &bindings,
-                          const constraints_t &constraints,
-                          env_t &env) {
-  if (constraints.size() == 0) {
-    return bindings;
-  }
-
-  unification_t unification = unify(constraints[0].a, constraints[0].b);
-  if (unification.result) {
-    auto new_bindings = compose(unification.bindings, bindings);
-    for (auto &instance_requirement : unification.instance_requirements) {
-      env.add_instance_requirement(instance_requirement);
+types::type_t::map solver(constraints_t &constraints, env_t &env) {
+  types::type_t::map bindings;
+  for (auto iter = constraints.begin(); iter != constraints.end(); ) {
+    unification_t unification = unify(iter->a, iter->b);
+    if (unification.result) {
+      auto new_bindings = compose(unification.bindings, bindings);
+      for (auto &instance_requirement : unification.instance_requirements) {
+        env.add_instance_requirement(instance_requirement);
+      }
+      env.rebind(new_bindings);
+      std::swap(bindings, new_bindings);
+      ++iter;
+      rebind_constraints(iter, constraints.end(), bindings);
+      continue;
+    } else {
+      auto error = user_error(unification.error_location, "%s",
+                              unification.error_string.c_str());
+      error.add_info(iter->info.location, "while checking that %s",
+                     iter->info.reason.c_str());
+      throw error;
     }
-    env.rebind(new_bindings);
-    return solver(new_bindings, rebind_constraints(constraints, new_bindings),
-                  env);
-  } else {
-    auto error = user_error(unification.error_location, "%s",
-                            unification.error_string.c_str());
-    error.add_info(constraints[0].info.location, "while checking that %s",
-                   constraints[0].info.reason.c_str());
-    throw error;
   }
+  return bindings;
 }
 
 types::type_t::map compose(const types::type_t::map &a,
@@ -250,15 +250,12 @@ std::vector<type_t::ref> rebind_tails(const std::vector<type_t::ref> &types,
   return new_types;
 }
 
-constraints_t rebind_constraints(const constraints_t &constraints,
-                                 const type_t::map &bindings) {
-  assert(1 <= constraints.size());
-  constraints_t new_constraints;
-  for (int i = 1; i < constraints.size(); ++i) {
-    auto &constraint = constraints[i];
-    new_constraints.push_back(constraint.rebind(bindings));
+void rebind_constraints(constraints_t::iterator iter,
+                        const constraints_t::iterator &end,
+                        const type_t::map &bindings) {
+  while (iter != end) {
+    (*iter++).rebind(bindings);
   }
-  return new_constraints;
 }
 
 unification_t unify_many(const types::type_t::refs &as,

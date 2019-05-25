@@ -316,9 +316,10 @@ expr_t *ctor_predicate_t::translate(
 
   types::type_t::ref resolved_scrutinee_type = scrutinee_type->eval(type_env);
 
-  log_location(get_location(), "scrutinee type %s resolved to %s",
-               scrutinee_type->str().c_str(),
-               resolved_scrutinee_type->str().c_str());
+  debug_above(4,
+              log_location(get_location(), "scrutinee type %s resolved to %s",
+                           scrutinee_type->str().c_str(),
+                           resolved_scrutinee_type->str().c_str()));
 
   if (!type_equality(resolved_scrutinee_type, scrutinee_type)) {
     /* we found a newtype? */
@@ -445,9 +446,11 @@ expr_t *irrefutable_predicate_t::translate(
     bool &returns,
     translate_continuation_t &matched,
     translate_continuation_t &) const {
-  log_location(get_location(),
-               "matched irrefutable predicate for %s. scrutinee_id = %s :: %s",
-               for_defn_id.str().c_str(), scrutinee_id.str().c_str(),
-               scrutinee_type->str().c_str());
+  debug_above(3, log_location(get_location(),
+                              "matched irrefutable predicate for %s. "
+                              "scrutinee_id = %s :: %s",
+                              for_defn_id.str().c_str(),
+                              scrutinee_id.str().c_str(),
+                              scrutinee_type->str().c_str()));
   return matched(bound_vars, type_env, tenv, typing, needed_defns, returns);
 }

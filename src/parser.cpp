@@ -523,10 +523,20 @@ expr_t *parse_array_literal(parse_state_t &ps) {
 expr_t *parse_literal(parse_state_t &ps) {
   switch (ps.token.tk) {
   case tk_integer:
-  case tk_string:
+    return new literal_t(ps.token_and_advance());
   case tk_char:
   case tk_float:
     return new literal_t(ps.token_and_advance());
+  case tk_string: {
+    auto token = ps.token_and_advance();
+    int string_len = unescape_json_quotes(token.text).size();
+    return new application_t(
+        new var_t(identifier_t{"std.String", token.location}),
+        new tuple_t(token.location,
+                    {new literal_t(token),
+                     new literal_t(token_t{token.location, tk_integer,
+                                           std::to_string(string_len)})}));
+  }
   case tk_lsquare:
     return parse_array_literal(ps);
     // case tk_lcurly:
@@ -651,6 +661,15 @@ expr_t *parse_postfix_expr(parse_state_t &ps) {
   return expr;
 }
 
+expr_t *parse_cast_expr(parse_state_t &ps) {
+  expr_t *expr = parse_postfix_expr(ps);
+  while (!ps.line_broke() && ps.token.is_ident(K(as))) {
+    ps.advance();
+    expr = new as_t(expr, scheme({}, {}, parse_type(ps)), false /*force_cast*/);
+  }
+  return expr;
+}
+
 expr_t *parse_sizeof(parse_state_t &ps) {
   auto location = ps.token.location;
   ps.advance();
@@ -681,7 +700,7 @@ expr_t *parse_prefix_expr(parse_state_t &ps) {
     rhs = parse_prefix_expr(ps);
   } else {
     /* ok, we're done with prefix operators */
-    rhs = parse_postfix_expr(ps);
+    rhs = parse_cast_expr(ps);
   }
 
   if (prefix.valid) {
@@ -1565,7 +1584,8 @@ data_type_decl_t parse_newtype_decl(parse_state_t &ps,
   chomp_token(tk_assign);
   types::type_t::ref rhs_type = parse_type(ps);
 
-  identifier_t param_iid = make_iid(bitter::fresh());
+  identifier_t param_iid = identifier_t{bitter::fresh(),
+                                        rhs_type->get_location()};
   std::vector<decl_t *> decls;
   decls.push_back(new decl_t(
       type_decl.id, new lambda_t(param_iid, rhs_type, type_decl.get_type(),
