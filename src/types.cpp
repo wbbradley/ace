@@ -44,8 +44,8 @@ std::string get_name_from_index(const types::name_index_t &name_index, int i) {
   return name;
 }
 
-void mutating_merge(const types::predicate_map::value_type &pair,
-                    types::predicate_map &c) {
+void mutating_merge(const types::predicate_map_t::value_type &pair,
+                    types::predicate_map_t &c) {
   if (!in(pair.first, c)) {
     c.insert(pair);
   } else {
@@ -54,23 +54,24 @@ void mutating_merge(const types::predicate_map::value_type &pair,
     }
   }
 }
-void mutating_merge(const types::predicate_map &a, types::predicate_map &c) {
+void mutating_merge(const types::predicate_map_t &a,
+                    types::predicate_map_t &c) {
   for (auto pair : a) {
     mutating_merge(pair, c);
   }
 }
 
-types::predicate_map merge(const types::predicate_map &a,
-                           const types::predicate_map &b) {
-  types::predicate_map c;
+types::predicate_map_t merge(const types::predicate_map_t &a,
+                             const types::predicate_map_t &b) {
+  types::predicate_map_t c;
   mutating_merge(a, c);
   mutating_merge(b, c);
   return c;
 }
 
-types::predicate_map safe_merge(const types::predicate_map &a,
-                                const types::predicate_map &b) {
-  types::predicate_map c;
+types::predicate_map_t safe_merge(const types::predicate_map_t &a,
+                                  const types::predicate_map_t &b) {
+  types::predicate_map_t c;
   mutating_merge(a, c);
   for (auto pair : b) {
     assert(!in(pair.first, c));
@@ -100,20 +101,20 @@ std::string type_t::repr(const map &bindings) const {
 }
 
 std::shared_ptr<scheme_t> type_t::generalize(
-    const types::predicate_map &pm) const {
+    const types::predicate_map_t &pm) const {
   std::vector<std::string> vs;
   auto type_ftvs = get_predicate_map();
   // auto env_ftvs = env.get_predicate_map();
-  predicate_map predicate_map;
+  predicate_map_t predicate_map_t;
   type_t::map bindings;
   for (auto ftv : type_ftvs) {
     if (!in(ftv.first, pm)) {
       vs.push_back(ftv.first);
-      mutating_merge(ftv, predicate_map);
+      mutating_merge(ftv, predicate_map_t);
       bindings[ftv.first] = type_variable(make_iid(ftv.first));
     }
   }
-  return scheme(vs, predicate_map, rebind(bindings));
+  return scheme(vs, predicate_map_t, rebind(bindings));
 }
 
 type_t::ref type_t::apply(types::type_t::ref type) const {
@@ -150,7 +151,7 @@ int type_id_t::ftv_count() const {
   return 0;
 }
 
-predicate_map type_id_t::get_predicate_map() const {
+predicate_map_t type_id_t::get_predicate_map() const {
   return {};
 }
 
@@ -219,8 +220,8 @@ int type_variable_t::ftv_count() const {
   return 1;
 }
 
-predicate_map type_variable_t::get_predicate_map() const {
-  predicate_map pm;
+predicate_map_t type_variable_t::get_predicate_map() const {
+  predicate_map_t pm;
   pm[id.name] = predicates;
   return pm;
 }
@@ -284,7 +285,7 @@ int type_operator_t::ftv_count() const {
   return oper->ftv_count() + operand->ftv_count();
 }
 
-predicate_map type_operator_t::get_predicate_map() const {
+predicate_map_t type_operator_t::get_predicate_map() const {
   return merge(oper->get_predicate_map(), operand->get_predicate_map());
 }
 
@@ -294,12 +295,13 @@ type_t::ref type_operator_t::eval(const type_env_t &type_env) const {
   }
 
   auto new_oper = oper->eval(type_env);
-  auto new_operand = operand->eval(type_env);
-  if (new_oper != oper || new_operand != operand) {
-    return ::type_operator(new_oper, new_operand);
-  } else {
-    return shared_from_this();
+  if (new_oper != oper) {
+    auto new_operand = operand->eval(type_env);
+    if (new_operand != operand) {
+      return ::type_operator(new_oper, new_operand);
+    }
   }
+  return shared_from_this();
 }
 
 type_t::ref type_operator_t::rebind(const map &bindings) const {
@@ -352,8 +354,8 @@ int type_tuple_t::ftv_count() const {
   return ftv_sum;
 }
 
-predicate_map type_tuple_t::get_predicate_map() const {
-  predicate_map pm;
+predicate_map_t type_tuple_t::get_predicate_map() const {
+  predicate_map_t pm;
   for (auto dimension : dimensions) {
     mutating_merge(dimension->get_predicate_map(), pm);
   }
@@ -475,7 +477,7 @@ int type_lambda_t::ftv_count() const {
   return body->rebind(bindings)->ftv_count();
 }
 
-predicate_map type_lambda_t::get_predicate_map() const {
+predicate_map_t type_lambda_t::get_predicate_map() const {
   assert(false);
   return {};
 #if 0
@@ -582,7 +584,7 @@ scheme_t::ref scheme_t::rebind(const types::type_t::map &bindings) {
 
 scheme_t::ref scheme_t::normalize() {
   std::map<std::string, std::string> ord;
-  predicate_map pm;
+  predicate_map_t pm;
 
   int counter = 0;
   for (auto ftv : type->get_predicate_map()) {
@@ -621,12 +623,12 @@ int scheme_t::btvs() const {
   return sum;
 }
 
-predicate_map scheme_t::get_predicate_map() {
-  predicate_map predicate_map = type->get_predicate_map();
+predicate_map_t scheme_t::get_predicate_map() {
+  predicate_map_t predicate_map_t = type->get_predicate_map();
   for (auto var : vars) {
-    predicate_map.erase(var);
+    predicate_map_t.erase(var);
   }
-  return predicate_map;
+  return predicate_map_t;
 }
 
 location_t scheme_t::get_location() const {
@@ -636,7 +638,14 @@ location_t scheme_t::get_location() const {
 type_t::ref unitize(type_t::ref type) {
   type_t::map bindings;
   for (auto pair : type->get_predicate_map()) {
-    bindings[pair.first] = type_unit(INTERNAL_LOC());
+    if (pair.second.size() == 1 &&
+        (*pair.second.begin() == "std.FromStringLiteral")) {
+      bindings[pair.first] = type_ptr(type_id(make_iid(CHAR_TYPE)));
+    } else {
+      bindings[pair.first] = type_unit(INTERNAL_LOC());
+    }
+    log("assigning %s binding for [%s] to %s", pair.first.c_str(),
+        join(pair.second).c_str(), bindings.at(pair.first)->str().c_str());
   }
   return type->rebind(bindings);
 }
@@ -720,7 +729,7 @@ types::type_t::ref type_operator(const types::type_t::refs &xs) {
 }
 
 types::scheme_t::ref scheme(std::vector<std::string> vars,
-                            const types::predicate_map &predicates,
+                            const types::predicate_map_t &predicates,
                             types::type_t::ref type) {
   assert(type->str().find("|") == std::string::npos);
   return std::make_shared<types::scheme_t>(vars, predicates, type);
@@ -817,7 +826,7 @@ std::string str(const types::type_t::map &coll) {
   return ss.str();
 }
 
-std::string str(const types::predicate_map &pm) {
+std::string str(const types::predicate_map_t &pm) {
   bool saw_predicate = false;
   std::stringstream ss;
   const char *delim = " [where ";

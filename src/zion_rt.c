@@ -1,6 +1,7 @@
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
+#include <string.h>
 #include <unistd.h>
 
 void *zion_malloc(uint64_t cb) {
@@ -10,14 +11,17 @@ void *zion_malloc(uint64_t cb) {
 }
 
 int zion_strlen(const char *sz) {
-	const char *start = sz;
-	while (*sz++) {}
-	return sz - start;
+	return strlen(sz);
 }
 
 void *zion_print_int64(int64_t x) {
   printf("%lld\n", (long long)x);
   return 0;
+}
+
+int zion_write_char(int64_t fd, char x) {
+  char sz[2] = {x, 0};
+  return write(fd, sz, 1);
 }
 
 char *zion_itoa(int64_t x) {

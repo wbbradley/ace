@@ -1,0 +1,4 @@
+
+fn main() {
+    assert(3 == 3)
+}

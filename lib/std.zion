@@ -41,6 +41,21 @@ instance Show String {
     str = id
 }
 
+instance Show * Char {
+    fn str(a) {
+        return from_string_literal(a)
+    }
+}
+
+fn print(x) () {
+    match str(x) {
+        String((sz, length)) {
+            __builtin_write(1, sz, length)
+            __builtin_write_char(1, '\n')
+        }
+    }
+}
+
 data Ref a {
     Ref(a)
 }
@@ -148,14 +163,34 @@ instance Addition String {
                 match b {
                     String((ys, ylen)) {
                         zlen := xlen + ylen
-                        zs := __builtin_calloc(zlen) as *Char
-                        __builtin_memcpy(zs, xs, xlen)
-                        __builtin_memcpy(__builtin_ptr_add(zs, xlen), ys, ylen)
-                        return String((zs, zlen))
+                        if xlen == 0 {
+                            return b
+                        } else if ylen == 0 {
+                            return a
+                        } else {
+                            zs := __builtin_calloc(zlen) as *Char
+                            __builtin_memcpy(zs, xs, xlen)
+                            __builtin_memcpy(__builtin_ptr_add(zs, xlen), ys, ylen)
+                            return String((zs, zlen))
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+class FromStringLiteral a {
+    fn from_string_literal(*Char) a
+}
+
+instance FromStringLiteral *Char {
+    from_string_literal = id
+}
+
+instance FromStringLiteral String {
+    fn from_string_literal(sz) {
+        return String((sz, __builtin_strlen(sz)))
     }
 }
 
@@ -318,8 +353,6 @@ struct Vector a {
     capacity Ref Int
 }
 
-fn __string_ref(sz *Char, size Int) => String((sz, size))
-
 instance Show Char {
     fn str(ch) {
         ys := __builtin_calloc(1)
@@ -419,6 +452,10 @@ fn append(vec [a], val a) {
         # __builtin_store_ptr(__builtin_ptr_add(!vec.array, 0), val)
     }
 
+    if !vec.capacity <= !vec.size {
+        __builtin_goodbye
+    }
+
     if !vec.capacity == 0 {
         __builtin_hello
         /* TODO: handle constant strings */
@@ -426,6 +463,7 @@ fn append(vec [a], val a) {
 
     __builtin_store_ptr(__builtin_ptr_add(!vec.array, !vec.size), val)
     vec.size = !vec.size + 1
+    assert(!vec.size <= !vec.capacity)
 }
 
 fn reserve(vec [a], cap Int) {
@@ -458,14 +496,6 @@ instance Iterable Vector {
 
 let unit = ()
 fn id(x) => x
-
-fn print(x) {
-    return match str(x) {
-        String((sz, length)) {
-            __builtin_write(1, sz, length)
-        }
-    }
-}
 
 fn panic(x) {
     print(x)

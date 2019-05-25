@@ -12,10 +12,10 @@ struct constraint_info_t {
 };
 
 struct constraint_t {
-  types::type_t::ref const a;
-  types::type_t::ref const b;
-  constraint_info_t const info;
-  constraint_t rebind(const types::type_t::map &env) const;
+  types::type_t::ref a;
+  types::type_t::ref b;
+  constraint_info_t info;
+  void rebind(const types::type_t::map &env);
   std::string str() const;
 };
 typedef std::vector<constraint_t> constraints_t;

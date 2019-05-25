@@ -595,7 +595,6 @@ bool zion_lexer_t::_get_tokens() {
       if (ch == 'e') {
         gts = gts_expon_symbol;
       } else if (ch == '.') {
-        m_token_queue.enqueue({m_filename, line, col}, tk, token_text);
         token_text.reset();
         col = m_col;
         gts = gts_start;
@@ -661,6 +660,54 @@ bool zion_lexer_t::_get_tokens() {
       break;
     case gts_single_quoted_escape:
       gts = gts_single_quoted_got_char;
+      switch (ch) {
+      case 'a':
+        token_text.append('\a');
+        break;
+      case 'b':
+        token_text.append('\b');
+        break;
+      case 'e':
+        token_text.append('\e');
+        break;
+      case 'f':
+        token_text.append('\f');
+        break;
+      case 'n':
+        token_text.append('\n');
+        break;
+      case 'r':
+        token_text.append('\r');
+        break;
+      case 't':
+        token_text.append('\t');
+        break;
+      case 'v':
+        token_text.append('\v');
+        break;
+      case '\\':
+        token_text.append('\\');
+        break;
+      case '\'':
+        token_text.append('\'');
+        break;
+      case '"':
+        token_text.append('"');
+        break;
+      case '?':
+        token_text.append('?');
+        break;
+      case 'x':
+        assert(!!"handle hex-encoded chars");
+        break;
+      default:
+        gts = gts_error;
+        break;
+      }
+      if (gts != gts_error) {
+        scan_ahead = false;
+        m_is.get(ch);
+      }
       break;
     case gts_single_quoted_got_char:
       if (ch != '\'') {
