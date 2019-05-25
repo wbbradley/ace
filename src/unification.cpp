@@ -29,7 +29,7 @@ bool scheme_equality(types::scheme_t::ref a, types::scheme_t::ref b) {
   auto tb = b->instantiate(INTERNAL_LOC());
   auto unification = unify(ta, tb);
   if (!unification.result) {
-    debug_above(3, log_location(unification.error_location,
+    debug_above(9, log_location(unification.error_location,
                                 "schemes %s and %s do not match because %s",
                                 ta->str().c_str(), tb->str().c_str(),
                                 unification.error_string.c_str()));
@@ -166,7 +166,13 @@ types::type_t::map solver(constraints_t &constraints, env_t &env) {
     if (unification.result) {
       auto new_bindings = compose(unification.bindings, bindings);
       for (auto &instance_requirement : unification.instance_requirements) {
-        env.add_instance_requirement(instance_requirement);
+        /* rewrite the instance requirements to use this contraint's location to
+         * get better error messages */
+        env.add_instance_requirement(instance_requirement_t{
+            instance_requirement.type_class_name,
+            iter->info.location,
+            instance_requirement.type,
+        });
       }
       env.rebind(new_bindings);
       std::swap(bindings, new_bindings);

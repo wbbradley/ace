@@ -1,4 +1,0 @@
-module _
-
-fn main()
-	print(args)

@@ -1172,6 +1172,29 @@ int run_job(const job_t &job) {
             .c_str());
     return EXIT_SUCCESS;
   };
+  cmd_map["lex"] = [&](const job_t &job, bool explain) {
+    if (explain) {
+      std::cerr << "lex: lexes Zion into tokens" << std::endl;
+      return EXIT_FAILURE;
+    }
+    if (job.args.size() != 1) {
+      return run_job({"help", {}});
+    }
+
+    std::string filename = compiler::resolve_module_filename(
+        INTERNAL_LOC(), job.args[0], ".zion");
+    std::ifstream ifs;
+    ifs.open(filename.c_str());
+    zion_lexer_t lexer({filename}, ifs);
+    token_t token;
+    bool newline = false;
+    while (lexer.get_token(token, newline, nullptr)) {
+      log_location(token.location, "%s (%s)", token.text.c_str(),
+                   tkstr(token.tk));
+    }
+    return EXIT_SUCCESS;
+  };
+
   cmd_map["parse"] = [&](const job_t &job, bool explain) {
     if (explain) {
       std::cerr << "parse: parses Zion into an intermediate lambda calculus"
@@ -1262,34 +1285,38 @@ int run_job(const job_t &job) {
     }
     llvm::LLVMContext context;
     phase_4_t phase_4 = ssa_gen(context, specialize(compile(job.args[0])));
-    if (std::system(
-            string_format(
-                // We are using clang to lower the code from LLVM, and link it
-                // to the runtime.
-                "clang $ZION_OPT_FLAGS "
-                // NB: we don't embed the target triple into the LL, so any
-                // targeted triple causes an ugly error from clang, so I just
-                // ignore it here.
-                "-Wno-override-module "
-                // TODO: plumb host targeting through clang here
-                "--target=$(llvm-config --host-target) "
-                // TODO: plumb zion_rt.c properly into installation location.
-                // probably something like /usr/share/zion/rt
-                "$HOME/src/zion/src/zion_rt.c "
-                "%s "
-                "-o %s", // 2>$TMPDIR/%s-build.log",
-                phase_4.output_llvm_filename.c_str(),
-                phase_4.phase_3.phase_2.compilation->program_name.c_str(),
-                phase_4.phase_3.phase_2.compilation->program_name.c_str())
-                .c_str()) != 0) {
+    auto command_line = string_format(
+        // We are using clang to lower the code from LLVM, and link it
+        // to the runtime.
+        "clang ${ZION_OPT_FLAGS} "
+        // NB: we don't embed the target triple into the LL, so any
+        // targeted triple causes an ugly error from clang, so I just
+        // ignore it here.
+        "-Wno-override-module "
+        // TODO: plumb host targeting through clang here
+        "--target=$(llvm-config --host-target) "
+        // TODO: plumb zion_rt.c properly into installation location.
+        // probably something like /usr/share/zion/rt
+        "$HOME/src/zion/src/zion_rt.c "
+        "%s "
+        "-o %s",
+        phase_4.output_llvm_filename.c_str(),
+        phase_4.phase_3.phase_2.compilation->program_name.c_str(),
+        phase_4.phase_3.phase_2.compilation->program_name.c_str());
+    if (std::system(command_line.c_str()) != 0) {
       throw user_error(INTERNAL_LOC(), "failed to compile binary");
     }
-    int ret = std::system(
-        string_format("command ./%s %s",
-                      phase_4.phase_3.phase_2.compilation->program_name.c_str(),
-                      "")
-            .c_str());
-    return WEXITSTATUS(ret);
+
+    auto run_command_line = string_format(
+        "./%s %s", phase_4.phase_3.phase_2.compilation->program_name.c_str(),
+        "");
+    int ret = std::system(run_command_line.c_str());
+    if (ret == -1) {
+      std::cerr << "Failed to execute " << run_command_line << std::endl;
+      return EXIT_FAILURE;
+    } else {
+      return WEXITSTATUS(ret);
+    }
   };
 
   if (!in(job.cmd, cmd_map)) {
