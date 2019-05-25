@@ -10,6 +10,8 @@ enum log_level_t {
   log_panic = 8,
 };
 
+struct location_t;
+
 void log_enable(int log_level);
 void logv(log_level_t level, const char *format, va_list args);
 void logv_location(log_level_t level,
