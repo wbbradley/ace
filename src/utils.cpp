@@ -472,49 +472,6 @@ std::string unescape_json_quotes(const std::string &str) {
   return unescape_json_quotes(str.c_str(), str.size());
 }
 
-std::string shell_get_line(std::string command) {
-  /* call a command and return the first line */
-  check_command_line_text(INTERNAL_LOC(), command);
-  FILE *fp = popen(command.c_str(), "r");
-  if (fp == nullptr) {
-    throw user_error(INTERNAL_LOC(), "failed to invoke command %s",
-                     command.c_str());
-  }
-
-  char *linep = nullptr;
-  size_t linecap = 0;
-  auto cb = getline(&linep, &linecap, fp);
-
-  if (cb == -1) {
-    throw user_error(INTERNAL_LOC(), "failed to read output of command %s",
-                     command.c_str());
-  }
-
-  pclose(fp);
-  std::string ret = (linep != nullptr) ? linep : "";
-  free(linep);
-
-  while (ret.size() > 0 && isspace(ret[ret.size() - 1])) {
-    ret = ret.substr(0, ret.size() - 1);
-  }
-  return ret;
-}
-
-std::string get_pkg_config_libs(std::string pkg_name) {
-  std::stringstream ss;
-  ss << "pkg-config " << pkg_name << " --libs";
-  return shell_get_line(ss.str());
-}
-
-void check_command_line_text(location_t location, std::string text) {
-  for (auto ch : "`$%&()|\"'") {
-    if (text.find(ch) != std::string::npos) {
-      throw user_error(location,
-                       "illegal command-line text found in link in statement");
-    }
-  }
-}
-
 std::string alphabetize(int i) {
   assert(i >= 0);
   std::string x;

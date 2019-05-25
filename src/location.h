@@ -1,5 +1,8 @@
 #pragma once
+
 #include <ostream>
+
+#include "utils.h"
 
 #define INTERNAL_LOC()                                                         \
   ::location_t {                                                               \
@@ -9,11 +12,8 @@
 struct location_t {
   template <typename T> location_t(T t) = delete;
 
-  location_t() : line(-1), col(-1) {
-  }
-  location_t(std::string filename, int line, int col)
-      : filename(filename), line(line), col(col) {
-  }
+  location_t();
+  location_t(std::string filename, int line, int col);
 
   std::string str() const;
   std::string repr() const;
@@ -21,8 +21,9 @@ struct location_t {
   std::string filename_repr() const;
 
   std::string filename;
-  int line;
-  int col;
+  int line = -1;
+  int col = -1;
+
   bool has_file_location() const;
   bool operator<(const location_t &rhs) const;
   bool operator==(const location_t &rhs) const;

@@ -9,6 +9,13 @@
 #include "utils.h"
 #include "zion.h"
 
+location_t::location_t() : location_t({}, -1, -1) {
+}
+
+location_t::location_t(std::string filename, int line, int col)
+    : filename(filename), line(line), col(col) {
+}
+
 std::string location_t::filename_repr() const {
   static char *cwd = (char *)calloc(4096, 1);
   static unsigned cwdlen = 0;
