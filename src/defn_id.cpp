@@ -8,7 +8,7 @@ location_t defn_id_t::get_location() const {
 }
 
 std::string defn_id_t::str() const {
-  return C_TEXT + repr() + C_RESET;
+  return C_VAR + repr() + C_RESET;
 }
 
 defn_id_t defn_id_t::unitize() const {

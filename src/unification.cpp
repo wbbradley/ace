@@ -174,7 +174,7 @@ types::type_t::map solver(constraints_t &constraints, env_t &env) {
             instance_requirement.type,
         });
       }
-      env.rebind(new_bindings);
+      env.rebind_env(new_bindings);
       std::swap(bindings, new_bindings);
       ++iter;
       rebind_constraints(iter, constraints.end(), bindings);

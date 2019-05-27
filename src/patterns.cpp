@@ -57,7 +57,8 @@ expr_t *build_patterns(const defn_id_t &for_defn_id,
                 const translation_env_t &tenv, tracked_types_t &typing,
                 needed_defns_t &needed_defns, bool &returns) -> expr_t * {
               return texpr(for_defn_id, pattern_block->result, bound_vars,
-                           type_env, tenv, typing, needed_defns, returns);
+                           tenv.get_type(pattern_block->result), type_env, tenv,
+                           typing, needed_defns, returns);
             },
             [index, &pattern_blocks, &for_defn_id, &scrutinee_id,
              &scrutinee_type, &expected_type](
@@ -132,7 +133,8 @@ expr_t *translate_match_expr(const defn_id_t &for_defn_id,
                      expected_type->str().c_str()));
 
   auto scrutinee_expr = texpr(for_defn_id, match->scrutinee, bound_vars,
-                              type_env, tenv, typing, needed_defns, returns);
+                              tenv.get_type(match->scrutinee), type_env, tenv,
+                              typing, needed_defns, returns);
 
   if (returns) {
     throw user_error(scrutinee_expr->get_location(),

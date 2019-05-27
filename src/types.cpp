@@ -327,7 +327,8 @@ location_t type_operator_t::get_location() const {
   return oper->get_location();
 }
 
-type_tuple_t::type_tuple_t(type_t::refs dimensions) : dimensions(dimensions) {
+type_tuple_t::type_tuple_t(location_t location, const type_t::refs &dimensions)
+    : location(location), dimensions(dimensions) {
 #ifdef ZION_DEBUG
   for (auto dimension : dimensions) {
     assert(dimension != nullptr);
@@ -443,12 +444,9 @@ type_t::ref type_tuple_t::prefix_ids(const std::set<std::string> &bindings,
     return shared_from_this();
   }
 }
+
 location_t type_tuple_t::get_location() const {
-  if (dimensions.size() != 0) {
-    return dimensions[0]->get_location();
-  } else {
-    return INTERNAL_LOC();
-  }
+  return location;
 }
 
 type_lambda_t::type_lambda_t(identifier_t binding, type_t::ref body)
@@ -638,14 +636,11 @@ location_t scheme_t::get_location() const {
 type_t::ref unitize(type_t::ref type) {
   type_t::map bindings;
   for (auto pair : type->get_predicate_map()) {
-    if (pair.second.size() == 1 &&
-        (*pair.second.begin() == "std.FromStringLiteral")) {
-      bindings[pair.first] = type_ptr(type_id(make_iid(CHAR_TYPE)));
-    } else {
-      bindings[pair.first] = type_unit(INTERNAL_LOC());
-    }
-    log("assigning %s binding for [%s] to %s", pair.first.c_str(),
-        join(pair.second).c_str(), bindings.at(pair.first)->str().c_str());
+    bindings[pair.first] = type_unit(INTERNAL_LOC());
+    debug_above(6, log("assigning %s binding for [%s] to %s",
+                       pair.first.c_str(), join(pair.second).c_str(),
+                       bindings.at(pair.first)->str().c_str()));
+    assert(pair.second.size() == 0);
   }
   return type->rebind(bindings);
 }
@@ -680,7 +675,7 @@ types::type_t::ref type_variable(location_t location) {
 }
 
 types::type_t::ref type_unit(location_t location) {
-  return type_tuple({});
+  return std::make_shared<types::type_tuple_t>(location, types::type_t::refs{});
 }
 
 types::type_t::ref type_bottom() {
@@ -731,7 +726,15 @@ types::type_t::ref type_operator(const types::type_t::refs &xs) {
 types::scheme_t::ref scheme(std::vector<std::string> vars,
                             const types::predicate_map_t &predicates,
                             types::type_t::ref type) {
-  assert(type->str().find("|") == std::string::npos);
+#if 0
+  if (type->str().find("|") != std::string::npos) {
+    log_location(type->get_location(),
+                 "found predicates in %s when calling scheme({%s}, {%s}, %s)",
+                 type->str().c_str(), join(vars).c_str(),
+                 str(predicates).c_str(), type->str().c_str());
+    dbg();
+  }
+#endif
   return std::make_shared<types::scheme_t>(vars, predicates, type);
 }
 
@@ -750,7 +753,13 @@ types::type_t::ref type_map(types::type_t::ref a, types::type_t::ref b) {
 }
 
 types::type_tuple_t::ref type_tuple(types::type_t::refs dimensions) {
-  return std::make_shared<types::type_tuple_t>(dimensions);
+  assert(dimensions.size() != 0);
+  return type_tuple(dimensions[0]->get_location(), dimensions);
+}
+
+types::type_tuple_t::ref type_tuple(location_t location,
+                                    types::type_t::refs dimensions) {
+  return std::make_shared<types::type_tuple_t>(location, dimensions);
 }
 
 types::type_t::ref type_arrow(types::type_t::ref a, types::type_t::ref b) {

@@ -223,12 +223,12 @@ void set_env_var(gen_env_t &gen_env,
                  types::type_t::ref type,
                  llvm::Value *llvm_value,
                  bool allow_shadowing) {
-  debug_above(5, log("gen::set_env_var(0x%08llx, %s, %s, %s)",
-                     (unsigned long long)(&gen_env), name.c_str(),
-                     type->str().c_str(), llvm_print(llvm_value).c_str(),
-                     boolstr(allow_shadowing)));
   assert(name.size() != 0);
-  type = types::unitize(type);
+  // type = types::unitize(type);
+  log("gen::set_env_var(0x%08llx, %s, %s, %s)", (unsigned long long)(&gen_env),
+      name.c_str(), type->str().c_str(), llvm_print(llvm_value).c_str(),
+      boolstr(allow_shadowing));
+  assert(type->ftv_count() == 0);
   llvm::Value *existing_value = maybe_get_env_var(gen_env, name, type);
   if (existing_value == nullptr) {
     debug_above(4, log("found no value in the gen_env 0x%08llx for %s :: %s, "

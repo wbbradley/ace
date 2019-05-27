@@ -92,6 +92,7 @@ foreach(test
 	   	test_basic
 	   	test_pass
 	   	test_strings
+	   	test_inferred_return_type
 	   	test_match_int
 	   	test_newtype
 	   	test_newtype_tuple)

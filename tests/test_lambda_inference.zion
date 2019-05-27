@@ -1,0 +1,14 @@
+class Getter a {
+    fn getter() a
+}
+
+instance Getter Int {
+    fn getter() => 1
+}
+
+fn main() {
+    x := getter() 
+    if x == 1 {
+        print("PASS")
+    }
+}

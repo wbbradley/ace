@@ -8,9 +8,8 @@
 
 struct translation_t {
   typedef std::shared_ptr<translation_t> ref;
-  translation_t(const bitter::expr_t *expr, const tracked_types_t &typing)
-      : expr(expr), typing(typing) {
-  }
+
+  translation_t(const bitter::expr_t *expr, const tracked_types_t &typing);
 
   const bitter::expr_t *const expr;
   tracked_types_t const typing;
@@ -40,16 +39,18 @@ struct translation_env_t {
   int get_ctor_id(std::string ctor_name) const;
 };
 
-translation_t::ref translate(const defn_id_t &for_defn_id,
-                             bitter::expr_t *expr,
-                             const std::unordered_set<std::string> &bound_vars,
-                             const types::type_env_t &type_env,
-                             const translation_env_t &tenv,
-                             needed_defns_t &needed_defns,
-                             bool &returns);
+translation_t::ref translate_expr(
+    const defn_id_t &for_defn_id,
+    bitter::expr_t *expr,
+    const std::unordered_set<std::string> &bound_vars,
+    const types::type_env_t &type_env,
+    const translation_env_t &tenv,
+    needed_defns_t &needed_defns,
+    bool &returns);
 bitter::expr_t *texpr(const defn_id_t &for_defn_id,
                       bitter::expr_t *expr,
                       const std::unordered_set<std::string> &bound_vars,
+                      types::type_t::ref type,
                       const types::type_env_t &type_env,
                       const translation_env_t &tenv,
                       tracked_types_t &typing,

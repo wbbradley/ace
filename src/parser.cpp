@@ -443,18 +443,23 @@ expr_t *parse_array_literal(parse_state_t &ps) {
        * (range_min+1)} in let range_max = {exprs[1] or Max Int} in
        * Range(range_min, range_next-range_min, range_max) */
 
-      identifier_t range_min = make_iid("__range_min" + fresh());
-      identifier_t range_next = make_iid("__range_next" + fresh());
-      identifier_t range_max = make_iid("__range_max" + fresh());
+      identifier_t range_min = identifier_t("__range_min" + fresh(),
+                                            ps.token.location);
+      identifier_t range_next = identifier_t("__range_next" + fresh(),
+                                             ps.token.location);
+      identifier_t range_max = identifier_t("__range_max" + fresh(),
+                                            ps.token.location);
 
       auto range_body = new application_t(
           new application_t(
               new application_t(
                   new var_t(ps.id_mapped(identifier_t{"Range", location})),
                   new var_t(range_min)),
-              new application_t(new application_t(new var_t(make_iid("std.-")),
-                                                  new var_t(range_next)),
-                                new var_t(range_min))),
+              new application_t(
+                  new application_t(
+                      new var_t(identifier_t("std.-", ps.token.location)),
+                      new var_t(range_next)),
+                  new var_t(range_min))),
           new var_t(range_max));
 
       auto let_range_max = new let_t(
@@ -491,7 +496,7 @@ expr_t *parse_array_literal(parse_state_t &ps) {
   }
   chomp_token(tk_rsquare);
 
-  auto array_var = new var_t(make_iid(fresh()));
+  auto array_var = new var_t(identifier_t(fresh(), ps.token.location));
 
   /* take all the exprs from the array, and turn them into statements to fill
    * out a vector */
@@ -511,12 +516,13 @@ expr_t *parse_array_literal(parse_state_t &ps) {
 
   return new let_t(
       array_var->id,
-      new as_t(
-          new application_t(
-              new var_t(ps.id_mapped({"new", ps.prior_token.location})),
-              unit_expr(ps.token.location)),
-          scheme({"a"}, {}, type_vector_type(type_variable(make_iid("a")))),
-          false /*force_cast*/),
+      new as_t(new application_t(
+                   new var_t(ps.id_mapped({"new", ps.prior_token.location})),
+                   unit_expr(ps.token.location)),
+               scheme({"a"}, {},
+                      type_vector_type(
+                          type_variable(identifier_t("a", ps.token.location)))),
+               false /*force_cast*/),
       new block_t(stmts));
 }
 
@@ -1375,7 +1381,11 @@ types::type_t::ref parse_tuple_type(parse_state_t &ps) {
   }
 
   if (is_tuple) {
-    return type_tuple(dims);
+    if (dims.size() != 0) {
+      return type_tuple(dims);
+    } else {
+      return type_unit(ps.token.location);
+    }
   } else {
     return dims[0];
   }

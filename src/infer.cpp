@@ -36,7 +36,8 @@ types::type_t::ref infer_core(expr_t *expr,
     return type_unit(static_print->location);
   } else if (auto var = dcast<var_t *>(expr)) {
     auto t1 = env.lookup_env(var->id);
-    // log("instance of %s :: %s", var->id.str().c_str(), t1->str().c_str());
+    log_location(var->get_location(), "instance of %s :: %s",
+                 var->id.str().c_str(), t1->str().c_str());
     return t1;
   } else if (auto lambda = dcast<lambda_t *>(expr)) {
     auto tv = lambda->param_type != nullptr
@@ -68,26 +69,44 @@ types::type_t::ref infer_core(expr_t *expr,
     return tv;
   } else if (auto let = dcast<let_t *>(expr)) {
     constraints_t local_constraints;
-    auto t1 = infer(let->value, env, local_constraints);
-    auto tracked_types = std::make_shared<tracked_types_t>();
-    env_t local_env{
-        {} /*map*/,    nullptr /*return_type*/, {} /*instance_requirements*/,
-        tracked_types, env.ctor_id_map,         env.data_ctors_map};
+    // auto tracked_types = std::make_shared<tracked_types_t>();
+    env_t local_env{env.map,
+                    nullptr /*return_type*/,
+                    {} /*instance_requirements*/,
+                    env.tracked_types,
+                    env.ctor_id_map,
+                    env.data_ctors_map};
 
+    auto t1 = infer(let->value, local_env, local_constraints);
     auto bindings = solver(local_constraints, local_env);
-    auto schema = scheme({}, {}, t1);
+
+    log("t1 is %s and rebound it is %s", t1->str().c_str(),
+        t1->rebind(bindings)->str().c_str());
+
+#if 0
     for (auto pair : *tracked_types) {
+      log("in let tracked %s :: %s", pair.first->str().c_str(),
+          pair.second->str().c_str());
       env.track(pair.first, pair.second);
     }
+#endif
+
+    /*
     for (auto constraint : local_constraints) {
       constraints.push_back(constraint);
     }
+    */
+
+    auto tv = type_variable(t1->get_location());
+    append(constraints, tv, t1->rebind(bindings),
+           {"digging deeper...", let->value->get_location()});
+
     auto body_env = env_t{env};
-    body_env.extend(let->var, schema, true /*allow_subscoping*/);
+    body_env.extend(let->var, scheme({}, {}, tv), true /*allow_subscoping*/);
     auto t2 = infer(let->body, body_env, constraints)->rebind(bindings);
-    debug_above(9, log("the let variable is %s :: %s and the body is %s :: %s",
-                       let->var.str().c_str(), schema->str().c_str(),
-                       let->body->str().c_str(), t2->str().c_str()));
+    log("the let variable is %s :: %s and the body is %s :: %s",
+        let->var.str().c_str(), tv->rebind(bindings)->str().c_str(),
+        let->body->str().c_str(), t2->str().c_str());
     return t2;
   } else if (auto fix = dcast<fix_t *>(expr)) {
     auto tv = type_variable(fix->get_location());
@@ -141,7 +160,7 @@ types::type_t::ref infer_core(expr_t *expr,
     for (auto dim : tuple->dims) {
       dimensions.push_back(infer(dim, env, constraints));
     }
-    return type_tuple(dimensions);
+    return type_tuple(tuple->location, dimensions);
   } else if (auto tuple_deref = dcast<tuple_deref_t *>(expr)) {
     types::type_t::refs dims;
     for (int i = 0; i < tuple_deref->max; ++i) {
