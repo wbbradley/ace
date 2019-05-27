@@ -9,6 +9,8 @@
 #include "utils.h"
 
 struct identifier_t {
+  identifier_t() = default;
+  identifier_t(const std::string &name, location_t location);
   std::string const name;
   location_t const location;
   static identifier_t from_token(token_t token);

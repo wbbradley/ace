@@ -1,0 +1,13 @@
+class ReadTest a {
+    fn read_test() a
+}
+
+instance ReadTest String {
+    fn read_test() {
+        return "PASS"
+    }
+}
+
+fn main() {
+    print(read_test() as String)
+}

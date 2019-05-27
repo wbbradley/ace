@@ -40,8 +40,8 @@ fn add_one_queen(new_row, columns, prev_solutions) [[Int]] {
     return solutions
 }
 
-fn queens(rows, columns) {
-    solutions := Ref([[]])
+fn queens(rows Int, columns Int) [[Int]] {
+    var solutions = [[]]
     solution := []
 
     # Introduce an empty solution upon which the dynamic programming algorithm can build

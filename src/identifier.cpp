@@ -5,6 +5,10 @@
 #include "dbg.h"
 #include "zion.h"
 
+identifier_t::identifier_t(const std::string &name, location_t location)
+    : name(name), location(location) {
+}
+
 std::string str(const identifiers_t &ids) {
   return std::string("[") + join(ids, ", ") + "]";
 }

@@ -148,7 +148,7 @@ struct type_operator_t final : public type_t {
 struct type_tuple_t final : public type_t {
   typedef std::shared_ptr<const type_tuple_t> ref;
 
-  type_tuple_t(type_t::refs dimensions);
+  type_tuple_t(location_t location, const type_t::refs &dimensions);
 
   std::ostream &emit(std::ostream &os,
                      const map &bindings,
@@ -163,6 +163,7 @@ struct type_tuple_t final : public type_t {
                          const std::string &pre) const override;
   location_t get_location() const override;
 
+  location_t location;
   type_t::refs dimensions;
 };
 
@@ -267,6 +268,7 @@ types::scheme_t::ref scheme(std::vector<std::string> vars,
                             const types::predicate_map_t &predicates,
                             types::type_t::ref type);
 types::type_tuple_t::ref type_tuple(types::type_t::refs dimensions);
+types::type_tuple_t::ref type_tuple(location_t location, types::type_t::refs dimensions);
 types::type_t::ref type_ptr(types::type_t::ref raw);
 types::type_t::ref type_lambda(identifier_t binding, types::type_t::ref body);
 types::type_t::ref type_vector_type(types::type_t::ref element);

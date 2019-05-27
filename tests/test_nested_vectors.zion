@@ -1,0 +1,4 @@
+fn main() {
+    rg := (new [any]) as [Int]
+    static_print(rg)
+}

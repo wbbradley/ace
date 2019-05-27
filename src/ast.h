@@ -13,6 +13,7 @@
 struct translation_env_t;
 
 namespace bitter {
+
 std::string fresh();
 
 struct expr_t {

@@ -19,6 +19,7 @@
 using namespace bitter;
 
 bool get_help = false;
+bool fast_fail = true && (getenv("ZION_SHOW_ALL_ERRORS") == nullptr);
 bool debug_compiled_env = getenv("SHOW_ENV") != nullptr;
 bool debug_types = getenv("SHOW_TYPES") != nullptr;
 bool debug_all_expr_types = getenv("SHOW_EXPR_TYPES") != nullptr;
@@ -81,15 +82,12 @@ void check(identifier_t id, expr_t *expr, env_t &env) {
 
   // log("GOT ty = %s", ty->str().c_str());
   ty = ty->rebind(bindings);
-  // log("REBOUND ty = %s", ty->str().c_str());
-  // log(">> %s", str(constraints).c_str());
-  // log(">> %s", str(subst).c_str());
   auto scheme = ty->generalize(env.get_predicate_map())->normalize();
-  // log("NORMALIED ty = %s", n->str().c_str());
 
-  // log_location(id.location, "adding %s to env as %s", id.str().c_str(),
-  // scheme->str().c_str()); log_location(id.location, "let %s = %s",
-  // id.str().c_str(), expr->str().c_str());
+  debug_above(3, log_location(id.location, "adding %s to env as %s",
+                              id.str().c_str(), scheme->str().c_str()));
+  // log_location(id.location, "let %s = %s", id.str().c_str(),
+  // expr->str().c_str());
   env.extend(id, scheme, false /*allow_subscoping*/);
 }
 
@@ -714,7 +712,8 @@ phase_2_t compile(std::string user_program_name_) {
   for (auto pair : decl_map) {
     assert(pair.first == pair.second->var.name);
 
-    auto type = env.lookup_env(make_iid(pair.first));
+    auto type = env.lookup_env(
+        identifier_t(pair.first, pair.second->var.location));
 #if 0
         if (debug_compiled_env) {
             INDENT(0, "--debug_compiled_env--");
@@ -742,8 +741,8 @@ phase_2_t compile(std::string user_program_name_) {
 
   defn_map_t defn_map;
   defn_map.populate(decl_map, overrides_map, env);
-  return {compilation, env.map, defn_map, compilation->ctor_id_map,
-          compilation->data_ctors_map};
+  return phase_2_t{compilation, env.map, defn_map, compilation->ctor_id_map,
+                   compilation->data_ctors_map};
 }
 
 typedef std::map<
@@ -825,12 +824,13 @@ void specialize_core(const types::type_env_t &type_env,
     const std::string final_name = defn_id.id.name;
 
     /* wrap this expr in it's asserted type to ensure that it monomorphizes */
-    // TODO: check that this is necessary
     auto as_defn = new as_t(to_check, defn_id.scheme, false);
-    check(identifier_t{defn_id.repr_public(), defn_id.id.location}, as_defn,
-          env);
+    auto defn_to_check = identifier_t{defn_id.repr_public(),
+                                      defn_id.id.location};
+    check(defn_to_check, as_defn, env);
+    assert(env.tracked_types == tracked_types);
 
-    if (debug_compiled_env) {
+    if (true) {
       for (auto pair : *tracked_types) {
         log_location(pair.first->get_location(), "%s :: %s",
                      pair.first->str().c_str(), pair.second->str().c_str());
@@ -854,8 +854,8 @@ void specialize_core(const types::type_env_t &type_env,
     INDENT(6, string_format("----------- specialize %s ------------",
                             defn_id.str().c_str()));
     bool returns = true;
-    auto translated_decl = translate(defn_id, as_defn, bound_vars, type_env,
-                                     tenv, needed_defns, returns);
+    auto translated_decl = translate_expr(
+        defn_id, as_defn, bound_vars, type_env, tenv, needed_defns, returns);
 
     assert(returns);
 
@@ -880,8 +880,9 @@ struct phase_3_t {
   std::ostream &dump(std::ostream &os) {
     for (auto pair : translation_map) {
       for (auto overloads : pair.second) {
-        os << pair.first << " :: " << overloads.first->str() << " = "
-           << overloads.second->expr->str() << std::endl;
+        log_location(overloads.second->expr->get_location(), "%s :: %s = %s",
+                     pair.first.c_str(), overloads.first->str().c_str(),
+                     overloads.second->expr->str().c_str());
       }
     }
     return os;
@@ -909,8 +910,12 @@ phase_3_t specialize(const phase_2_t &phase_2) {
                       phase_2.data_ctors_map, next_defn_id, translation_map,
                       needed_defns);
     } catch (user_error &e) {
-      print_exception(e);
-      /* and continue */
+      if (fast_fail) {
+        throw;
+      } else {
+        print_exception(e);
+        /* and continue */
+      }
     }
     needed_defns.erase(next_defn_id);
   }

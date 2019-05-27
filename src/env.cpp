@@ -38,7 +38,7 @@ types::type_t::ref env_t::lookup_env(identifier_t id) const {
   throw error;
 }
 
-void env_t::rebind(const types::type_t::map &bindings) {
+void env_t::rebind_env(const types::type_t::map &bindings) {
   if (bindings.size() == 0) {
     return;
   }

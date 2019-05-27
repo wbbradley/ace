@@ -43,7 +43,7 @@ instance Show String {
 
 instance Show * Char {
     fn str(a) {
-        return from_string_literal(a)
+        return String((a, __builtin_strlen(a)))
     }
 }
 
@@ -171,20 +171,6 @@ fn concat(a, b) {
                 }
             }
         }
-    }
-}
-
-class FromStringLiteral a {
-    fn from_string_literal(*Char) a
-}
-
-instance FromStringLiteral *Char {
-    from_string_literal = id
-}
-
-instance FromStringLiteral String {
-    fn from_string_literal(sz) {
-        return String((sz, __builtin_strlen(sz)))
     }
 }
 
@@ -511,8 +497,8 @@ fn range(max Int) {
 }
 
 instance Iterable Range {
-    fn iter(ri) {
-        index := Ref(ri.range_min)
+    fn iter(ri Range a) {
+        index := Ref(ri.range_min as a)
         return fn () {
             cur_index := !index;
             if cur_index <= ri.range_max {
