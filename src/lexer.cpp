@@ -656,6 +656,10 @@ bool zion_lexer_t::_get_tokens() {
         gts = gts_error;
       } else {
         gts = gts_single_quoted_got_char;
+        token_text.reset();
+        token_text.append(ch);
+        scan_ahead = false;
+        m_is.get(ch);
       }
       break;
     case gts_single_quoted_escape:

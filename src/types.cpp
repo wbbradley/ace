@@ -655,6 +655,16 @@ bool is_callable(const type_t::ref &t) {
   }
   return false;
 }
+
+std::unordered_set<std::string> get_ftvs(const types::type_t::ref &type) {
+  auto predicate_map = type->get_predicate_map();
+  std::unordered_set<std::string> ftvs;
+  for (auto &pair : predicate_map) {
+    ftvs.insert(pair.first);
+  }
+  return ftvs;
+}
+
 } // namespace types
 
 types::type_t::ref type_id(identifier_t id) {

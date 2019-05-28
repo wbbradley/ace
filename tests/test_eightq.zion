@@ -1,6 +1,9 @@
 # test: pass
 
 fn no_conflict(new_row, new_column, solution) {
+    if len(solution) == 0 {
+        return True
+    }
     for row in range(new_row) {
         condition := (
             solution[row]       != new_column           and
@@ -16,6 +19,7 @@ fn no_conflict(new_row, new_column, solution) {
 }
 
 fn copy_and_extend(v, a) {
+    print("copy_and_extend")
     n := []
     reserve(n, len(v) + 1)
     for x in v {
@@ -26,13 +30,19 @@ fn copy_and_extend(v, a) {
 }
 
 fn add_one_queen(new_row, columns, prev_solutions) [[Int]] {
-    solutions := new [[int]]
+    print("add_one_queen(...)")
+    solutions := [[]]
     reserve(solutions, 92)
 
+    print("before loop")
     for solution in prev_solutions {
+        print("in loop")
         for new_column in range(columns) {
+            print("in loop 2")
             if no_conflict(new_row, new_column, solution) {
+                print("pre-inner-append")
                 append(solutions, copy_and_extend(solution, new_column))
+                print("post-inner-append")
             }
         }
     }
@@ -48,6 +58,7 @@ fn queens(rows Int, columns Int) [[Int]] {
     append(!solutions, solution)
 
     for row in range(rows) {
+        print(row)
         solutions = add_one_queen(row, columns, !solutions)
     }
 

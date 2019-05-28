@@ -47,6 +47,20 @@ instance Show * Char {
     }
 }
 
+fn join(delim String, xs [String]) String {
+    return "<TODO: implement join>"
+}
+
+instance Show [a] {
+    fn str(xs) {
+        strs := []
+        for x in xs {
+            append(strs, str(x))
+        }
+        return concat(concat("[", join(", ", strs)), "]")
+    }
+}
+
 fn print(x) () {
     match str(x) {
         String((sz, length)) {
@@ -362,6 +376,8 @@ instance HasIndexableItems * {
 
 instance HasIndexableItems Vector {
     fn get_indexed_item(vec Vector a, index Int) a {
+        assert(!vec.size > index)
+        assert(!vec.array != null)
         return (!vec.array)[index]
     }
 }
@@ -414,6 +430,8 @@ instance Eq [a] {
 }
 
 fn append(vec [a], val a) {
+    print("appending")
+    print(val)
     if !vec.array == null {
         vec.array = alloc(4)
         vec.size = 1
@@ -438,7 +456,7 @@ fn append(vec [a], val a) {
 }
 
 fn reserve(vec [a], cap Int) {
-
+    print("need to implement reserve")
 }
 
 instance HasDefault [a] {
@@ -493,12 +511,12 @@ struct Range a {
 }
 
 fn range(max Int) {
-    return Range(0, max-1, 1)
+    return Range(0, 1, max-1)
 }
 
 instance Iterable Range {
-    fn iter(ri Range a) {
-        index := Ref(ri.range_min as a)
+    fn iter(ri) {
+        index := Ref(ri.range_min)
         return fn () {
             cur_index := !index;
             if cur_index <= ri.range_max {

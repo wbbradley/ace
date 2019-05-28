@@ -1,5 +1,7 @@
 #pragma once
+
 #include <memory>
+#include <unordered_set>
 
 #include "ast_decls.h"
 #include "defn_id.h"
@@ -221,6 +223,7 @@ bool is_type_id(type_t::ref type, const std::string &type_name);
 type_t::refs rebind(const type_t::refs &types, const type_t::map &bindings);
 type_t::ref unitize(type_t::ref type);
 bool is_callable(const types::type_t::ref &type);
+std::unordered_set<std::string> get_ftvs(const types::type_t::ref &type);
 }; // namespace types
 
 typedef std::map<std::string, types::type_t::map> data_ctors_map_t;

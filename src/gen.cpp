@@ -225,9 +225,10 @@ void set_env_var(gen_env_t &gen_env,
                  bool allow_shadowing) {
   assert(name.size() != 0);
   // type = types::unitize(type);
-  log("gen::set_env_var(0x%08llx, %s, %s, %s)", (unsigned long long)(&gen_env),
-      name.c_str(), type->str().c_str(), llvm_print(llvm_value).c_str(),
-      boolstr(allow_shadowing));
+  debug_above(4, log("gen::set_env_var(0x%08llx, %s, %s, %s)",
+                     (unsigned long long)(&gen_env), name.c_str(),
+                     type->str().c_str(), llvm_print(llvm_value).c_str(),
+                     boolstr(allow_shadowing)));
   assert(type->ftv_count() == 0);
   llvm::Value *existing_value = maybe_get_env_var(gen_env, name, type);
   if (existing_value == nullptr) {
@@ -477,7 +478,7 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
     auto llvm_write_func_decl = llvm::cast<llvm::Function>(
         llvm_module->getOrInsertFunction(
             "write",
-            llvm::FunctionType::get(builder.getInt64Ty(),
+            llvm::FunctionType::get(builder.getInt8Ty()->getPointerTo(),
                                     llvm::ArrayRef<llvm::Type *>(write_terms),
                                     false /*isVarArg*/)));
     return builder.CreateCall(llvm_write_func_decl, params);
@@ -493,7 +494,7 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
     auto llvm_write_func_decl = llvm::cast<llvm::Function>(
         llvm_module->getOrInsertFunction(
             "zion_write_char",
-            llvm::FunctionType::get(builder.getInt64Ty(),
+            llvm::FunctionType::get(builder.getInt8Ty()->getPointerTo(),
                                     llvm::ArrayRef<llvm::Type *>(write_terms),
                                     false /*isVarArg*/)));
     return builder.CreateCall(llvm_write_func_decl, params);

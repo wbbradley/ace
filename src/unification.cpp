@@ -10,6 +10,7 @@
 #include "user_error.h"
 #include "utils.h"
 #include "zion.h"
+#include "ast.h"
 
 using namespace types;
 
@@ -159,9 +160,45 @@ unification_t unify(type_t::ref a, type_t::ref b) {
       {}};
 }
 
-types::type_t::map solver(constraints_t &constraints, env_t &env) {
+void check_constraints_cover_tracked_types(const context_t &context,
+                                           const tracked_types_t &tracked_types,
+                                           const constraints_t &constraints) {
+  std::unordered_set<std::string> ftvs;
+  for (auto pair : tracked_types) {
+    auto s = types::get_ftvs(pair.second);
+    set_concat(ftvs, s);
+    debug_above(5, log_location(pair.first->get_location(),
+                                "%s :: %s contains {%s}",
+                                pair.first->str().c_str(),
+                                pair.second->str().c_str(), join(s).c_str()));
+  }
+
+  std::unordered_set<std::string> constrained_tvs;
+  for (auto &constraint : constraints) {
+    set_concat(constrained_tvs, types::get_ftvs(constraint.a));
+    set_concat(constrained_tvs, types::get_ftvs(constraint.b));
+  }
+  for (auto &constrained_tv : constrained_tvs) {
+    ftvs.erase(constrained_tv);
+  }
+  if (ftvs.size() != 0) {
+    log("not all ftvs in tracked types are constrained {%s}",
+        join(ftvs, ", ").c_str());
+    dbg();
+  }
+}
+
+types::type_t::map solver(bool check_constraint_coverage,
+                          context_t &&context,
+                          constraints_t &constraints,
+                          env_t &env) {
+  if (check_constraint_coverage) {
+    check_constraints_cover_tracked_types(context, *env.tracked_types,
+                                          constraints);
+  }
+
   types::type_t::map bindings;
-  for (auto iter = constraints.begin(); iter != constraints.end(); ) {
+  for (auto iter = constraints.begin(); iter != constraints.end();) {
     unification_t unification = unify(iter->a, iter->b);
     if (unification.result) {
       auto new_bindings = compose(unification.bindings, bindings);
@@ -170,7 +207,7 @@ types::type_t::map solver(constraints_t &constraints, env_t &env) {
          * get better error messages */
         env.add_instance_requirement(instance_requirement_t{
             instance_requirement.type_class_name,
-            iter->info.location,
+            iter->context.location,
             instance_requirement.type,
         });
       }
@@ -182,8 +219,8 @@ types::type_t::map solver(constraints_t &constraints, env_t &env) {
     } else {
       auto error = user_error(unification.error_location, "%s",
                               unification.error_string.c_str());
-      error.add_info(iter->info.location, "while checking that %s",
-                     iter->info.reason.c_str());
+      error.add_info(iter->context.location, "while checking that %s",
+                     iter->context.message.c_str());
       throw error;
     }
   }

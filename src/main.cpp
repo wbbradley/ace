@@ -21,6 +21,7 @@ using namespace bitter;
 bool get_help = false;
 bool fast_fail = true && (getenv("ZION_SHOW_ALL_ERRORS") == nullptr);
 bool debug_compiled_env = getenv("SHOW_ENV") != nullptr;
+bool debug_specialized_env = getenv("SHOW_ENV2") != nullptr;
 bool debug_types = getenv("SHOW_TYPES") != nullptr;
 bool debug_all_expr_types = getenv("SHOW_EXPR_TYPES") != nullptr;
 bool debug_all_translated_defns = getenv("SHOW_DEFN_TYPES") != nullptr;
@@ -45,7 +46,9 @@ int run_program(std::string executable, std::vector<const char *> args) {
 
     // printf("Child has pid %ld\n", (long)pid);
 
-    if (::wait(&status) == -1) {
+    int ret = ::wait(&status);
+
+    if (ret == -1) {
       perror("wait()");
     } else {
       if (WIFEXITED(status)) {
@@ -62,7 +65,13 @@ int run_program(std::string executable, std::vector<const char *> args) {
     }
   } else {
     /* child */
-    execvp(executable.c_str(), const_cast<char **>(&args[0]));
+    printf("running %s...\n", executable.c_str());
+    int ret = execvp(("./" + executable).c_str(), const_cast<char **>(&args[0]));
+    if (ret == -1) {
+      printf("failed to launch %s %s. quitting...\n", executable.c_str(),
+             join(args, " ").c_str());
+      return EXIT_FAILURE;
+    }
   }
 
   return 0;
@@ -73,12 +82,19 @@ void handle_sigint(int sig) {
   exit(2);
 }
 
-void check(identifier_t id, expr_t *expr, env_t &env) {
+void check(bool check_constraint_coverage,
+           identifier_t id,
+           expr_t *expr,
+           env_t &env) {
   constraints_t constraints;
   // std::cout << C_ID "------------------------------" C_RESET << std::endl;
-  // log("type checking %s", id.str().c_str());
+  debug_above(4, log("type checking %s = %s", id.str().c_str(), expr->str().c_str()));
   types::type_t::ref ty = infer(expr, env, constraints);
-  types::type_t::map bindings = solver(constraints, env);
+  types::type_t::map bindings = solver(
+      check_constraint_coverage,
+      make_context(id.location, "solving %s :: %s", id.name.c_str(),
+                   ty->str().c_str()),
+      constraints, env);
 
   // log("GOT ty = %s", ty->str().c_str());
   ty = ty->rebind(bindings);
@@ -202,9 +218,9 @@ const types::scheme_t::map &get_builtins() {
     (*map)["__builtin_memcmp"] = scheme(
         {}, {}, type_arrows({PtrToChar, PtrToChar, Int, Int}));
     (*map)["__builtin_write"] = scheme({}, {},
-                                       type_arrows({Int, PtrToChar, Int, Int}));
+                                       type_arrows({Int, PtrToChar, Int, Unit}));
     (*map)["__builtin_write_char"] = scheme({}, {},
-                                            type_arrows({Int, Char, Int}));
+                                            type_arrows({Int, Char, Unit}));
     (*map)["__builtin_print"] = scheme(
         {}, {}, type_arrows({PtrToChar, type_unit(INTERNAL_LOC())}));
     (*map)["__builtin_print_int"] = scheme(
@@ -293,11 +309,11 @@ void check_decls(std::string entry_point_name,
     try {
       if (decl->var.name == entry_point_name) {
         /* make sure that the "main" function has the correct signature */
-        check(decl->var,
+        check(false /*check_constraint_coverage*/, decl->var,
               new as_t(decl->value, program_main_scheme, false /*force_cast*/),
               env);
       } else {
-        check(decl->var, decl->value, env);
+        check(false /*check_constraint_coverage*/, decl->var, decl->value, env);
       }
     } catch (user_error &e) {
       print_exception(e);
@@ -368,7 +384,8 @@ void check_instance_for_type_class_overload(
 
       expr_t *instance_decl_expr = new as_t(decl->value, expected_scheme,
                                             false /*force_cast*/);
-      check(instance_decl_id, instance_decl_expr, local_env);
+      check(false /*check_constraint_coverage*/, instance_decl_id,
+            instance_decl_expr, local_env);
       debug_above(
           5,
           log("checking the instance fn %s gave scheme %s. we expected %s.",
@@ -827,10 +844,10 @@ void specialize_core(const types::type_env_t &type_env,
     auto as_defn = new as_t(to_check, defn_id.scheme, false);
     auto defn_to_check = identifier_t{defn_id.repr_public(),
                                       defn_id.id.location};
-    check(defn_to_check, as_defn, env);
+    check(true /*check_constraint_coverage*/, defn_to_check, as_defn, env);
     assert(env.tracked_types == tracked_types);
 
-    if (true) {
+    if (debug_specialized_env) {
       for (auto pair : *tracked_types) {
         log_location(pair.first->get_location(), "%s :: %s",
                      pair.first->str().c_str(), pair.second->str().c_str());
@@ -1290,37 +1307,33 @@ int run_job(const job_t &job) {
     }
     llvm::LLVMContext context;
     phase_4_t phase_4 = ssa_gen(context, specialize(compile(job.args[0])));
-    auto command_line = string_format(
-        // We are using clang to lower the code from LLVM, and link it
-        // to the runtime.
-        "clang ${ZION_OPT_FLAGS} "
-        // NB: we don't embed the target triple into the LL, so any
-        // targeted triple causes an ugly error from clang, so I just
-        // ignore it here.
-        "-Wno-override-module "
-        // TODO: plumb host targeting through clang here
-        "--target=$(llvm-config --host-target) "
-        // TODO: plumb zion_rt.c properly into installation location.
-        // probably something like /usr/share/zion/rt
-        "$HOME/src/zion/src/zion_rt.c "
-        "%s "
-        "-o %s",
-        phase_4.output_llvm_filename.c_str(),
-        phase_4.phase_3.phase_2.compilation->program_name.c_str(),
-        phase_4.phase_3.phase_2.compilation->program_name.c_str());
-    if (std::system(command_line.c_str()) != 0) {
-      throw user_error(INTERNAL_LOC(), "failed to compile binary");
-    }
 
-    auto run_command_line = string_format(
-        "./%s %s", phase_4.phase_3.phase_2.compilation->program_name.c_str(),
-        "");
-    int ret = std::system(run_command_line.c_str());
-    if (ret == -1) {
-      std::cerr << "Failed to execute " << run_command_line << std::endl;
-      return EXIT_FAILURE;
+    if (!user_error::errors_occurred()) {
+      auto command_line = string_format(
+          // We are using clang to lower the code from LLVM, and link it
+          // to the runtime.
+          "clang ${ZION_OPT_FLAGS} "
+          // NB: we don't embed the target triple into the LL, so any
+          // targeted triple causes an ugly error from clang, so I just
+          // ignore it here.
+          "-Wno-override-module "
+          // TODO: plumb host targeting through clang here
+          "--target=$(llvm-config --host-target) "
+          // TODO: plumb zion_rt.c properly into installation location.
+          // probably something like /usr/share/zion/rt
+          "$HOME/src/zion/src/zion_rt.c "
+          "%s "
+          "-o %s",
+          phase_4.output_llvm_filename.c_str(),
+          phase_4.phase_3.phase_2.compilation->program_name.c_str(),
+          phase_4.phase_3.phase_2.compilation->program_name.c_str());
+      if (std::system(command_line.c_str()) != 0) {
+        throw user_error(INTERNAL_LOC(), "failed to compile binary");
+      }
+
+      return run_program(phase_4.phase_3.phase_2.compilation->program_name, {});
     } else {
-      return WEXITSTATUS(ret);
+      return EXIT_FAILURE;
     }
   };
 

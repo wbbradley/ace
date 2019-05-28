@@ -1,0 +1,19 @@
+class Getter a {
+    fn getter() a
+}
+
+instance Getter Int {
+    fn getter() => 0
+}
+
+fn dealWithInt(x Int) () {
+}
+
+fn main() {
+    dealWithInt(getter())
+    __builtin_write_char(1, 'P')
+    __builtin_write_char(1, 'A')
+    __builtin_write_char(1, 'S')
+    __builtin_write_char(1, 'S')
+    __builtin_write_char(1, '\n')
+}

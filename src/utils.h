@@ -52,6 +52,12 @@ template <typename T> T set_union(const T &as, const T &bs) {
   return t;
 }
 
+template <typename T> void set_concat(T &as, const T &bs) {
+  for (auto b : bs) {
+    as.insert(b);
+  }
+}
+
 template <typename T> T merge(const T &a, const T &b) {
   T new_t;
   for (auto i : a) {

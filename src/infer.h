@@ -2,19 +2,18 @@
 #include <tuple>
 #include <vector>
 
+#include "context.h"
 #include "env.h"
 #include "types.h"
 
-struct constraint_info_t {
-  std::string const reason;
-  location_t const location;
-  std::string str() const;
-};
-
 struct constraint_t {
+  constraint_t() = delete;
+  constraint_t(types::type_t::ref a, types::type_t::ref b, context_t &&context);
+
   types::type_t::ref a;
   types::type_t::ref b;
-  constraint_info_t info;
+  context_t context;
+
   void rebind(const types::type_t::map &env);
   std::string str() const;
 };
