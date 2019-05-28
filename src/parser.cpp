@@ -302,11 +302,12 @@ expr_t *parse_assert(parse_state_t &ps) {
       new block_t({
           new application_t(
               new var_t(make_iid("std.print")),
-              new literal_t(token_t(ps.token.location, tk_string,
-                                    escape_json_quotes(string_format(
-                                        "%s: assertion failed: (%s) is False",
-                                        ps.token.location.str().c_str(),
-                                        condition->str().c_str()))))),
+              new literal_t(
+                  token_t(ps.token.location, tk_string,
+                          escape_json_quotes(string_format(
+                              "%s: assertion failed: (%s) is False",
+                              ps.token.location.repr().c_str(),
+                              clean_ansi_escapes(condition->str()).c_str()))))),
           new builtin_t(
               new var_t(make_iid("__builtin_exit")),
               {new literal_t(token_t(assert_token.location, tk_integer, "1"))}),

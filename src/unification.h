@@ -18,7 +18,10 @@ struct unification_t {
   void add_instance_requirement(const instance_requirement_t &ir);
 };
 
-types::type_t::map solver(constraints_t &constraints, env_t &env);
+types::type_t::map solver(bool check_constraint_coverage,
+                          context_t &&context,
+                          constraints_t &constraints,
+                          env_t &env);
 unification_t unify(types::type_t::ref a, types::type_t::ref b);
 unification_t unify_many(const types::type_t::refs &as,
                          const types::type_t::refs &b);

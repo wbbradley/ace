@@ -30,6 +30,7 @@ add_executable(zion
 	src/ast.cpp
 	src/builtins.cpp
 	src/compiler.cpp
+	src/context.cpp
 	src/dbg.cpp
 	src/defn_id.cpp
 	src/disk.cpp
@@ -66,6 +67,15 @@ target_link_libraries(zion -L${LLVM_LIBRARY_DIR} -lLLVM)
 
 enable_testing()
 
+# Test non-prelude based tests first
+foreach(test
+		test_let
+		test_instance_deduction)
+	add_test(
+		NAME ${test}
+		COMMAND ${CMAKE_SOURCE_DIR}/tests/expect-pass-no-prelude.sh ${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR} ${test})
+endforeach(test)
+
 # Explicitly test that assertions work as expected and cause a failure code in the built process
 add_test(
 	NAME test_failed_assert
@@ -90,12 +100,13 @@ endforeach(test)
 
 foreach(test
 	   	test_basic
-	   	test_pass
-	   	test_strings
+	   	test_for_loop
 	   	test_inferred_return_type
 	   	test_match_int
 	   	test_newtype
-	   	test_newtype_tuple)
+	   	test_newtype_tuple
+	   	test_pass
+	   	test_strings)
 	add_test(
 		NAME ${test}
 		COMMAND ${CMAKE_SOURCE_DIR}/tests/expect-pass.sh ${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR} ${test})
