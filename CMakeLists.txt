@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.4.3)
 project(Zion)
 
 include_directories(BEFORE src)
-add_definitions(-DZION_DEBUG)
+# add_definitions(-DZION_DEBUG)
 
 find_package(LLVM REQUIRED CONFIG)
 
@@ -23,7 +23,8 @@ endif()
 include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 
-add_compile_options(-std=c++14 -g -O0 ${option_flags})
+add_compile_options(-std=c++14 -O3 ${option_flags})
+# add_compile_options(-std=c++14 -g -O0 ${option_flags})
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-rpath,${LLVM_INSTALL_PREFIX}/lib")
 
 add_executable(zion
@@ -70,6 +71,8 @@ enable_testing()
 # Test non-prelude based tests first
 foreach(test
 		test_let
+		test_lambda
+		test_let_lambda
 		test_instance_deduction)
 	add_test(
 		NAME ${test}

@@ -7,8 +7,8 @@ IMAGE=zionlang/zion
 VERSION=`cat VERSION`
 NAME=zion-build
 
-docker kill $NAME
-docker rm $NAME
+docker kill $NAME 2>/dev/null
+docker rm $NAME 2>/dev/null
 
 docker run \
 	--rm \
