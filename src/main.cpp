@@ -1,6 +1,8 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 #include "ast.h"
 #include "compiler.h"
@@ -217,10 +219,11 @@ const types::scheme_t::map &get_builtins() {
         type_arrows({PtrToChar, PtrToChar, Int, type_unit(INTERNAL_LOC())}));
     (*map)["__builtin_memcmp"] = scheme(
         {}, {}, type_arrows({PtrToChar, PtrToChar, Int, Int}));
-    (*map)["__builtin_write"] = scheme({}, {},
-                                       type_arrows({Int, PtrToChar, Int, Unit}));
+    (*map)["__builtin_write"] = scheme(
+        {}, {}, type_arrows({Int, PtrToChar, Int, Unit}));
     (*map)["__builtin_write_char"] = scheme({}, {},
                                             type_arrows({Int, Char, Unit}));
+    (*map)["__builtin_pass_test"] = scheme({}, {}, Unit);
     (*map)["__builtin_print"] = scheme(
         {}, {}, type_arrows({PtrToChar, type_unit(INTERNAL_LOC())}));
     (*map)["__builtin_print_int"] = scheme(

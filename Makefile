@@ -1,6 +1,7 @@
-BUILD_DIR=$(HOME)/var/zion
+BUILD_DIR ?= $(HOME)/var/zion
 ZION=$(BUILD_DIR)/zion
-SRC_DIR=$(pwd)
+SRC_DIR=$(shell pwd)
+LLVM_DIR ?= $(shell llvm-config --prefix)/share/llvm/cmake
 
 .PHONY: zion
 zion: $(BUILD_DIR)/build.ninja
@@ -14,7 +15,7 @@ clean:
 
 $(BUILD_DIR)/build.ninja: $(LLVM_DIR)/LLVMConfig.cmake CMakeLists.txt
 	-mkdir -p $(BUILD_DIR)
-	cmake . -B $(BUILD_DIR) -G Ninja
+	(cd $(BUILD_DIR) && cmake $(SRC_DIR) -G Ninja)
 
 test:
 	make zion

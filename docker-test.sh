@@ -2,8 +2,9 @@
 set -ex
 
 cd /opt/zion
-cmake .
-make -j8
-
+mkdir -p /var/zion
 export ZION_PATH=/opt/zion:/opt/zion/lib:/opt/zion/tests
+
+make BUILD_DIR=/var/zion test
+
 ./zion test

@@ -34,6 +34,10 @@ char *zion_itoa(int64_t x) {
 	return sz;
 }
 
+void zion_pass_test() {
+	printf("PASS\n");
+}
+
 int zion_puts(char *sz) {
 	if (sz == 0) {
 		const char *error = "attempt to puts a null pointer!\n";

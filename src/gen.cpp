@@ -498,6 +498,21 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
                                     llvm::ArrayRef<llvm::Type *>(write_terms),
                                     false /*isVarArg*/)));
     return builder.CreateCall(llvm_write_func_decl, params);
+  } else if (name == "__builtin_pass_test") {
+    /* scheme({}, {}, Unit) */
+    auto llvm_module = llvm_get_module(builder);
+
+    llvm::Type *terms[] = {};
+    assert(params.size() == 0);
+
+    // libc dependency
+    auto llvm_func_decl = llvm::cast<llvm::Function>(
+        llvm_module->getOrInsertFunction(
+            "zion_pass_test",
+            llvm::FunctionType::get(builder.getInt8Ty()->getPointerTo(),
+                                    llvm::ArrayRef<llvm::Type *>(),
+                                    false /*isVarArg*/)));
+    return builder.CreateCall(llvm_func_decl, params);
   } else if (name == "__builtin_print_int") {
     /* scheme({}, {}, type_arrows({*Char, type_unit(INTERNAL_LOC())})) */
     auto llvm_module = llvm_get_module(builder);
