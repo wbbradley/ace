@@ -126,7 +126,7 @@ types::type_t::ref infer_core(expr_t *expr,
           throw user_error(return_statement->get_location(),
                            "there are statements after a return statement");
         }
-      /* all non-final statements must be unit typed? */
+        /* all non-final statements must be unit typed? */
         append(constraints, t1, type_unit(expr->get_location()),
                make_context(expr->get_location(), "value is not ignored"));
       } else {

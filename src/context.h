@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+
 #include "location.h"
 
 struct context_t {

@@ -68,7 +68,8 @@ int run_program(std::string executable, std::vector<const char *> args) {
   } else {
     /* child */
     printf("running %s...\n", executable.c_str());
-    int ret = execvp(("./" + executable).c_str(), const_cast<char **>(&args[0]));
+    int ret = execvp(("./" + executable).c_str(),
+                     const_cast<char **>(&args[0]));
     if (ret == -1) {
       printf("failed to launch %s %s. quitting...\n", executable.c_str(),
              join(args, " ").c_str());
@@ -90,7 +91,8 @@ void check(bool check_constraint_coverage,
            env_t &env) {
   constraints_t constraints;
   // std::cout << C_ID "------------------------------" C_RESET << std::endl;
-  debug_above(4, log("type checking %s = %s", id.str().c_str(), expr->str().c_str()));
+  debug_above(
+      4, log("type checking %s = %s", id.str().c_str(), expr->str().c_str()));
   types::type_t::ref ty = infer(expr, env, constraints);
   types::type_t::map bindings = solver(
       check_constraint_coverage,
@@ -1039,6 +1041,13 @@ void build_main_function(llvm::IRBuilder<> &builder,
       builder.getContext(), "program_entry", llvm_function);
   builder.SetInsertPoint(block);
 
+  // Initialize the process
+  auto llvm_zion_init_func_decl = llvm::cast<llvm::Function>(
+      llvm_module->getOrInsertFunction(
+          "zion_init",
+          llvm::FunctionType::get(builder.getVoidTy(), false /*isVarArg*/)));
+  builder.CreateCall(llvm_zion_init_func_decl);
+
   llvm::Value *llvm_main_closure = gen::get_env_var(
       builder, gen_env, make_iid(main_closure), main_type);
 
@@ -1315,7 +1324,11 @@ int run_job(const job_t &job) {
       auto command_line = string_format(
           // We are using clang to lower the code from LLVM, and link it
           // to the runtime.
-          "clang ${ZION_OPT_FLAGS} "
+          "clang "
+          // Include any necessary include dirs for bdw-gc (Boehm GC)
+          "$(pkg-config --cflags-only-I bdw-gc) "
+          // Allow for the user to specify optimizations
+          "${ZION_OPT_FLAGS} "
           // NB: we don't embed the target triple into the LL, so any
           // targeted triple causes an ugly error from clang, so I just
           // ignore it here.
@@ -1325,7 +1338,11 @@ int run_job(const job_t &job) {
           // TODO: plumb zion_rt.c properly into installation location.
           // probably something like /usr/share/zion/rt
           "${ZION_RT}/zion_rt.c "
+          // Add linker flags so that the generated binary can use bdw-gc
+          "$(pkg-config --libs bdw-gc) "
+          // Don't forget the built .ll file from our frontend here.
           "%s "
+          // Give the binary a name.
           "-o %s",
           phase_4.output_llvm_filename.c_str(),
           phase_4.phase_3.phase_2.compilation->program_name.c_str(),

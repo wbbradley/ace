@@ -5,10 +5,14 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <gc/gc.h>
+
+void zion_init() {
+	GC_INIT();
+}
+
 void *zion_malloc(uint64_t cb) {
-  void *pv = calloc(cb, 1);
-  // printf("allocating %d bytes -> 0x%08llx\n", (int)cb, (long long)pv);
-  return pv;
+  return GC_MALLOC(cb);
 }
 
 int zion_strlen(const char *sz) {
@@ -31,11 +35,11 @@ char *zion_itoa(int64_t x) {
     perror("Failed in zion_itoa");
     exit(1);
   }
-  return strdup(sz);
+  return GC_strndup(sz, strlen(sz));
 }
 
 void zion_pass_test() {
-  printf("PASS\n");
+  write(1, "PASS\n", 5);
 }
 
 int zion_puts(char *sz) {

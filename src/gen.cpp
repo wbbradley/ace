@@ -485,8 +485,7 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
   } else if (name == "__builtin_write_char") {
     /* scheme({}, {}, type_arrows({Int, Char, Int, Int})) */
     auto llvm_module = llvm_get_module(builder);
-    llvm::Type *write_terms[] = {builder.getInt64Ty(),
-                                 builder.getInt8Ty()};
+    llvm::Type *write_terms[] = {builder.getInt64Ty(), builder.getInt8Ty()};
 
     assert(params.size() == 2);
 

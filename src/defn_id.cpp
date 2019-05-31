@@ -16,10 +16,10 @@ defn_id_t defn_id_t::unitize() const {
       id, types::unitize(scheme->instantiate(INTERNAL_LOC()))->generalize({})};
 
   if (scheme->btvs() != 0) {
-    throw user_error(scheme->get_location(),
-                     "(%s) attempt to unitize a scheme %s with class constraints",
-                     defn_id.str().c_str(),
-                     scheme->str().c_str());
+    throw user_error(
+        scheme->get_location(),
+        "(%s) attempt to unitize a scheme %s with class constraints",
+        defn_id.str().c_str(), scheme->str().c_str());
   }
   return std::move(defn_id);
 }

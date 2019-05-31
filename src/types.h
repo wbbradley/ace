@@ -271,7 +271,8 @@ types::scheme_t::ref scheme(std::vector<std::string> vars,
                             const types::predicate_map_t &predicates,
                             types::type_t::ref type);
 types::type_tuple_t::ref type_tuple(types::type_t::refs dimensions);
-types::type_tuple_t::ref type_tuple(location_t location, types::type_t::refs dimensions);
+types::type_tuple_t::ref type_tuple(location_t location,
+                                    types::type_t::refs dimensions);
 types::type_t::ref type_ptr(types::type_t::ref raw);
 types::type_t::ref type_lambda(identifier_t binding, types::type_t::ref body);
 types::type_t::ref type_vector_type(types::type_t::ref element);
