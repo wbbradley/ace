@@ -8,7 +8,8 @@
 
 using namespace bitter;
 
-void check_typing_for_ftvs(const std::string &context, const tracked_types_t &typing) {
+void check_typing_for_ftvs(const std::string &context,
+                           const tracked_types_t &typing) {
   for (auto pair : typing) {
     if (pair.second->ftv_count() != 0) {
       log("in the context of %s", context.c_str());

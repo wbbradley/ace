@@ -16,6 +16,8 @@ RUN apt-get update -y && apt-get install -y \
 	man \
 	ninja-build \
 	vim \
+	libgc-dev \
+	pkg-config \
 	wget
 
 

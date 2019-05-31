@@ -3,6 +3,7 @@
 #include <iostream>
 #include <sstream>
 
+#include "ast.h"
 #include "dbg.h"
 #include "env.h"
 #include "logger.h"
@@ -10,7 +11,6 @@
 #include "user_error.h"
 #include "utils.h"
 #include "zion.h"
-#include "ast.h"
 
 using namespace types;
 
