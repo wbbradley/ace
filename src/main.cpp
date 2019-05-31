@@ -1324,7 +1324,7 @@ int run_job(const job_t &job) {
           "--target=$(llvm-config --host-target) "
           // TODO: plumb zion_rt.c properly into installation location.
           // probably something like /usr/share/zion/rt
-          "$HOME/src/zion/src/zion_rt.c "
+          "${ZION_RT}/zion_rt.c "
           "%s "
           "-o %s",
           phase_4.output_llvm_filename.c_str(),
