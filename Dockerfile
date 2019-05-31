@@ -41,4 +41,7 @@ RUN update-alternatives --install /usr/bin/llvm-link llvm-link /usr/bin/llvm-lin
 
 ADD . /opt/zion
 WORKDIR /opt/zion
+
+ENV ZION_PATH=/opt/zion:/opt/zion/lib:/opt/zion/tests
+ENV ZION_RT=/opt/zion/src
 CMD bash
