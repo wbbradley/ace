@@ -1,6 +1,21 @@
 cmake_minimum_required(VERSION 3.4.3)
 project(Zion)
 
+#-----------------------------------------------------------------------------
+# Enable ccache if not already enabled by symlink masquerading and if no other
+# CMake compiler launchers are already defined
+#-----------------------------------------------------------------------------
+find_program(CCACHE_EXECUTABLE ccache)
+mark_as_advanced(CCACHE_EXECUTABLE)
+if(CCACHE_EXECUTABLE)
+  foreach(LANG C CXX)
+    if(NOT DEFINED CMAKE_${LANG}_COMPILER_LAUNCHER AND NOT CMAKE_${LANG}_COMPILER MATCHES ".*/ccache$")
+      message(STATUS "Enabling ccache for ${LANG}")
+      set(CMAKE_${LANG}_COMPILER_LAUNCHER ${CCACHE_EXECUTABLE} CACHE STRING "")
+    endif()
+  endforeach()
+endif()
+
 include_directories(BEFORE src)
 # add_definitions(-DZION_DEBUG)
 
@@ -9,16 +24,6 @@ find_package(LLVM REQUIRED CONFIG)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 message(STATUS "LLVM installation prefix is ${LLVM_INSTALL_PREFIX}")
-
-option(MEMORY_DEBUGGING "Track all allocations and spew to stdout about it" OFF)
-if(MEMORY_DEBUGGING)
-	set(option_flags -DMEMORY_DEBUGGING)
-endif()
-
-option(DEBUG_LLVM_TYPES "Print out LLVM type information a lot" OFF)
-if(DEBUG_LLVM_TYPES)
-	set(option_flags -DDEBUG_LLVM_TYPES)
-endif()
 
 include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
@@ -109,7 +114,9 @@ foreach(test
 	   	test_newtype
 	   	test_newtype_tuple
 	   	test_pass
-	   	test_strings)
+	   	test_strings
+	   	test_vector_growth
+		)
 	add_test(
 		NAME ${test}
 		COMMAND ${CMAKE_SOURCE_DIR}/tests/expect-pass.sh ${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR} ${test})

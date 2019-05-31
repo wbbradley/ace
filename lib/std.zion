@@ -442,12 +442,18 @@ fn append(vec [a], val a) {
     }
 
     if !vec.capacity <= !vec.size {
-        __builtin_goodbye
+        new_capacity := !vec.capacity * 2
+        new_array := alloc(new_capacity)
+        __builtin_memcpy(
+            new_array as! *Char,
+            (!vec.array) as! *Char,
+            sizeof(a) * !vec.size)
+        vec.capacity = new_capacity
+        vec.array = new_array
     }
 
     if !vec.capacity == 0 {
-        __builtin_hello
-        /* TODO: handle constant strings */
+        __builtin_goodbye
     }
 
     __builtin_store_ptr(__builtin_ptr_add(!vec.array, !vec.size), val)

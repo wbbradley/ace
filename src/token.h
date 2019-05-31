@@ -116,7 +116,7 @@ K(while);
 
 bool is_restricted_var_name(std::string x);
 
-struct token_t {
+struct token_t final {
   token_t(const location_t &location = {{""}, -1, -1},
           token_kind tk = tk_none,
           std::string text = "")
@@ -126,13 +126,11 @@ struct token_t {
   token_kind tk = tk_none;
   std::string text;
   std::string str() const;
-  void emit(int &indent_level, token_kind &last_tk, bool &indented_line);
+
   bool is_ident(const char *x) const;
-  bool operator<(const token_t &rhs) const {
-    return text < rhs.text;
-  }
+  bool operator<(const token_t &rhs) const;
+  bool follows_after(const token_t &a) const;
 };
 
 const char *tkstr(token_kind tk);
-void emit_tokens(const std::vector<token_t> &tokens);
 int64_t parse_int_value(token_t token);

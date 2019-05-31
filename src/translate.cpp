@@ -263,6 +263,7 @@ expr_t *texpr(const defn_id_t &for_defn_id,
       typing[new_builtin] = type;
       return new_builtin;
     } else if (auto sizeof_ = dcast<sizeof_t *>(expr)) {
+      // TODO(wbbradley): fix this to use the real size
       auto builtin_word_id = identifier_t{"__builtin_word_size",
                                           sizeof_->get_location()};
       auto new_sizeof = new builtin_t(new var_t(builtin_word_id), {});

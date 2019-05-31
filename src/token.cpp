@@ -199,203 +199,17 @@ void ensure_indented_line(bool &indented_line, int indent_level) {
   }
 }
 
-void token_t::emit(int &indent_level,
-                   token_kind &last_tk,
-                   bool &indented_line) {
-  /* Pretty print this token in a stream. */
-  if (tkvisible(tk)) {
-    ensure_indented_line(indented_line, indent_level);
-  }
-
-  switch (tk) {
-  case tk_none:
-    break;
-  case tk_lparen:
-    printf("(");
-    break;
-  case tk_rparen:
-    printf(")");
-    break;
-  case tk_comma:
-    printf(",");
-    break;
-  case tk_lcurly:
-    printf("{");
-    indent_level++;
-    break;
-  case tk_rcurly:
-    printf("}");
-    indent_level--;
-    break;
-  case tk_lsquare:
-    printf("[");
-    break;
-  case tk_rsquare:
-    printf("]");
-    break;
-  case tk_colon:
-    printf(":");
-    break;
-  case tk_semicolon:
-    printf(";");
-    break;
-  case tk_error:
-    printf("ė");
-    break;
-  case tk_space:
-    printf(" ");
-    break;
-  case tk_becomes:
-    printf(":=");
-    break;
-  case tk_plus_eq:
-    printf("+=");
-    break;
-  case tk_maybe:
-    printf("?");
-    break;
-  case tk_bang:
-    printf("!");
-    break;
-  case tk_pipe:
-    printf("|");
-    break;
-  case tk_hat:
-    printf("^");
-    break;
-  case tk_shift_left:
-    printf("<<");
-    break;
-  case tk_shift_right:
-    printf(">>");
-    break;
-  case tk_maybe_eq:
-    printf("?=");
-    break;
-  case tk_minus_eq:
-    printf("-=");
-    break;
-  case tk_times_eq:
-    printf("*=");
-    break;
-  case tk_divide_by_eq:
-    printf("/=");
-    break;
-  case tk_mod_eq:
-    printf("%%=");
-    break;
-  case tk_newline:
-    printf("\n");
-    indented_line = false;
-    break;
-  case tk_identifier:
-    ensure_space_before(last_tk);
-    printf("%s", text.c_str());
-    break;
-  case tk_comment:
-    assert(false);
-    break;
-  case tk_char:
-  case tk_string:
-  case tk_integer:
-  case tk_float:
-    ensure_space_before(last_tk);
-    printf("%s", text.c_str());
-    break;
-  case tk_about:
-    printf("@");
-    break;
-  case tk_dot:
-    printf(".");
-    break;
-  case tk_double_dot:
-    printf("..");
-    break;
-  case tk_equal:
-    ensure_space_before(last_tk);
-    printf("==");
-    break;
-  case tk_binary_equal:
-    ensure_space_before(last_tk);
-    printf("===");
-    break;
-  case tk_inequal:
-    ensure_space_before(last_tk);
-    printf("!=");
-    break;
-  case tk_binary_inequal:
-    ensure_space_before(last_tk);
-    printf("!==");
-    break;
-  case tk_lt:
-    ensure_space_before(last_tk);
-    printf("<");
-    break;
-  case tk_subtype:
-    ensure_space_before(last_tk);
-    printf("<:");
-    break;
-  case tk_gt:
-    ensure_space_before(last_tk);
-    printf(">");
-    break;
-  case tk_lte:
-    ensure_space_before(last_tk);
-    printf("<=");
-    break;
-  case tk_gte:
-    ensure_space_before(last_tk);
-    printf(">=");
-    break;
-  case tk_assign:
-    ensure_space_before(last_tk);
-    printf("=");
-    break;
-  case tk_expr_block:
-    ensure_space_before(last_tk);
-    printf("=>");
-    break;
-  case tk_plus:
-    ensure_space_before(last_tk);
-    printf("+");
-    break;
-  case tk_backslash:
-    ensure_space_before(last_tk);
-    printf("\\");
-    break;
-  case tk_minus:
-    ensure_space_before(last_tk);
-    printf("-");
-    break;
-  case tk_ampersand:
-    printf("&");
-    break;
-  case tk_times:
-    printf("*");
-    break;
-  case tk_divide_by:
-    ensure_space_before(last_tk);
-    printf("/");
-    break;
-  case tk_mod:
-    ensure_space_before(last_tk);
-    printf("%%");
-    break;
-  }
-  last_tk = tk;
-}
-
 bool token_t::is_ident(const char *x) const {
   return tk == tk_identifier && text == x;
 }
 
-void emit_tokens(const std::vector<token_t> &tokens) {
-  int indent_level = 0;
-  token_kind tk = tk_none;
-  bool indented_line = false;
-  for (auto token : tokens) {
-    token.emit(indent_level, tk, indented_line);
-  }
+bool token_t::operator<(const token_t &rhs) const {
+  return text < rhs.text;
+}
+
+bool token_t::follows_after(const token_t &a) const {
+  return location.col == a.location.col + a.text.size() &&
+         location.line == a.location.line;
 }
 
 int64_t parse_int_value(token_t token) {
@@ -408,7 +222,7 @@ int64_t parse_int_value(token_t token) {
       value = atoll(token.text.c_str());
     }
     return value;
-  } break;
+  }
   default:
     throw user_error(token.location, "unable to read an integer value from %s",
                      token.str().c_str());
