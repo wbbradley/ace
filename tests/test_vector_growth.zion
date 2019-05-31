@@ -1,0 +1,12 @@
+fn main() {
+    rg := []
+    assert(len(rg) == 0)
+    for i in [0..100] {
+        append(rg, i)
+        assert(len(rg) == i + 1)
+        for j in [0..i] {
+            assert(rg[j] == j)
+        }
+    }
+    __builtin_pass_test
+}

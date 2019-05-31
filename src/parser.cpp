@@ -672,7 +672,13 @@ expr_t *parse_cast_expr(parse_state_t &ps) {
   expr_t *expr = parse_postfix_expr(ps);
   while (!ps.line_broke() && ps.token.is_ident(K(as))) {
     ps.advance();
-    expr = new as_t(expr, scheme({}, {}, parse_type(ps)), false /*force_cast*/);
+    bool force_cast = false;
+    if (ps.token.tk == tk_bang && ps.token.follows_after(ps.prior_token)) {
+      /* this is a force-cast */
+      force_cast = true;
+      ps.advance();
+    }
+    expr = new as_t(expr, scheme({}, {}, parse_type(ps)), force_cast);
   }
   return expr;
 }

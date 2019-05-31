@@ -38,7 +38,10 @@ types::type_t::ref infer_core(expr_t *expr,
   if (auto literal = dcast<literal_t *>(expr)) {
     return literal->non_tracking_infer();
   } else if (auto static_print = dcast<static_print_t *>(expr)) {
-    infer(static_print->expr, env, constraints);
+    auto t1 = infer(static_print->expr, env, constraints);
+    append(
+        constraints, t1, t1,
+        make_context(static_print->get_location(), "to avoid warnings later"));
     return type_unit(static_print->location);
   } else if (auto var = dcast<var_t *>(expr)) {
     return env.lookup_env(var->id);

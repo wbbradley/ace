@@ -579,6 +579,7 @@ bool zion_lexer_t::_get_tokens() {
       } else if (ch == 'e') {
         gts = gts_expon_symbol;
       } else if (ch == '.') {
+        assert(tk != tk_char);
         m_token_queue.enqueue({m_filename, line, col}, tk, token_text);
         token_text.reset();
         col = m_col;
@@ -595,6 +596,7 @@ bool zion_lexer_t::_get_tokens() {
       if (ch == 'e') {
         gts = gts_expon_symbol;
       } else if (ch == '.') {
+        m_token_queue.enqueue({m_filename, line, col}, tk, token_text);
         token_text.reset();
         col = m_col;
         gts = gts_start;
