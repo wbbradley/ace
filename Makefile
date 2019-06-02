@@ -19,7 +19,7 @@ $(BUILD_DIR)/build.ninja: $(LLVM_DIR)/LLVMConfig.cmake CMakeLists.txt
 
 test:
 	make zion
-	CTEST_OUTPUT_ON_FAILURE=TRUE ninja -j8 -C $(BUILD_DIR) test
+	$(SRC_DIR)/tests/run-tests.sh $(BUILD_DIR) $(SRC_DIR) $(SRC_DIR)/tests
 
 .PHONY: format
 format:

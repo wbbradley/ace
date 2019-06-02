@@ -1,3 +1,5 @@
+# test: pass
+
 class ReadTest a {
     fn read_test() a
 }

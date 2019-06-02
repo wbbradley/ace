@@ -10,6 +10,7 @@ using namespace bitter;
 
 void check_typing_for_ftvs(const std::string &context,
                            const tracked_types_t &typing) {
+  return;
   for (auto pair : typing) {
     if (pair.second->ftv_count() != 0) {
       log("in the context of %s", context.c_str());
@@ -56,6 +57,7 @@ expr_t *texpr(const defn_id_t &for_defn_id,
     assert(type != nullptr);
     debug_above(2, log("monomorphizing %s to have type %s", expr->str().c_str(),
                        type->str().c_str()));
+#if 0
     if (type->ftv_count() != 0) {
       log_location(expr->get_location(),
                    "cannot monomorphize %s for %s to have type %s because it "
@@ -64,6 +66,7 @@ expr_t *texpr(const defn_id_t &for_defn_id,
                    type->str().c_str());
       dbg();
     }
+#endif
 
     /* check for fully concrete type */
     if (type->generalize({})->btvs() != 0) {

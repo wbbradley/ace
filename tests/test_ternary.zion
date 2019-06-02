@@ -1,3 +1,5 @@
+# test: noprelude, pass
+
 fn main() {
     assert(__builtin_int_eq(
         __builtin_int_eq(1, 0)

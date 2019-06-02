@@ -10,6 +10,7 @@ RUN mv /etc/apt/sources.list.new /etc/apt/sources.list
 RUN apt-get update -y && apt-get install -y \
 	cmake \
 	gnupg2 \
+	shellcheck \
 	less \
 	libgc-dev \
 	make \

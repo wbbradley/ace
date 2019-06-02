@@ -1,0 +1,6 @@
+# test: pass
+
+fn main() {
+    assert(str(0.1) == "0.100")
+    __builtin_pass_test
+}

@@ -1,4 +1,5 @@
 # test: fail
+# expect: assertion failed.*False
 
 fn main() {
     assert(False)
