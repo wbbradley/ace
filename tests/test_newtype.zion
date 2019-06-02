@@ -1,3 +1,5 @@
+# test: pass
+
 newtype S = Int
 
 fn main() => print(match S(14) {

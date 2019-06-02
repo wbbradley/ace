@@ -1,3 +1,5 @@
+# test: pass
+
 data Numbers x z {
     One(x, x)
     Two(z, z)

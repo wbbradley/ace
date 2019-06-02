@@ -67,7 +67,6 @@ int run_program(std::string executable, std::vector<const char *> args) {
     }
   } else {
     /* child */
-    printf("running %s...\n", executable.c_str());
     int ret = execvp(("./" + executable).c_str(),
                      const_cast<char **>(&args[0]));
     if (ret == -1) {

@@ -55,6 +55,9 @@ types::type_t::ref infer_core(expr_t *expr,
     local_env.extend(lambda->var, scheme({}, {}, tv),
                      true /*allow_subscoping*/);
     auto body_type = infer(lambda->body, local_env, constraints);
+    append(constraints, body_type, type_unit(lambda->body->get_location()),
+           make_context(lambda->body->get_location(),
+                        "function body value is not ignored"));
     if (lambda->return_type != nullptr) {
       append(constraints, return_type, lambda->return_type,
              make_context(lambda->return_type->get_location(),

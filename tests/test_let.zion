@@ -1,3 +1,4 @@
+# test: pass, noprelude
 
 class Getter a {
     fn getter() a
@@ -5,6 +6,10 @@ class Getter a {
 
 instance Getter Int {
     fn getter() => 0
+}
+
+instance Getter Float {
+    fn getter() => 0.0
 }
 
 fn dealWithInt(x Int) () {

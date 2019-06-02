@@ -1,3 +1,5 @@
+# test: pass
+
 class Getter a {
     fn getter() a
 }

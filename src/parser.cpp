@@ -290,24 +290,30 @@ expr_t *parse_static_print(parse_state_t &ps) {
   return sp;
 }
 
+// assert macro expansion. should avoid lib/std for
 expr_t *parse_assert(parse_state_t &ps) {
   token_t assert_token = ps.token;
   chomp_ident(K(assert));
   chomp_token(tk_lparen);
 
   expr_t *condition = parse_expr(ps);
+  std::string assert_message = string_format(
+      "%s: assertion failed: (%s)\n", ps.token.location.repr().c_str(),
+      clean_ansi_escapes(condition->str()).c_str());
   expr_t *assertion = new conditional_t(
       condition, // The condition we are asserting
       unit_expr(ps.token.location),
       new block_t({
-          new application_t(
-              new var_t(make_iid("std.print")),
-              new literal_t(
-                  token_t(ps.token.location, tk_string,
-                          escape_json_quotes(string_format(
-                              "%s: assertion failed: (%s) is False",
-                              ps.token.location.repr().c_str(),
-                              clean_ansi_escapes(condition->str()).c_str()))))),
+          new builtin_t(
+              new var_t(identifier_t{"__builtin_write", ps.token.location}),
+              {
+                  new literal_t(
+                      token_t(ps.token.location, tk_integer, "2" /*stderr*/)),
+                  new literal_t(token_t(ps.token.location, tk_string,
+                                        escape_json_quotes(assert_message))),
+                  new literal_t(token_t(ps.token.location, tk_integer,
+                                        std::to_string(assert_message.size()))),
+              }),
           new builtin_t(
               new var_t(make_iid("__builtin_exit")),
               {new literal_t(token_t(assert_token.location, tk_integer, "1"))}),
@@ -396,6 +402,15 @@ expr_t *parse_var_ref(parse_state_t &ps) {
     return new builtin_t(new var_t(iid(builtin_token)), exprs);
   }
 
+  if (ps.token.is_ident(K(if))) {
+    throw user_error(ps.token.location,
+                     "if statements cannot be used as expressions. use the "
+                     "ternary operator ?:");
+  } else if (ps.token.is_ident(K(while))) {
+    throw user_error(ps.token.location,
+                     "%s statements cannot be used as expressions",
+                     ps.token.text.c_str());
+  }
   return new var_t(ps.identifier_and_advance());
 }
 

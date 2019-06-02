@@ -1,0 +1,9 @@
+# test: skip
+
+fn c_open(filename String, flags Int) Int {
+    match filename {
+        String((sz, _)) {
+            return to_int(__builtin_ffi("int open(char *, int)", sz, flags))
+        }
+    }
+}

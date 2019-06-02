@@ -17,7 +17,7 @@ if(CCACHE_EXECUTABLE)
 endif()
 
 include_directories(BEFORE src)
-# add_definitions(-DZION_DEBUG)
+add_definitions(-DZION_DEBUG)
 
 find_package(LLVM REQUIRED CONFIG)
 
@@ -74,53 +74,17 @@ target_link_libraries(zion -L${LLVM_LIBRARY_DIR} -lLLVM)
 enable_testing()
 
 # Test non-prelude based tests first
-foreach(test
-		test_let
-		test_lambda
-		test_let_lambda
-		test_instance_deduction)
+file(GLOB files "${CMAKE_SOURCE_DIR}/tests/test_*.zion")
+foreach(test ${files})
 	add_test(
 		NAME ${test}
-		COMMAND ${CMAKE_SOURCE_DIR}/tests/expect-pass-no-prelude.sh ${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR} ${test})
+		COMMAND ${CMAKE_SOURCE_DIR}/tests/run-test.sh ${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR} ${test})
 endforeach(test)
-
-# Explicitly test that assertions work as expected and cause a failure code in the built process
-add_test(
-	NAME test_failed_assert
-	COMMAND ${CMAKE_SOURCE_DIR}/tests/test-assert-fail.sh ${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR})
-
-# Test that assertions work OK when passing
-add_test(
-	NAME test_assert
-	COMMAND zion test_assert)
 
 # Run built-in unit tests
 add_test(
 	NAME unit_tests
 	COMMAND zion test)
-
-foreach(test
-	   	test_panic)
-	add_test(
-		NAME ${test}
-		COMMAND ${CMAKE_SOURCE_DIR}/tests/expect-fail.sh ${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR} ${test})
-endforeach(test)
-
-foreach(test
-	   	test_basic
-	   	test_for_loop
-	   	test_inferred_return_type
-	   	test_match_int
-	   	test_newtype
-	   	test_newtype_tuple
-	   	test_pass
-	   	test_strings
-	   	test_vector_growth
-		)
-	add_test(
-		NAME ${test}
-		COMMAND ${CMAKE_SOURCE_DIR}/tests/expect-pass.sh ${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR} ${test})
-endforeach(test)
 
 option(TIDY "Compile with clang-tidy" OFF)
 if(TIDY)
