@@ -1,3 +1,5 @@
+# test: pass
+
 fn ignore(x) => ()
 
 fn main() {

@@ -1,3 +1,5 @@
+# test: pass
+
 newtype Vec2D = (Int, Int)
 
 fn main() {

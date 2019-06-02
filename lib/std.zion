@@ -430,8 +430,6 @@ instance Eq [a] {
 }
 
 fn append(vec [a], val a) {
-    print("appending")
-    print(val)
     if !vec.array == null {
         vec.array = alloc(4)
         vec.size = 1
@@ -462,7 +460,7 @@ fn append(vec [a], val a) {
 }
 
 fn reserve(vec [a], cap Int) {
-    print("need to implement reserve")
+    # TODO: impl
 }
 
 instance HasDefault [a] {

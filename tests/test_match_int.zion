@@ -1,3 +1,5 @@
+# test: pass
+
 fn main() {
     s := 3
     match s {

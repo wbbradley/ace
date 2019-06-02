@@ -1,3 +1,4 @@
+# test: pass
 
 fn main() {
     var f = concat("", "hi")

@@ -1,3 +1,8 @@
 fn main() {
-    print(False ? 3 : (True ? 4 : 5))
+    assert(__builtin_int_eq(
+        __builtin_int_eq(1, 0)
+            ? 3
+            : (__builtin_int_eq(2, 2) ? 4 : 5),
+        4))
+    __builtin_pass_test
 }

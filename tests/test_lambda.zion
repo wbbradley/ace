@@ -1,3 +1,5 @@
+# test: pass
+
 fn ignore(x) => ()
 
 fn main() {
@@ -5,9 +7,5 @@ fn main() {
         return a
     }(1))
 
-    __builtin_write_char(1, 'P')
-    __builtin_write_char(1, 'A')
-    __builtin_write_char(1, 'S')
-    __builtin_write_char(1, 'S')
-    __builtin_write_char(1, '\n')
+    __builtin_pass_test
 }

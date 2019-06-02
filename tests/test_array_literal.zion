@@ -1,8 +1,10 @@
+# test: pass
+
 fn abc() {
     return ["a", "b", "c"]
 }
+
 fn main() {
-    abc()
-    print("hey")
-    print([1, 2, 3])
+    assert(len(abc()) == len([1, 2, 3]))
+    __builtin_pass_test
 }

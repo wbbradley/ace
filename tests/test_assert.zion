@@ -1,3 +1,5 @@
+# test: pass
+
 fn main() {
     assert(1 + 5 >= 6)
     print("PASS")
