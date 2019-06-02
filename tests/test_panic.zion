@@ -1,3 +1,6 @@
+# test: fail
+# expect: This should cause a failure code.
+
 fn main() {
     panic("This should cause a failure code.")
 }

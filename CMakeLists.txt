@@ -71,21 +71,6 @@ add_executable(zion
 message(STATUS "Using dynamic link options -L${LLVM_LIBRARY_DIR} -lLLVM")
 target_link_libraries(zion -L${LLVM_LIBRARY_DIR} -lLLVM)
 
-enable_testing()
-
-# Test non-prelude based tests first
-file(GLOB files "${CMAKE_SOURCE_DIR}/tests/test_*.zion")
-foreach(test ${files})
-	add_test(
-		NAME ${test}
-		COMMAND ${CMAKE_SOURCE_DIR}/tests/run-test.sh ${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR} ${test})
-endforeach(test)
-
-# Run built-in unit tests
-add_test(
-	NAME unit_tests
-	COMMAND zion test)
-
 option(TIDY "Compile with clang-tidy" OFF)
 if(TIDY)
 	find_program(

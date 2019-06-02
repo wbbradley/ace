@@ -14,4 +14,5 @@ fn interpret(n Numbers x z) => match n {
 
 fn main() {
     print(interpret(One(4, 3)))
+    __builtin_pass_test
 }
