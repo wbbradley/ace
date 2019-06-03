@@ -1,0 +1,8 @@
+# test: pass
+
+fn main() {
+    match True {
+        True { print("PASS") }
+        _ {}
+    }
+}

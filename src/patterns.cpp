@@ -323,47 +323,66 @@ expr_t *ctor_predicate_t::translate(
                            scrutinee_type->str().c_str(),
                            resolved_scrutinee_type->str().c_str()));
 
+  bool just_compare_ints = false;
   if (!type_equality(resolved_scrutinee_type, scrutinee_type)) {
     /* we found a newtype? */
+    if (params.size() == 0) {
+      /* if there are zero parameters, then we are comparing enums */
+      just_compare_ints = true;
+    } else if (params.size() == 1) {
+      auto scrutinee = new var_t(scrutinee_id);
+      typing[scrutinee] = scrutinee_type;
+      auto casted_scrutinee = new as_t(scrutinee,
+                                       resolved_scrutinee_type->generalize({}),
+                                       true /*force_cast*/);
+      typing[casted_scrutinee] = resolved_scrutinee_type;
 
-    // There can be only one. There must be one.
-    assert(params.size() == 1);
-
-    auto scrutinee = new var_t(scrutinee_id);
-    typing[scrutinee] = scrutinee_type;
-    auto casted_scrutinee = new as_t(scrutinee,
-                                     resolved_scrutinee_type->generalize({}),
-                                     true /*force_cast*/);
-    typing[casted_scrutinee] = resolved_scrutinee_type;
-
-    identifier_t param_id = params[0]->instantiate_name_assignment();
-    auto new_bound_vars = bound_vars;
-    new_bound_vars.insert(param_id.name);
-    auto let_body = params[0]->translate(
-        for_defn_id, param_id, resolved_scrutinee_type, do_checks,
-        new_bound_vars, type_env, tenv, typing, needed_defns, returns, matched,
-        failed);
-    auto casted_pattern_match = new let_t(param_id, casted_scrutinee, let_body);
-    typing[casted_pattern_match] = typing.at(let_body);
-    debug_above(4, log("emitting newtype pattern match %s",
-                       casted_pattern_match->str().c_str()));
-    return casted_pattern_match;
+      identifier_t param_id = params[0]->instantiate_name_assignment();
+      auto new_bound_vars = bound_vars;
+      new_bound_vars.insert(param_id.name);
+      auto let_body = params[0]->translate(
+          for_defn_id, param_id, resolved_scrutinee_type, do_checks,
+          new_bound_vars, type_env, tenv, typing, needed_defns, returns,
+          matched, failed);
+      auto casted_pattern_match = new let_t(param_id, casted_scrutinee,
+                                            let_body);
+      typing[casted_pattern_match] = typing.at(let_body);
+      debug_above(4, log("emitting newtype pattern match %s",
+                         casted_pattern_match->str().c_str()));
+      return casted_pattern_match;
+    } else {
+      log_location(get_location(),
+                   "while translating a ctor_predicate. %s != %s and [%s]",
+                   resolved_scrutinee_type->str().c_str(),
+                   scrutinee_type->str().c_str(), join(params).c_str());
+      dbg();
+    }
   }
 
   if (do_checks) {
+    expr_t *condition;
     int ctor_id = tenv.get_ctor_id(ctor_name.name);
-    var_t *cmp_ctor_id = new var_t(make_iid("__builtin_cmp_ctor_id"));
-    typing[cmp_ctor_id] = type_arrows({scrutinee_type, Int, Bool});
+    if (just_compare_ints) {
+      var_t *int_cmp = new var_t(make_iid("__builtin_int_eq"));
+      typing[int_cmp] = get_builtins().at("__builtin_int_eq")->instantiate({});
 
-    auto ctor_id_literal = new literal_t(
-        token_t{location, tk_integer, std::to_string(ctor_id)});
-    typing[ctor_id_literal] = Int;
+      type_arrows({scrutinee_type, Int, Bool});
+      condition = new builtin_t(int_cmp, {
+        typing[condition] = type_bool(INTERNAL_LOC());
+    } else {
+        var_t *cmp_ctor_id = new var_t(make_iid("__builtin_cmp_ctor_id"));
+        typing[cmp_ctor_id] = type_arrows({scrutinee_type, Int, Bool});
 
-    expr_t *scrutinee = new var_t(scrutinee_id);
-    typing[scrutinee] = scrutinee_type;
+        auto ctor_id_literal = new literal_t(
+            token_t{location, tk_integer, std::to_string(ctor_id)});
+        typing[ctor_id_literal] = Int;
 
-    auto condition = new builtin_t(cmp_ctor_id, {scrutinee, ctor_id_literal});
-    typing[condition] = type_bool(INTERNAL_LOC());
+        expr_t *scrutinee = new var_t(scrutinee_id);
+        typing[scrutinee] = scrutinee_type;
+
+        condition = new builtin_t(cmp_ctor_id, {scrutinee, ctor_id_literal});
+        typing[condition] = type_bool(INTERNAL_LOC());
+    }
 
     bool truthy_returns = false;
     bool falsey_returns = false;
@@ -383,76 +402,65 @@ expr_t *ctor_predicate_t::translate(
     assert(!returns);
     returns = returns || (truthy_returns && falsey_returns);
     return cond;
-  } else {
+    } else {
+      return (params.size() != 0)
+                 ? translate_next(for_defn_id, scrutinee_id, scrutinee_type,
+                                  ctor_terms, do_checks, bound_vars, params, 0,
+                                  1 /*dim_offset*/, type_env, tenv, typing,
+                                  needed_defns, returns, matched, failed)
+                 : matched(bound_vars, type_env, tenv, typing, needed_defns,
+                           returns);
+    }
+  }
+
+  void tuple_predicate_t::get_bound_vars(std::unordered_set<std::string> &
+                                         bound_vars) const {
+    if (name_assignment.valid) {
+      bound_vars.insert(name_assignment.t.name);
+    }
+    for (auto param : params) {
+      param->get_bound_vars(bound_vars);
+    }
+  }
+
+  expr_t *tuple_predicate_t::translate(
+      const defn_id_t &for_defn_id, const identifier_t &scrutinee_id,
+      const types::type_t::ref &scrutinee_type, bool do_checks,
+      const std::unordered_set<std::string> &bound_vars,
+      const types::type_env_t &type_env, const translation_env_t &tenv,
+      tracked_types_t &typing, needed_defns_t &needed_defns, bool &returns,
+      translate_continuation_t &matched, translate_continuation_t &failed)
+      const {
+    auto tuple_type = safe_dyncast<const types::type_tuple_t>(scrutinee_type);
+
     return (params.size() != 0)
                ? translate_next(for_defn_id, scrutinee_id, scrutinee_type,
-                                ctor_terms, do_checks, bound_vars, params, 0,
-                                1 /*dim_offset*/, type_env, tenv, typing,
-                                needed_defns, returns, matched, failed)
+                                tuple_type->dimensions, do_checks, bound_vars,
+                                params, 0, 0 /*dim_offset*/, type_env, tenv,
+                                typing, needed_defns, returns, matched, failed)
                : matched(bound_vars, type_env, tenv, typing, needed_defns,
                          returns);
   }
-}
 
-void tuple_predicate_t::get_bound_vars(
-    std::unordered_set<std::string> &bound_vars) const {
-  if (name_assignment.valid) {
-    bound_vars.insert(name_assignment.t.name);
+  void irrefutable_predicate_t::get_bound_vars(std::unordered_set<std::string> &
+                                               bound_vars) const {
+    if (name_assignment.valid) {
+      bound_vars.insert(name_assignment.t.name);
+    }
   }
-  for (auto param : params) {
-    param->get_bound_vars(bound_vars);
+
+  expr_t *irrefutable_predicate_t::translate(
+      const defn_id_t &for_defn_id, const identifier_t &scrutinee_id,
+      const types::type_t::ref &scrutinee_type, bool do_checks,
+      const std::unordered_set<std::string> &bound_vars,
+      const types::type_env_t &type_env, const translation_env_t &tenv,
+      tracked_types_t &typing, needed_defns_t &needed_defns, bool &returns,
+      translate_continuation_t &matched, translate_continuation_t &) const {
+    debug_above(3, log_location(get_location(),
+                                "matched irrefutable predicate for %s. "
+                                "scrutinee_id = %s :: %s",
+                                for_defn_id.str().c_str(),
+                                scrutinee_id.str().c_str(),
+                                scrutinee_type->str().c_str()));
+    return matched(bound_vars, type_env, tenv, typing, needed_defns, returns);
   }
-}
-
-expr_t *tuple_predicate_t::translate(
-    const defn_id_t &for_defn_id,
-    const identifier_t &scrutinee_id,
-    const types::type_t::ref &scrutinee_type,
-    bool do_checks,
-    const std::unordered_set<std::string> &bound_vars,
-    const types::type_env_t &type_env,
-    const translation_env_t &tenv,
-    tracked_types_t &typing,
-    needed_defns_t &needed_defns,
-    bool &returns,
-    translate_continuation_t &matched,
-    translate_continuation_t &failed) const {
-  auto tuple_type = safe_dyncast<const types::type_tuple_t>(scrutinee_type);
-
-  return (params.size() != 0)
-             ? translate_next(for_defn_id, scrutinee_id, scrutinee_type,
-                              tuple_type->dimensions, do_checks, bound_vars,
-                              params, 0, 0 /*dim_offset*/, type_env, tenv,
-                              typing, needed_defns, returns, matched, failed)
-             : matched(bound_vars, type_env, tenv, typing, needed_defns,
-                       returns);
-}
-
-void irrefutable_predicate_t::get_bound_vars(
-    std::unordered_set<std::string> &bound_vars) const {
-  if (name_assignment.valid) {
-    bound_vars.insert(name_assignment.t.name);
-  }
-}
-
-expr_t *irrefutable_predicate_t::translate(
-    const defn_id_t &for_defn_id,
-    const identifier_t &scrutinee_id,
-    const types::type_t::ref &scrutinee_type,
-    bool do_checks,
-    const std::unordered_set<std::string> &bound_vars,
-    const types::type_env_t &type_env,
-    const translation_env_t &tenv,
-    tracked_types_t &typing,
-    needed_defns_t &needed_defns,
-    bool &returns,
-    translate_continuation_t &matched,
-    translate_continuation_t &) const {
-  debug_above(3, log_location(get_location(),
-                              "matched irrefutable predicate for %s. "
-                              "scrutinee_id = %s :: %s",
-                              for_defn_id.str().c_str(),
-                              scrutinee_id.str().c_str(),
-                              scrutinee_type->str().c_str()));
-  return matched(bound_vars, type_env, tenv, typing, needed_defns, returns);
-}
