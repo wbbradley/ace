@@ -18,7 +18,7 @@ public:
   zion_lexer_t(std::string filename, std::istream &sock_is);
   ~zion_lexer_t();
 
-  bool get_token(token_t &token, bool &newline, std::vector<token_t> *comments);
+  bool get_token(Token &token, bool &newline, std::vector<Token> *comments);
   bool _get_tokens();
   bool eof();
 

@@ -116,10 +116,10 @@ K(while);
 
 bool is_restricted_var_name(std::string x);
 
-struct token_t {
-  token_t(const location_t &location = {{""}, -1, -1},
-          token_kind tk = tk_none,
-          std::string text = "")
+struct Token {
+  Token(const location_t &location = {{""}, -1, -1},
+        token_kind tk = tk_none,
+        std::string text = "")
       : location(location), tk(tk), text(text) {
   }
   location_t location;
@@ -128,9 +128,9 @@ struct token_t {
   std::string str() const;
 
   bool is_ident(const char *x) const;
-  bool operator<(const token_t &rhs) const;
-  bool follows_after(const token_t &a) const;
+  bool operator<(const Token &rhs) const;
+  bool follows_after(const Token &a) const;
 };
 
 const char *tkstr(token_kind tk);
-int64_t parse_int_value(token_t token);
+int64_t parse_int_value(Token token);

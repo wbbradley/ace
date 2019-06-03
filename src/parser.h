@@ -12,8 +12,8 @@ template <typename T, typename... Args>
 std::shared_ptr<T> parse_text(std::istream &is,
                               std::string filename = "repl.zion") {
   zion_lexer_t lexer(filename, is);
-  std::vector<token_t> comments;
-  std::set<token_t> link_ins;
+  std::vector<Token> comments;
+  std::set<Token> link_ins;
 
   parse_state_t ps(filename, "<text>", lexer, comments, link_ins,
                    get_builtin_arities());
@@ -32,8 +32,8 @@ std::shared_ptr<T> parse_text(const std::string &text,
   return parse_text<T>(iss, filename);
 }
 
-bool token_begins_type(const token_t &token);
-inline identifier_t iid(const token_t &token) {
+bool token_begins_type(const Token &token);
+inline identifier_t iid(const Token &token) {
   return identifier_t::from_token(token);
 }
 

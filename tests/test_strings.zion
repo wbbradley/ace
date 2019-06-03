@@ -1,3 +1,5 @@
+# test: pass
+
 fn main() {
     assert("" == "")
     assert("a" == "a")

@@ -41,9 +41,9 @@ bool zion_lexer_t::eof() {
   return m_is.eof();
 }
 
-bool zion_lexer_t::get_token(token_t &token,
+bool zion_lexer_t::get_token(Token &token,
                              bool &newline,
-                             std::vector<token_t> *comments) {
+                             std::vector<Token> *comments) {
   newline = false;
   do {
     for (int i = 0; i < 2 && m_token_queue.empty(); ++i) {

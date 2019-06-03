@@ -1086,7 +1086,7 @@ int run_job(const job_t &job) {
     std::ifstream ifs;
     ifs.open(filename.c_str());
     zion_lexer_t lexer({filename}, ifs);
-    token_t token;
+    Token token;
     bool newline = false;
     while (lexer.get_token(token, newline, nullptr)) {
       log_location(token.location, "%s (%s)", token.text.c_str(),

@@ -18,12 +18,11 @@ identifier_t prefix(const std::set<std::string> &bindings,
   return {prefix(bindings, pre, name.name), name.location};
 }
 
-token_t prefix(const std::set<std::string> &bindings,
-               std::string pre,
-               token_t name) {
+Token prefix(const std::set<std::string> &bindings,
+             std::string pre,
+             Token name) {
   assert(name.tk == tk_identifier);
-  return token_t{name.location, tk_identifier,
-                 prefix(bindings, pre, name.text)};
+  return Token{name.location, tk_identifier, prefix(bindings, pre, name.text)};
 }
 
 expr_t *prefix(const std::set<std::string> &bindings,

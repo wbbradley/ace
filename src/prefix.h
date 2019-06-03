@@ -11,9 +11,9 @@ std::string prefix(const std::set<std::string> &bindings,
 identifier_t prefix(const std::set<std::string> &bindings,
                     std::string pre,
                     identifier_t name);
-token_t prefix(const std::set<std::string> &bindings,
-               std::string pre,
-               token_t name);
+Token prefix(const std::set<std::string> &bindings,
+             std::string pre,
+             Token name);
 bitter::expr_t *prefix(const std::set<std::string> &bindings,
                        std::string pre,
                        bitter::expr_t *value);

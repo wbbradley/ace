@@ -38,6 +38,15 @@ char *zion_itoa(int64_t x) {
   return GC_strndup(sz, strlen(sz));
 }
 
+char *zion_ftoa(double x) {
+  char sz[128];
+  if (snprintf(sz, sizeof(sz), "%f", x) < 1) {
+    perror("Failed in zion_ftoa");
+    exit(1);
+  }
+  return GC_strndup(sz, strlen(sz));
+}
+
 void zion_pass_test() {
   write(1, "PASS\n", 5);
 }

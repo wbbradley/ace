@@ -542,6 +542,20 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
                                     llvm::ArrayRef<llvm::Type *>(itoa_terms),
                                     false /*isVarArg*/)));
     return builder.CreateCall(llvm_itoa_func_decl, params);
+  } else if (name == "__builtin_ftoa") {
+    /* scheme({}, {}, type_arrows({Float, *Char})) */
+    auto llvm_module = llvm_get_module(builder);
+    llvm::Type *terms[] = {builder.getDoubleTy()};
+
+    assert(params.size() == 1);
+    assert(params[0]->getType() == builder.getDoubleTy());
+    auto func_decl = llvm::cast<llvm::Function>(
+        llvm_module->getOrInsertFunction(
+            "zion_ftoa",
+            llvm::FunctionType::get(builder.getInt8Ty()->getPointerTo(),
+                                    llvm::ArrayRef<llvm::Type *>(terms),
+                                    false /*isVarArg*/)));
+    return builder.CreateCall(func_decl, params);
   } else if (name == "__builtin_strlen") {
     /* scheme({}, {}, type_arrows({*Char, Int})) */
     auto llvm_module = llvm_get_module(builder);
@@ -876,6 +890,18 @@ resolution_status_t gen_literal(std::string name,
     return rs_resolve_again;
   } else if (type_equality(type, type_id(make_iid(INT_TYPE)))) {
     auto llvm_value = builder.getZionInt(atoll(token.text.c_str()));
+    if (publisher != nullptr) {
+      publisher->publish(llvm_value);
+    }
+    return rs_resolve_again;
+  } else if (type_equality(type, type_id(make_iid(FLOAT_TYPE)))) {
+    double value;
+    std::istringstream iss(token.text);
+    iss >> value;
+    if (value != value) {
+      throw user_error(token.location, "%s is not a number", token.text.c_str());
+    }
+    auto llvm_value = llvm::ConstantFP::get(builder.getDoubleTy(), value);
     if (publisher != nullptr) {
       publisher->publish(llvm_value);
     }

@@ -33,6 +33,14 @@ instance Show Int {
     }
 }
 
+instance Show Float {
+    fn str(x) {
+        sz := __builtin_ftoa(x)
+        length := __builtin_strlen(sz)
+        return String((sz, length))
+    }
+}
+
 instance Show Ref a {
     fn str(a) => str(!a)
 }
