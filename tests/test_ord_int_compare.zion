@@ -1,4 +1,7 @@
+# test: pass
+
 fn main() {
+    static_print(compare(-8, 9))
     assert(match compare(-8, 9) {
         LT => True
         _  => False

@@ -1,3 +1,11 @@
+#pragma once
+
+#include <map>
+#include <string>
+#include <memory>
+
+#include "types.h"
+
 extern const char *MAYBE_TYPE;
 extern const char *INT_TYPE;
 extern const char *UINT_TYPE;
@@ -20,3 +28,9 @@ extern const char *PTR_TYPE_OPERATOR;
 extern const char *REF_TYPE_OPERATOR;
 extern const char *VECTOR_TYPE;
 extern const char *STRING_TYPE;
+
+namespace types {
+struct scheme_t;
+}
+
+const std::map<std::string, std::shared_ptr<types::scheme_t>> &get_builtins();

@@ -116,7 +116,7 @@ K(while);
 
 bool is_restricted_var_name(std::string x);
 
-struct token_t final {
+struct token_t {
   token_t(const location_t &location = {{""}, -1, -1},
           token_kind tk = tk_none,
           std::string text = "")
