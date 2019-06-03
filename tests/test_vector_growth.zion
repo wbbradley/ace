@@ -1,3 +1,6 @@
+# test: pass
+# expect: 100, 100
+
 fn main() {
     rg := []
     assert(len(rg) == 0)
@@ -5,6 +8,7 @@ fn main() {
         append(rg, i)
         assert(len(rg) == i + 1)
         for j in [0..i] {
+            print(concat(concat(str(i), ", "), str(j)))
             assert(rg[j] == j)
         }
     }

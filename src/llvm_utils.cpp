@@ -612,7 +612,7 @@ llvm::Type *get_llvm_type(llvm::IRBuilder<> &builder,
     } else if (name == INT_TYPE) {
       return builder.getZionIntTy();
     } else if (name == FLOAT_TYPE) {
-      return builder.getFloatTy();
+      return builder.getDoubleTy();
     } else {
       return builder.getInt8Ty()->getPointerTo();
     }

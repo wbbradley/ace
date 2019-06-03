@@ -299,7 +299,7 @@ struct builtin_t : public expr_t {
 };
 
 struct literal_t : public expr_t, public predicate_t {
-  literal_t(token_t token) : token(token) {
+  literal_t(Token token) : token(token) {
     // Strings are currently passed in as quoted.
     assert_implies(token.tk == tk_string, token.text[0] == '\"');
   }
@@ -328,7 +328,7 @@ struct literal_t : public expr_t, public predicate_t {
                     translate_continuation_t &failed) const override;
   location_t get_location() const override;
 
-  token_t const token;
+  Token const token;
 };
 
 struct conditional_t : public expr_t {

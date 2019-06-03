@@ -13,9 +13,9 @@ struct identifier_t {
   identifier_t(const std::string &name, location_t location);
   std::string const name;
   location_t const location;
-  static identifier_t from_token(token_t token);
-  inline token_t get_token() const {
-    return token_t{location, tk_identifier, name};
+  static identifier_t from_token(Token token);
+  inline Token get_token() const {
+    return Token{location, tk_identifier, name};
   }
   std::string str() const {
     return string_format(c_id("%s"), name.c_str());

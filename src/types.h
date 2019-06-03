@@ -6,7 +6,6 @@
 #include "ast_decls.h"
 #include "defn_id.h"
 #include "identifier.h"
-#include "token.h"
 #include "utils.h"
 #include "zion.h"
 

@@ -362,26 +362,30 @@ expr_t *ctor_predicate_t::translate(
   if (do_checks) {
     expr_t *condition;
     int ctor_id = tenv.get_ctor_id(ctor_name.name);
+    auto ctor_id_literal = new literal_t(
+        Token{location, tk_integer, std::to_string(ctor_id)});
+    typing[ctor_id_literal] = Int;
+
+    expr_t *scrutinee = new var_t(scrutinee_id);
+    typing[scrutinee] = scrutinee_type;
+
     if (just_compare_ints) {
+      auto casted_scrutinee = new as_t(scrutinee,
+                                       resolved_scrutinee_type->generalize({}),
+                                       true /*force_cast*/);
+      typing[casted_scrutinee] = resolved_scrutinee_type;
+
       var_t *int_cmp = new var_t(make_iid("__builtin_int_eq"));
       typing[int_cmp] = get_builtins().at("__builtin_int_eq")->instantiate({});
 
-      type_arrows({scrutinee_type, Int, Bool});
-      condition = new builtin_t(int_cmp, {
-        typing[condition] = type_bool(INTERNAL_LOC());
+      condition = new builtin_t(int_cmp, {ctor_id_literal, casted_scrutinee});
+      typing[condition] = type_bool(INTERNAL_LOC());
     } else {
-        var_t *cmp_ctor_id = new var_t(make_iid("__builtin_cmp_ctor_id"));
-        typing[cmp_ctor_id] = type_arrows({scrutinee_type, Int, Bool});
+      var_t *cmp_ctor_id = new var_t(make_iid("__builtin_cmp_ctor_id"));
+      typing[cmp_ctor_id] = type_arrows({scrutinee_type, Int, Bool});
 
-        auto ctor_id_literal = new literal_t(
-            token_t{location, tk_integer, std::to_string(ctor_id)});
-        typing[ctor_id_literal] = Int;
-
-        expr_t *scrutinee = new var_t(scrutinee_id);
-        typing[scrutinee] = scrutinee_type;
-
-        condition = new builtin_t(cmp_ctor_id, {scrutinee, ctor_id_literal});
-        typing[condition] = type_bool(INTERNAL_LOC());
+      condition = new builtin_t(cmp_ctor_id, {scrutinee, ctor_id_literal});
+      typing[condition] = type_bool(INTERNAL_LOC());
     }
 
     bool truthy_returns = false;

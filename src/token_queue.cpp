@@ -24,20 +24,20 @@ bool zion_token_queue_t::empty() const {
   return m_queue.empty();
 }
 
-token_t zion_token_queue_t::pop() {
-  token_t token = m_queue.front();
+Token zion_token_queue_t::pop() {
+  Token token = m_queue.front();
   m_queue.pop_front();
   if (m_queue.empty()) {
     return token;
   } else {
-    token_t next_token = m_queue.front();
+    Token next_token = m_queue.front();
     if (token.tk == tk_integer && next_token.tk == tk_float &&
         token.location.line == next_token.location.line &&
         token.location.col + token.text.size() == next_token.location.col &&
         starts_with(next_token.text, ".")) {
       /* combine these two tokens into a single float */
       m_queue.pop_front();
-      return token_t{token.location, tk_float, token.text + next_token.text};
+      return Token{token.location, tk_float, token.text + next_token.text};
     } else {
       return token;
     }

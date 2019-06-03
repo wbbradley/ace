@@ -28,7 +28,7 @@ std::set<std::string> to_atom_set(const identifiers_t &refs) {
   return set;
 }
 
-identifier_t identifier_t::from_token(token_t token) {
+identifier_t identifier_t::from_token(Token token) {
   assert(token.tk == tk_identifier);
   return {token.text, token.location};
 }

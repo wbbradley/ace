@@ -29,9 +29,9 @@ const char *PASSED_TESTS_FILENAME = "tests-passed";
 
 std::vector<token_kind> get_tks(zion_lexer_t &lexer,
                                 bool include_newlines,
-                                std::vector<token_t> &comments) {
+                                std::vector<Token> &comments) {
   std::vector<token_kind> tks;
-  token_t token;
+  Token token;
   bool newline = false;
   while (lexer.get_token(token, newline, &comments)) {
     if (include_newlines && newline && token.tk != tk_rcurly) {
@@ -89,7 +89,7 @@ void log_list(log_level_t level, const char *prefix, T &xs) {
 bool check_lexer(std::string text,
                  std::vector<token_kind> expect_tks,
                  bool include_newlines,
-                 std::vector<token_t> &comments) {
+                 std::vector<Token> &comments) {
   std::istringstream iss(text);
   zion_lexer_t lexer("check_lexer", iss);
   std::vector<token_kind> result_tks = get_tks(lexer, include_newlines,
@@ -111,7 +111,7 @@ struct lexer_test_t {
 typedef std::vector<lexer_test_t> lexer_tests;
 
 bool lexer_test_comments(const lexer_tests &tests,
-                         std::vector<token_t> &comments,
+                         std::vector<Token> &comments,
                          bool include_newlines = false) {
   for (auto &test : tests) {
     if (!check_lexer(test.text, test.tks, include_newlines, comments)) {
@@ -122,7 +122,7 @@ bool lexer_test_comments(const lexer_tests &tests,
 }
 
 bool lexer_test(const lexer_tests &tests, bool include_newlines = false) {
-  std::vector<token_t> comments;
+  std::vector<Token> comments;
   for (auto &test : tests) {
     if (!check_lexer(test.text, test.tks, include_newlines, comments)) {
       return false;
@@ -142,7 +142,7 @@ bool test_lex_comments() {
       {"( /*# hey */ )", {tk_lparen, tk_rparen}},
   };
 
-  std::vector<token_t> comments;
+  std::vector<Token> comments;
   if (lexer_test_comments(tests, comments)) {
     if (comments.size() != tests.size()) {
       log(log_error, "failed to find the comments");

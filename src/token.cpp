@@ -56,7 +56,7 @@ bool tkvisible(token_kind tk) {
   }
 }
 
-std::string token_t::str() const {
+std::string Token::str() const {
   std::stringstream ss;
   if (text.size() != 0) {
     ss << C_ID << "'" << text << "'" << C_RESET;
@@ -199,20 +199,20 @@ void ensure_indented_line(bool &indented_line, int indent_level) {
   }
 }
 
-bool token_t::is_ident(const char *x) const {
+bool Token::is_ident(const char *x) const {
   return tk == tk_identifier && text == x;
 }
 
-bool token_t::operator<(const token_t &rhs) const {
+bool Token::operator<(const Token &rhs) const {
   return text < rhs.text;
 }
 
-bool token_t::follows_after(const token_t &a) const {
+bool Token::follows_after(const Token &a) const {
   return location.col == a.location.col + a.text.size() &&
          location.line == a.location.line;
 }
 
-int64_t parse_int_value(token_t token) {
+int64_t parse_int_value(Token token) {
   switch (token.tk) {
   case tk_integer: {
     int64_t value;

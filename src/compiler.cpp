@@ -131,8 +131,8 @@ struct global_parser_state_t {
   std::vector<module_t *> modules;
   std::map<std::string, module_t *> modules_map_by_filename;
   std::map<std::string, module_t *> modules_map_by_name;
-  std::vector<token_t> comments;
-  std::set<token_t> link_ins;
+  std::vector<Token> comments;
+  std::set<Token> link_ins;
   const std::map<std::string, int> &builtin_arities;
 
   module_t *parse_module_statefully(identifier_t module_id) {

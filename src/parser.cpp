@@ -19,7 +19,7 @@ identifier_t make_accessor_id(identifier_t id) {
   return identifier_t{"__get_" + id.name, id.location};
 }
 
-bool token_begins_type(const token_t &token) {
+bool token_begins_type(const Token &token) {
   switch (token.tk) {
   case tk_integer:
   case tk_string:
@@ -193,7 +193,7 @@ expr_t *parse_with_block(parse_state_t &ps) {
 	auto with_pattern = create<pattern_block_t>(with_token);
 	with_pattern->block = block;
 
-	auto with_predicate = create<ctor_predicate_t>(token_t{with_token.location, tk_identifier, "Acquired"});
+	auto with_predicate = create<ctor_predicate_t>(Token{with_token.location, tk_identifier, "Acquired"});
 	with_predicate->params.push_back(create<irrefutable_predicate_t>(param_id));
 	with_predicate->params.push_back(create<irrefutable_predicate_t>(cleanup_token));
 	with_pattern->predicate = with_predicate;
@@ -205,7 +205,7 @@ expr_t *parse_with_block(parse_state_t &ps) {
 	auto else_pattern = create<pattern_block_t>(else_token);
 	else_pattern->block = error_block;
 
-	auto else_predicate = create<ctor_predicate_t>(token_t{else_token.location, tk_identifier, "Failed"});
+	auto else_predicate = create<ctor_predicate_t>(Token{else_token.location, tk_identifier, "Failed"});
 	else_predicate->params.push_back(create<irrefutable_predicate_t>(error_var_id));
 	else_pattern->predicate = else_predicate;
 
@@ -292,7 +292,7 @@ expr_t *parse_static_print(parse_state_t &ps) {
 
 // assert macro expansion. should avoid lib/std for
 expr_t *parse_assert(parse_state_t &ps) {
-  token_t assert_token = ps.token;
+  Token assert_token = ps.token;
   chomp_ident(K(assert));
   chomp_token(tk_lparen);
 
@@ -308,15 +308,15 @@ expr_t *parse_assert(parse_state_t &ps) {
               new var_t(identifier_t{"__builtin_write", ps.token.location}),
               {
                   new literal_t(
-                      token_t(ps.token.location, tk_integer, "2" /*stderr*/)),
-                  new literal_t(token_t(ps.token.location, tk_string,
-                                        escape_json_quotes(assert_message))),
-                  new literal_t(token_t(ps.token.location, tk_integer,
-                                        std::to_string(assert_message.size()))),
+                      Token(ps.token.location, tk_integer, "2" /*stderr*/)),
+                  new literal_t(Token(ps.token.location, tk_string,
+                                      escape_json_quotes(assert_message))),
+                  new literal_t(Token(ps.token.location, tk_integer,
+                                      std::to_string(assert_message.size()))),
               }),
           new builtin_t(
               new var_t(make_iid("__builtin_exit")),
-              {new literal_t(token_t(assert_token.location, tk_integer, "1"))}),
+              {new literal_t(Token(assert_token.location, tk_integer, "1"))}),
           unit_expr(ps.token.location),
       }));
   chomp_token(tk_rparen);
@@ -377,8 +377,8 @@ expr_t *parse_var_ref(parse_state_t &ps) {
 
   if (ps.token.is_ident(K(__filename__))) {
     auto token = ps.token_and_advance();
-    return new literal_t(token_t{token.location, tk_string,
-                                 escape_json_quotes(token.location.filename)});
+    return new literal_t(Token{token.location, tk_string,
+                               escape_json_quotes(token.location.filename)});
   } else if (in(ps.token.text, ps.builtin_arities)) {
     int arity = get(ps.builtin_arities, ps.token.text, -1);
     assert(arity >= 0);
@@ -428,12 +428,12 @@ expr_t *parse_base_expr(parse_state_t &ps) {
   } else if (ps.token.is_ident(K(match))) {
     return parse_match(ps);
   } else if (ps.token.is_ident(K(null))) {
-    return new as_t(new literal_t(token_t{ps.token_and_advance().location,
-                                          tk_integer, "0"}),
-                    scheme({"a"}, {},
-                           type_ptr(type_variable(
-                               identifier_t{"a", ps.prior_token.location}))),
-                    true /*force_cast*/);
+    return new as_t(
+        new literal_t(Token{ps.token_and_advance().location, tk_integer, "0"}),
+        scheme({"a"}, {},
+               type_ptr(
+                   type_variable(identifier_t{"a", ps.prior_token.location}))),
+        true /*force_cast*/);
   } else if (ps.token.tk == tk_identifier) {
     return parse_var_ref(ps);
   } else {
@@ -493,7 +493,7 @@ expr_t *parse_array_literal(parse_state_t &ps) {
                    : new application_t(
                          new application_t(
                              new var_t(make_iid("std.+")),
-                             new literal_t(token_t{location, tk_integer, "1"})),
+                             new literal_t(Token{location, tk_integer, "1"})),
                          new var_t(range_min)),
           let_range_max);
 
@@ -556,8 +556,8 @@ expr_t *parse_literal(parse_state_t &ps) {
         new var_t(identifier_t{"std.String", token.location}),
         new tuple_t(token.location,
                     {new literal_t(token),
-                     new literal_t(token_t{token.location, tk_integer,
-                                           std::to_string(string_len)})}));
+                     new literal_t(Token{token.location, tk_integer,
+                                         std::to_string(string_len)})}));
   }
   case tk_lsquare:
     return parse_array_literal(ps);
@@ -712,10 +712,10 @@ expr_t *parse_prefix_expr(parse_state_t &ps) {
     return parse_sizeof(ps);
   }
 
-  maybe<token_t> prefix = (ps.token.tk == tk_minus ||
-                           ps.token.is_ident(K(not)) || ps.token.tk == tk_bang)
-                              ? maybe<token_t>(ps.token)
-                              : maybe<token_t>();
+  maybe<Token> prefix = (ps.token.tk == tk_minus || ps.token.is_ident(K(not)) ||
+                         ps.token.tk == tk_bang)
+                            ? maybe<Token>(ps.token)
+                            : maybe<Token>();
 
   if (prefix.valid) {
     ps.advance();
@@ -1011,7 +1011,7 @@ expr_t *parse_assignment(parse_state_t &ps) {
 
 expr_t *parse_block(parse_state_t &ps, bool expression_means_return) {
   bool expression_block_syntax = false;
-  token_t expression_block_assign_token;
+  Token expression_block_assign_token;
   bool finish_block = false;
   if (ps.token.tk == tk_lcurly) {
     finish_block = true;
@@ -1079,7 +1079,7 @@ conditional_t *parse_if(parse_state_t &ps) {
     throw user_error(ps.token.location, "expected if");
   }
 
-  token_t condition_token = ps.token;
+  Token condition_token = ps.token;
   expr_t *condition = parse_expr(ps);
   expr_t *block = parse_block(ps, false /*expression_means_return*/);
   expr_t *else_ = nullptr;
@@ -1104,7 +1104,7 @@ conditional_t *parse_if(parse_state_t &ps) {
 while_t *parse_while(parse_state_t &ps) {
   auto while_token = ps.token;
   chomp_ident(K(while));
-  token_t condition_token = ps.token;
+  Token condition_token = ps.token;
   if (condition_token.is_ident(K(match))) {
     /* sugar for while match ... which becomes while true { match ... } */
     return new while_t(
@@ -1230,7 +1230,7 @@ predicate_t *parse_predicate(parse_state_t &ps,
       /* match a literal */
       predicate_t *literal = new literal_t(
           sign != ""
-              ? token_t(ps.token.location, ps.token.tk, sign + ps.token.text)
+              ? Token(ps.token.location, ps.token.tk, sign + ps.token.text)
               : ps.token);
       ps.advance();
       return literal;
@@ -1254,7 +1254,7 @@ pattern_block_t *parse_pattern_block(parse_state_t &ps) {
 match_t *parse_match(parse_state_t &ps) {
   chomp_ident(K(match));
   bool auto_else = false;
-  token_t bang_token = ps.token;
+  Token bang_token = ps.token;
   if (ps.token.tk == tk_bang) {
     auto_else = true;
     ps.advance();
@@ -1647,7 +1647,7 @@ data_type_decl_t parse_data_type_decl(parse_state_t &ps,
 
   chomp_token(tk_lcurly);
   struct data_ctor_parts_t {
-    token_t ctor_token;
+    Token ctor_token;
     types::type_t::refs param_types;
   };
   std::list<std::unique_ptr<data_ctor_parts_t>> data_ctors_parts;
@@ -1700,8 +1700,8 @@ data_type_decl_t parse_data_type_decl(parse_state_t &ps,
       data_ctors[ctor_id.name] = type_decl.get_type();
       decls.push_back(new decl_t(
           ctor_id,
-          new as_t(new literal_t(token_t{ctor_id.location, tk_integer,
-                                         std::to_string(i)}),
+          new as_t(new literal_t(
+                       Token{ctor_id.location, tk_integer, std::to_string(i)}),
                    type_decl.get_type()->generalize({}), true /*force_cast*/)));
       ctor_id_map[ctor_id.name] = i++;
     }

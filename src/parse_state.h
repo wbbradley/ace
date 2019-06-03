@@ -16,12 +16,12 @@ struct parse_state_t {
   parse_state_t(std::string filename,
                 std::string module_name,
                 zion_lexer_t &lexer,
-                std::vector<token_t> &comments,
-                std::set<token_t> &link_ins,
+                std::vector<Token> &comments,
+                std::set<Token> &link_ins,
                 const std::map<std::string, int> &builtin_arities);
 
   bool advance();
-  token_t token_and_advance();
+  Token token_and_advance();
   identifier_t identifier_and_advance();
   void error(const char *format, ...);
   void add_term_map(location_t, std::string, std::string);
@@ -32,8 +32,8 @@ struct parse_state_t {
 
   const std::map<std::string, int> &builtin_arities;
   identifier_t id_mapped(identifier_t id);
-  token_t token;
-  token_t prior_token;
+  Token token;
+  Token prior_token;
   std::string filename;
   std::string module_name;
   zion_lexer_t &lexer;
@@ -41,8 +41,8 @@ struct parse_state_t {
   /* top-level term remapping from "get" statements */
   std::unordered_map<std::string, std::string> term_map;
 
-  std::vector<token_t> &comments;
-  std::set<token_t> &link_ins;
+  std::vector<Token> &comments;
+  std::set<Token> &link_ins;
   ctor_id_map_t ctor_id_map;
   data_ctors_map_t data_ctors_map;
   types::type_env_t type_env;

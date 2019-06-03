@@ -1,4 +1,6 @@
 # test: pass
+# expect: the type is std.Ordering
+# expect: PASS
 
 fn main() {
     static_print(compare(-8, 9))
