@@ -115,6 +115,8 @@ types::type_t::ref infer_core(expr_t *expr,
     return t2;
   } else if (auto break_ = dcast<break_t *>(expr)) {
     return type_unit(break_->get_location());
+  } else if (auto continue_ = dcast<continue_t *>(expr)) {
+    return type_unit(continue_->get_location());
   } else if (auto while_ = dcast<while_t *>(expr)) {
     auto t1 = infer(while_->condition, env, constraints);
     append(constraints, t1, type_bool(while_->condition->get_location()),
