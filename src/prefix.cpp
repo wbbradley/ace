@@ -181,6 +181,8 @@ expr_t *prefix(const std::set<std::string> &bindings,
                         prefix(bindings, pre, sizeof_->type));
   } else if (auto break_ = dcast<break_t *>(value)) {
     return break_;
+  } else if (auto continue_ = dcast<continue_t *>(value)) {
+    return continue_;
   } else if (auto builtin = dcast<builtin_t *>(value)) {
     std::vector<expr_t *> exprs;
     for (auto expr : builtin->exprs) {

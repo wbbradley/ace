@@ -568,15 +568,13 @@ fn map(f fn (a) b, xs) Iterator b {
 fn filter(f fn (a) Bool, xs_input) Iterator a {
     xs := iter(xs_input)
     return Iterator(fn() {
-        while True {
-            match xs() {
-                Just(a) {
-                    if f(a) {
-                        return Just(a)
-                    }
+        while match xs() {
+            Just(a) {
+                if f(a) {
+                    return Just(a)
                 }
-                Nothing { return Nothing }
             }
+            Nothing { return Nothing }
         }
         /* TODO: make it so that we don't get a
          * "not all control paths return a value" */

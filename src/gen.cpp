@@ -105,6 +105,7 @@ void get_free_vars(const bitter::expr_t *expr,
     get_free_vars(condition->truthy, typing, globals, locals, free_vars);
     get_free_vars(condition->falsey, typing, globals, locals, free_vars);
   } else if (auto break_ = dcast<const bitter::break_t *>(expr)) {
+  } else if (auto break_ = dcast<const bitter::continue_t *>(expr)) {
   } else if (auto while_ = dcast<const bitter::while_t *>(expr)) {
     get_free_vars(while_->condition, typing, globals, locals, free_vars);
     get_free_vars(while_->block, typing, globals, locals, free_vars);
