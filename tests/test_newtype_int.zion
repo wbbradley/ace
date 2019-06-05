@@ -1,0 +1,17 @@
+# test: pass
+
+newtype H a = a
+
+fn main() {
+    g := 34
+    f := H(g)
+    match f {
+        H(f) { 
+            static_print(f)
+            print(f)
+            assert(f == 34)
+        }
+    }
+    print("PASS")
+}
+

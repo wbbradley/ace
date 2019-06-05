@@ -156,6 +156,8 @@ predicate_map_t type_id_t::get_predicate_map() const {
 }
 
 type_t::ref type_id_t::eval(const type_env_t &type_env) const {
+  debug_above(5, log("trying to get %s from type_env {%s}", id.name.c_str(),
+                     ::str(type_env).c_str()));
   return get(type_env, id.name, shared_from_this());
 }
 
@@ -296,10 +298,7 @@ type_t::ref type_operator_t::eval(const type_env_t &type_env) const {
 
   auto new_oper = oper->eval(type_env);
   if (new_oper != oper) {
-    auto new_operand = operand->eval(type_env);
-    if (new_operand != operand) {
-      return ::type_operator(new_oper, new_operand);
-    }
+    return new_oper->apply(operand->eval(type_env));
   }
   return shared_from_this();
 }

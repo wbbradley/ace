@@ -314,18 +314,24 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
         builder.CreateMul(params[0], builder.getInt8(-1)), params[0]);
   } else if (name == "__builtin_multiply_float") {
     /* scheme({}, {}, type_arrows({Float, Float, Float})) */
+    return builder.CreateFMul(params[0], params[1]);
   } else if (name == "__builtin_divide_float") {
     /* scheme({}, {}, type_arrows({Float, Float, Float})) */
+    return builder.CreateFDiv(params[0], params[1]);
   } else if (name == "__builtin_subtract_float") {
     /* scheme({}, {}, type_arrows({Float, Float, Float})) */
+    return builder.CreateFSub(params[0], params[1]);
   } else if (name == "__builtin_add_float") {
     /* scheme({}, {}, type_arrows({Float, Float, Float})) */
+    return builder.CreateFAdd(params[0], params[1]);
   } else if (name == "__builtin_abs_float") {
     /* scheme({}, {}, type_arrows({Float, Float})) */
   } else if (name == "__builtin_int_to_float") {
     /* scheme({}, {}, type_arrows({Int, Float})) */
+    return builder.CreateSIToFP(params[0], builder.getDoubleTy());
   } else if (name == "__builtin_negate_float") {
     /* scheme({}, {}, type_arrows({Float, Float})) */
+    return builder.CreateFNeg(params[0]);
   } else if (name == "__builtin_ptr_add") {
     /* scheme({"a"}, {}, type_arrows({tp_a, Int, tp_a})) */
     return builder.CreateGEP(params[0], std::vector<llvm::Value *>{params[1]});

@@ -1635,6 +1635,9 @@ data_type_decl_t parse_newtype_decl(parse_state_t &ps,
   for (auto param : type_decl.params) {
     body = type_lambda(param, body);
   }
+  debug_above(4, log_location(type_decl.id.location,
+                              "adding %s to the type_env as %s",
+                              type_decl.id.name.c_str(), body->str().c_str()));
   ps.type_env[type_decl.id.name] = body;
   return {type_decl, decls};
 }

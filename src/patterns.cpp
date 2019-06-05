@@ -406,16 +406,16 @@ expr_t *ctor_predicate_t::translate(
     assert(!returns);
     returns = returns || (truthy_returns && falsey_returns);
     return cond;
-    } else {
-      return (params.size() != 0)
-                 ? translate_next(for_defn_id, scrutinee_id, scrutinee_type,
-                                  ctor_terms, do_checks, bound_vars, params, 0,
-                                  1 /*dim_offset*/, type_env, tenv, typing,
-                                  needed_defns, returns, matched, failed)
-                 : matched(bound_vars, type_env, tenv, typing, needed_defns,
-                           returns);
-    }
+  } else {
+    return (params.size() != 0)
+               ? translate_next(for_defn_id, scrutinee_id, scrutinee_type,
+                                ctor_terms, do_checks, bound_vars, params, 0,
+                                1 /*dim_offset*/, type_env, tenv, typing,
+                                needed_defns, returns, matched, failed)
+               : matched(bound_vars, type_env, tenv, typing, needed_defns,
+                         returns);
   }
+}
 
   void tuple_predicate_t::get_bound_vars(std::unordered_set<std::string> &
                                          bound_vars) const {
