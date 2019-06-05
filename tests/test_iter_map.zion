@@ -1,8 +1,6 @@
 # test: pass
 # expect: 9.000
-# expect: PASS
 
 fn main() {
     print(sum(map(fn (x Int) Float { return from_int(x + 1) }, [1, 2, 3])))
-    __builtin_pass_test
 }
