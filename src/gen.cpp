@@ -271,8 +271,10 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
     return builder.getInt64(64 / 8);
   } else if (name == "__builtin_min_int") {
     /* scheme({}, {}, Int) */
+    return builder.getInt64(static_cast<int64_t>(0x8000000000000000));
   } else if (name == "__builtin_max_int") {
     /* scheme({}, {}, Int) */
+    return builder.getInt64(static_cast<int64_t>(0x7FFFFFFFFFFFFFFF));
   } else if (name == "__builtin_multiply_int") {
     /* scheme({}, {}, type_arrows({Int, Int, Int})) */
     return builder.CreateMul(params[0], params[1]);
@@ -352,7 +354,9 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
         builder.getInt64Ty());
   } else if (name == "__builtin_ptr_load") {
     /* scheme({"a"}, {}, type_arrows({tp_a, tv_a})) */
-    return builder.CreateLoad(params[0]);
+    return builder.CreateLoad(
+        params[0],
+        string_format("__builtin_ptr_load.{%s}", id.location.repr().c_str()));
   } else if (name == "__builtin_get_dim") {
     /* scheme({"a", "b"}, {}, type_arrows({tv_a, Int, tv_b})) */
   } else if (name == "__builtin_cmp_ctor_id") {
@@ -363,6 +367,7 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
                    type_equality(real_type, type_id(make_iid(INT_TYPE))));
 
     if (types::is_type_id(real_type, INT_TYPE)) {
+      assert(false);
       log("treating %s :: %s as an Int", llvm_print(params[0]).c_str(),
           types[0]->str().c_str());
 
@@ -375,8 +380,11 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
       /* load the ctor_id from the managed type */
       return builder.CreateZExt(
           builder.CreateICmpEQ(
-              builder.CreateLoad(builder.CreateBitOrPointerCast(
-                  params[0], builder.getInt64Ty()->getPointerTo())),
+              builder.CreateLoad(
+                  builder.CreateBitOrPointerCast(
+                      params[0], builder.getInt64Ty()->getPointerTo()),
+                  string_format("ctor_id_load.{%s}",
+                                id.location.repr().c_str())),
               params[1]),
           builder.getInt64Ty());
     }
@@ -800,8 +808,10 @@ void gen_lambda(std::string name,
         true /*is_constant*/);
   } else {
     closure = llvm_tuple_alloc(builder, llvm_module, llvm_dims);
-    opaque_closure = builder.CreateBitCast(closure,
-                                           llvm_closure_type->getPointerTo());
+    opaque_closure = builder.CreateBitCast(
+        closure, llvm_closure_type->getPointerTo(),
+        string_format("opaque_closure{%s}",
+                      lambda->get_location().repr().c_str()));
   }
   assert(opaque_closure->getType() == llvm_closure_type->getPointerTo());
 
@@ -1043,15 +1053,18 @@ resolution_status_t gen(std::string name,
 
       llvm::Value *args[] = {
           lambda_arg,
-          builder.CreateBitCast(closure, builder.getInt8Ty()->getPointerTo())};
+          builder.CreateBitCast(closure, builder.getInt8Ty()->getPointerTo(),
+                                "closure_cast")};
 
       debug_above(4, log("calling builder.CreateCall(%s, {%s, %s})",
                          llvm_print(llvm_function_to_call->getType()).c_str(),
                          llvm_print(args[0]->getType()).c_str(),
                          llvm_print(args[1]->getType()).c_str()));
-
-      publish(builder.CreateCall(llvm_function_to_call,
-                                 llvm::ArrayRef<llvm::Value *>(args)));
+      llvm::Value *callsite = builder.CreateCall(
+          llvm_function_to_call, llvm::ArrayRef<llvm::Value *>(args),
+          string_format("call{%s}",
+                        application->get_location().repr().c_str()));
+      publish(callsite);
       return rs_cache_resolution;
     } else if (auto let = dcast<const bitter::let_t *>(expr)) {
       llvm::Value *let_value = nullptr;
@@ -1082,9 +1095,15 @@ resolution_status_t gen(std::string name,
 
       auto tag = bitter::fresh();
       llvm::BasicBlock *truthy_block = llvm::BasicBlock::Create(
-          builder.getContext(), "truthy." + tag, llvm_function);
+          builder.getContext(),
+          string_format("truthy.%s{%s}", tag.c_str(),
+                        condition->get_location().repr().c_str()),
+          llvm_function);
       llvm::BasicBlock *falsey_block = llvm::BasicBlock::Create(
-          builder.getContext(), "falsey." + tag, llvm_function);
+          builder.getContext(),
+          string_format("falsey.%s{%s}", tag.c_str(),
+                        condition->get_location().repr().c_str()),
+          llvm_function);
       llvm::BasicBlock *merge_block = nullptr;
 
       assert(cond->getType() == builder.getInt64Ty());
@@ -1199,6 +1218,20 @@ resolution_status_t gen(std::string name,
       gen(builder, llvm_module, break_to_block, continue_to_block,
           return_->value, typing, type_env, gen_env_globals, gen_env_locals,
           globals, &llvm_value);
+#ifdef ZION_DEBUG
+      if (auto llvm_inst = llvm::dyn_cast<llvm::Instruction>(llvm_value)) {
+        if (llvm_inst->getParent()->getParent() != llvm_get_function(builder)) {
+          /* there seems to be an attempt to load an instruction value from
+           * another function */
+          log_location(
+              return_->get_location(),
+              "looks like we are trying to use %s (%s) which is from %s",
+              return_->value->str().c_str(), llvm_print(llvm_inst).c_str(),
+              llvm_inst->getParent()->getParent()->getName().str().c_str());
+          dbg();
+        }
+      }
+#endif
       builder.CreateRet(llvm_value);
       return rs_cache_resolution;
     } else if (auto tuple = dcast<const bitter::tuple_t *>(expr)) {
@@ -1220,8 +1253,12 @@ resolution_status_t gen(std::string name,
                                    tuple_deref->expr->str().c_str()));
       llvm::Value *gep_path[] = {builder.getInt32(0),
                                  builder.getInt32(tuple_deref->index)};
-      publish(builder.CreateLoad(builder.CreateInBoundsGEP(
-          td->getType()->getPointerElementType(), td, gep_path)));
+      llvm::Value *load = builder.CreateLoad(
+          builder.CreateInBoundsGEP(td->getType()->getPointerElementType(), td,
+                                    gep_path),
+          string_format("tuple_deref_load.{%s}",
+                        tuple_deref->get_location().repr().c_str()));
+      publish(load);
       return rs_cache_resolution;
     } else if (auto as = dcast<const bitter::as_t *>(expr)) {
       assert(as->force_cast);
@@ -1240,6 +1277,7 @@ resolution_status_t gen(std::string name,
       } else {
         publish(builder.CreateBitOrPointerCast(expr_value, cast_type));
       }
+      /* casts are free, so it's fine to force them to be resolved repeatedly */
       return rs_cache_resolution;
     } else if (auto sizeof_ = dcast<const bitter::sizeof_t *>(expr)) {
       assert(false);

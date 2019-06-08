@@ -17,7 +17,7 @@ if(CCACHE_EXECUTABLE)
 endif()
 
 include_directories(BEFORE src)
-# add_definitions(-DZION_DEBUG)
+add_definitions(-DZION_DEBUG)
 
 find_package(LLVM REQUIRED CONFIG)
 

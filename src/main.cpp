@@ -107,7 +107,7 @@ void check(bool check_constraint_coverage,
                               id.str().c_str(), scheme->str().c_str()));
   // log_location(id.location, "let %s = %s", id.str().c_str(),
   // expr->str().c_str());
-  env.extend(id, scheme, false /*allow_subscoping*/);
+  env.extend(id, scheme, true /*allow_subscoping*/);
 }
 
 std::vector<std::string> alphabet(int count) {
@@ -176,6 +176,15 @@ std::map<std::string, type_class_t *> check_type_classes(
 void check_decls(std::string entry_point_name,
                  const std::vector<decl_t *> &decls,
                  env_t &env) {
+  for (decl_t *decl : decls) {
+    /* seed each decl with a type variable to let inference resolve */
+    env.extend(decl->var,
+               type_variable(INTERNAL_LOC())
+                   ->generalize(env.get_predicate_map())
+                   ->normalize(),
+               true /*allow_subscoping*/);
+  }
+
   for (decl_t *decl : decls) {
     try {
       if (decl->var.name == entry_point_name) {
@@ -923,7 +932,8 @@ void build_main_function(llvm::IRBuilder<> &builder,
   llvm::Value *main_args[] = {
       llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo()),
       builder.CreateBitCast(llvm_main_closure,
-                            builder.getInt8Ty()->getPointerTo())};
+                            builder.getInt8Ty()->getPointerTo(),
+                            "main_closure")};
   builder.CreateCall(main_func, llvm::ArrayRef<llvm::Value *>(main_args));
   builder.CreateRet(builder.getInt32(0));
 }
@@ -985,6 +995,11 @@ phase_4_t ssa_gen(llvm::LLVMContext &context, const phase_3_t &phase_3) {
             [&builder, &llvm_module, name, translation, &phase_3, &gen_env,
              &globals](llvm::Value **llvm_value) -> gen::resolution_status_t {
               gen::publishable_t publishable(llvm_value);
+              /* we are resolving a global object, so we should not be inside of
+               * a basic block. */
+              builder.ClearInsertionPoint();
+              llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+
               return gen::gen(
                   name, builder, llvm_module, nullptr /*break_to_block*/,
                   nullptr /*continue_to_block*/, translation->expr,

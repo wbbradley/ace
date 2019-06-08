@@ -1,0 +1,8 @@
+# test: pass
+# expect: 15
+
+get itertools {takewhile}
+
+fn main() {
+    print(sum(takewhile(fn (x) => x < 6, [0..])))
+}

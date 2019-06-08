@@ -1,0 +1,14 @@
+# test: pass
+# expect: 9
+
+fn m() {
+    match True {
+        False { return 3 }
+        True { }
+    }
+    return 9
+}
+
+fn main() {
+    print(m())
+}

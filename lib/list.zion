@@ -1,0 +1,24 @@
+data List x {
+    Cons(x, Ref (List x))
+    Nil
+}
+
+fn nth(l List x, index Int) Maybe x {
+    var rl = l
+    while index >= 0 {
+        match !rl {
+            Cons(x, Ref(next)) {
+                if index == 0 {
+                    return Just(x)
+                } else {
+                    rl = next
+                }
+            }
+            Nil {
+                return Nothing
+            }
+        }
+    }
+    return Nothing
+}
+

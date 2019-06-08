@@ -1,0 +1,112 @@
+fn count_up_by_from(inc Int, x Int) {
+    return [x, inc..]
+}
+
+fn count_up_from(x Int) {
+    return [x..]
+}
+
+fn count_up_by(inc Int) {
+    return [0..]
+}
+
+fn repeat(x) {
+    jx := Just(x)
+    return Iterator(fn () => jx)
+}
+
+fn take(n, iterable) {
+    xs := iter(iterable)
+    var i = n
+    return Iterator(fn() {
+        if !i <= 0 {
+            return Nothing
+        }
+        val := xs()
+        match val {
+            Just(x) {
+                i = !i - 1
+                return val
+            }
+            Nothing {
+                return Nothing
+            }
+        }
+    })
+}
+
+fn takewhile(predicate, iterable) {
+    iterator := iter(iterable)
+    return Iterator(fn() {
+        val := iterator()
+        match val {
+            Just(x) {
+                if predicate(x) {
+                    return val
+                } else {
+                    return Nothing
+                }
+            }
+            Nothing {
+                return Nothing
+            }
+        }
+    })
+}
+
+fn dropwhile(predicate, iterable) {
+    iterator := iter(iterable)
+    var dropping = True
+    return Iterator(fn () {
+        while !dropping {
+            val := iterator()
+            match val {
+                Just(x) {
+                    if predicate(x) {
+                        continue
+                    } else {
+                        dropping = False
+                        return val
+                    }
+                }
+                Nothing {
+                    return Nothing
+                }
+            }
+        }
+        return iterator()
+    })
+}
+
+
+
+fn cycle(xs_input) {
+    var xs = Just(iter(xs_input))
+    recording := []
+    index := Ref(0)
+    return Iterator(fn () {
+        match! !xs {
+            Just(iterator) {
+                step := iterator()
+                match! step {
+                    Just(x) {
+                        append(recording, step)
+                        return step
+                    }
+                }
+            }
+        }
+        num_recordings := len(recording)
+        if !index < num_recordings {
+            ret := recording[!index]
+            index = !index + 1
+            return ret
+        } else if num_recordings == 0 {
+            return Nothing
+        } else {
+            assert(!index == num_recordings)
+            index = 1
+            return recording[0]
+        }
+    })
+}

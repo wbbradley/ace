@@ -1,0 +1,15 @@
+# test: pass
+# expect: 145
+
+get itertools {count_up_from}
+
+fn main() {
+    var total = 0
+    for x in count_up_from(10) {
+        if x >= 20 {
+            break
+        }
+        total = !total + x
+    }
+    print(!total)
+}

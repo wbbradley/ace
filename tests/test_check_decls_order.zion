@@ -1,0 +1,13 @@
+# test: pass, noprelude
+
+fn main() {
+    a()
+    z()
+    __builtin_pass_test
+} 
+
+fn a() {
+}
+
+fn z() {
+}
