@@ -1,0 +1,12 @@
+# test: fail,noprelude
+# expect: error: duplicate symbol
+
+fn xx() {
+}
+
+fn xx() {
+}
+
+fn main() {
+    __builtin_pass_test
+}

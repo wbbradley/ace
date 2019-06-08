@@ -325,9 +325,9 @@ llvm::StructType *llvm_create_struct_type(
 }
 
 void llvm_verify_function(location_t location, llvm::Function *llvm_function) {
-  debug_above(5, log("writing to function-verification-failure.llir..."));
-  std::string llir_filename = "function-verification-failure.llir";
-#if 0
+  debug_above(5, log("writing to function-verification-failure.ll..."));
+  std::string llir_filename = "function-verification-failure.ll";
+#if 1
   FILE *fp = fopen(llir_filename.c_str(), "wt");
   fprintf(fp, "%s\n", llvm_print_module(*llvm_function->getParent()).c_str());
   fclose(fp);
@@ -375,6 +375,7 @@ llvm::Constant *llvm_sizeof_type(llvm::IRBuilder<> &builder,
   llvm::Constant *alloc_size_const = llvm::ConstantExpr::getSizeOf(llvm_type);
   llvm::Constant *size_value = llvm::ConstantExpr::getTruncOrBitCast(
       alloc_size_const, builder.getInt64Ty());
+  size_value->setName("size_value");
   debug_above(3,
               log(log_info, "size of %s is: %s", llvm_print(llvm_type).c_str(),
                   llvm_print(*size_value).c_str()));
@@ -741,7 +742,8 @@ llvm::Value *llvm_tuple_alloc(llvm::IRBuilder<> &builder,
       builder.CreateStore(
           builder.CreateBitCast(
               llvm_dims[i],
-              llvm_member_address->getType()->getPointerElementType()),
+              llvm_member_address->getType()->getPointerElementType(),
+              "to.be.stored"),
           llvm_member_address);
     }
     return llvm_allocated_tuple;

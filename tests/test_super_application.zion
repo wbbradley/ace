@@ -1,0 +1,14 @@
+# test: pass
+# expect: 14
+# expect: 17
+
+fn partial_add(x) {
+    return fn (y) {
+        return x + y
+    }
+}
+
+fn main() {
+    print(partial_add(10, 4))
+    print(partial_add(9)(8))
+}

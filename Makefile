@@ -5,9 +5,9 @@ LLVM_DIR ?= $(shell llvm-config --prefix)/share/llvm/cmake
 
 .PHONY: zion
 zion: $(BUILD_DIR)/build.ninja
-	-rm zion 2>/dev/null
-	ninja -j8 -C $(BUILD_DIR) zion
-	ln -s $(ZION) zion
+	-@rm zion 2>/dev/null
+	@(cd $(BUILD_DIR) && ninja -j8 zion)
+	@ln -s $(ZION) zion
 
 clean:
 	(cd $(BUILD_DIR)/.. && rm -rf $(notdir $(BUILD_DIR))) 2>/dev/null
@@ -17,9 +17,10 @@ $(BUILD_DIR)/build.ninja: $(LLVM_DIR)/LLVMConfig.cmake CMakeLists.txt
 	-mkdir -p $(BUILD_DIR)
 	(cd $(BUILD_DIR) && cmake $(SRC_DIR) -G Ninja)
 
+.PHONY: test
 test:
-	make zion
-	$(SRC_DIR)/tests/run-tests.sh $(BUILD_DIR) $(SRC_DIR) $(SRC_DIR)/tests
+	time make zion
+	time $(SRC_DIR)/tests/run-tests.sh $(BUILD_DIR) $(SRC_DIR) $(SRC_DIR)/tests
 
 .PHONY: format
 format:

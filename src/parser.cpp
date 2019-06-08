@@ -1017,7 +1017,12 @@ expr_t *parse_block(parse_state_t &ps, bool expression_means_return) {
     finish_block = true;
     ps.advance();
     if (ps.token.tk == tk_rcurly) {
-      return new return_statement_t(unit_expr(ps.token_and_advance().location));
+      if (expression_means_return) {
+        return new return_statement_t(
+            unit_expr(ps.token_and_advance().location));
+      } else {
+        return unit_expr(ps.token_and_advance().location);
+      }
     }
   } else if (ps.token.tk == tk_expr_block) {
     expression_block_syntax = true;
@@ -1255,7 +1260,8 @@ match_t *parse_match(parse_state_t &ps) {
   chomp_ident(K(match));
   bool auto_else = false;
   Token bang_token = ps.token;
-  if (ps.token.tk == tk_bang) {
+  // TODO: this syntax needs some more thought. It's very subtle.
+  if (ps.token.tk == tk_bang && ps.token.follows_after(ps.prior_token)) {
     auto_else = true;
     ps.advance();
   }

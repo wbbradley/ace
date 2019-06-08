@@ -1,0 +1,18 @@
+# test: pass
+# expect: 18
+
+get itertools {cycle}
+
+fn main() {
+    var i = 0
+    var total = 0
+    for x in cycle([1, 2, 3]) {
+        if !i > 8 {
+            break
+        } else {
+            i = !i + 1
+            total = !total + x
+        }
+    }
+    print(!total)
+}

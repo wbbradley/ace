@@ -362,6 +362,7 @@ Pattern::ref from_type(location_t location,
   } else if (unify(type, type_ptr(type_variable(location))).result) {
     return all_of(location, {}, tenv, type);
   } else {
+    // TODO: support Char values here...
     auto ctors_terms = tenv.get_data_ctors_terms(type);
     std::vector<CtorPatternValue> cpvs;
 

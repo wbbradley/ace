@@ -10,15 +10,16 @@ RUN mv /etc/apt/sources.list.new /etc/apt/sources.list
 RUN apt-get update -y && apt-get install -y \
 	cmake \
 	gnupg2 \
-	shellcheck \
 	less \
+	libgc-dev \
 	libgc-dev \
 	make \
 	man \
 	ninja-build \
-	vim \
-	libgc-dev \
 	pkg-config \
+	shellcheck \
+	time \
+	vim \
 	wget
 
 
