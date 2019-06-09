@@ -1,0 +1,86 @@
+.TH ZION 1
+.SH NAME
+zion \- Zion programming language compiler
+.SH SYNOPSIS
+zion [\fIprogram\fR] [\fIargs\fR ...]
+.br
+zion [\fBrun\fR \fIprogram\fR] [\fIargs\fR ...]
+.br
+zion [\fBfind\fR \fIprogram\fR]
+.br
+zion [\fBlex\fR \fIprogram\fR]
+.br
+zion [\fBparse\fR \fIprogram\fR]
+.br
+zion [\fBcompile\fR \fIprogram\fR]
+.br
+zion [\fBspecialize\fR \fIprogram\fR]
+.br
+zion [\fBll\fR \fIprogram\fR]
+.br
+zion [\fBtest\fR] \-\- run unit tests
+.SH DESCRIPTION
+.na
+Zion is a general purpose programming language.
+The source code is available at \fBhttps://github.com/zionlang/zion\fR.
+.P
+zion
+.B run
+will attempt to compose all the phases of compilation, then pass the resulting LLVM code off to
+.B clang
+to lower it down to machine code and create the final executable binary.
+It will then
+.B execvp
+the built user program and pass along any remaining \fIargs\fR.
+.br
+.P
+zion
+.B ll
+will emit an LLVM IR file of the
+.I program
+and its dependencies.
+.P
+.I program
+is resolved by
+.B zion
+into an actual filename.
+When you reference a source file, you can omit the `.zion` extension.
+When searching for the specified \fIprogram\fR, \fBzion\fR will look in the current directory first, then proceed to looking through the \fBZION_PATH\fR, as described below.
+.SH ENVIRONMENT
+.TP
+.br
+ZION_PATH=\fI/usr/local/share/zion/lib\fR
+A colon-separated list of directories to search for imported libraries.
+Libraries are imported with the `get` keyword.
+The `lib/std.zion` library is called the prelude and is automatically imported unless 
+.B NO_PRELUDE
+is given.
+.TP
+.br
+NO_PRELUDE=\fI1\fR
+Prevents the automatic import of the `std` library.
+This is generally not useful since the language is tied to the runtime library in a few ways.
+It comes in handy for writing tests of the compiler itself.
+.TP
+.br
+DEBUG=\fI[0-10]\fR
+Sets the level of debugging information to spew.
+Default is 0 or none.
+Note that
+.B zion
+must be compiled with
+.B \-DZION_DEBUG
+in order to enable debug logging.
+See src/logging.cpp.
+.TP
+.br
+STATUS_BREAK=\fI1\fR
+When set to non-zero value,
+.B zion
+breaks into the debugger at the first user error found (helpful when working on the compiler).
+.SH AUTHOR
+.sp
+Zion was started and is currently maintained by William Bradley.
+.SH "REPORTING BUGS"
+.sp
+Report bugs to the Zion GitHub site. \fBhttps://github.com/zionlang/zion/issues\fR.

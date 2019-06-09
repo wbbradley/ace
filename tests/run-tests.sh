@@ -4,7 +4,7 @@ if ! shellcheck "$0"; then
 		exit 1
 fi
 
-if ! command -v mapfile; then
+if ! command -v mapfile 2>/dev/null 1>/dev/null; then
 		echo "$0:$LINENO:1: error: you need a newer version of bash (one that supports mapfile)"
 		exit 1
 fi
@@ -49,6 +49,10 @@ for test_file in "${test_dir}"/test_*.zion; do
 		else
 				failed_tests+=("$test_file")
 				echo "$0:$LINENO:1: error: test ${test_file} failed"
+				if [[ "${FAIL_FAST}" != "" ]]; then
+					echo "FAIL_FAST was specified. Quitting..."
+					exit 1
+				fi
 		fi
 done
 

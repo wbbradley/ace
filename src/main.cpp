@@ -27,9 +27,6 @@ bool debug_specialized_env = getenv("SHOW_ENV2") != nullptr;
 bool debug_types = getenv("SHOW_TYPES") != nullptr;
 bool debug_all_expr_types = getenv("SHOW_EXPR_TYPES") != nullptr;
 bool debug_all_translated_defns = getenv("SHOW_DEFN_TYPES") != nullptr;
-int max_tuple_size = (getenv("ZION_MAX_TUPLE") != nullptr)
-                         ? atoi(getenv("ZION_MAX_TUPLE"))
-                         : 16;
 
 types::type_t::ref program_main_type = type_arrows(
     {type_unit(INTERNAL_LOC()), type_unit(INTERNAL_LOC())});
@@ -941,11 +938,6 @@ void build_main_function(llvm::IRBuilder<> &builder,
 phase_4_t ssa_gen(llvm::LLVMContext &context, const phase_3_t &phase_3) {
   llvm::Module *llvm_module = new llvm::Module("program", context);
   llvm::DIBuilder *dbuilder = nullptr; // new llvm::DIBuilder(*module);
-  /*
-  dbuilder->createCompileUnit(llvm::dwarf::DW_LANG_C,
-                              dbuilder->createFile("lib/std.zion", "."),
-                              "Zion Compiler", 0, "", 0);
-                              */
   llvm::IRBuilder<> builder(context);
 
   gen::gen_env_t gen_env;
@@ -1057,9 +1049,6 @@ int run_job(const job_t &job) {
                          in_vector("-show-expr-types", job.opts);
   debug_all_translated_defns = (getenv("SHOW_DEFN_TYPES") != nullptr) ||
                                in_vector("-show-defn-types", job.opts);
-  max_tuple_size = (getenv("ZION_MAX_TUPLE") != nullptr)
-                       ? atoi(getenv("ZION_MAX_TUPLE"))
-                       : 16;
 
   std::map<std::string, std::function<int(const job_t &, bool)>> cmd_map;
   cmd_map["test"] = [&](const job_t &job, bool explain) {

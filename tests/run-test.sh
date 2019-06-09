@@ -62,6 +62,11 @@ fi
 output=$(mktemp -q)
 trap 'rm -f $output' EXIT
 
+# The next line is intended to ease the path from seeing a bunch of failing tests, to narrowing in
+# on reproducible test failure. This should save future humans time in trying to reproduce the
+# test-run in their debugger.
+echo ZION_PATH="\"${ZION_PATH}\"" "'${bin_dir}/zion'" run "'${test_file}'"
+
 ("${bin_dir}/zion" run "${test_file}" 2>&1) > "$output"
 res=$?
 
