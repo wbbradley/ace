@@ -2,9 +2,7 @@
 set -ex
 
 cd /opt/zion
-mkdir -p /var/zion
-export ZION_PATH=/opt/zion:/opt/zion/lib:/opt/zion/tests
+mkdir -p $HOME/var/zion
+export ZION_PATH=/usr/local/share/zion/lib
 
-make BUILD_DIR=/var/zion test
-
-./zion test
+make test

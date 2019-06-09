@@ -34,7 +34,12 @@ const std::vector<std::string> &get_zion_paths() {
   if (!checked) {
     checked = true;
     if (getenv("ZION_PATH") != nullptr) {
-      zion_paths = split(getenv("ZION_PATH"), ":");
+      for (auto &path : split(getenv("ZION_PATH"), ":")) {
+        if (path != "") {
+          /* just be careful that user didn't put in an empty ZION_PATH */
+          zion_paths.push_back(path);
+        }
+      }
     }
     zion_paths.insert(zion_paths.begin(), ".");
     for (auto &zion_path : zion_paths) {
@@ -67,7 +72,9 @@ std::string resolve_module_filename(location_t location,
       } else {
         panic(string_format("filename %s does not exist", name.c_str()));
       }
-    } else if (extension == "" && file_exists(filename_test_resolution)) {
+    } else if (file_exists(filename_test_resolution) &&
+               (extension == "" ||
+                ends_with(filename_test_resolution, extension))) {
       return filename_test_resolution;
     }
   }
@@ -115,11 +122,10 @@ std::string resolve_module_filename(location_t location,
      * the source paths */
     return working_resolution;
   } else {
-    throw user_error(location,
-                     "module not found: " c_error(
-                         "`%s`") " (Note that module names should not have "
-                                 ".zion extensions.) Looked in ZION_PATH=[%s]",
-                     name.c_str(), join(get_zion_paths(), ":").c_str());
+    throw user_error(
+        location,
+        "module not found: " c_error("`%s`") ". Looked in ZION_PATH=[%s]",
+        name.c_str(), join(get_zion_paths(), ":").c_str());
     return "";
   }
 }
@@ -168,7 +174,7 @@ struct global_parser_state_t {
       modules_map_by_filename[ps.filename] = module;
 
       debug_above(8, log("while parsing %s got dependencies {%s}",
-                         module_id.str().c_str(),
+                         ps.module_name.c_str(),
                          join(dependencies, ", ").c_str()));
       for (auto dependency : dependencies) {
         parse_module_statefully(dependency);
@@ -230,12 +236,12 @@ compilation_t::ref parse_program(
 
     /* always include the builtins library */
     if (getenv("NO_PRELUDE") == nullptr) {
-      gps.parse_module_statefully({"lib/std", location_t{"std", 0, 0}});
+      gps.parse_module_statefully({"std" /* lib/std */, location_t{"std", 0, 0}});
     }
 
     /* now parse the main program module */
     gps.parse_module_statefully(
-        {module_name, location_t{"command line build parameters", 0, 0}});
+        {user_program_name, location_t{"command line build parameters", 0, 0}});
 
     debug_above(11, log(log_info, "parse_module of %s succeeded",
                         module_name.c_str(), false /*global*/));
