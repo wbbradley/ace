@@ -721,7 +721,7 @@ void gen_lambda(std::string name,
                 const std::unordered_set<std::string> &globals,
                 publisher_t *publisher) {
   if (name == "") {
-    name = "__anonymous";
+    name = string_format("__anonymous{%s}", lambda->get_location().repr().c_str());;
   }
 
   INDENT(2, string_format("gen_lambda(%s, ..., %s, %s, ...)", name.c_str(),
@@ -1122,12 +1122,21 @@ resolution_status_t gen(std::string name,
 
       llvm::PHINode *phi_node = nullptr;
       if (!builder.GetInsertBlock()->getTerminator()) {
-        merge_block = llvm::BasicBlock::Create(builder.getContext(),
-                                               "merge." + tag, llvm_function);
-        if (truthy_value != nullptr) {
-          phi_node = llvm::PHINode::Create(truthy_value->getType(), 1,
-                                           "phi." + tag, merge_block);
-          phi_node->addIncoming(truthy_value, builder.GetInsertBlock());
+        merge_block = llvm::BasicBlock::Create(
+            builder.getContext(),
+            string_format("merge%s{%s}", tag.c_str(),
+                          condition->get_location().repr().c_str()),
+            llvm_function);
+        if (!types::is_unit(type)) {
+          if (truthy_value != nullptr) {
+            phi_node = llvm::PHINode::Create(
+                truthy_value->getType(), 1,
+                string_format("phi%s{%s}", tag.c_str(),
+                              condition->get_location().repr().c_str()),
+                merge_block);
+            phi_node->setName(string_format("phi::%s", type->repr().c_str()));
+            phi_node->addIncoming(truthy_value, builder.GetInsertBlock());
+          }
         }
         builder.CreateBr(merge_block);
       }
@@ -1142,12 +1151,18 @@ resolution_status_t gen(std::string name,
           merge_block = llvm::BasicBlock::Create(builder.getContext(),
                                                  "merge." + tag, llvm_function);
         }
-        if (falsey_value != nullptr) {
-          if (phi_node == nullptr) {
-            phi_node = llvm::PHINode::Create(falsey_value->getType(), 1,
-                                             "phi." + tag, merge_block);
+        if (!types::is_unit(type)) {
+          if (falsey_value != nullptr) {
+            if (phi_node == nullptr) {
+              phi_node = llvm::PHINode::Create(
+                  falsey_value->getType(), 1,
+                  string_format("phi%s{%s}", tag.c_str(),
+                                condition->get_location().repr().c_str()),
+                  merge_block);
+              phi_node->setName(string_format("phi::%s", type->repr().c_str()));
+            }
+            phi_node->addIncoming(falsey_value, builder.GetInsertBlock());
           }
-          phi_node->addIncoming(falsey_value, builder.GetInsertBlock());
         }
         builder.CreateBr(merge_block);
       }
@@ -1198,6 +1213,7 @@ resolution_status_t gen(std::string name,
           globals);
 
       if (builder.GetInsertBlock()->getTerminator() == nullptr) {
+        /* loop */
         builder.CreateBr(cond_block);
       }
 
@@ -1218,6 +1234,11 @@ resolution_status_t gen(std::string name,
       gen(builder, llvm_module, break_to_block, continue_to_block,
           return_->value, typing, type_env, gen_env_globals, gen_env_locals,
           globals, &llvm_value);
+      if (llvm_value == nullptr) {
+        /* this is a unit */
+        llvm_value = llvm::Constant::getNullValue(
+            builder.getInt8Ty()->getPointerTo());
+      }
 #ifdef ZION_DEBUG
       if (auto llvm_inst = llvm::dyn_cast<llvm::Instruction>(llvm_value)) {
         if (llvm_inst->getParent()->getParent() != llvm_get_function(builder)) {
@@ -1277,7 +1298,6 @@ resolution_status_t gen(std::string name,
       } else {
         publish(builder.CreateBitOrPointerCast(expr_value, cast_type));
       }
-      /* casts are free, so it's fine to force them to be resolved repeatedly */
       return rs_cache_resolution;
     } else if (auto sizeof_ = dcast<const bitter::sizeof_t *>(expr)) {
       assert(false);

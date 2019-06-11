@@ -1,36 +1,27 @@
-# test: skip
+# test: pass
+# expect: Number of solutions is 92
 
-fn no_conflict(new_row, new_column, solution) {
-    if len(solution) == 0 {
-        return True
-    }
-    for row in range(new_row) {
-        condition := (
-            solution[row]       != new_column           and
-            solution[row] + row != new_column + new_row and
-            solution[row] - row != new_column - new_row)
+fn queens(rows Int, columns Int) [[Int]] {
+    var solutions = [[]]
 
-        if not condition {
-            return False
-        }
+    for row in range(rows) {
+        solutions = add_one_queen(row, columns, !solutions)
     }
 
-    return True
+    return !solutions
 }
 
-fn copy_and_extend(v, a) {
-    n := []
-    reserve(n, len(v) + 1)
-    for x in v {
-        append(n, x)
+fn copy_and_extend(solution, value) {
+    ret := []
+    for x in solution {
+        append(ret, x)
     }
-    append(n, a)
-    return n
+    append(ret, value)
+    return ret
 }
 
-fn add_one_queen(new_row, columns, prev_solutions) [[Int]] {
-    solutions := [[]]
-    reserve(solutions, 92)
+fn add_one_queen(new_row Int, columns Int, prev_solutions [[Int]]) [[Int]] {
+    solutions := []
 
     for solution in prev_solutions {
         for new_column in range(columns) {
@@ -43,22 +34,27 @@ fn add_one_queen(new_row, columns, prev_solutions) [[Int]] {
     return solutions
 }
 
-fn queens(rows Int, columns Int) [[Int]] {
-    var solutions = [[]]
-    solution := []
-
-    # Introduce an empty solution upon which the dynamic programming algorithm can build
-    append(!solutions, solution)
-
-    for row in range(rows) {
-        print(row)
-        solutions = add_one_queen(row, columns, !solutions)
+fn no_conflict(new_row Int, new_column Int, solution [Int]) bool {
+    for row in range(new_row) {
+        condition := (
+            solution[row]       != new_column           and
+            solution[row] + row != new_column + new_row and
+            solution[row] - row != new_column - new_row)
+                        
+        if not condition {
+            return False
+        }
     }
 
-    return !solutions
+    return True
 }
 
 fn main() {
     solutions := queens(8, 8)
-    print(len(solutions))
+
+    for solution in solutions {
+        print(solution)
+    }
+
+    print(concat("Number of solutions is ", str(len(solutions))))
 }

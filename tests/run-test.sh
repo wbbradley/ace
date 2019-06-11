@@ -21,6 +21,9 @@ fi
 # Find all the expect directives in this file
 mapfile -t expects < <(grep -E '^# expect: .+$' "${test_file}" | cut -c 11-)
 
+# Find all the reject directives in this file
+mapfile -t rejects < <(grep -E '^# reject: .+$' "${test_file}" | cut -c 11-)
+
 containsElement () {
   local e match="$1"
   shift
@@ -90,6 +93,18 @@ for ((i=0;i < ${#expects[*]}; ++i)); do
 				echo "run-test.sh: ${test_file} output was:"
 				cat "$output"
 				echo "$0:$LINENO:1: error: Could not find '$expect' in output."
+				echo "run-test.sh: ${test_file} FAILED!"
+				exit 1
+		fi
+done
+
+for ((i=0;i < ${#rejects[*]}; ++i)); do
+		reject="${rejects[$i]}"
+		# echo "Expecting \"${reject}\"..."
+		if grep -E "$reject" "$output"; then
+				echo "run-test.sh: ${test_file} output was:"
+				cat "$output"
+				echo "$0:$LINENO:1: error: Found '$reject' in output."
 				echo "run-test.sh: ${test_file} FAILED!"
 				exit 1
 		fi

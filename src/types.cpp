@@ -537,6 +537,14 @@ location_t type_lambda_t::get_location() const {
   return binding.location;
 }
 
+bool is_unit(type_t::ref type) {
+  if (auto tuple = dyncast<const types::type_tuple_t>(type)) {
+    return tuple->dimensions.size() == 0;
+  } else {
+    return false;
+  }
+}
+
 bool is_type_id(type_t::ref type, const std::string &type_name) {
   if (auto pti = dyncast<const types::type_id_t>(type)) {
     return pti->id.name == type_name;

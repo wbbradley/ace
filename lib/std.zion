@@ -55,8 +55,37 @@ instance Show * Char {
     }
 }
 
-fn join(delim String, xs [String]) String {
-    return "<TODO: implement join>"
+fn join(delim_ String, xs) String {
+    results := []
+    var total = 0
+    var cur_delim_len = 0
+    delim_len := len(delim_)
+    var count = 0
+    for x in xs {
+        count = !count + 1
+        s := str(x)
+        append(results, s)
+        total = !total + len(s)
+        cur_delim_len = delim_len
+    }
+    total = !total + len(delim_) * (!count - 1)
+    buf := alloc(!total + 1)
+    var i = 0
+    for r in results {
+        if !i > 0 {
+            for ch in StringIterable(delim_) {
+                buf[!i] = ch
+                i = !i + 1
+            }
+        }
+        for ch in StringIterable(r) {
+            buf[!i] = ch
+            i = !i + 1
+        }
+    }
+    buf[!i] = from_int(0)
+
+    return String((buf, !i))
 }
 
 instance Show [a] {
@@ -498,6 +527,26 @@ instance Iterable Vector {
                 return Nothing
             } else {
                 return Just(vec[!index])
+            }
+        }
+    }
+}
+
+newtype StringIterable a = String
+
+instance Iterable StringIterable {
+    fn iter(s) {
+        index := Ref(-1)
+        match s {
+            StringIterable(String((buf, length))) {
+                return fn() {
+                    index = !index + 1
+                    if !index >= length {
+                        return Nothing
+                    } else {
+                        return Just(buf[!index])
+                    }
+                }
             }
         }
     }

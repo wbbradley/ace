@@ -12,7 +12,9 @@ void zion_init() {
 }
 
 void *zion_malloc(uint64_t cb) {
-  return GC_MALLOC(cb);
+  void *pb = GC_MALLOC(cb);
+  // printf("allocated %" PRId64 " bytes at 0x%08" PRIx64 "\n", cb, (uint64_t)pb);
+  return pb;
 }
 
 int zion_strlen(const char *sz) {
