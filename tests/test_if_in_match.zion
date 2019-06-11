@@ -1,0 +1,15 @@
+# test: pass
+
+fn main() {
+    match True {
+        True {
+            if True {
+                while False {
+                }
+            }
+        }
+        False {
+        }
+    }
+    print("PASS")
+}

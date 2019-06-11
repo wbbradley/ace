@@ -698,6 +698,9 @@ bool zion_lexer_t::_get_tokens() {
       case '\'':
         token_text.append('\'');
         break;
+      case '0':
+        token_text.append(0);
+        break;
       case '"':
         token_text.append('"');
         break;

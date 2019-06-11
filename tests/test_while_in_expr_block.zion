@@ -1,0 +1,16 @@
+# test: pass
+# expect: 4
+
+fn main() {
+    g := match True {
+        True {
+            while False {
+            }
+            4
+        }
+        False {
+            5
+        }
+    }
+    print(g)
+}

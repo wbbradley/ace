@@ -1,0 +1,12 @@
+# test: pass
+# expect: 0
+# expect: 2
+# expect: 4
+# reject: 1
+# reject: 3
+
+fn main() {
+    for x in [0,2..4] {
+        print(x)
+    }
+}

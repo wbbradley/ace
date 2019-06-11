@@ -218,6 +218,7 @@ struct scheme_t final : public std::enable_shared_from_this<scheme_t> {
   types::type_t::ref type;
 };
 
+bool is_unit(type_t::ref type);
 bool is_type_id(type_t::ref type, const std::string &type_name);
 type_t::refs rebind(const type_t::refs &types, const type_t::map &bindings);
 type_t::ref unitize(type_t::ref type);

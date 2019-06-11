@@ -41,6 +41,7 @@ const std::vector<std::string> &get_zion_paths() {
         }
       }
     }
+
     zion_paths.insert(zion_paths.begin(), ".");
     for (auto &zion_path : zion_paths) {
       /* fix any paths to be absolute */

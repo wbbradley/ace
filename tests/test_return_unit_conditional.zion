@@ -1,0 +1,20 @@
+# test: pass
+# expect: PASS
+# expect: is ()
+
+fn foo() {
+    return match True {
+        True {
+            if True {
+            }
+        }
+        False {
+        }
+    }
+}
+
+fn main() {
+    g := foo()
+    static_print(g)
+    print("PASS")
+}
