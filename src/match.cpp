@@ -98,7 +98,18 @@ struct Scalars : std::enable_shared_from_this<Scalars<T>>, Pattern {
 };
 
 template <> std::string Scalars<int64_t>::scalar_name() {
-  return "integers";
+  static auto s = string_format("%ss", INT_TYPE);
+  return s;
+}
+
+template <> std::string Scalars<uint8_t>::scalar_name() {
+  static auto s = string_format("%ss", CHAR_TYPE);
+  return s;
+}
+
+template <> std::string Scalars<double>::scalar_name() {
+  static auto s = string_format("%ss", FLOAT_TYPE);
+  return s;
 }
 
 std::shared_ptr<const CtorPattern> asCtorPattern(Pattern::ref pattern) {
@@ -123,6 +134,14 @@ std::shared_ptr<Scalars<int64_t>> allIntegers =
     std::make_shared<Scalars<int64_t>>(INTERNAL_LOC(),
                                        Scalars<int64_t>::Exclude,
                                        std::set<int64_t>{});
+std::shared_ptr<Scalars<uint8_t>> allChars = std::make_shared<Scalars<uint8_t>>(
+    INTERNAL_LOC(),
+    Scalars<uint8_t>::Exclude,
+    std::set<uint8_t>{});
+std::shared_ptr<Scalars<double>> allFloats = std::make_shared<Scalars<double>>(
+    INTERNAL_LOC(),
+    Scalars<double>::Exclude,
+    std::set<double>{});
 
 Pattern::ref all_of(location_t location,
                     maybe<identifier_t> expr,
@@ -253,6 +272,10 @@ Pattern::ref intersect(Pattern::ref lhs, Pattern::ref rhs) {
   auto rhs_ctor_pattern = asCtorPattern(rhs);
   auto lhs_integers = asScalars<int64_t>(lhs);
   auto rhs_integers = asScalars<int64_t>(rhs);
+  auto lhs_floats = asScalars<double>(lhs);
+  auto rhs_floats = asScalars<double>(rhs);
+  auto lhs_chars = asScalars<uint8_t>(lhs);
+  auto rhs_chars = asScalars<uint8_t>(rhs);
 
   if (lhs_nothing || rhs_nothing) {
     /* intersection of nothing and anything is nothing */
@@ -287,6 +310,14 @@ Pattern::ref intersect(Pattern::ref lhs, Pattern::ref rhs) {
 
   if (lhs_integers && rhs_integers) {
     return intersect(*lhs_integers, *rhs_integers);
+  }
+
+  if (lhs_floats && rhs_floats) {
+    return intersect(*lhs_floats, *rhs_floats);
+  }
+
+  if (lhs_chars && rhs_chars) {
+    return intersect(*lhs_chars, *rhs_chars);
   }
 
   log_location(log_error, lhs->location,
@@ -359,6 +390,10 @@ Pattern::ref from_type(location_t location,
     return std::make_shared<CtorPattern>(location, cpv);
   } else if (type_equality(type, type_int(INTERNAL_LOC()))) {
     return allIntegers;
+  } else if (type_equality(type, type_id(make_iid(CHAR_TYPE)))) {
+    return allChars;
+  } else if (type_equality(type, type_id(make_iid(FLOAT_TYPE)))) {
+    return allFloats;
   } else if (unify(type, type_ptr(type_variable(location))).result) {
     return all_of(location, {}, tenv, type);
   } else {
@@ -491,6 +526,10 @@ void difference(Pattern::ref lhs,
   auto rhs_ctor_pattern = asCtorPattern(rhs);
   auto lhs_integers = asScalars<int64_t>(lhs);
   auto rhs_integers = asScalars<int64_t>(rhs);
+  auto lhs_floats = asScalars<double>(lhs);
+  auto rhs_floats = asScalars<double>(rhs);
+  auto lhs_chars = asScalars<uint8_t>(lhs);
+  auto rhs_chars = asScalars<uint8_t>(rhs);
 
   if (lhs_nothing || rhs_nothing) {
     send(lhs);
@@ -571,6 +610,20 @@ void difference(Pattern::ref lhs,
   if (lhs_integers) {
     if (rhs_integers) {
       send(difference(*lhs_integers, *rhs_integers));
+      return;
+    }
+  }
+
+  if (lhs_floats) {
+    if (rhs_floats) {
+      send(difference(*lhs_floats, *rhs_floats));
+      return;
+    }
+  }
+
+  if (lhs_chars) {
+    if (rhs_chars) {
+      send(difference(*lhs_chars, *rhs_chars));
       return;
     }
   }

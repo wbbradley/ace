@@ -237,7 +237,8 @@ compilation_t::ref parse_program(
 
     /* always include the builtins library */
     if (getenv("NO_PRELUDE") == nullptr) {
-      gps.parse_module_statefully({"std" /* lib/std */, location_t{"std", 0, 0}});
+      gps.parse_module_statefully(
+          {"std" /* lib/std */, location_t{"std", 0, 0}});
     }
 
     /* now parse the main program module */

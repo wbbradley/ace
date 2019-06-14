@@ -92,3 +92,6 @@ bitter::match_t *parse_match(parse_state_t &ps);
 bitter::predicate_t *parse_predicate(parse_state_t &ps,
                                      bool allow_else,
                                      maybe<identifier_t> name_assignment);
+bitter::predicate_t *unfold_application_into_predicate(
+    bitter::application_t *application);
+bitter::predicate_t *convert_expr_to_predicate(bitter::expr_t *expr);

@@ -1,0 +1,14 @@
+# test: skip
+# TODO: figure out what makes sense for these values
+
+newtype Tag1 = (Char,)
+newtype Tag2 = (Char, Char)
+newtype Tag3 = (Char, Char, Char)
+newtype Tag4 = (Char, Char, Char, Char)
+
+fn main() {
+    print(sizeof(Tag1))
+    print(sizeof(Tag2))
+    print(sizeof(Tag3))
+    print(sizeof(Tag4))
+}

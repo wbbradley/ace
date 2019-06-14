@@ -1,0 +1,14 @@
+# test: fail
+# expect: not all patterns are covered
+# expect: uncovered patterns.*UhOh
+
+data Wow {
+    Wow(String, Int)
+    UhOh
+}
+
+fn main() {
+    Wow(s, i) := Wow("Hello", 12)
+    print(s)
+    print(i)
+}
