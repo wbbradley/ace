@@ -52,6 +52,89 @@ std::vector<std::pair<int, identifier_t>> extract_ids(
   return refs;
 }
 
+void unfold_application_exprs(expr_t *e, std::vector<expr_t *> &exprs) {
+  auto app = dcast<application_t *>(e);
+  if (app != nullptr) {
+    unfold_application_exprs(app->a, exprs);
+    exprs.push_back(app->b);
+  } else {
+    exprs.push_back(e);
+  }
+}
+
+predicate_t *convert_tuple_into_predicate(tuple_t *tuple) {
+  std::vector<predicate_t *> params;
+  for (auto dim : tuple->dims) {
+    params.push_back(convert_expr_to_predicate(dim));
+  }
+  return new tuple_predicate_t(tuple->get_location(), params,
+                               maybe<identifier_t>{});
+}
+
+predicate_t *convert_var_to_predicate(var_t *var) {
+  return new irrefutable_predicate_t(var->id.location,
+                                     maybe<identifier_t>(var->id));
+}
+
+predicate_t *convert_expr_to_predicate(expr_t *expr) {
+  if (auto application = dcast<application_t *>(expr)) {
+    return unfold_application_into_predicate(application);
+  } else if (auto tuple = dcast<tuple_t *>(expr)) {
+    return convert_tuple_into_predicate(tuple);
+  } else if (auto var = dcast<var_t *>(expr)) {
+    return convert_var_to_predicate(var);
+  } else {
+    throw user_error(expr->get_location(),
+                     "zion parser is unsure how to rewrite this destructuring");
+  }
+}
+
+predicate_t *unfold_application_into_predicate(application_t *application) {
+  std::vector<expr_t *> exprs;
+  unfold_application_exprs(application, exprs);
+  if (exprs.size() >= 1) {
+    if (var_t *var = dcast<var_t *>(exprs[0])) {
+      if (var->id.name.size() != 0 && isupper(var->id.name[0])) {
+        /* this may be a data constructor, treat it as such */
+        auto ctor_name = var->id;
+        std::vector<predicate_t *> params;
+        for (int i = 1; i < exprs.size(); ++i) {
+          params.push_back(convert_expr_to_predicate(exprs[i]));
+        }
+        return new ctor_predicate_t(ctor_name.location, params, ctor_name,
+                                    maybe<identifier_t>{});
+      } else {
+        throw user_error(var->id.location,
+                         "use of lowercase data constructor names is not "
+                         "allowed. note that this is being parsed as the "
+                         "left-hand-side of a destructuring assignment.");
+      }
+    } else {
+      log_location(exprs[0]->get_location(), "found %s not sure what do",
+                   exprs[0]->str().c_str());
+      assert(false);
+    }
+  } else {
+    throw user_error(
+        exprs[0]->get_location(),
+        "invalid syntax. you can't destructure an application here");
+  }
+  assert(false);
+  return nullptr;
+}
+
+expr_t *parse_assign_ctor_destructure(parse_state_t &ps,
+                                      application_t *application) {
+  chomp_token(tk_becomes);
+
+  // See if the application can be reversed into a ctor_predicate
+  identifier_t ctor;
+  predicate_t *predicate = unfold_application_into_predicate(application);
+  expr_t *rhs = parse_expr(ps);
+  expr_t *body = parse_block(ps, false /*expression_means_return*/);
+  return new match_t(rhs, {new pattern_block_t(predicate, body)});
+}
+
 expr_t *parse_assign_tuple(parse_state_t &ps, tuple_t *tuple) {
   eat_token();
   auto rhs = parse_expr(ps);
@@ -79,12 +162,12 @@ expr_t *parse_var_decl(parse_state_t &ps,
                        bool allow_tuple_destructuring) {
   if (ps.token.tk == tk_lparen) {
     if (!is_let) {
-      throw user_error(ps.token.location,
-                       "mutable tuple destructuring is not yet impl");
+      throw user_error(
+          ps.token.location,
+          "mutable destructuring design needs work... please log an issue");
     }
     if (!allow_tuple_destructuring) {
-      throw user_error(ps.token.location,
-                       "tuple destructuring is not allowed here");
+      throw user_error(ps.token.location, "destructuring is not allowed here");
     }
 
     auto prior_token = ps.token;
@@ -1000,6 +1083,8 @@ expr_t *parse_assignment(parse_state_t &ps) {
       return parse_let(ps, var->id, true /* is_let */);
     } else if (auto tuple = dcast<tuple_t *>(lhs)) {
       return parse_assign_tuple(ps, tuple);
+    } else if (auto application = dcast<application_t *>(lhs)) {
+      return parse_assign_ctor_destructure(ps, application);
     } else {
       throw user_error(ps.token.location,
                        ":= may only come after a new symbol name");

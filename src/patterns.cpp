@@ -417,54 +417,65 @@ expr_t *ctor_predicate_t::translate(
   }
 }
 
-  void tuple_predicate_t::get_bound_vars(std::unordered_set<std::string> &
-                                         bound_vars) const {
-    if (name_assignment.valid) {
-      bound_vars.insert(name_assignment.t.name);
-    }
-    for (auto param : params) {
-      param->get_bound_vars(bound_vars);
-    }
+void tuple_predicate_t::get_bound_vars(
+    std::unordered_set<std::string> &bound_vars) const {
+  if (name_assignment.valid) {
+    bound_vars.insert(name_assignment.t.name);
   }
-
-  expr_t *tuple_predicate_t::translate(
-      const defn_id_t &for_defn_id, const identifier_t &scrutinee_id,
-      const types::type_t::ref &scrutinee_type, bool do_checks,
-      const std::unordered_set<std::string> &bound_vars,
-      const types::type_env_t &type_env, const translation_env_t &tenv,
-      tracked_types_t &typing, needed_defns_t &needed_defns, bool &returns,
-      translate_continuation_t &matched, translate_continuation_t &failed)
-      const {
-    auto tuple_type = safe_dyncast<const types::type_tuple_t>(scrutinee_type);
-
-    return (params.size() != 0)
-               ? translate_next(for_defn_id, scrutinee_id, scrutinee_type,
-                                tuple_type->dimensions, do_checks, bound_vars,
-                                params, 0, 0 /*dim_offset*/, type_env, tenv,
-                                typing, needed_defns, returns, matched, failed)
-               : matched(bound_vars, type_env, tenv, typing, needed_defns,
-                         returns);
+  for (auto param : params) {
+    param->get_bound_vars(bound_vars);
   }
+}
 
-  void irrefutable_predicate_t::get_bound_vars(std::unordered_set<std::string> &
-                                               bound_vars) const {
-    if (name_assignment.valid) {
-      bound_vars.insert(name_assignment.t.name);
-    }
-  }
+expr_t *tuple_predicate_t::translate(
+    const defn_id_t &for_defn_id,
+    const identifier_t &scrutinee_id,
+    const types::type_t::ref &scrutinee_type,
+    bool do_checks,
+    const std::unordered_set<std::string> &bound_vars,
+    const types::type_env_t &type_env,
+    const translation_env_t &tenv,
+    tracked_types_t &typing,
+    needed_defns_t &needed_defns,
+    bool &returns,
+    translate_continuation_t &matched,
+    translate_continuation_t &failed) const {
+  auto tuple_type = safe_dyncast<const types::type_tuple_t>(scrutinee_type);
 
-  expr_t *irrefutable_predicate_t::translate(
-      const defn_id_t &for_defn_id, const identifier_t &scrutinee_id,
-      const types::type_t::ref &scrutinee_type, bool do_checks,
-      const std::unordered_set<std::string> &bound_vars,
-      const types::type_env_t &type_env, const translation_env_t &tenv,
-      tracked_types_t &typing, needed_defns_t &needed_defns, bool &returns,
-      translate_continuation_t &matched, translate_continuation_t &) const {
-    debug_above(3, log_location(get_location(),
-                                "matched irrefutable predicate for %s. "
-                                "scrutinee_id = %s :: %s",
-                                for_defn_id.str().c_str(),
-                                scrutinee_id.str().c_str(),
-                                scrutinee_type->str().c_str()));
-    return matched(bound_vars, type_env, tenv, typing, needed_defns, returns);
+  return (params.size() != 0)
+             ? translate_next(for_defn_id, scrutinee_id, scrutinee_type,
+                              tuple_type->dimensions, do_checks, bound_vars,
+                              params, 0, 0 /*dim_offset*/, type_env, tenv,
+                              typing, needed_defns, returns, matched, failed)
+             : matched(bound_vars, type_env, tenv, typing, needed_defns,
+                       returns);
+}
+
+void irrefutable_predicate_t::get_bound_vars(
+    std::unordered_set<std::string> &bound_vars) const {
+  if (name_assignment.valid) {
+    bound_vars.insert(name_assignment.t.name);
   }
+}
+
+expr_t *irrefutable_predicate_t::translate(
+    const defn_id_t &for_defn_id,
+    const identifier_t &scrutinee_id,
+    const types::type_t::ref &scrutinee_type,
+    bool do_checks,
+    const std::unordered_set<std::string> &bound_vars,
+    const types::type_env_t &type_env,
+    const translation_env_t &tenv,
+    tracked_types_t &typing,
+    needed_defns_t &needed_defns,
+    bool &returns,
+    translate_continuation_t &matched,
+    translate_continuation_t &) const {
+  debug_above(3, log_location(get_location(),
+                              "matched irrefutable predicate for %s. "
+                              "scrutinee_id = %s :: %s",
+                              for_defn_id.str().c_str(),
+                              scrutinee_id.str().c_str(),
+                              scrutinee_type->str().c_str()));
+  return matched(bound_vars, type_env, tenv, typing, needed_defns, returns);
+}

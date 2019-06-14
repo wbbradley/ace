@@ -1,0 +1,89 @@
+# test: skip
+
+newtype Complex = (Float, Float)
+
+struct Rect {
+   x0 Float
+   y0 Float
+   width Float
+   height Float
+}
+
+struct Vec2D {
+    x Float
+    y Float
+}
+
+fn lerp2d(rect, x, max_x, y, max_y) (Float, Float) {
+    return (
+        rect.width * from_int(x) / from_int(max_x) + rect.x0,
+        rect.height * from_int(y) / from_int(max_y) + rect.y0)
+        
+}
+
+instance Num Complex {
+    from_int = fn (a) => Complex((from_int(a), 0.0))
+    fn +(a, b) => match a {
+        Complex((w, x)) {
+            match b {
+                Complex((y, z)) {
+                    Complex((w + y, x + z))
+                }
+            }
+        }
+    }
+    fn -(a, b) => match a {
+        Complex((w, x)) {
+            match b {
+                Complex((y, z)) {
+                    Complex((w - y, x - z))
+                }
+            }
+        }
+    }
+    fn *(a, b) => match a {
+        Complex((w, x)) {
+            match b {
+                Complex((y, z)) {
+                    Complex((w * y - x * z, w * z + x * z))
+                }
+            }
+        }
+    }
+    fn /(a, b) => Complex((0.0, 0.0))
+    fn negate(a) => a
+    fn abs(a) => a
+}
+
+instance Eq Complex {
+    fn ==(a, b) {
+        Complex((x1, y1)) := a
+        Complex((x2, y2)) := b
+        return x1 == x2 and y1 == y2
+    }
+
+    fn !=(a, b) {
+        Complex((x1, y1)) := a
+        Complex((x2, y2)) := b
+        return x1 == x2 and y1 == y2
+    }
+}
+fn main() {
+    window_x := 50
+    window_y := 50
+    frustrum := Rect(-4.0, -4.0, 8.0, 8.0)
+
+    for y in [0..window_y-1] {
+        for x in [0..window_x-1] {
+            match lerp2d(frustrum, x, window_x, y, window_y) {
+                (x, y) {
+                    c := Complex((x, y))
+                    var z = c
+                    for i in [0..] {
+                        z = !z * !z + c
+                    }
+                }
+            }
+        }
+    }
+}

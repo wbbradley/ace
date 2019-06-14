@@ -1,0 +1,13 @@
+# test: pass
+# expect: Hello
+# expect 12
+
+data Wow {
+    Wow(String, Int)
+}
+
+fn main() {
+    Wow(s, i) := Wow("Hello", 12)
+    print(s)
+    print(i)
+}

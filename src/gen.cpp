@@ -721,7 +721,9 @@ void gen_lambda(std::string name,
                 const std::unordered_set<std::string> &globals,
                 publisher_t *publisher) {
   if (name == "") {
-    name = string_format("__anonymous{%s}", lambda->get_location().repr().c_str());;
+    name = string_format("__anonymous{%s}",
+                         lambda->get_location().repr().c_str());
+    ;
   }
 
   INDENT(2, string_format("gen_lambda(%s, ..., %s, %s, ...)", name.c_str(),
@@ -916,7 +918,8 @@ resolution_status_t gen_literal(std::string name,
     std::istringstream iss(token.text);
     iss >> value;
     if (value != value) {
-      throw user_error(token.location, "%s is not a number", token.text.c_str());
+      throw user_error(token.location, "%s is not a number",
+                       token.text.c_str());
     }
     auto llvm_value = llvm::ConstantFP::get(builder.getDoubleTy(), value);
     if (publisher != nullptr) {
