@@ -4,8 +4,7 @@
 
 fn main() {
     x := (1,)
-    match x {
-        (p,) { assert(p == 1) }
-    }
+    (p,) := x
+    assert(p == 1)
     print("PASS")
 }

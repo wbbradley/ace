@@ -327,6 +327,20 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
   } else if (name == "__builtin_add_float") {
     /* scheme({}, {}, type_arrows({Float, Float, Float})) */
     return builder.CreateFAdd(params[0], params[1]);
+  } else if (name == "__builtin_sqrt") {
+    /* scheme({}, {}, type_arrows({Float, Float})) */
+    auto llvm_module = llvm_get_module(builder);
+
+    llvm::Type *terms[] = {builder.getDoubleTy()};
+    assert(params.size() == 1);
+
+    // libc dependency
+    auto llvm_func_decl = llvm::cast<llvm::Function>(
+        llvm_module->getOrInsertFunction(
+            "sqrt", llvm::FunctionType::get(builder.getDoubleTy(),
+                                            llvm::ArrayRef<llvm::Type *>(terms),
+                                            false /*isVarArg*/)));
+    return builder.CreateCall(llvm_func_decl, params);
   } else if (name == "__builtin_abs_float") {
     /* scheme({}, {}, type_arrows({Float, Float})) */
   } else if (name == "__builtin_int_to_float") {

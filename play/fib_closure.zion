@@ -12,16 +12,15 @@ fn fib() fn() int {
     # permissible to allow capture by reference in Zion. Given that it can be simulated by creating
     # a user-defined reference type as follows, I'm not certain it's worth introducing more implicit
     # impurity.
-    a := Ref(0)
-    b := Ref(1)
+    var a = 0
+    var b = 1
     return fn() int {
-        return match (b.val, a.val + b.val) {
-            (next_a, next_b) {
-                a.val = next_a
-                b.val = next_b
-                a.val
-            }
-        }
+        (next_a, next_b) := (b.val, a.val + b.val)
+        a.val = next_a
+        b.val = next_b
+        # TODO: implement destructuring assignment 
+        # (a.val, b.val) = (b.val, a.val + b.val)
+        return a.val
     }
 }
 

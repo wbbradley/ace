@@ -94,21 +94,14 @@ predicate_t *unfold_application_into_predicate(application_t *application) {
   unfold_application_exprs(application, exprs);
   if (exprs.size() >= 1) {
     if (var_t *var = dcast<var_t *>(exprs[0])) {
-      if (var->id.name.size() != 0 && isupper(var->id.name[0])) {
-        /* this may be a data constructor, treat it as such */
-        auto ctor_name = var->id;
-        std::vector<predicate_t *> params;
-        for (int i = 1; i < exprs.size(); ++i) {
-          params.push_back(convert_expr_to_predicate(exprs[i]));
-        }
-        return new ctor_predicate_t(ctor_name.location, params, ctor_name,
-                                    maybe<identifier_t>{});
-      } else {
-        throw user_error(var->id.location,
-                         "use of lowercase data constructor names is not "
-                         "allowed. note that this is being parsed as the "
-                         "left-hand-side of a destructuring assignment.");
+      /* this may be a data constructor, treat it as such */
+      auto ctor_name = var->id;
+      std::vector<predicate_t *> params;
+      for (int i = 1; i < exprs.size(); ++i) {
+        params.push_back(convert_expr_to_predicate(exprs[i]));
       }
+      return new ctor_predicate_t(ctor_name.location, params, ctor_name,
+                                  maybe<identifier_t>{});
     } else {
       log_location(exprs[0]->get_location(), "found %s not sure what do",
                    exprs[0]->str().c_str());
@@ -128,33 +121,19 @@ expr_t *parse_assign_ctor_destructure(parse_state_t &ps,
   chomp_token(tk_becomes);
 
   // See if the application can be reversed into a ctor_predicate
-  identifier_t ctor;
   predicate_t *predicate = unfold_application_into_predicate(application);
   expr_t *rhs = parse_expr(ps);
   expr_t *body = parse_block(ps, false /*expression_means_return*/);
   return new match_t(rhs, {new pattern_block_t(predicate, body)});
 }
 
-expr_t *parse_assign_tuple(parse_state_t &ps, tuple_t *tuple) {
+expr_t *parse_assign_tuple_destructure(parse_state_t &ps, tuple_t *tuple) {
   eat_token();
-  auto rhs = parse_expr(ps);
-  auto rhs_var = new var_t(gensym(rhs->get_location()));
 
-  std::vector<std::pair<int, identifier_t>> refs = extract_ids(tuple->dims);
-  if (refs.size() == 0) {
-    throw user_error(ps.token.location, "nothing to destructure");
-  }
-
+  predicate_t *predicate = convert_tuple_into_predicate(tuple);
+  expr_t *rhs = parse_expr(ps);
   expr_t *body = parse_block(ps, false /*expression_means_return*/);
-  for (int i = refs.size() - 1; i >= 0; --i) {
-    body = new let_t(
-        refs[i].second,
-        new application_t(new var_t(make_iid(string_format("__[%d]__", i))),
-                          rhs_var),
-        body);
-  }
-
-  return new let_t(rhs_var->id, rhs, body);
+  return new match_t(rhs, {new pattern_block_t(predicate, body)});
 }
 
 expr_t *parse_var_decl(parse_state_t &ps,
@@ -179,7 +158,7 @@ expr_t *parse_var_decl(parse_state_t &ps,
     }
 
     if (ps.token.tk == tk_assign) {
-      return parse_assign_tuple(ps, tuple);
+      return parse_assign_tuple_destructure(ps, tuple);
     } else {
       throw user_error(ps.token.location,
                        "destructured tuples must be assigned to an rhs");
@@ -976,12 +955,23 @@ expr_t *parse_bitwise_or(parse_state_t &ps) {
 
 expr_t *fold_and_exprs(std::vector<expr_t *> exprs, int index) {
   if (index < exprs.size() - 1) {
-    /* let a = exprs[index] in if a then recurse else False */
     identifier_t term_id = make_iid(fresh());
     return new let_t(term_id, exprs[index],
                      new conditional_t(new var_t(term_id),
                                        fold_and_exprs(exprs, index + 1),
                                        new var_t(make_iid("std.False"))));
+  } else {
+    return exprs[index];
+  }
+}
+
+expr_t *fold_or_exprs(std::vector<expr_t *> exprs, int index) {
+  if (index < exprs.size() - 1) {
+    identifier_t term_id = make_iid(fresh());
+    return new let_t(term_id, exprs[index],
+                     new conditional_t(new var_t(term_id),
+                                       new var_t(make_iid("std.True")),
+                                       fold_or_exprs(exprs, index + 1)));
   } else {
     return exprs[index];
   }
@@ -1035,17 +1025,15 @@ expr_t *parse_tuple_expr(parse_state_t &ps) {
 }
 
 expr_t *parse_or_expr(parse_state_t &ps) {
-  expr_t *expr = parse_and_expr(ps);
+  std::vector<expr_t *> exprs;
+  exprs.push_back(parse_and_expr(ps));
 
   while (!ps.line_broke() && (ps.token.is_ident(K(or)))) {
-    identifier_t op = ps.id_mapped({ps.token.text, ps.token.location});
     ps.advance();
-
-    expr = new application_t(new application_t(new var_t(op), expr),
-                             parse_and_expr(ps));
+    exprs.push_back(parse_and_expr(ps));
   }
 
-  return expr;
+  return fold_or_exprs(exprs, 0);
 }
 
 expr_t *parse_ternary_expr(parse_state_t &ps) {
@@ -1082,7 +1070,7 @@ expr_t *parse_assignment(parse_state_t &ps) {
     if (var_t *var = dcast<var_t *>(lhs)) {
       return parse_let(ps, var->id, true /* is_let */);
     } else if (auto tuple = dcast<tuple_t *>(lhs)) {
-      return parse_assign_tuple(ps, tuple);
+      return parse_assign_tuple_destructure(ps, tuple);
     } else if (auto application = dcast<application_t *>(lhs)) {
       return parse_assign_ctor_destructure(ps, application);
     } else {
