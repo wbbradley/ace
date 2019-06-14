@@ -30,11 +30,11 @@ fn main() {
     for y in [0..window_y-1] {
         for x in [0..window_x-1] {
             (x, y) := lerp2d(frustrum, x, window_x, y, window_y)
-            c := Complex((x, y))
+            c := Complex(x, y)
             var z = c
             for i in [0..] {
                 z = (!z * !z) + c
-                Complex((a, b)) := !z
+                Complex(a, b) := !z
                 if a * a + b * b > 16.0 or i >= 100 {
                     if i != 0 {
                         String((sz, length)) := str(i)
