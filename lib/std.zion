@@ -98,13 +98,14 @@ instance Show [a] {
     }
 }
 
+fn putch(ch Char) () {
+    __builtin_write_char(1, ch)
+}
+
 fn print(x) () {
-    match str(x) {
-        String((sz, length)) {
-            __builtin_write(1, sz, length)
-            __builtin_write_char(1, '\n')
-        }
-    }
+    String((sz, length)) := str(x)
+    __builtin_write(1, sz, length)
+    __builtin_write_char(1, '\n')
 }
 
 data Ref a {
@@ -121,8 +122,9 @@ class StorableValue f {
 }
 
 instance LoadableValue Ref {
-    fn load_value(a) => match a {
-        Ref(x) => x
+    fn load_value(a) {
+        Ref(x) := a
+        return x
     }
 }
 
@@ -185,18 +187,13 @@ instance Eq Char {
 
 instance Eq String {
     fn ==(a, b) {
-        match a {
-            String((a, alen)) {
-                match b {
-                    String((b, blen)) {
-                        if alen != blen {
-                            return False
-                        } else {
-                            return __builtin_memcmp(a, b, alen) == 0
-                        }
-                    }
-                }
-            }
+        String((a, alen)) := a
+        String((b, blen)) := b
+
+        if alen != blen {
+            return False
+        } else {
+            return __builtin_memcmp(a, b, alen) == 0
         }
     }
 
@@ -204,24 +201,19 @@ instance Eq String {
 }
 
 fn concat(a, b) {
-    match a {
-        String((xs, xlen)) {
-            match b {
-                String((ys, ylen)) {
-                    zlen := xlen + ylen
-                    if xlen == 0 {
-                        return b
-                    } else if ylen == 0 {
-                        return a
-                    } else {
-                        zs := __builtin_calloc(zlen) as *Char
-                        __builtin_memcpy(zs, xs, xlen)
-                        __builtin_memcpy(__builtin_ptr_add(zs, xlen), ys, ylen)
-                        return String((zs, zlen))
-                    }
-                }
-            }
-        }
+    String((xs, xlen)) := a
+    String((ys, ylen)) := b
+
+    zlen := xlen + ylen
+    if xlen == 0 {
+        return b
+    } else if ylen == 0 {
+        return a
+    } else {
+        zs := __builtin_calloc(zlen) as *Char
+        __builtin_memcpy(zs, xs, xlen)
+        __builtin_memcpy(__builtin_ptr_add(zs, xlen), ys, ylen)
+        return String((zs, zlen))
     }
 }
 
@@ -392,8 +384,9 @@ instance HasLength [a] {
 }
 
 instance HasLength String {
-    fn len(s) => match s {
-        String((sz, l)) => l
+    fn len(s) {
+        String((_, l)) := s
+        return l
     }
 }
 
@@ -513,8 +506,9 @@ class Iterable f {
 newtype Iterator a = fn () Maybe a
 
 instance Iterable Iterator {
-    fn iter(i) => match i {
-        Iterator(f) => f
+    fn iter(i) {
+        Iterator(f) := i
+        return f
     }
 }
 
@@ -537,16 +531,13 @@ newtype StringIterable a = String
 instance Iterable StringIterable {
     fn iter(s) {
         index := Ref(-1)
-        match s {
-            StringIterable(String((buf, length))) {
-                return fn() {
-                    index = !index + 1
-                    if !index >= length {
-                        return Nothing
-                    } else {
-                        return Just(buf[!index])
-                    }
-                }
+        StringIterable(String((buf, length))) := s
+        return fn() {
+            index = !index + 1
+            if !index >= length {
+                return Nothing
+            } else {
+                return Just(buf[!index])
             }
         }
     }
@@ -598,6 +589,7 @@ instance Iterable Range {
     }
 }
 
+fn sqrt(x) => __builtin_sqrt(x)
 fn compose(f, g) => fn (x) => f(g(x))
 
 fn sum(xs) {

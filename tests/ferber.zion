@@ -2,23 +2,20 @@ newtype WaitTimes a = [a]
 
 instance Iterable WaitTimes {
     fn iter(wait_times) {
-        match wait_times {
-            WaitTimes(wait_times) {
-                var i = 0
-                return fn() {
-                    print("Hey" as String)
-                    print(wait_times[0])
-                    print("Wat" as String)
-                    if !i >= len(wait_times) {
-                        return Just(0)
-                        # print(wait_times[)
-                        # return Just(wait_times[len(wait_times)-1])
-                    } else {
-                        cur := !i
-                        i = !i + 1
-                        return Just(wait_times[cur])
-                    }
-                }
+        WaitTimes(wait_times) := wait_times
+        var i = 0
+        return fn() {
+            print("Hey" as String)
+            print(wait_times[0])
+            print("Wat" as String)
+            if !i >= len(wait_times) {
+                return Just(0)
+                # print(wait_times[)
+                # return Just(wait_times[len(wait_times)-1])
+            } else {
+                cur := !i
+                i = !i + 1
+                return Just(wait_times[cur])
             }
         }
     }

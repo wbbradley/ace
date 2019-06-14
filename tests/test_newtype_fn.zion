@@ -5,10 +5,7 @@ newtype Fn a = fn () a
 fn main() {
     g := fn () { return 2 }
     f := Fn(g)
-    match f {
-        Fn(f) { 
-            assert(f() == 2)
-        }
-    }
+    Fn(f) := f
+    assert(f() == 2)
     print("PASS")
 }
