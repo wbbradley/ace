@@ -1,47 +1,50 @@
-newtype Complex = (Float, Float)
+struct Complex {
+   real Float
+   imag Float
+}
 
 instance Num Complex {
-    from_int = fn (a) => Complex((from_int(a), 0.0))
+    from_int = fn (a) => Complex(from_int(a), 0.0)
     fn +(a, b) {
-        Complex((w, x)) := a
-        Complex((y, z)) := b
-        return Complex((w + y, x + z))
+        Complex(w, x) := a
+        Complex(y, z) := b
+        return Complex(w + y, x + z)
     }
     fn -(a, b) {
-        Complex((w, x)) := a
-        Complex((y, z)) := b
-        return Complex((w - y, x - z))
+        Complex(w, x) := a
+        Complex(y, z) := b
+        return Complex(w - y, x - z)
     }
     fn *(a, b) {
-        Complex((w, x)) := a
-        Complex((y, z)) := b
-        return Complex((w * y - x * z, w * z + x * y))
+        Complex(w, x) := a
+        Complex(y, z) := b
+        return Complex(w * y - x * z, w * z + x * y)
     }
     fn /(a, b) {
         # TODO: implement
         assert(False)
-        return Complex((0.0, 0.0))
+        return Complex(0.0, 0.0)
     }
     fn negate(a) {
-        Complex((u, v)) := a
-        return Complex((-u, -v))
+        Complex(u, v) := a
+        return Complex(-u, -v)
     }
     fn abs(a) {
-        Complex((u, v)) := a
-        return Complex((sqrt(u * u + v * v), 0.0))
+        Complex(u, v) := a
+        return Complex(sqrt(u * u + v * v), 0.0)
     }
 }
 
 instance Eq Complex {
     fn ==(a, b) {
-        Complex((x1, y1)) := a
-        Complex((x2, y2)) := b
+        Complex(x1, y1) := a
+        Complex(x2, y2) := b
         return x1 == x2 and y1 == y2
     }
 
     fn !=(a, b) {
-        Complex((x1, y1)) := a
-        Complex((x2, y2)) := b
+        Complex(x1, y1) := a
+        Complex(x2, y2) := b
         return x1 == x2 and y1 == y2
     }
 }
