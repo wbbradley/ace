@@ -25,6 +25,7 @@ $(BUILD_DIR)/build.ninja: $(LLVM_DIR)/LLVMConfig.cmake CMakeLists.txt
 ZION_LIBS=\
 		  std.zion \
 		  itertools.zion \
+		  complex.zion \
 
 .PHONY: install
 install: $(BUILT_BINARY) $(addprefix $(SRCDIR)/lib/,$(ZION_LIBS)) $(SRCDIR)/src/zion_rt.c $(SRCDIR)/$(PN).1
