@@ -1,7 +1,6 @@
-# test: skip
+# test: pass
 
 fn main() {
-    # NB: this needs support for Char in pattern matching
     match ('a', 1, 'c') {
         (a, b, c) {
             assert(a == 'a')
