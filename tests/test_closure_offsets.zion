@@ -1,0 +1,18 @@
+# test: pass
+# expect: a == a
+# expect: one == 1
+# expect: c == c
+
+fn main() {
+    a := 'a'
+    one := 1
+    c := 'c'
+
+    f := fn () {
+        print(concat("a == ", str(a)))
+        print(concat("one == ", str(one)))
+        print(concat("c == ", str(c)))
+    }
+
+    f()
+}
