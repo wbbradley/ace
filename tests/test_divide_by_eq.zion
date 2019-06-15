@@ -1,0 +1,10 @@
+# test: pass
+
+fn main() {
+    var x = 1 * 2 * 3 * 4 * 17
+    for i in [1..4] {
+        x /= i
+    }
+    assert(!x == 17)
+    print("PASS")
+}

@@ -1,0 +1,10 @@
+# test: pass
+
+fn main() {
+    var x = 13
+    for i in [6..7] {
+        x *= i
+    }
+    assert(!x == 546)
+    print("PASS")
+}

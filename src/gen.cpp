@@ -287,6 +287,9 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
   } else if (name == "__builtin_add_int") {
     /* scheme({}, {}, type_arrows({Int, Int, Int})) */
     return builder.CreateAdd(params[0], params[1]);
+  } else if (name == "__builtin_mod_int") {
+    /* scheme({}, {}, type_arrows({Int, Int, Int})) */
+    return builder.CreateSRem(params[0], params[1]);
   } else if (name == "__builtin_negate_int") {
     /* scheme({}, {}, type_arrows({Int, Int})) */
     return builder.CreateNeg(params[0]);

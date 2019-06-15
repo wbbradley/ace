@@ -1,0 +1,10 @@
+# test: pass
+
+fn main() {
+    var x = 20
+    for i in [0..9] {
+        x -= 1
+    }
+    assert(!x == 10)
+    print("PASS")
+}

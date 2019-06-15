@@ -1057,16 +1057,41 @@ expr_t *parse_expr(parse_state_t &ps) {
 expr_t *parse_assignment(parse_state_t &ps) {
   expr_t *lhs = parse_expr(ps);
 
-  if (ps.token.tk == tk_assign) {
+  if (ps.line_broke()) {
+    return lhs;
+  }
+
+  switch (ps.token.tk) {
+  case tk_assign:
     ps.advance();
-    expr_t *rhs = parse_expr(ps);
     return new application_t(
         new application_t(
             new var_t(identifier_t{"std.store_value", ps.token.location}), lhs),
-        rhs);
+        parse_expr(ps));
+  case tk_divide_by_eq:
+  case tk_minus_eq:
+  case tk_mod_eq:
+  case tk_plus_eq:
+  case tk_times_eq: {
+    auto op_token = ps.token_and_advance();
+    assert(op_token.text.size() >= 1);
+    expr_t *rhs = parse_expr(ps);
+    identifier_t copy_value = identifier_t{fresh(), lhs->get_location()};
+    return new application_t(
+        new application_t(
+            new var_t(identifier_t{"std.store_value", op_token.location}), lhs),
+        new let_t(
+            copy_value,
+            new application_t(
+                new var_t(identifier_t{"std.load_value", op_token.location}),
+                lhs),
+            new application_t(new application_t(new var_t(ps.id_mapped(
+                                                    {op_token.text.substr(0, 1),
+                                                     op_token.location})),
+                                                new var_t(copy_value)),
+                              rhs)));
   }
-
-  if (!ps.line_broke() && ps.token.tk == tk_becomes) {
+  case tk_becomes:
     if (var_t *var = dcast<var_t *>(lhs)) {
       return parse_let(ps, var->id, true /* is_let */);
     } else if (auto tuple = dcast<tuple_t *>(lhs)) {
@@ -1077,7 +1102,7 @@ expr_t *parse_assignment(parse_state_t &ps) {
       throw user_error(ps.token.location,
                        ":= may only come after a new symbol name");
     }
-  } else {
+  default:
     return lhs;
   }
 }
