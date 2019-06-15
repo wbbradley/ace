@@ -1,0 +1,6 @@
+# test: pass
+# expect: 1
+
+fn main() {
+    print(13 % 4)
+}

@@ -51,6 +51,7 @@ const types::scheme_t::map &get_builtins() {
                                             type_arrows({Int, Int, Int}));
     (*map)["__builtin_subtract_int"] = scheme({}, {},
                                               type_arrows({Int, Int, Int}));
+    (*map)["__builtin_mod_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
     (*map)["__builtin_add_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
     (*map)["__builtin_negate_int"] = scheme({}, {}, type_arrows({Int, Int}));
     (*map)["__builtin_abs_int"] = scheme({}, {}, type_arrows({Int, Int}));

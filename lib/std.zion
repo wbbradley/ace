@@ -333,6 +333,16 @@ instance Num Float {
     fn abs(a) => __builtin_abs_float(a)
 }
 
+class Modular a {
+    fn %(a, a) a
+}
+
+instance Modular Int {
+    fn %(p, q) {
+        return __builtin_mod_int(p, q)
+    }
+}
+
 data Maybe t {
     Just(t)
     Nothing
