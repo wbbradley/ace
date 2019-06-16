@@ -1,6 +1,27 @@
-# test: skip
+# test: pass
 
-fn c_open(filename String, flags Int) Int {
-    String((sz, _)) := filename
-    return to_int(__builtin_ffi("int open(char *, int)", sz, flags))
+newtype FileOpenMode = Int
+
+let O_RDONLY  = 0x0000  /* open for reading only */
+let O_WRONLY  = 0x0001  /* open for writing only */
+let O_RDWR    = 0x0002  /* open for reading and writing */
+let O_ACCMODE = 0x0003  /* mask for above modes */
+
+fn open(filename, flags Int) Int {
+    String((filename, _)) := filename
+    return __builtin_ffi_2("open", filename, flags)
+}
+
+fn read(fd Int, buffer *Char, nbyte Int) Int {
+    return __builtin_ffi_3("read", fd, buffer, nbyte)
+}
+
+fn main() {
+    fd := open(str(__filename__), O_RDONLY)
+    buffer := alloc(1024)
+    cb := read(fd, buffer, 1023)
+    print(concat(concat("read ", str(cb)), " bytes"))
+    /* this next line is self-referential! */
+    assert(cb == 746)
+    print("PASS")
 }

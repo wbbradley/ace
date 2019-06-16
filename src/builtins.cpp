@@ -43,6 +43,16 @@ const types::scheme_t::map &get_builtins() {
     (*map)["__builtin_hello"] = scheme({}, {}, Unit);
     (*map)["__builtin_goodbye"] = scheme({}, {}, Unit);
     (*map)["__builtin_word_size"] = scheme({}, {}, Int);
+    (*map)["__builtin_ffi_0"] = scheme({}, {}, type_arrows({PtrToChar, tv_a}));
+    for (int i = 1; i <= 16; ++i) {
+      types::type_t::refs terms{PtrToChar};
+      for (int j = 0; j < i + 1; ++j) {
+        terms.push_back(type_variable(INTERNAL_LOC()));
+      }
+      (*map)[string_format("__builtin_ffi_%d", i)] =
+          scheme({}, {}, type_arrows(terms))->normalize();
+    }
+
     (*map)["__builtin_min_int"] = scheme({}, {}, Int);
     (*map)["__builtin_max_int"] = scheme({}, {}, Int);
     (*map)["__builtin_multiply_int"] = scheme({}, {},
@@ -144,16 +154,22 @@ const types::scheme_t::map &get_builtins() {
     (*map)["__builtin_store_ref"] = scheme(
         {"a"}, {},
         type_arrows({type_operator(type_id(make_iid(REF_TYPE_OPERATOR)), tv_a),
-                     tv_a, type_unit(INTERNAL_LOC())}));
+                     tv_a, type_unit(INTERNAL_LOC())}))->normalize();
     (*map)["__builtin_store_ptr"] = scheme(
         {"a"}, {},
         type_arrows({type_operator(type_id(make_iid(PTR_TYPE_OPERATOR)), tv_a),
-                     tv_a, type_unit(INTERNAL_LOC())}));
-    for (auto pair : *map) {
-      if (starts_with(pair.first, "__builtin,")) {
-        assert(pair.second->instantiate(INTERNAL_LOC())->ftv_count() == 0);
+                     tv_a, type_unit(INTERNAL_LOC())}))->normalize();
+
+    if (getenv("DUMP_BUILTINS") != nullptr &&
+        atoi(getenv("DUMP_BUILTINS")) != 0) {
+      for (auto &pair : *map) {
+        if (starts_with(pair.first, "__builtin")) {
+          log("%s :: %s", pair.first.c_str(), pair.second->str().c_str());
+        }
       }
+      std::exit(EXIT_SUCCESS);
     }
   }
+
   return *map;
 }

@@ -15,6 +15,23 @@
 
 using namespace bitter;
 
+class RawParseMode {
+public:
+  RawParseMode() = delete;
+  RawParseMode(RawParseMode&) = delete;
+  RawParseMode(parse_state_t &ps)
+      : prior_sugar_literals(ps.sugar_literals), ps(ps) {
+    ps.sugar_literals = false;
+  }
+  ~RawParseMode() {
+    ps.sugar_literals = prior_sugar_literals;
+  }
+
+private:
+  bool prior_sugar_literals;
+  parse_state_t &ps;
+};
+
 identifier_t make_accessor_id(identifier_t id) {
   return identifier_t{"__get_" + id.name, id.location};
 }
@@ -442,6 +459,7 @@ expr_t *parse_var_ref(parse_state_t &ps) {
     return new literal_t(Token{token.location, tk_string,
                                escape_json_quotes(token.location.filename)});
   } else if (in(ps.token.text, ps.builtin_arities)) {
+    RawParseMode rpm(ps);
     int arity = get(ps.builtin_arities, ps.token.text, -1);
     assert(arity >= 0);
     auto builtin_token = ps.token_and_advance();
@@ -613,16 +631,26 @@ expr_t *parse_literal(parse_state_t &ps) {
     return new literal_t(ps.token_and_advance());
   case tk_string: {
     auto token = ps.token_and_advance();
-    int string_len = unescape_json_quotes(token.text).size();
-    return new application_t(
-        new var_t(identifier_t{"std.String", token.location}),
-        new tuple_t(token.location,
-                    {new literal_t(token),
-                     new literal_t(Token{token.location, tk_integer,
-                                         std::to_string(string_len)})}));
+    if (ps.sugar_literals) {
+      int string_len = unescape_json_quotes(token.text).size();
+      return new application_t(
+          new var_t(identifier_t{"std.String", token.location}),
+          new tuple_t(token.location,
+                      {new literal_t(token),
+                       new literal_t(Token{token.location, tk_integer,
+                                           std::to_string(string_len)})}));
+    } else {
+      return new literal_t(token);
+    }
   }
   case tk_lsquare:
-    return parse_array_literal(ps);
+    if (ps.sugar_literals) {
+      return parse_array_literal(ps);
+    } else {
+      throw user_error(ps.token.location,
+                       "array literals are not implemented in "
+                       "this parse context");
+    }
     // case tk_lcurly:
     //	return assoc_array_expr_t::parse(ps);
 
