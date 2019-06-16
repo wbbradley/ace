@@ -16,6 +16,8 @@ typedef std::unordered_map<std::string,
                                     types::compare_type_t>>
     gen_env_t;
 
+typedef std::unordered_map<std::string, llvm::Value *> gen_local_env_t;
+
 llvm::Value *maybe_get_env_var(const gen_env_t &gen_env,
                                std::string name,
                                types::type_t::ref type);
@@ -27,12 +29,6 @@ llvm::Value *get_env_var(llvm::IRBuilder<> &builder,
                          identifier_t id,
                          types::type_t::ref type);
 
-void set_env_var(gen_env_t &gen_env,
-                 std::string name,
-                 types::type_t::ref type,
-                 llvm::Value *llvm_value,
-                 bool allow_shadowing);
-
 resolution_status_t gen(std::string name,
                         llvm::IRBuilder<> &builder,
                         llvm::Module *llvm_module,
@@ -42,7 +38,7 @@ resolution_status_t gen(std::string name,
                         const tracked_types_t &typing,
                         const types::type_env_t &type_env,
                         const gen_env_t &gen_env_globals,
-                        const gen_env_t &gen_env_locals,
+                        const gen_local_env_t &gen_env_locals,
                         const std::unordered_set<std::string> &globals,
                         publisher_t *publisher);
 } // namespace gen

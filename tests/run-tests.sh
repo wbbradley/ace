@@ -15,19 +15,6 @@ if ! shellcheck "$run_test"; then
 		exit 1
 fi
 
-function trim() {
-    # Determine if 'extglob' is currently on.
-    local extglobWasOff=1
-    shopt extglob >/dev/null && extglobWasOff=0 
-    (( extglobWasOff )) && shopt -s extglob # Turn 'extglob' on, if currently turned off.
-    # Trim leading and trailing whitespace
-    local var=$1
-    var=${var##+([[:space:]])}
-    var=${var%%+([[:space:]])}
-    (( extglobWasOff )) && shopt -u extglob # If 'extglob' was off before, turn it back off.
-    echo -n "$var"  # Output trimmed string.
-}
-
 bin_dir=$1
 source_dir=$2
 test_dir=$3
@@ -43,7 +30,7 @@ runs=0
 failed_tests=()
 for test_file in "${test_dir}"/test_*.zion; do
 		runs+=1
-		echo "$0: Invoking run-test.sh on ${test_file}..."
+		[[ "$DEBUG_TESTS" != "" ]] && echo "$0: Invoking run-test.sh on ${test_file}..."
 		if "${run_test}" "${bin_dir}" "${source_dir}" "${test_file}"; then
 				passed+=1
 		else

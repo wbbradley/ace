@@ -1,0 +1,14 @@
+# test: pass
+# expect: 4
+
+fn add(a, b) => __builtin_add_int(a, b)
+
+fn get_int() => 3
+fn get_char() => '3'
+
+fn main() {
+    add := get_int()
+    add := 4
+    print(add)
+    static_print(add)
+}
