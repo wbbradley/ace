@@ -219,39 +219,27 @@ llvm::Value *get_env_var(llvm::IRBuilder<> &builder,
   return llvm_value;
 }
 
-void set_env_var(gen_env_t &gen_env,
+void set_env_var(gen_local_env_t &gen_env,
                  std::string name,
                  types::type_t::ref type,
-                 llvm::Value *llvm_value,
-                 bool allow_shadowing) {
+                 llvm::Value *llvm_value) {
   assert(name.size() != 0);
-  // type = types::unitize(type);
-  debug_above(4, log("gen::set_env_var(0x%08llx, %s, %s, %s)",
+  debug_above(4, log("gen::set_env_var(0x%08llx, %s, %s)",
                      (unsigned long long)(&gen_env), name.c_str(),
-                     type->str().c_str(), llvm_print(llvm_value).c_str(),
-                     boolstr(allow_shadowing)));
+                     type->str().c_str(), llvm_print(llvm_value).c_str()));
   assert(type->ftv_count() == 0);
-  llvm::Value *existing_value = maybe_get_env_var(gen_env, name, type);
-  if (existing_value == nullptr) {
+
+  auto iter = gen_env.find(name);
+  if (iter != gen_env.end()) {
+    /* NB: this behavior is by design. we are allowed to shadow variables. */
+    llvm::Value *existing_value = iter->second;
     debug_above(4, log("found no value in the gen_env 0x%08llx for %s :: %s, "
                        "adding a new value",
                        (unsigned long long)&gen_env, name.c_str(),
                        type->str().c_str()));
-    gen_env[name].insert({type, strict_resolver(llvm_value)});
-  } else if (allow_shadowing) {
-    debug_above(
-        4, log("overwriting any existing value in the gen_env for %s :: %s",
-               name.c_str(), type->str().c_str()));
-    gen_env[name].insert({type, strict_resolver(llvm_value)});
-  } else {
-    /* what now? probably shouldn't have happened */
-    assert(false);
   }
-  for (auto pair : gen_env[name]) {
-    debug_above(5, log("gen_env[%s] .= {%s, %s}", name.c_str(),
-                       type->str().c_str(), llvm_print(llvm_value).c_str()));
-  }
-  assert(maybe_get_env_var(gen_env, name, type) != nullptr);
+
+  gen_env[name] = llvm_value;
 }
 
 llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
@@ -734,7 +722,7 @@ void gen_lambda(std::string name,
                 const tracked_types_t &typing,
                 const types::type_env_t &type_env,
                 const gen_env_t &gen_env_globals,
-                const gen_env_t &gen_env_locals,
+                const gen_local_env_t &gen_env_locals,
                 const std::unordered_set<std::string> &globals,
                 publisher_t *publisher) {
   if (name == "") {
@@ -786,8 +774,14 @@ void gen_lambda(std::string name,
      * it means that get_free_vars is talking about a variable that just
      * doesn't exist yet, and thus will need to be captured by a nested
      * closure. */
-    llvm_dims.push_back(
-        get_env_var(builder, gen_env_locals, typed_id.id, typed_id.type));
+      auto value = get(gen_env_locals, typed_id.id.name,
+                       static_cast<llvm::Value *>(nullptr));
+      if (value == nullptr) {
+        throw user_error(lambda->get_location(),
+                         "unable to find a definition for " c_id("%s"),
+                         typed_id.id.name.c_str());
+      }
+    llvm_dims.push_back(value);
     dim_types.push_back(typed_id.type);
   }
 
@@ -852,14 +846,13 @@ void gen_lambda(std::string name,
     builder.SetInsertPoint(block);
 
     /* put the param in scope */
-    gen_env_t new_env_locals;
+    gen_local_env_t new_env_locals;
     if (name != "") {
       /* inject the closure itself so that it can self refer */
-      // set_env_var(new_env, name, type, opaque_closure, true
-      // /*allow_shadowing*/);
+      // set_env_var(new_env, name, type, opaque_closure);
     }
     set_env_var(new_env_locals, lambda->var.name, type_terms[0],
-                &*llvm_function->args().begin(), true /*allow_shadowing*/);
+                &*llvm_function->args().begin());
 
     if (closure != nullptr) {
       assert(free_vars.typed_ids.size() != 0);
@@ -885,8 +878,7 @@ void gen_lambda(std::string name,
                         dim_types[arg_index - 1]->str().c_str()));
 
         set_env_var(new_env_locals, typed_id.id.name, dim_types[arg_index - 1],
-                    llvm_captured_value_in_lambda_scope,
-                    true /*allow_shadowing*/);
+                    llvm_captured_value_in_lambda_scope);
         ++arg_index;
       }
     } else {
@@ -969,7 +961,7 @@ resolution_status_t gen(llvm::IRBuilder<> &builder,
                         const tracked_types_t &typing,
                         const types::type_env_t &type_env,
                         const gen_env_t &gen_env_globals,
-                        const gen_env_t &gen_env_locals,
+                        const gen_local_env_t &gen_env_locals,
                         const std::unordered_set<std::string> &globals,
                         llvm::Value **output_llvm_value) {
   if (output_llvm_value == nullptr) {
@@ -992,7 +984,7 @@ llvm::Value *gen(llvm::IRBuilder<> &builder,
                  const tracked_types_t &typing,
                  const types::type_env_t &type_env,
                  const gen_env_t &gen_env_globals,
-                 const gen_env_t &gen_env_locals,
+                 const gen_local_env_t &gen_env_locals,
                  const std::unordered_set<std::string> &globals) {
   llvm::Value *llvm_value = nullptr;
   publishable_t publishable(&llvm_value);
@@ -1010,7 +1002,7 @@ resolution_status_t gen(std::string name,
                         const tracked_types_t &typing,
                         const types::type_env_t &type_env,
                         const gen_env_t &gen_env_globals,
-                        const gen_env_t &gen_env_locals,
+                        const gen_local_env_t &gen_env_locals,
                         const std::unordered_set<std::string> &globals,
                         publisher_t *const publisher) {
   auto publish = [publisher](llvm::Value *llvm_value) {
@@ -1036,7 +1028,8 @@ resolution_status_t gen(std::string name,
                    expr)) {
       assert(false);
     } else if (auto var = dcast<const bitter::var_t *>(expr)) {
-      auto value = maybe_get_env_var(gen_env_locals, var->id, type);
+      auto value = get(gen_env_locals, var->id.name,
+                       static_cast<llvm::Value *>(nullptr));
       if (value == nullptr) {
         debug_above(5, log("falling back to globals to find %s :: %s",
                            var->id.str().c_str(), type->str().c_str()));
@@ -1097,7 +1090,7 @@ resolution_status_t gen(std::string name,
       set_env_var(new_env_locals, let->var.name,
                   get(typing, static_cast<const bitter::expr_t *>(let->value),
                       types::type_t::ref{}),
-                  let_value, true /*allow_shadowing*/);
+                  let_value);
 
       publish(gen(builder, llvm_module, break_to_block, continue_to_block,
                   let->body, typing, type_env, gen_env_globals, new_env_locals,

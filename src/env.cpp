@@ -55,6 +55,7 @@ void env_t::rebind_env(const types::type_t::map &bindings) {
   tracked_types_t temp_tracked_types;
 
   for (auto pair : *tracked_types) {
+    assert(temp_tracked_types.count(pair.first) == 0);
     temp_tracked_types.insert({pair.first, pair.second->rebind(bindings)});
   }
   temp_tracked_types.swap(*tracked_types);
