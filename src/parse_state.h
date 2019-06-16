@@ -55,6 +55,9 @@ struct parse_state_t {
   /* keep track of the current function declaration parameter position */
   int argument_index;
 
+  /* enable sugaring of literals */
+  bool sugar_literals = true;
+
 private:
   bool newline = false;
 };

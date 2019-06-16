@@ -244,12 +244,13 @@ void set_env_var(gen_local_env_t &gen_env,
 
 llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
                          const identifier_t &id,
+                         const std::string &ffi_name,
                          const std::vector<llvm::Value *> &params,
                          const types::type_t::refs &types,
                          const types::type_t::ref &type_builtin,
                          const types::type_env_t &type_env) {
   const std::string &name = id.name;
-  debug_above(7, log("lowering builtin %s(%s)...", name.c_str(),
+  debug_above(4, log("lowering builtin %s(%s)...", name.c_str(),
                      join_with(params, ", ", [](llvm::Value *lv) {
                        return llvm_print(lv);
                      }).c_str()));
@@ -707,6 +708,32 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
     return builder.CreateIntToPtr(
         builder.CreateCall(llvm_write_func_decl, params),
         builder.getInt8Ty()->getPointerTo());
+  } else if (starts_with(name, "__builtin_ffi_")) {
+    auto arity_str = name.substr(strlen("__builtin_ffi_"));
+    if (arity_str.size() == 0) {
+      throw user_error(id.location, "invalid arity for ffi");
+    }
+
+    int arity = atoi(arity_str.c_str());
+
+    if (params.size() != arity) {
+      throw user_error(id.location, "wrong number of parameters sent to %s",
+                       id.name.c_str());
+    }
+
+    auto llvm_module = llvm_get_module(builder);
+    std::vector<llvm::Type *> terms;
+    for (int i = 0; i < params.size(); ++i) {
+      terms.push_back(params[i]->getType());
+    }
+
+    auto llvm_func_decl = llvm::cast<llvm::Function>(
+        llvm_module->getOrInsertFunction(
+            ffi_name.c_str(),
+            llvm::FunctionType::get(
+                get_llvm_type(builder, type_env, type_builtin),
+                llvm::ArrayRef<llvm::Type *>(terms), false /*isVarArg*/)));
+    return builder.CreateCall(llvm_func_decl, params);
   }
 
   log("Need an impl for " c_id("%s"), name.c_str());
@@ -1319,14 +1346,30 @@ resolution_status_t gen(std::string name,
     } else if (auto builtin = dcast<const bitter::builtin_t *>(expr)) {
       std::vector<llvm::Value *> llvm_values;
       types::type_t::refs types;
-      for (auto expr : builtin->exprs) {
+
+      auto iter = builtin->exprs.begin();
+      std::string ffi_name;
+      if (starts_with(builtin->var->id.name, "__builtin_ffi_")) {
+        auto ffi_name_expr = dcast<const bitter::literal_t *>(*iter);
+        if (ffi_name_expr == nullptr || ffi_name_expr->token.tk != tk_string) {
+          throw user_error((*iter)->get_location(), "invalid FFI name");
+        }
+        ffi_name = unescape_json_quotes(ffi_name_expr->token.text);
+        assert(ffi_name.size() != 0);
+        debug_above(2, log_location(ffi_name_expr->get_location(),
+                                    "found FFI name %s", ffi_name.c_str()));
+        ++iter;
+      }
+
+      for (; iter != builtin->exprs.end(); ++iter) {
+        auto &expr = *iter;
         llvm_values.push_back(gen(builder, llvm_module, break_to_block,
                                   continue_to_block, expr, typing, type_env,
                                   gen_env_globals, gen_env_locals, globals));
         types.push_back(typing.at(expr));
       }
-      publish(gen_builtin(builder, builtin->var->id, llvm_values, types,
-                          typing.at(builtin), type_env));
+      publish(gen_builtin(builder, builtin->var->id, ffi_name, llvm_values,
+                          types, typing.at(builtin), type_env));
       return rs_cache_resolution;
     }
     throw user_error(expr->get_location(), "unhandled gen for %s :: %s",

@@ -17,7 +17,6 @@ if(CCACHE_EXECUTABLE)
 endif()
 
 include_directories(BEFORE src)
-# add_definitions(-DZION_DEBUG)
 
 find_package(LLVM REQUIRED CONFIG)
 
@@ -28,8 +27,14 @@ message(STATUS "LLVM installation prefix is ${LLVM_INSTALL_PREFIX}")
 include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 
-add_compile_options(-std=c++14 -O3 ${option_flags})
-# add_compile_options(-std=c++14 -g -O0 ${option_flags})
+if(NOT DEFINED DEBUG)
+	message("Compiling in Release mode...")
+	add_compile_options(-std=c++14 -O3 ${option_flags})
+else()
+	message("Compiling in Debug mode...")
+	add_definitions(-DZION_DEBUG)
+	add_compile_options(-std=c++14 -g -O0 ${option_flags})
+endif()
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-rpath,${LLVM_INSTALL_PREFIX}/lib")
 
 add_executable(zion
