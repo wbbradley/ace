@@ -353,3 +353,4 @@ bool in_vector_with(U item, const COLL &set, std::function<V(U)> extractor) {
 }
 
 std::string alphabetize(int i);
+std::string get_pkg_config(std::string flags, std::string pkg_name);

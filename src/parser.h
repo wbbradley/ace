@@ -13,7 +13,7 @@ std::shared_ptr<T> parse_text(std::istream &is,
                               std::string filename = "repl.zion") {
   zion_lexer_t lexer(filename, is);
   std::vector<Token> comments;
-  std::set<Token> link_ins;
+  std::set<LinkIn> link_ins;
 
   parse_state_t ps(filename, "<text>", lexer, comments, link_ins,
                    get_builtin_arities());

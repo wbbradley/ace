@@ -20,7 +20,13 @@ $(BUILT_BINARY): $(BUILD_DIR)/build.ninja
 
 $(BUILD_DIR)/build.ninja: $(LLVM_DIR)/LLVMConfig.cmake CMakeLists.txt
 	-mkdir -p $(BUILD_DIR)
-	(cd $(BUILD_DIR) && cmake $(SRCDIR) -G Ninja)
+	if [ "$(DEBUG)" == "" ]; then \
+		echo "Release mode..."; \
+		(cd $(BUILD_DIR) && cmake $(SRCDIR) -G Ninja) \
+	else \
+		echo "Debug mode..."; \
+		(cd $(BUILD_DIR) && cmake $(SRCDIR) -DDEBUG=1 -G Ninja) \
+	fi
 
 ZION_LIBS=\
 		  std.zion \

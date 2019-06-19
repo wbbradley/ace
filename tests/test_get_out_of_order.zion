@@ -1,0 +1,7 @@
+# test: fail
+# expect: get statements must occur at the top of the module
+
+fn main() {
+}
+
+get std

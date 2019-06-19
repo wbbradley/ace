@@ -1,3 +1,5 @@
+link pkg "bdw-gc"
+
 data Bool {
     False
     True

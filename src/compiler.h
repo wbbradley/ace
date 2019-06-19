@@ -13,7 +13,7 @@ struct compilation_t {
   compilation_t(std::string program_name,
                 bitter::program_t *program,
                 std::vector<Token> comments,
-                std::set<Token> link_ins,
+                const std::set<LinkIn> &link_ins,
                 const ctor_id_map_t &ctor_id_map,
                 const data_ctors_map_t &data_ctors_map,
                 const types::type_env_t &type_env)
@@ -25,7 +25,7 @@ struct compilation_t {
   std::string const program_name;
   bitter::program_t *const program;
   std::vector<Token> const comments;
-  std::set<Token> const link_ins;
+  std::set<LinkIn> const link_ins;
   ctor_id_map_t const ctor_id_map;
   data_ctors_map_t const data_ctors_map;
   types::type_env_t const type_env;

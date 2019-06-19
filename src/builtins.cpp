@@ -151,14 +151,18 @@ const types::scheme_t::map &get_builtins() {
     (*map)["__builtin_exit"] = scheme(
         {}, {}, type_arrows({Int, type_unit(INTERNAL_LOC())}));
     (*map)["__builtin_calloc"] = scheme({"a"}, {}, type_arrows({Int, tp_a}));
-    (*map)["__builtin_store_ref"] = scheme(
-        {"a"}, {},
-        type_arrows({type_operator(type_id(make_iid(REF_TYPE_OPERATOR)), tv_a),
-                     tv_a, type_unit(INTERNAL_LOC())}))->normalize();
-    (*map)["__builtin_store_ptr"] = scheme(
-        {"a"}, {},
-        type_arrows({type_operator(type_id(make_iid(PTR_TYPE_OPERATOR)), tv_a),
-                     tv_a, type_unit(INTERNAL_LOC())}))->normalize();
+    (*map)["__builtin_store_ref"] =
+        scheme({"a"}, {},
+               type_arrows(
+                   {type_operator(type_id(make_iid(REF_TYPE_OPERATOR)), tv_a),
+                    tv_a, type_unit(INTERNAL_LOC())}))
+            ->normalize();
+    (*map)["__builtin_store_ptr"] =
+        scheme({"a"}, {},
+               type_arrows(
+                   {type_operator(type_id(make_iid(PTR_TYPE_OPERATOR)), tv_a),
+                    tv_a, type_unit(INTERNAL_LOC())}))
+            ->normalize();
 
     if (getenv("DUMP_BUILTINS") != nullptr &&
         atoi(getenv("DUMP_BUILTINS")) != 0) {

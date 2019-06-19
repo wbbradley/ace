@@ -10,6 +10,7 @@
 #include "ast.h"
 #include "disk.h"
 #include "lexer.h"
+#include "link_ins.h"
 #include "parse_state.h"
 #include "parser.h"
 #include "prefix.h"
@@ -139,7 +140,7 @@ struct global_parser_state_t {
   std::map<std::string, module_t *> modules_map_by_filename;
   std::map<std::string, module_t *> modules_map_by_name;
   std::vector<Token> comments;
-  std::set<Token> link_ins;
+  std::set<LinkIn> link_ins;
   const std::map<std::string, int> &builtin_arities;
 
   module_t *parse_module_statefully(identifier_t module_id) {
@@ -235,10 +236,13 @@ compilation_t::ref parse_program(
 
     global_parser_state_t gps(builtin_arities);
 
-    /* always include the builtins library */
-    if (getenv("NO_PRELUDE") == nullptr) {
+    /* include the builtins library */
+    if (getenv("NO_PRELUDE") == nullptr || atoi(getenv("NO_PRELUDE")) == 0) {
       gps.parse_module_statefully(
           {"std" /* lib/std */, location_t{"std", 0, 0}});
+    } else {
+      gps.link_ins.insert(LinkIn{
+          lit_pkgconfig, Token{INTERNAL_LOC(), tk_string, "\"bdw-gc\""}});
     }
 
     /* now parse the main program module */

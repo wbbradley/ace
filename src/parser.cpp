@@ -18,7 +18,7 @@ using namespace bitter;
 class RawParseMode {
 public:
   RawParseMode() = delete;
-  RawParseMode(RawParseMode&) = delete;
+  RawParseMode(RawParseMode &) = delete;
   RawParseMode(parse_state_t &ps)
       : prior_sugar_literals(ps.sugar_literals), ps(ps) {
     ps.sugar_literals = false;
@@ -1991,8 +1991,21 @@ module_t *parse_module(parse_state_t &ps,
     module_deps.insert(module_name);
   }
 
+  while (ps.token.is_ident(K(link))) {
+    ps.advance();
+    if (ps.token.is_ident(K(pkg))) {
+      ps.advance();
+      ps.link_ins.insert(LinkIn{lit_pkgconfig, ps.token_and_advance()});
+    } else {
+      throw user_error(ps.token.location, "unexpected link directive");
+    }
+  }
+
   while (true) {
-    if (ps.token.is_ident(K(fn))) {
+    if (ps.token.is_ident(K(get))) {
+      throw user_error(ps.token.location,
+                       "get statements must occur at the top of the module");
+    } else if (ps.token.is_ident(K(fn))) {
       /* module-level functions */
       ps.advance();
       auto id = identifier_t::from_token(ps.token_and_advance());
