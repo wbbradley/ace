@@ -801,13 +801,13 @@ void gen_lambda(std::string name,
      * it means that get_free_vars is talking about a variable that just
      * doesn't exist yet, and thus will need to be captured by a nested
      * closure. */
-      auto value = get(gen_env_locals, typed_id.id.name,
-                       static_cast<llvm::Value *>(nullptr));
-      if (value == nullptr) {
-        throw user_error(lambda->get_location(),
-                         "unable to find a definition for " c_id("%s"),
-                         typed_id.id.name.c_str());
-      }
+    auto value = get(gen_env_locals, typed_id.id.name,
+                     static_cast<llvm::Value *>(nullptr));
+    if (value == nullptr) {
+      throw user_error(lambda->get_location(),
+                       "unable to find a definition for " c_id("%s"),
+                       typed_id.id.name.c_str());
+    }
     llvm_dims.push_back(value);
     dim_types.push_back(typed_id.type);
   }

@@ -1191,12 +1191,24 @@ int run_job(const job_t &job) {
     phase_4_t phase_4 = ssa_gen(context, specialize(compile(job.args[0])));
 
     if (!user_error::errors_occurred()) {
+      std::stringstream ss_c_flags;
+      std::stringstream ss_lib_flags;
+      for (auto link_in : phase_4.phase_3.phase_2.compilation->link_ins) {
+        std::string pkg_name = unescape_json_quotes(link_in.name.text);
+        switch (link_in.lit) {
+        case lit_pkgconfig:
+          ss_c_flags << get_pkg_config("--cflags-only-I", pkg_name) << " ";
+          ss_lib_flags << get_pkg_config("--libs --static", pkg_name) << " ";
+          break;
+        }
+      }
+
       auto command_line = string_format(
           // We are using clang to lower the code from LLVM, and link it
           // to the runtime.
           "clang "
-          // Include any necessary include dirs for bdw-gc (Boehm GC)
-          "$(pkg-config --cflags-only-I bdw-gc) "
+          // Include any necessary include dirs for C dependencies.
+          "%s "
           // Allow for the user to specify optimizations
           "${ZION_OPT_FLAGS} "
           // NB: we don't embed the target triple into the LL, so any
@@ -1208,15 +1220,17 @@ int run_job(const job_t &job) {
           // TODO: plumb zion_rt.c properly into installation location.
           // probably something like /usr/share/zion/rt
           "${ZION_RT}/zion_rt.c "
-          // Add linker flags so that the generated binary can use bdw-gc
-          "$(pkg-config --libs bdw-gc) "
+          // Add linker flags
+          "%s "
           // Don't forget the built .ll file from our frontend here.
           "%s "
           // Give the binary a name.
           "-o %s",
-          phase_4.output_llvm_filename.c_str(),
+          ss_c_flags.str().c_str(), phase_4.output_llvm_filename.c_str(),
+          ss_lib_flags.str().c_str(),
           phase_4.phase_3.phase_2.compilation->program_name.c_str(),
           phase_4.phase_3.phase_2.compilation->program_name.c_str());
+      debug_above(1, log("running %s", command_line.c_str()));
       if (std::system(command_line.c_str()) != 0) {
         throw user_error(INTERNAL_LOC(), "failed to compile binary");
       }

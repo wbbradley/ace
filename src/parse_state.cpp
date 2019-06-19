@@ -15,7 +15,7 @@ parse_state_t::parse_state_t(std::string filename,
                              std::string module_name,
                              zion_lexer_t &lexer,
                              std::vector<Token> &comments,
-                             std::set<Token> &link_ins,
+                             std::set<LinkIn> &link_ins,
                              const std::map<std::string, int> &builtin_arities)
     : filename(filename),
       module_name(module_name.size() != 0

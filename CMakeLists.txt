@@ -50,6 +50,7 @@ add_executable(zion
 	src/identifier.cpp
 	src/infer.cpp
 	src/lexer.cpp
+	src/link_ins.cpp
 	src/llvm_utils.cpp
 	src/location.cpp
 	src/logger.cpp

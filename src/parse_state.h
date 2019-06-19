@@ -3,6 +3,7 @@
 
 #include "identifier.h"
 #include "lexer.h"
+#include "link_ins.h"
 #include "logger_decls.h"
 #include "ptr.h"
 #include "scope.h"
@@ -17,7 +18,7 @@ struct parse_state_t {
                 std::string module_name,
                 zion_lexer_t &lexer,
                 std::vector<Token> &comments,
-                std::set<Token> &link_ins,
+                std::set<LinkIn> &link_ins,
                 const std::map<std::string, int> &builtin_arities);
 
   bool advance();
@@ -42,7 +43,7 @@ struct parse_state_t {
   std::unordered_map<std::string, std::string> term_map;
 
   std::vector<Token> &comments;
-  std::set<Token> &link_ins;
+  std::set<LinkIn> &link_ins;
   ctor_id_map_t ctor_id_map;
   data_ctors_map_t data_ctors_map;
   types::type_env_t type_env;
