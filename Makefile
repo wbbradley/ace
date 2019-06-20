@@ -28,24 +28,22 @@ $(BUILD_DIR)/build.ninja: $(LLVM_DIR)/LLVMConfig.cmake CMakeLists.txt
 		(cd $(BUILD_DIR) && cmake $(SRCDIR) -DDEBUG=1 -G Ninja) \
 	fi
 
-ZION_LIBS=\
-		  std.zion \
-		  itertools.zion \
-		  complex.zion \
+ZION_LIBS=$(shell cd lib && find *.zion)
 
 .PHONY: install
 install: $(BUILT_BINARY) $(addprefix $(SRCDIR)/lib/,$(ZION_LIBS)) $(SRCDIR)/src/zion_rt.c $(SRCDIR)/$(PN).1
-	-echo "Making sure that various installation dirs exist..." 
-	mkdir -p $(bindir)
-	mkdir -p $(stdlibdir)
-	mkdir -p $(man1dir)
-	mkdir -p $(runtimedir)
-	-echo "Copying compiler binary from $(BUILT_BINARY) to $(bindir)..."
-	cp $(BUILT_BINARY) $(bindir)
-	cp $(addprefix $(SRCDIR)/lib/,$(ZION_LIBS)) $(stdlibdir)
-	cp $(SRCDIR)/$(PN).1 $(man1dir)
-	cp $(SRCDIR)/src/zion_rt.c $(runtimedir)
-	find $(installdir) -type f 2>/dev/null | grep -E '\bzion\b'
+	-@echo "Making sure that various installation dirs exist..." 
+	@mkdir -p $(bindir)
+	@mkdir -p $(stdlibdir)
+	@mkdir -p $(man1dir)
+	@mkdir -p $(runtimedir)
+	-@echo "Copying compiler binary from $(BUILT_BINARY) to $(bindir)..."
+	@cp $(BUILT_BINARY) $(bindir)
+	@cp $(addprefix $(SRCDIR)/lib/,$(ZION_LIBS)) $(stdlibdir)
+	@cp $(SRCDIR)/$(PN).1 $(man1dir)
+	@cp $(SRCDIR)/src/zion_rt.c $(runtimedir)
+	@# Crude reporting of what files got installed
+	@find $(installdir) -type f 2>/dev/null | grep -E '\bzion\b'
 
 .PHONY: clean
 clean:

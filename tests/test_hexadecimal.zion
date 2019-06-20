@@ -1,0 +1,6 @@
+# test: pass
+# expect: 36967207
+
+fn main() {
+    print(0x2341327)
+}

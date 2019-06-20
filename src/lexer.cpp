@@ -118,43 +118,44 @@ void advance_line_col(char ch, int &line, int &col) {
 bool zion_lexer_t::_get_tokens() {
   /* _get_tokens should make sure there are tokens in the queue. */
   enum gt_state {
-    gts_start,
-    gts_end,
-    gts_cr,
-    gts_single_quoted,
-    gts_single_quoted_got_char,
-    gts_single_quoted_escape,
-    gts_quoted,
-    gts_quoted_escape,
-    gts_end_quoted,
-    gts_whitespace,
-    gts_token,
-    gts_error,
-    gts_colon,
     gts_bang,
     gts_bangeq,
-    gts_integer,
-    gts_hexadecimal,
-    gts_zero,
-    gts_zerox,
-    gts_float,
-    gts_expon,
-    gts_expon_symbol,
+    gts_colon,
+    gts_comment,
+    gts_cr,
+    gts_divide_by,
+    gts_dot,
+    gts_end,
+    gts_end_quoted,
     gts_eq,
     gts_eqeq,
-    gts_dot,
-    gts_lt,
+    gts_error,
+    gts_expon,
+    gts_expon_symbol,
+    gts_float,
     gts_gt,
-    gts_plus,
+    gts_hexadecimal,
+    gts_integer,
+    gts_lt,
     gts_maybe,
     gts_minus,
-    gts_times,
-    gts_divide_by,
     gts_mod,
-    gts_comment,
     gts_multiline_comment,
-    gts_multiline_comment_star,
     gts_multiline_comment_slash,
+    gts_multiline_comment_star,
+    gts_octal,
+    gts_plus,
+    gts_quoted,
+    gts_quoted_escape,
+    gts_single_quoted,
+    gts_single_quoted_escape,
+    gts_single_quoted_got_char,
+    gts_start,
+    gts_times,
+    gts_token,
+    gts_whitespace,
+    gts_zero,
+    gts_zerox,
   };
 
   gt_state gts = gts_start;
@@ -566,6 +567,14 @@ bool zion_lexer_t::_get_tokens() {
         scan_ahead = false;
       }
       break;
+    case gts_octal:
+      if (ch >= '0' && ch <= '7') {
+      } else {
+        gts = gts_end;
+        tk = tk_integer;
+        scan_ahead = false;
+      }
+      break;
     case gts_zerox:
       if (isdigit(ch) || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F')) {
         gts = gts_hexadecimal;
@@ -589,7 +598,7 @@ bool zion_lexer_t::_get_tokens() {
         gts = gts_end;
         scan_ahead = false;
       } else {
-        gts = gts_error;
+        gts = gts_octal;
       }
       break;
     case gts_integer:

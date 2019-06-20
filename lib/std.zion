@@ -101,13 +101,13 @@ instance Show [a] {
 }
 
 fn putch(ch Char) () {
-    __builtin_write_char(1, ch)
+    _ := __builtin_ffi_2("zion_write_char", 1, ch) as Int
 }
 
 fn print(x) () {
     String((sz, length)) := str(x)
-    __builtin_write(1, sz, length)
-    __builtin_write_char(1, '\n')
+    _ := __builtin_ffi_3("write", 1, sz, length) as Int
+    _ := __builtin_ffi_2("zion_write_char", 1, '\n') as Int
 }
 
 data Ref a {
@@ -217,6 +217,18 @@ fn concat(a, b) {
         __builtin_memcpy(__builtin_ptr_add(zs, xlen), ys, ylen)
         return String((zs, zlen))
     }
+}
+
+class Bitwise a {
+    fn &(a, a) a
+    fn |(a, a) a
+    fn ^(a, a) a
+}
+
+instance Bitwise Int {
+    fn &(a, b) => __builtin_int_bitwise_and(a, b)
+    fn |(a, b) => __builtin_int_bitwise_or(a, b)
+    fn ^(a, b) => __builtin_int_bitwise_xor(a, b)
 }
 
 class Num a {
@@ -601,7 +613,7 @@ instance Iterable Range {
     }
 }
 
-fn sqrt(x) => __builtin_sqrt(x)
+fn sqrt(x Float) Float => __builtin_ffi_1("sqrt", x)
 fn compose(f, g) => fn (x) => f(g(x))
 
 fn sum(xs) {

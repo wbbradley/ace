@@ -1,27 +1,28 @@
 # test: pass
 
-newtype FileOpenMode = Int
-
-let O_RDONLY  = 0x0000  /* open for reading only */
-let O_WRONLY  = 0x0001  /* open for writing only */
-let O_RDWR    = 0x0002  /* open for reading and writing */
-let O_ACCMODE = 0x0003  /* mask for above modes */
-
-fn open(filename, flags Int) Int {
-    String((filename, _)) := filename
-    return __builtin_ffi_2("open", filename, flags)
-}
-
-fn read(fd Int, buffer *Char, nbyte Int) Int {
-    return __builtin_ffi_3("read", fd, buffer, nbyte)
-}
+get sys {open, read, write, O_RDONLY, CreateMode}
 
 fn main() {
-    fd := open(str(__filename__), O_RDONLY)
-    buffer := alloc(1024)
-    cb := read(fd, buffer, 1023)
-    print(concat(concat("read ", str(cb)), " bytes"))
-    /* this next line is self-referential! */
-    assert(cb == 746)
-    print("PASS")
+    fd := open(str(__filename__), O_RDONLY, CreateMode(0))
+
+    /* This is allocating a small buffer size just to test the
+     * looping behavior and that we aren't off by one, etc... */
+    buffer := alloc(14)
+
+    while True {
+        cb := read(fd, buffer, 14)
+        if cb <= 0 {
+            break
+        }
+        var to_write = cb
+        while !to_write != 0 {
+            written := write(1, buffer, !to_write)
+            if written <= 0 {
+                break
+            }
+            to_write -= written
+        }
+    }
 }
+
+# expect: It printed all the way down here.

@@ -1265,7 +1265,7 @@ int run_job(const job_t &job) {
 }
 
 int main(int argc, char *argv[]) {
-  signal(SIGINT, &handle_sigint);
+  // signal(SIGINT, &handle_sigint);
   init_dbg();
   std::shared_ptr<logger> logger(std::make_shared<standard_logger>("", "."));
 

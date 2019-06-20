@@ -217,8 +217,13 @@ int64_t parse_int_value(Token token) {
   case tk_integer: {
     int64_t value;
     if (token.text.size() > 2 && token.text.substr(0, 2) == "0x") {
+      /* hexadecimal */
       value = strtoll(token.text.substr(2).c_str(), nullptr, 16);
+    } else if (token.text.size() >= 2 && token.text[0] == '0') {
+      /* octal */
+      value = strtoll(token.text.substr(1).c_str(), nullptr, 8);
     } else {
+      /* decimal */
       value = atoll(token.text.c_str());
     }
     return value;

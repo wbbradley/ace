@@ -383,16 +383,25 @@ expr_t *parse_assert(parse_state_t &ps) {
       condition, // The condition we are asserting
       unit_expr(ps.token.location),
       new block_t({
-          new builtin_t(
-              new var_t(identifier_t{"__builtin_write", ps.token.location}),
-              {
-                  new literal_t(
-                      Token(ps.token.location, tk_integer, "2" /*stderr*/)),
-                  new literal_t(Token(ps.token.location, tk_string,
-                                      escape_json_quotes(assert_message))),
-                  new literal_t(Token(ps.token.location, tk_integer,
-                                      std::to_string(assert_message.size()))),
-              }),
+          new as_t(
+              new as_t(new builtin_t(
+                           new var_t(identifier_t{"__builtin_ffi_3",
+                                                  ps.token.location}),
+                           {
+                               new literal_t(Token(ps.token.location, tk_string,
+                                                   escape_json_quotes("write"))),
+                               new literal_t(Token(ps.token.location,
+                                                   tk_integer, "2" /*stderr*/)),
+                               new literal_t(
+                                   Token(ps.token.location, tk_string,
+                                         escape_json_quotes(assert_message))),
+                               new literal_t(Token(
+                                   ps.token.location, tk_integer,
+                                   std::to_string(assert_message.size()))),
+                           }),
+                       type_id(make_iid(INT_TYPE))->generalize({}),
+                       false /*force_cast*/),
+              type_unit(INTERNAL_LOC())->generalize({}), true /*force_cast*/),
           new builtin_t(
               new var_t(make_iid("__builtin_exit")),
               {new literal_t(Token(assert_token.location, tk_integer, "1"))}),
