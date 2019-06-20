@@ -1,0 +1,6 @@
+# test: pass
+# expect: 639703
+
+fn main() {
+    print(02341327)
+}

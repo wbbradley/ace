@@ -88,7 +88,6 @@ const types::scheme_t::map &get_builtins() {
                                               type_arrows({Int, Float}));
     (*map)["__builtin_negate_float"] = scheme({}, {},
                                               type_arrows({Float, Float}));
-    (*map)["__builtin_sqrt"] = scheme({}, {}, type_arrows({Float, Float}));
     (*map)["__builtin_ptr_add"] = scheme({"a"}, {},
                                          type_arrows({tp_a, Int, tp_a}));
     (*map)["__builtin_ptr_eq"] = scheme({"a"}, {},
@@ -107,6 +106,14 @@ const types::scheme_t::map &get_builtins() {
     (*map)["__builtin_int_lte"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
     (*map)["__builtin_int_gt"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
     (*map)["__builtin_int_gte"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
+    (*map)["__builtin_int_bitwise_and"] = scheme({}, {},
+                                                 type_arrows({Int, Int, Int}));
+    (*map)["__builtin_int_bitwise_or"] = scheme({}, {},
+                                                type_arrows({Int, Int, Int}));
+    (*map)["__builtin_int_bitwise_xor"] = scheme({}, {},
+                                                 type_arrows({Int, Int, Int}));
+    (*map)["__builtin_int_bitwise_complement"] = scheme(
+        {}, {}, type_arrows({Int, Int}));
     (*map)["__builtin_char_eq"] = scheme({}, {},
                                          type_arrows({Char, Char, Bool}));
     (*map)["__builtin_char_ne"] = scheme({}, {},
@@ -136,13 +143,7 @@ const types::scheme_t::map &get_builtins() {
         type_arrows({PtrToChar, PtrToChar, Int, type_unit(INTERNAL_LOC())}));
     (*map)["__builtin_memcmp"] = scheme(
         {}, {}, type_arrows({PtrToChar, PtrToChar, Int, Int}));
-    (*map)["__builtin_write"] = scheme(
-        {}, {}, type_arrows({Int, PtrToChar, Int, Unit}));
-    (*map)["__builtin_write_char"] = scheme({}, {},
-                                            type_arrows({Int, Char, Unit}));
     (*map)["__builtin_pass_test"] = scheme({}, {}, Unit);
-    (*map)["__builtin_print"] = scheme(
-        {}, {}, type_arrows({PtrToChar, type_unit(INTERNAL_LOC())}));
     (*map)["__builtin_print_int"] = scheme(
         {}, {}, type_arrows({Int, type_unit(INTERNAL_LOC())}));
     (*map)["__builtin_itoa"] = scheme({}, {}, type_arrows({Int, PtrToChar}));

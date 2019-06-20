@@ -1,0 +1,94 @@
+# TODO: make all of this portable (this is currently based on Debian)
+
+newtype OpenFlags = Int
+let O_RDONLY   =  0000 as! OpenFlags  /* open for reading only */
+let O_WRONLY   =  0001 as! OpenFlags  /* open for writing only */
+let O_RDWR     =  0002 as! OpenFlags  /* open for reading and writing */
+let O_ACCMODE  =  0003 as! OpenFlags  /* mask for above modes */
+let O_CREAT    =  0x200 as! OpenFlags
+let O_EXCL     =  0200 as! OpenFlags
+let O_NOCTTY   =  0400 as! OpenFlags
+let O_TRUNC    = 01000 as! OpenFlags
+let O_APPEND   = 02000 as! OpenFlags
+let O_NONBLOCK = 04000 as! OpenFlags
+
+
+newtype CreateMode = Int
+let S_IRWXU = 00700 as! CreateMode /* user (file owner) has read, write, and execute permission */
+let S_IRUSR = 00400 as! CreateMode /* user has read permission */
+let S_IWUSR = 00200 as! CreateMode /* user has write permission */
+let S_IXUSR = 00100 as! CreateMode /* user has execute permission */
+let S_IRWXG = 00070 as! CreateMode /* group has read, write, and execute permission */
+let S_IRGRP = 00040 as! CreateMode /* group has read permission */
+let S_IWGRP = 00020 as! CreateMode /* group has write permission */
+let S_IXGRP = 00010 as! CreateMode /* group has execute permission */
+let S_IRWXO = 00007 as! CreateMode /* others have read, write, and execute permission */
+let S_IROTH = 00004 as! CreateMode /* others have read permission */
+let S_IWOTH = 00002 as! CreateMode /* others have write permission */
+let S_IXOTH = 00001 as! CreateMode /* others have execute permission */
+
+instance Bitwise OpenFlags {
+    fn &(a, b) {
+        OpenFlags(a_) := a
+        OpenFlags(b_) := b
+        return OpenFlags(__builtin_int_bitwise_and(a_, b_))
+    }
+    fn |(a, b) {
+        OpenFlags(a) := a
+        OpenFlags(b) := b
+        return OpenFlags(__builtin_int_bitwise_or(a, b))
+    }
+    fn ^(a, b) {
+        OpenFlags(a) := a
+        OpenFlags(b) := b
+        return OpenFlags(__builtin_int_bitwise_xor(a, b))
+    }
+}
+
+instance Bitwise CreateMode {
+    fn &(a, b) {
+        CreateMode(a_) := a
+        CreateMode(b_) := b
+        return CreateMode(__builtin_int_bitwise_and(a_, b_))
+    }
+    fn |(a, b) {
+        CreateMode(a) := a
+        CreateMode(b) := b
+        return CreateMode(__builtin_int_bitwise_or(a, b))
+    }
+    fn ^(a, b) {
+        CreateMode(a) := a
+        CreateMode(b) := b
+        return CreateMode(__builtin_int_bitwise_xor(a, b))
+    }
+}
+
+fn open(filename, flags OpenFlags, mode CreateMode) Int {
+    String((filename, _)) := filename
+    OpenFlags(flags) := flags
+    CreateMode(mode) := mode
+    return __builtin_ffi_3("open", filename, flags, mode)
+}
+
+fn unlink(filename String) Int {
+    String((filename, _)) := filename
+    return __builtin_ffi_1("unlink", filename)
+}
+
+fn close(fd Int) Int {
+    return __builtin_ffi_1("close", fd)
+}
+
+fn creat(filename, mode CreateMode) Int {
+    String((filename, _)) := filename
+    CreateMode(mode) := mode
+    return __builtin_ffi_2("creat", filename, mode)
+}
+
+fn read(fd Int, buffer *Char, nbyte Int) Int {
+    return __builtin_ffi_3("read", fd, buffer, nbyte)
+}
+
+fn write(fd Int, buffer *Char, nbyte Int) Int {
+    return __builtin_ffi_3("write", fd, buffer, nbyte)
+}

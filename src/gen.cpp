@@ -319,20 +319,6 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
   } else if (name == "__builtin_add_float") {
     /* scheme({}, {}, type_arrows({Float, Float, Float})) */
     return builder.CreateFAdd(params[0], params[1]);
-  } else if (name == "__builtin_sqrt") {
-    /* scheme({}, {}, type_arrows({Float, Float})) */
-    auto llvm_module = llvm_get_module(builder);
-
-    llvm::Type *terms[] = {builder.getDoubleTy()};
-    assert(params.size() == 1);
-
-    // libc dependency
-    auto llvm_func_decl = llvm::cast<llvm::Function>(
-        llvm_module->getOrInsertFunction(
-            "sqrt", llvm::FunctionType::get(builder.getDoubleTy(),
-                                            llvm::ArrayRef<llvm::Type *>(terms),
-                                            false /*isVarArg*/)));
-    return builder.CreateCall(llvm_func_decl, params);
   } else if (name == "__builtin_abs_float") {
     /* scheme({}, {}, type_arrows({Float, Float})) */
   } else if (name == "__builtin_int_to_float") {
@@ -421,6 +407,18 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
     /* scheme({}, {}, type_arrows({Int, Int, Bool})) */
     return builder.CreateZExt(builder.CreateICmpSGE(params[0], params[1]),
                               builder.getInt64Ty());
+  } else if (name == "__builtin_int_bitwise_and") {
+    /* scheme({}, {}, type_arrows({Int, Int, Int})) */
+    return builder.CreateAnd(params[0], params[1]);
+  } else if (name == "__builtin_int_bitwise_or") {
+    /* scheme({}, {}, type_arrows({Int, Int, Int})) */
+    return builder.CreateOr(params[0], params[1]);
+  } else if (name == "__builtin_int_bitwise_xor") {
+    /* scheme({}, {}, type_arrows({Int, Int, Int})) */
+    return builder.CreateXor(params[0], params[1]);
+  } else if (name == "__builtin_int_bitwise_complement") {
+    /* scheme({}, {}, type_arrows({Int, Int})) */
+    return builder.CreateXor(params[0], builder.getInt64(-1));
   } else if (name == "__builtin_char_eq") {
     /* scheme({}, {}, type_arrows({Int, Int, Bool})) */
     return builder.CreateZExt(builder.CreateICmpEQ(params[0], params[1]),
@@ -469,55 +467,6 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
     /* scheme({}, {}, type_arrows({Float, Float, Bool})) */
     return builder.CreateZExt(builder.CreateFCmpOGE(params[0], params[1]),
                               builder.getInt64Ty());
-  } else if (name == "__builtin_print") {
-    /* scheme({}, {}, type_arrows({*Char, type_unit(INTERNAL_LOC())})) */
-    auto llvm_module = llvm_get_module(builder);
-    llvm::Type *write_terms[] = {builder.getInt8Ty()->getPointerTo()};
-
-    assert(params.size() == 1);
-
-    // libc dependency
-    auto llvm_write_func_decl = llvm::cast<llvm::Function>(
-        llvm_module->getOrInsertFunction(
-            "zion_puts",
-            llvm::FunctionType::get(builder.getInt64Ty(),
-                                    llvm::ArrayRef<llvm::Type *>(write_terms),
-                                    false /*isVarArg*/)));
-    return builder.CreateIntToPtr(
-        builder.CreateCall(llvm_write_func_decl, params),
-        builder.getInt8Ty()->getPointerTo());
-  } else if (name == "__builtin_write") {
-    /* scheme({}, {}, type_arrows({Int, PtrToChar, Int, Int})) */
-    auto llvm_module = llvm_get_module(builder);
-    llvm::Type *write_terms[] = {builder.getInt64Ty(),
-                                 builder.getInt8Ty()->getPointerTo(),
-                                 builder.getInt64Ty()};
-
-    assert(params.size() == 3);
-
-    // libc dependency
-    auto llvm_write_func_decl = llvm::cast<llvm::Function>(
-        llvm_module->getOrInsertFunction(
-            "write",
-            llvm::FunctionType::get(builder.getInt8Ty()->getPointerTo(),
-                                    llvm::ArrayRef<llvm::Type *>(write_terms),
-                                    false /*isVarArg*/)));
-    return builder.CreateCall(llvm_write_func_decl, params);
-  } else if (name == "__builtin_write_char") {
-    /* scheme({}, {}, type_arrows({Int, Char, Int, Int})) */
-    auto llvm_module = llvm_get_module(builder);
-    llvm::Type *write_terms[] = {builder.getInt64Ty(), builder.getInt8Ty()};
-
-    assert(params.size() == 2);
-
-    // libc dependency
-    auto llvm_write_func_decl = llvm::cast<llvm::Function>(
-        llvm_module->getOrInsertFunction(
-            "zion_write_char",
-            llvm::FunctionType::get(builder.getInt8Ty()->getPointerTo(),
-                                    llvm::ArrayRef<llvm::Type *>(write_terms),
-                                    false /*isVarArg*/)));
-    return builder.CreateCall(llvm_write_func_decl, params);
   } else if (name == "__builtin_pass_test") {
     /* scheme({}, {}, Unit) */
     auto llvm_module = llvm_get_module(builder);
@@ -944,7 +893,8 @@ resolution_status_t gen_literal(std::string name,
     }
     return rs_resolve_again;
   } else if (type_equality(type, type_id(make_iid(INT_TYPE)))) {
-    auto llvm_value = builder.getZionInt(atoll(token.text.c_str()));
+    int64_t value = parse_int_value(token);
+    auto llvm_value = builder.getZionInt(value);
     if (publisher != nullptr) {
       publisher->publish(llvm_value);
     }
