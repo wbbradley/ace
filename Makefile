@@ -20,7 +20,7 @@ $(BUILT_BINARY): $(BUILD_DIR)/build.ninja
 
 $(BUILD_DIR)/build.ninja: $(LLVM_DIR)/LLVMConfig.cmake CMakeLists.txt
 	-mkdir -p $(BUILD_DIR)
-	if [ "$(DEBUG)" == "" ]; then \
+	@if [ "$(DEBUG)" = "" ]; then \
 		echo "Release mode..."; \
 		(cd $(BUILD_DIR) && cmake $(SRCDIR) -G Ninja) \
 	else \
@@ -58,11 +58,12 @@ install-test:
 test:
 	make $(BUILT_BINARY)
 	make install-test
-	ZION_PATH=$(test_destdir)/$(prefix)/share/$(PN)/lib \
-	  $(SRCDIR)/tests/run-tests.sh \
-		  $(test_destdir)/$(prefix)/bin \
-		  $(SRCDIR) \
-		  $(SRCDIR)/tests
+	ZION_RT=$(test_destdir)/$(prefix)/share/$(PN)/runtime \
+		ZION_PATH=$(test_destdir)/$(prefix)/share/$(PN)/lib \
+			$(SRCDIR)/tests/run-tests.sh \
+				$(test_destdir)/$(prefix)/bin \
+				$(SRCDIR) \
+				$(SRCDIR)/tests
 
 .PHONY: format
 format:
