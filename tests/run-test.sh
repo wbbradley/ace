@@ -107,7 +107,7 @@ for ((i=0;i < ${#expects[*]}; ++i)); do
 	expect="${expects[$i]}"
 	# $ECHO "Expecting \"${expect}\"..."
 	if ! grep -E "$expect" "$output"; then
-		$ECHO "run-test.sh: $(basname "${test_file}") output was:\n"
+		$ECHO "run-test.sh: $(basename "${test_file}") output was:\n"
 		cat "$output"
 		$ECHO "$0:$LINENO:1: error: Could not find '$expect' in output.\n"
 		$ECHO "run-test.sh: ${test_file} ${C_RED}FAILED${C_RESET}!\n"

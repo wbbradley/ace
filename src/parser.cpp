@@ -8,6 +8,7 @@
 #include "ast.h"
 #include "compiler.h"
 #include "disk.h"
+#include "host.h"
 #include "logger.h"
 #include "logger_decls.h"
 #include "parse_state.h"
@@ -489,6 +490,15 @@ expr_t *parse_var_ref(parse_state_t &ps) {
     }
 
     return new builtin_t(new var_t(iid(builtin_token)), exprs);
+  } else if (ps.token.text == "__host_int") {
+    RawParseMode rpm(ps);
+    ps.advance();
+    chomp_token(tk_lparen);
+    expect_token(tk_identifier);
+    location_t location = ps.token.location;
+    int value = get_host_int(location, ps.token_and_advance().text);
+    chomp_token(tk_rparen);
+    return new literal_t(Token{location, tk_integer, std::to_string(value)});
   }
 
   if (ps.token.is_ident(K(if))) {

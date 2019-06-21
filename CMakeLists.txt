@@ -47,6 +47,7 @@ add_executable(zion
 	src/disk.cpp
 	src/env.cpp
 	src/gen.cpp
+	src/host.cpp
 	src/identifier.cpp
 	src/infer.cpp
 	src/lexer.cpp
