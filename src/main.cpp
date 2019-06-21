@@ -9,6 +9,7 @@
 #include "disk.h"
 #include "env.h"
 #include "gen.h"
+#include "host.h"
 #include "lexer.h"
 #include "logger.h"
 #include "logger_decls.h"
@@ -1277,6 +1278,7 @@ int run_job(const job_t &job) {
 int main(int argc, char *argv[]) {
   // signal(SIGINT, &handle_sigint);
   init_dbg();
+  init_host();
   std::shared_ptr<logger> logger(std::make_shared<standard_logger>("", "."));
 
   job_t job;
