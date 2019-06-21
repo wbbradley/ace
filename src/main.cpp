@@ -1051,6 +1051,19 @@ int run_job(const job_t &job) {
                                in_vector("-show-defn-types", job.opts);
 
   std::map<std::string, std::function<int(const job_t &, bool)>> cmd_map;
+  cmd_map["help"] = [&](const job_t &job, bool explain) {
+    std::cerr << "zion:" << std::endl;
+    for (auto &cmd_pair: cmd_map) {
+      if (cmd_pair.first != "help") {
+        /* run the command in explain mode */
+        std::cerr << "\t";
+        // TODO: just have a different way of doing this... this is dumb.
+        cmd_pair.second(job, true);
+      }
+    }
+    std::cerr << "Also try looking at the manpage. man zion." << std::endl;
+    return EXIT_FAILURE;
+  };
   cmd_map["test"] = [&](const job_t &job, bool explain) {
     if (explain) {
       std::cerr << "test: run tests" << std::endl;
@@ -1187,6 +1200,14 @@ int run_job(const job_t &job) {
                 << std::endl;
       return EXIT_FAILURE;
     }
+
+    if (getenv("ZION_RT") == nullptr) {
+      log(log_error,
+          "ZION_RT is not set. It should be set to the dirname of zion_rt.c. "
+          "That is typically /usr/local/share/zion/runtime.");
+      return EXIT_FAILURE;
+    }
+
     llvm::LLVMContext context;
     phase_4_t phase_4 = ssa_gen(context, specialize(compile(job.args[0])));
 
@@ -1251,17 +1272,6 @@ int run_job(const job_t &job) {
   } else {
     return cmd_map[job.cmd](job, get_help);
   }
-#if 0
-    std::cerr << "bad CLI invocation of " << job.cmd << " "
-              << join(job.args, " ") << std::endl;
-    for (auto pair : cmd_map) {
-      pair.second(true /*explain*/);
-    }
-    return EXIT_FAILURE;
-  } else {
-    return cmd_map[job.cmd](get_help);
-  }
-#endif
 }
 
 int main(int argc, char *argv[]) {
