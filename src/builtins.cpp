@@ -146,11 +146,6 @@ const types::scheme_t::map &get_builtins() {
     (*map)["__builtin_pass_test"] = scheme({}, {}, Unit);
     (*map)["__builtin_print_int"] = scheme(
         {}, {}, type_arrows({Int, type_unit(INTERNAL_LOC())}));
-    (*map)["__builtin_itoa"] = scheme({}, {}, type_arrows({Int, PtrToChar}));
-    (*map)["__builtin_ftoa"] = scheme({}, {}, type_arrows({Float, PtrToChar}));
-    (*map)["__builtin_strlen"] = scheme({}, {}, type_arrows({PtrToChar, Int}));
-    (*map)["__builtin_exit"] = scheme(
-        {}, {}, type_arrows({Int, type_unit(INTERNAL_LOC())}));
     (*map)["__builtin_calloc"] = scheme({"a"}, {}, type_arrows({Int, tp_a}));
     (*map)["__builtin_store_ref"] =
         scheme({"a"}, {},

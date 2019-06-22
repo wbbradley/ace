@@ -86,6 +86,15 @@ namespace types {
 /* Types                                                              */
 /**********************************************************************/
 
+const predicate_map_t &type_t::get_predicate_map() const {
+  /* maintain this object's predicate map cache */
+  if (!predicate_map_valid) {
+    compute_predicate_map();
+    predicate_map_valid = true;
+  }
+  return pm_;
+}
+
 std::string type_t::str() const {
   return str(map{});
 }
@@ -103,18 +112,16 @@ std::string type_t::repr(const map &bindings) const {
 std::shared_ptr<scheme_t> type_t::generalize(
     const types::predicate_map_t &pm) const {
   std::vector<std::string> vs;
-  auto type_ftvs = get_predicate_map();
-  // auto env_ftvs = env.get_predicate_map();
-  predicate_map_t predicate_map_t;
+  predicate_map_t new_pm;
   type_t::map bindings;
-  for (auto ftv : type_ftvs) {
+  for (auto &ftv : get_predicate_map()) {
     if (!in(ftv.first, pm)) {
       vs.push_back(ftv.first);
-      mutating_merge(ftv, predicate_map_t);
+      mutating_merge(ftv, new_pm);
       bindings[ftv.first] = type_variable(make_iid(ftv.first));
     }
   }
-  return scheme(vs, predicate_map_t, rebind(bindings));
+  return scheme(vs, new_pm, rebind(bindings));
 }
 
 type_t::ref type_t::apply(types::type_t::ref type) const {
@@ -151,8 +158,7 @@ int type_id_t::ftv_count() const {
   return 0;
 }
 
-predicate_map_t type_id_t::get_predicate_map() const {
-  return {};
+void type_id_t::compute_predicate_map() const {
 }
 
 type_t::ref type_id_t::eval(const type_env_t &type_env) const {
@@ -222,10 +228,8 @@ int type_variable_t::ftv_count() const {
   return 1;
 }
 
-predicate_map_t type_variable_t::get_predicate_map() const {
-  predicate_map_t pm;
-  pm[id.name] = predicates;
-  return pm;
+void type_variable_t::compute_predicate_map() const {
+  pm_[id.name] = predicates;
 }
 
 type_t::ref type_variable_t::eval(const type_env_t &type_env) const {
@@ -287,8 +291,9 @@ int type_operator_t::ftv_count() const {
   return oper->ftv_count() + operand->ftv_count();
 }
 
-predicate_map_t type_operator_t::get_predicate_map() const {
-  return merge(oper->get_predicate_map(), operand->get_predicate_map());
+void type_operator_t::compute_predicate_map() const {
+  mutating_merge(oper->get_predicate_map(), pm_);
+  mutating_merge(operand->get_predicate_map(), pm_);
 }
 
 type_t::ref type_operator_t::eval(const type_env_t &type_env) const {
@@ -354,12 +359,10 @@ int type_tuple_t::ftv_count() const {
   return ftv_sum;
 }
 
-predicate_map_t type_tuple_t::get_predicate_map() const {
-  predicate_map_t pm;
+void type_tuple_t::compute_predicate_map() const {
   for (auto dimension : dimensions) {
-    mutating_merge(dimension->get_predicate_map(), pm);
+    mutating_merge(dimension->get_predicate_map(), pm_);
   }
-  return pm;
 }
 
 type_t::ref type_tuple_t::eval(const type_env_t &type_env) const {
@@ -474,9 +477,8 @@ int type_lambda_t::ftv_count() const {
   return body->rebind(bindings)->ftv_count();
 }
 
-predicate_map_t type_lambda_t::get_predicate_map() const {
+void type_lambda_t::compute_predicate_map() const {
   assert(false);
-  return {};
 #if 0
 		map bindings;
 		bindings[binding.name] = type_bottom();
@@ -564,7 +566,9 @@ type_t::refs rebind(const type_t::refs &types, const type_t::map &bindings) {
 types::type_t::ref scheme_t::instantiate(location_t location) {
   type_t::map subst;
   for (auto var : vars) {
-    subst[var] = type_variable(gensym(location), predicates[var]);
+    subst[var] = type_variable(gensym(location), predicates.count(var)
+                                                     ? predicates.at(var)
+                                                     : std::set<std::string>{});
   }
   return type->rebind(subst);
 }
@@ -592,21 +596,22 @@ scheme_t::ref scheme_t::normalize() {
   predicate_map_t pm;
 
   int counter = 0;
-  for (auto ftv : type->get_predicate_map()) {
+  for (auto &ftv : type->get_predicate_map()) {
     auto new_name = alphabetize(counter++);
     ord[ftv.first] = new_name;
     if (in(ftv.first, predicates)) {
-      pm[new_name] = predicates[ftv.first];
+      assert(predicates.count(ftv.first));
+      pm[new_name] = predicates.at(ftv.first);
     }
   }
   return scheme(values(ord), pm, type->remap_vars(ord));
 }
 
-std::string scheme_t::str() {
+std::string scheme_t::str() const {
   return repr();
 }
 
-std::string scheme_t::repr() {
+std::string scheme_t::repr() const {
   std::stringstream ss;
   if (vars.size() != 0) {
     ss << "(∀ " << join(vars, " ");
@@ -628,12 +633,17 @@ int scheme_t::btvs() const {
   return sum;
 }
 
-predicate_map_t scheme_t::get_predicate_map() {
-  predicate_map_t predicate_map_t = type->get_predicate_map();
-  for (auto var : vars) {
-    predicate_map_t.erase(var);
+const predicate_map_t &scheme_t::get_predicate_map() {
+  if (predicate_map_valid) {
+    return pm_;
+  } else {
+    pm_ = type->get_predicate_map();
+    for (auto var : vars) {
+      pm_.erase(var);
+    }
+    predicate_map_valid = true;
+    return pm_;
   }
-  return predicate_map_t;
 }
 
 location_t scheme_t::get_location() const {
@@ -642,7 +652,7 @@ location_t scheme_t::get_location() const {
 
 type_t::ref unitize(type_t::ref type) {
   type_t::map bindings;
-  for (auto pair : type->get_predicate_map()) {
+  for (auto &pair : type->get_predicate_map()) {
     bindings[pair.first] = type_unit(INTERNAL_LOC());
     debug_above(6, log("assigning %s binding for [%s] to %s",
                        pair.first.c_str(), join(pair.second).c_str(),
@@ -664,9 +674,8 @@ bool is_callable(const type_t::ref &t) {
 }
 
 std::unordered_set<std::string> get_ftvs(const types::type_t::ref &type) {
-  auto predicate_map = type->get_predicate_map();
   std::unordered_set<std::string> ftvs;
-  for (auto &pair : predicate_map) {
+  for (auto &pair : type->get_predicate_map()) {
     ftvs.insert(pair.first);
   }
   return ftvs;
@@ -948,7 +957,7 @@ types::type_t::ref type_deref(location_t location, types::type_t::ref type) {
 }
 
 types::type_t::ref tuple_deref_type(location_t location,
-                                    types::type_t::ref tuple_,
+                                    const types::type_t::ref &tuple_,
                                     int index) {
   auto tuple = safe_dyncast<const types::type_tuple_t>(tuple_);
   if (tuple->dimensions.size() < index || index < 0) {

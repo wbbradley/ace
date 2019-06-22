@@ -29,16 +29,16 @@ instance Show () {
 
 instance Show Int {
     fn str(x) {
-        sz := __builtin_itoa(x)
-        length := __builtin_strlen(sz)
+        sz := __builtin_ffi_1("zion_itoa", x)
+        length := __builtin_ffi_1("zion_strlen", sz)
         return String((sz, length))
     }
 }
 
 instance Show Float {
     fn str(x) {
-        sz := __builtin_ftoa(x)
-        length := __builtin_strlen(sz)
+        sz := __builtin_ffi_1("zion_ftoa", x)
+        length := __builtin_ffi_1("zion_strlen", sz)
         return String((sz, length))
     }
 }
@@ -53,7 +53,7 @@ instance Show String {
 
 instance Show * Char {
     fn str(a) {
-        return String((a, __builtin_strlen(a)))
+        return String((a, __builtin_ffi_1("zion_strlen", a)))
     }
 }
 
@@ -572,7 +572,7 @@ fn id(x) => x
 
 fn panic(x) {
     print(x)
-    __builtin_exit(1)
+    __builtin_ffi_1("exit", 1)
 }
 
 class MutatingConcat a {

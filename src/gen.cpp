@@ -498,20 +498,6 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
                 llvm::ArrayRef<llvm::Type *>(print_int_terms),
                 false /*isVarArg*/)));
     return builder.CreateCall(llvm_print_int_func_decl, params);
-  } else if (name == "__builtin_itoa") {
-    /* scheme({}, {}, type_arrows({Int, *Char})) */
-    auto llvm_module = llvm_get_module(builder);
-    llvm::Type *itoa_terms[] = {builder.getInt64Ty()};
-
-    assert(params.size() == 1);
-
-    auto llvm_itoa_func_decl = llvm::cast<llvm::Function>(
-        llvm_module->getOrInsertFunction(
-            "zion_itoa",
-            llvm::FunctionType::get(builder.getInt8Ty()->getPointerTo(),
-                                    llvm::ArrayRef<llvm::Type *>(itoa_terms),
-                                    false /*isVarArg*/)));
-    return builder.CreateCall(llvm_itoa_func_decl, params);
   } else if (name == "__builtin_ftoa") {
     /* scheme({}, {}, type_arrows({Float, *Char})) */
     auto llvm_module = llvm_get_module(builder);
@@ -526,36 +512,6 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
                                     llvm::ArrayRef<llvm::Type *>(terms),
                                     false /*isVarArg*/)));
     return builder.CreateCall(func_decl, params);
-  } else if (name == "__builtin_strlen") {
-    /* scheme({}, {}, type_arrows({*Char, Int})) */
-    auto llvm_module = llvm_get_module(builder);
-    llvm::Type *param_types[] = {builder.getInt8Ty()->getPointerTo()};
-
-    assert(params.size() == 1);
-
-    auto ffi_function = llvm::cast<llvm::Function>(
-        llvm_module->getOrInsertFunction(
-            "zion_strlen",
-            llvm::FunctionType::get(builder.getInt64Ty(),
-                                    llvm::ArrayRef<llvm::Type *>(param_types),
-                                    false /*isVarArg*/)));
-    return builder.CreateCall(ffi_function, params);
-  } else if (name == "__builtin_exit") {
-    /* scheme({}, {}, type_arrows({Int, type_unit()})) */
-    auto llvm_module = llvm_get_module(builder);
-    llvm::Type *param_types[] = {builder.getInt64Ty()};
-
-    assert(params.size() == 1);
-
-    auto ffi_function = llvm::cast<llvm::Function>(
-        llvm_module->getOrInsertFunction(
-            "exit",
-            llvm::FunctionType::get(builder.getInt64Ty(),
-                                    llvm::ArrayRef<llvm::Type *>(param_types),
-                                    false /*isVarArg*/)));
-    return builder.CreateBitOrPointerCast(
-        builder.CreateCall(ffi_function, params),
-        builder.getInt8Ty()->getPointerTo());
   } else if (name == "__builtin_calloc") {
     /* scheme({"a"}, {}, type_arrows({Int, tp_a})) */
     auto llvm_module = llvm_get_module(builder);

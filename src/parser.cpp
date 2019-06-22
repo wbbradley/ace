@@ -389,23 +389,26 @@ expr_t *parse_assert(parse_state_t &ps) {
                            new var_t(identifier_t{"__builtin_ffi_3",
                                                   ps.token.location}),
                            {
-                               new literal_t(Token(ps.token.location, tk_string,
-                                                   escape_json_quotes("write"))),
-                               new literal_t(Token(ps.token.location,
-                                                   tk_integer, "2" /*stderr*/)),
+                               new literal_t(Token{ps.token.location, tk_string,
+                                                   escape_json_quotes("writ"
+                                                                      "e")}),
+                               new literal_t(Token{ps.token.location,
+                                                   tk_integer, "2" /*stderr*/}),
                                new literal_t(
-                                   Token(ps.token.location, tk_string,
-                                         escape_json_quotes(assert_message))),
-                               new literal_t(Token(
+                                   Token{ps.token.location, tk_string,
+                                         escape_json_quotes(assert_message)}),
+                               new literal_t(Token{
                                    ps.token.location, tk_integer,
-                                   std::to_string(assert_message.size()))),
+                                   std::to_string(assert_message.size())}),
                            }),
                        type_id(make_iid(INT_TYPE))->generalize({}),
                        false /*force_cast*/),
               type_unit(INTERNAL_LOC())->generalize({}), true /*force_cast*/),
           new builtin_t(
-              new var_t(make_iid("__builtin_exit")),
-              {new literal_t(Token(assert_token.location, tk_integer, "1"))}),
+              new var_t(make_iid("__builtin_ffi_1")),
+              {new literal_t(
+                   Token{assert_token.location, tk_string, "\"exit\""}),
+               new literal_t(Token{assert_token.location, tk_integer, "1"})}),
           unit_expr(ps.token.location),
       }));
   chomp_token(tk_rparen);

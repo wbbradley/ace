@@ -29,7 +29,7 @@ add_definitions(${LLVM_DEFINITIONS})
 
 if(NOT DEFINED DEBUG)
 	message("Compiling in Release mode...")
-	add_compile_options(-std=c++14 -O3 ${option_flags})
+	add_compile_options(-std=c++14 -g -O3 ${option_flags})
 else()
 	message("Compiling in Debug mode...")
 	add_definitions(-DZION_DEBUG)
