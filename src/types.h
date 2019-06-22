@@ -46,7 +46,8 @@ struct type_t : public std::enable_shared_from_this<type_t> {
   virtual int ftv_count() const = 0;
 
   /* NB: Also assumes you have rebound the bindings at the callsite. */
-  virtual predicate_map_t get_predicate_map() const = 0;
+  const predicate_map_t &get_predicate_map() const;
+  virtual void compute_predicate_map() const = 0;
 
   virtual type_t::ref eval(const type_env_t &type_env) const = 0;
   std::shared_ptr<scheme_t> generalize(const types::predicate_map_t &pm) const;
@@ -73,6 +74,10 @@ struct type_t : public std::enable_shared_from_this<type_t> {
   virtual int get_precedence() const {
     return 10;
   }
+
+protected:
+  mutable bool predicate_map_valid = false;
+  mutable predicate_map_t pm_;
 };
 
 struct compare_type_t {
@@ -93,7 +98,7 @@ struct type_variable_t final : public type_t {
                      const map &bindings,
                      int parent_precedence) const override;
   int ftv_count() const override;
-  predicate_map_t get_predicate_map() const override;
+  void compute_predicate_map() const override;
   type_t::ref eval(const type_env_t &type_env) const override;
   type_t::ref rebind(const map &bindings) const override;
   type_t::ref remap_vars(
@@ -111,7 +116,7 @@ struct type_id_t final : public type_t {
                      const map &bindings,
                      int parent_precedence) const override;
   int ftv_count() const override;
-  predicate_map_t get_predicate_map() const override;
+  void compute_predicate_map() const override;
   type_t::ref eval(const type_env_t &type_env) const override;
   type_t::ref rebind(const map &bindings) const override;
   type_t::ref remap_vars(
@@ -136,7 +141,7 @@ struct type_operator_t final : public type_t {
                      const map &bindings,
                      int parent_precedence) const override;
   int ftv_count() const override;
-  predicate_map_t get_predicate_map() const override;
+  void compute_predicate_map() const override;
   type_t::ref eval(const type_env_t &type_env) const override;
   type_t::ref rebind(const map &bindings) const override;
   type_t::ref remap_vars(
@@ -155,7 +160,7 @@ struct type_tuple_t final : public type_t {
                      const map &bindings,
                      int parent_precedence) const override;
   int ftv_count() const override;
-  predicate_map_t get_predicate_map() const override;
+  void compute_predicate_map() const override;
   type_t::ref eval(const type_env_t &type_env) const override;
   type_t::ref rebind(const map &bindings) const override;
   type_t::ref remap_vars(
@@ -180,7 +185,7 @@ struct type_lambda_t final : public type_t {
                      const map &bindings,
                      int parent_precedence) const override;
   int ftv_count() const override;
-  predicate_map_t get_predicate_map() const override;
+  void compute_predicate_map() const override;
   type_t::ref eval(const type_env_t &type_env) const override;
   type_t::ref rebind(const map &bindings) const override;
   type_t::ref remap_vars(
@@ -208,14 +213,18 @@ struct scheme_t final : public std::enable_shared_from_this<scheme_t> {
   /* count of the bounded type variables */
   int btvs() const;
 
-  predicate_map_t get_predicate_map();
-  std::string str();
-  std::string repr();
+  const predicate_map_t &get_predicate_map();
+  std::string str() const;
+  std::string repr() const;
   location_t get_location() const;
 
-  std::vector<std::string> vars;
-  predicate_map_t predicates;
-  types::type_t::ref type;
+  std::vector<std::string> const vars;
+  predicate_map_t const predicates;
+  types::type_t::ref const type;
+
+private:
+  mutable bool predicate_map_valid = false;
+  mutable predicate_map_t pm_;
 };
 
 bool is_unit(type_t::ref type);
