@@ -1,7 +1,7 @@
 # __host_int relies on the compiler being built on the target platform. So,
 # this is only as portable as the compiler build, for now.
 
-newtype OpenFlags = Int
+newtype OpenFlags = OpenFlags(Int)
 let O_RDONLY   =  __host_int(O_RDONLY) as! OpenFlags  /* open for reading only */
 let O_WRONLY   =  __host_int(O_WRONLY) as! OpenFlags  /* open for writing only */
 let O_RDWR     =  __host_int(O_RDWR) as! OpenFlags  /* open for reading and writing */
@@ -14,7 +14,7 @@ let O_APPEND   = __host_int(O_APPEND) as! OpenFlags
 let O_NONBLOCK = __host_int(O_NONBLOCK) as! OpenFlags
 
 
-newtype CreateMode = Int
+newtype CreateMode = CreateMode(Int)
 let S_IRWXU = __host_int(S_IRWXU) as! CreateMode /* user (file owner) has read, write, and execute permission */
 let S_IRUSR = __host_int(S_IRUSR) as! CreateMode /* user has read permission */
 let S_IWUSR = __host_int(S_IWUSR) as! CreateMode /* user has write permission */
@@ -65,14 +65,14 @@ instance Bitwise CreateMode {
 }
 
 fn open(filename, flags OpenFlags, mode CreateMode) Int {
-    String((filename, _)) := filename
+    String(filename, _) := filename
     OpenFlags(flags) := flags
     CreateMode(mode) := mode
     return __builtin_ffi_3("open", filename, flags, mode)
 }
 
 fn unlink(filename String) Int {
-    String((filename, _)) := filename
+    String(filename, _) := filename
     return __builtin_ffi_1("unlink", filename)
 }
 
@@ -81,7 +81,7 @@ fn close(fd Int) Int {
 }
 
 fn creat(filename, mode CreateMode) Int {
-    String((filename, _)) := filename
+    String(filename, _) := filename
     CreateMode(mode) := mode
     return __builtin_ffi_2("creat", filename, mode)
 }

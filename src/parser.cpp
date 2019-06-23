@@ -656,11 +656,11 @@ expr_t *parse_literal(parse_state_t &ps) {
     if (ps.sugar_literals) {
       int string_len = unescape_json_quotes(token.text).size();
       return new application_t(
-          new var_t(identifier_t{"std.String", token.location}),
-          new tuple_t(token.location,
-                      {new literal_t(token),
-                       new literal_t(Token{token.location, tk_integer,
-                                           std::to_string(string_len)})}));
+          new application_t(
+              new var_t(identifier_t{"std.String", token.location}),
+              new literal_t(token)),
+          new literal_t(
+              Token{token.location, tk_integer, std::to_string(string_len)}));
     } else {
       return new literal_t(token);
     }
@@ -1765,22 +1765,59 @@ data_type_decl_t parse_struct_decl(parse_state_t &ps,
 data_type_decl_t parse_newtype_decl(parse_state_t &ps,
                                     types::type_t::map &data_ctors,
                                     ctor_id_map_t &ctor_id_map) {
+  expect_token(tk_identifier);
+  Token type_name = ps.token;
   type_decl_t type_decl = parse_type_decl(ps);
 
   chomp_token(tk_assign);
+  if (ps.token.tk != tk_identifier || ps.token.text != type_name.text) {
+    throw user_error(ps.token.location,
+                     "newtype must have a single constructor whose name "
+                     "matches the type name");
+  }
+
+  chomp_token(tk_identifier);
   types::type_t::ref rhs_type = parse_type(ps);
 
-  identifier_t param_iid = identifier_t{bitter::fresh(),
-                                        rhs_type->get_location()};
-  std::vector<decl_t *> decls;
-  decls.push_back(new decl_t(
-      type_decl.id, new lambda_t(param_iid, rhs_type, type_decl.get_type(),
-                                 new return_statement_t(new as_t(
-                                     new var_t(param_iid),
-                                     type_decl.get_type()->generalize({}),
-                                     true /*force_cast*/)))));
+  decl_t *decl;
+  std::vector<types::type_t::ref> ctor_parts;
+  if (auto tuple_type = dyncast<const types::type_tuple_t>(rhs_type)) {
+    debug_above(3, log("build decl for tuple newtype ctor :: " c_id("%s") "%s",
+                       type_name.text.c_str(), tuple_type->str().c_str()));
+    ctor_parts = tuple_type->dimensions;
+    std::vector<identifier_t> dim_names;
+    std::vector<expr_t *> dims;
+    for (int i = 0; i < tuple_type->dimensions.size(); ++i) {
+      dim_names.push_back(identifier_t{
+          bitter::fresh(), tuple_type->dimensions[i]->get_location()});
+      dims.push_back(new var_t(dim_names.back()));
+    }
+
+    /* the inner part of the newtype ctor */
+    expr_t *body = new as_t(new tuple_t(tuple_type->get_location(), dims),
+                            type_decl.get_type()->generalize({}),
+                            true /*force_cast*/);
+    int i = tuple_type->dimensions.size();
+    for (auto type_iter = tuple_type->dimensions.rbegin();
+         type_iter != tuple_type->dimensions.rend(); ++type_iter) {
+      body = new lambda_t(dim_names[--i], *type_iter,
+                          type_variable(INTERNAL_LOC()),
+                          new return_statement_t(body));
+    }
+    decl = new decl_t(type_decl.id, body);
+  } else {
+    ctor_parts.push_back(rhs_type);
+    identifier_t param_iid = identifier_t{bitter::fresh(),
+                                          rhs_type->get_location()};
+    decl = new decl_t(type_decl.id,
+                      new lambda_t(param_iid, rhs_type, type_decl.get_type(),
+                                   new return_statement_t(new as_t(
+                                       new var_t(param_iid),
+                                       type_decl.get_type()->generalize({}),
+                                       true /*force_cast*/))));
+  }
   data_ctors[type_decl.id.name] = create_ctor_type(type_decl.id.location,
-                                                   type_decl, {rhs_type});
+                                                   type_decl, ctor_parts);
   assert(!in(type_decl.id.name, ps.type_env));
   /* because this is a newtype, we need to remember the type mapping within the
    * type environment for reference later in pattern matching, and in code
@@ -1793,14 +1830,13 @@ data_type_decl_t parse_newtype_decl(parse_state_t &ps,
                               "adding %s to the type_env as %s",
                               type_decl.id.name.c_str(), body->str().c_str()));
   ps.type_env[type_decl.id.name] = body;
-  return {type_decl, decls};
+  return {type_decl, {decl}};
 }
 
 data_type_decl_t parse_data_type_decl(parse_state_t &ps,
                                       types::type_t::map &data_ctors,
                                       ctor_id_map_t &ctor_id_map) {
   type_decl_t type_decl = parse_type_decl(ps);
-  std::vector<decl_t *> decls;
 
   chomp_token(tk_lcurly);
   struct data_ctor_parts_t {
@@ -1844,6 +1880,7 @@ data_type_decl_t parse_data_type_decl(parse_state_t &ps,
     }
   }
 
+  std::vector<decl_t *> decls;
   if (param_types_count == 0) {
     /* this is just an ENUM. this type can be simplified to just an Int */
     ps.type_env[type_decl.id.name] = type_id(make_iid(INT_TYPE));

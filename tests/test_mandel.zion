@@ -37,7 +37,7 @@ fn main() {
                 Complex(a, b) := !z
                 if a * a + b * b > 16.0 or i >= 100 {
                     if i != 0 {
-                        String((sz, length)) := str(i)
+                        String(sz, length) := str(i)
                         putch(sz[0])
                     } else {
                         putch(' ')

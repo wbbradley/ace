@@ -1,0 +1,16 @@
+# test: pass
+# expect: 6.000
+
+newtype Number = Number(Int)
+newtype ThreeNumbers = ThreeNumbers(Int, Float, Number)
+newtype Crazy = Crazy(Number, ThreeNumbers)
+
+fn main() {
+    crazy := Crazy(Number(3), ThreeNumbers(2, 1.0, Number(0)))
+    Crazy(Number(a), ThreeNumbers(b, c, Number(d))) := crazy
+    print(from_int(a) + from_int(b) + c + from_int(d))
+    assert(a == 3)
+    assert(b == 2)
+    assert(c == 1.0)
+    assert(d == 0)
+}

@@ -11,7 +11,7 @@ fn main() {
         _ := __builtin_ffi_1("perror", "open") as Int
         return
     }
-    String((buf, len)) := "test"
+    String(buf, len) := "test"
     s := write(fd, buf, len)
     q := close(fd)
     print("PASS")

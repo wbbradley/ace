@@ -1,6 +1,6 @@
 # test: pass
 
-newtype Fn a = fn () a
+newtype Fn a = Fn(fn () a)
 
 fn main() {
     g := fn () { return 2 }

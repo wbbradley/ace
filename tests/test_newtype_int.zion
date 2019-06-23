@@ -1,6 +1,6 @@
 # test: pass
 
-newtype H a = a
+newtype H a = H(a)
 
 fn main() {
     g := 34
