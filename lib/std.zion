@@ -17,7 +17,7 @@ class HasDefault a {
     fn new() a
 }
 
-newtype String = (*Char, Int)
+newtype String = String(*Char, Int)
 
 class Show a {
     fn str(a) String
@@ -31,7 +31,7 @@ instance Show Int {
     fn str(x) {
         sz := __builtin_ffi_1("zion_itoa", x)
         length := __builtin_ffi_1("zion_strlen", sz)
-        return String((sz, length))
+        return String(sz, length)
     }
 }
 
@@ -39,7 +39,7 @@ instance Show Float {
     fn str(x) {
         sz := __builtin_ffi_1("zion_ftoa", x)
         length := __builtin_ffi_1("zion_strlen", sz)
-        return String((sz, length))
+        return String(sz, length)
     }
 }
 
@@ -53,7 +53,7 @@ instance Show String {
 
 instance Show * Char {
     fn str(a) {
-        return String((a, __builtin_ffi_1("zion_strlen", a)))
+        return String(a, __builtin_ffi_1("zion_strlen", a))
     }
 }
 
@@ -87,7 +87,7 @@ fn join(delim_ String, xs) String {
     }
     buf[!i] = from_int(0)
 
-    return String((buf, !i))
+    return String(buf, !i)
 }
 
 instance Show [a] {
@@ -105,7 +105,7 @@ fn putch(ch Char) () {
 }
 
 fn print(x) () {
-    String((sz, length)) := str(x)
+    String(sz, length) := str(x)
     _ := __builtin_ffi_3("write", 1, sz, length) as Int
     _ := __builtin_ffi_2("zion_write_char", 1, '\n') as Int
 }
@@ -189,8 +189,8 @@ instance Eq Char {
 
 instance Eq String {
     fn ==(a, b) {
-        String((a, alen)) := a
-        String((b, blen)) := b
+        String(a, alen) := a
+        String(b, blen) := b
 
         if alen != blen {
             return False
@@ -203,8 +203,8 @@ instance Eq String {
 }
 
 fn concat(a, b) {
-    String((xs, xlen)) := a
-    String((ys, ylen)) := b
+    String(xs, xlen) := a
+    String(ys, ylen) := b
 
     zlen := xlen + ylen
     if xlen == 0 {
@@ -215,7 +215,7 @@ fn concat(a, b) {
         zs := __builtin_calloc(zlen) as *Char
         __builtin_memcpy(zs, xs, xlen)
         __builtin_memcpy(__builtin_ptr_add(zs, xlen), ys, ylen)
-        return String((zs, zlen))
+        return String(zs, zlen)
     }
 }
 
@@ -395,7 +395,7 @@ instance Show Char {
     fn str(ch) {
         ys := __builtin_calloc(1)
         ys[0] = ch
-        return String((ys, 1))
+        return String(ys, 1)
     }
 }
 
@@ -409,7 +409,7 @@ instance HasLength [a] {
 
 instance HasLength String {
     fn len(s) {
-        String((_, l)) := s
+        String(_, l) := s
         return l
     }
 }
@@ -527,7 +527,7 @@ class Iterable f {
     fn iter(f a) fn () Maybe a
 }
 
-newtype Iterator a = fn () Maybe a
+newtype Iterator a = Iterator(fn () Maybe a)
 
 instance Iterable Iterator {
     fn iter(i) {
@@ -550,12 +550,12 @@ instance Iterable Vector {
     }
 }
 
-newtype StringIterable a = String
+newtype StringIterable a = StringIterable(String)
 
 instance Iterable StringIterable {
     fn iter(s) {
         index := Ref(-1)
-        StringIterable(String((buf, length))) := s
+        StringIterable(String(buf, length)) := s
         return fn() {
             index = !index + 1
             if !index >= length {
@@ -619,7 +619,7 @@ fn compose(f, g) => fn (x) => f(g(x))
 fn sum(xs) {
     var s = from_int(0)
     for x in xs {
-        s = !s + x
+        s += x
     }
     return !s
 }

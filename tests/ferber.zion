@@ -1,4 +1,4 @@
-newtype WaitTimes a = [a]
+newtype WaitTimes a = WaitTimes([a])
 
 instance Iterable WaitTimes {
     fn iter(wait_times) {

@@ -351,11 +351,20 @@ expr_t *ctor_predicate_t::translate(
                          casted_pattern_match->str().c_str()));
       return casted_pattern_match;
     } else {
-      log_location(get_location(),
-                   "while translating a ctor_predicate. %s != %s and [%s]",
-                   resolved_scrutinee_type->str().c_str(),
-                   scrutinee_type->str().c_str(), join(params).c_str());
-      dbg();
+      debug_above(3,
+                  log_location(
+                      get_location(),
+                      "while translating a ctor_predicate. %s != %s and [%s]. "
+                      "treating as a newtype tuple",
+                      resolved_scrutinee_type->str().c_str(),
+                      scrutinee_type->str().c_str(), join_str(params).c_str()));
+      auto tuple_type = safe_dyncast<const types::type_tuple_t>(
+          resolved_scrutinee_type);
+
+      return translate_next(for_defn_id, scrutinee_id, resolved_scrutinee_type,
+                            tuple_type->dimensions, do_checks, bound_vars,
+                            params, 0, 0 /*dim_offset*/, type_env, tenv, typing,
+                            needed_defns, returns, matched, failed);
     }
   }
 
