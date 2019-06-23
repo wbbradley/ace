@@ -1,0 +1,12 @@
+# test: pass
+
+fn main() {
+    assert(has_suffix("Cow", "ow"))
+    assert(has_suffix("Cow", "Cow"))
+    assert(not has_suffix("C", "Cow"))
+    assert(not has_suffix("", "Cow"))
+    assert(not has_suffix("Bar", "Cow"))
+    assert(has_suffix("Bar", ""))
+    assert(has_suffix("", ""))
+    print("PASS")
+}
