@@ -1,0 +1,11 @@
+# test: pass
+
+fn main() {
+    assert(has_prefix("Cow", "C"))
+    assert(not has_prefix("C", "Cow"))
+    assert(not has_prefix("", "Cow"))
+    assert(not has_prefix("Bar", "Cow"))
+    assert(has_prefix("Bar", ""))
+    assert(has_prefix("", ""))
+    print("PASS")
+}

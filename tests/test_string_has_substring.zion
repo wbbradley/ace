@@ -1,0 +1,8 @@
+fn main() {
+    assert(has_substring("chewy", "he"))
+    assert(not has_substring("he", "chewy"))
+    assert(has_substring("he", ""))
+    assert(has_substring("", ""))
+    assert(has_substring("h\te", "\t"))
+    print("PASS")
+}

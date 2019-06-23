@@ -52,9 +52,32 @@ instance Show String {
 }
 
 instance Show * Char {
-    fn str(a) {
-        return String(a, __builtin_ffi_1("zion_strlen", a))
+    fn str(a) => String(a, __builtin_ffi_1("zion_strlen", a))
+}
+
+fn has_substring(haystack String, needle String) Bool {
+    String(haystack, _) := haystack
+    String(needle, _) := needle
+    return __builtin_ffi_2("strstr", haystack, needle) != null as *Char
+}
+
+fn has_prefix(haystack String, needle String) Bool {
+    String(haystack, _) := haystack
+    String(needle, len) := needle
+    return __builtin_ffi_3("strncmp", haystack, needle, len) == 0
+}
+
+fn has_suffix(haystack String, needle String) Bool {
+    String(haystack, len_haystack) := haystack
+    String(needle, len_needle) := needle
+    if len_haystack < len_needle {
+        return False
     }
+    return __builtin_ffi_3(
+        "memcmp",
+        __builtin_ptr_add(haystack, len_haystack - len_needle),
+        needle,
+        len_needle) == 0
 }
 
 fn join(delim_ String, xs) String {
