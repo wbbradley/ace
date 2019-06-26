@@ -411,19 +411,16 @@ struct type_decl_t {
 
 struct type_class_t {
   type_class_t(identifier_t id,
-               identifier_t type_var_id,
-               const std::set<std::string> &superclasses,
-               const types::type_t::map &overloads)
-      : id(id), type_var_id(type_var_id), superclasses(superclasses),
-        overloads(overloads) {
-  }
+               identifiers_t type_var_ids,
+               const std::set<types::class_constraint_t> &superclasses,
+               const types::type_t::map &overloads);
 
   location_t get_location() const;
   std::string str() const;
 
   identifier_t const id;
-  identifier_t const type_var_id;
-  std::set<std::string> const superclasses;
+  identifiers_t const type_var_ids;
+  std::set<types::class_constraint_t> const superclasses;
   types::type_t::map const overloads;
 };
 

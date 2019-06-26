@@ -54,6 +54,11 @@ bitter::instance_t *prefix(const std::set<std::string> &bindings,
 data_ctors_map_t prefix(const std::set<std::string> &bindings,
                         std::string pre,
                         const data_ctors_map_t &data_ctors_map);
+types::class_constraint_t prefix(
+    const std::set<std::string> &bindings,
+    std::string pre,
+    const types::class_constraint_t &class_constraint);
+
 inline int prefix(const std::set<std::string> &, std::string, int x) {
   return x;
 }

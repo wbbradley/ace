@@ -1,0 +1,23 @@
+class Set c e {
+    fn empty(c) Bool
+    fn in(e, c) Bool
+    fn insert(c, e) ()
+}
+
+instance Set [a] a {
+    fn empty(xs) => len(xs) == 0
+    fn in(x, xs) {
+        for a in xs {
+            if x == a {
+                return True
+            }
+        }
+        return False
+    }
+    fn insert(xs, x) {
+        if in(x, xs) {
+            return
+        }
+        append(xs, x)
+    }
+}

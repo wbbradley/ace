@@ -42,7 +42,8 @@ const std::vector<std::string> &get_zion_paths() {
         }
       }
     } else {
-      log(log_error, "ZION_PATH is not set. It should be set to the dirname of std.zion. "
+      log(log_error,
+          "ZION_PATH is not set. It should be set to the dirname of std.zion. "
           "That is typically /usr/local/share/zion/lib.");
       exit(1);
     }

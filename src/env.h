@@ -48,7 +48,7 @@ struct env_t : public translation_env_t {
               std::shared_ptr<types::scheme_t> scheme,
               bool allow_subscoping);
   void rebind_env(const types::type_t::map &env);
-  types::predicate_map_t get_predicate_map() const;
+  types::class_constraints_t get_class_constraints() const;
   std::shared_ptr<const types::type_t> lookup_env(identifier_t id) const;
   std::shared_ptr<const types::type_t> maybe_lookup_env(identifier_t id) const;
   std::vector<std::pair<std::string, types::type_t::refs>> get_ctors(

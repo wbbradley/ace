@@ -4,6 +4,7 @@
 #include <iostream>
 #include <stdlib.h>
 #include <string>
+#include <unordered_set>
 
 #include "ast.h"
 #include "compiler.h"
@@ -1950,14 +1951,27 @@ instance_t *parse_type_class_instance(parse_state_t &ps) {
 type_class_t *parse_type_class(parse_state_t &ps) {
   type_decl_t type_decl = parse_type_decl(ps);
 
-  if (type_decl.params.size() != 1) {
+  if (type_decl.params.size() == 0) {
     throw user_error(
         type_decl.id.location,
-        "type classes must be parameterized over (only) one type variable");
+        "type classes must be parameterized over at least one type variable");
+  }
+
+  /* Check for duplicate type class params */
+  {
+    std::unordered_set<std::string> params;
+    for (auto &param : type_decl.params) {
+      if (in(param.name, params)) {
+        throw user_error(param.location,
+                         "type class parameter " c_type("%s") " is repeated",
+                         param.name.c_str());
+      }
+      params.insert(param.name);
+    }
   }
 
   chomp_token(tk_lcurly);
-  std::set<std::string> superclasses;
+  types::class_constraints_t class_constraints;
   types::type_t::map overloads;
   while (true) {
     if (ps.token.is_ident(K(has))) {
@@ -1968,11 +1982,11 @@ type_class_t *parse_type_class(parse_state_t &ps) {
                          "type class requirements need to be upper-case "
                          "because type classes need to be uppercase");
       }
-      if (in(ps.token.text, superclasses)) {
+      if (in(ps.token.text, class_constraints)) {
         throw user_error(ps.token.location,
                          "type class requirement mentioned more than once");
       }
-      superclasses.insert(ps.identifier_and_advance().name);
+      class_constraints.insert(ps.identifier_and_advance().name);
     } else if (ps.token.is_ident(K(fn))) {
       /* an overloaded function */
       ps.advance();
@@ -1980,7 +1994,7 @@ type_class_t *parse_type_class(parse_state_t &ps) {
       ps.advance();
 
       /*
-      auto predicates = superclasses;
+      auto predicates = class_constraints;
       predicates.insert(type_decl.id.name);
 
       types::type_t::map bindings;
@@ -1995,7 +2009,7 @@ type_class_t *parse_type_class(parse_state_t &ps) {
     }
   }
 
-  return new type_class_t(type_decl.id, type_decl.params[0], superclasses,
+  return new type_class_t(type_decl.id, type_decl.params, class_constraints,
                           overloads);
 }
 

@@ -102,11 +102,19 @@ std::set<std::string> only_uppercase_bindings(
   return only_uppercase_bindings;
 }
 
+types::class_constraint_t prefix(
+    const std::set<std::string> &bindings,
+    std::string pre,
+    const types::class_constraint_t &class_constraint) {
+  return types::class_constraint_t{
+      prefix(bindings, pre, class_constraint.classname), class_constraint.tvs};
+}
+
 type_class_t *prefix(const std::set<std::string> &bindings,
                      std::string pre,
                      type_class_t *type_class) {
   return new type_class_t(
-      prefix(bindings, pre, type_class->id), type_class->type_var_id,
+      prefix(bindings, pre, type_class->id), type_class->type_var_ids,
       prefix(bindings, pre, type_class->superclasses),
       prefix(bindings, pre, type_class->overloads, true /*include_keys*/));
 }

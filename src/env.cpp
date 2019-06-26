@@ -108,10 +108,10 @@ void env_t::extend(identifier_t id,
                      scheme->str().c_str()));
 }
 
-types::predicate_map_t env_t::get_predicate_map() const {
-  types::predicate_map_t predicates;
+types::class_constraints_t env_t::get_class_constraints() const {
+  types::class_constraints_t predicates;
   for (auto pair : map) {
-    mutating_merge(pair.second->get_predicate_map(), predicates);
+    mutating_merge(pair.second->get_class_constraints(), predicates);
   }
   return predicates;
 }

@@ -44,34 +44,24 @@ std::string get_name_from_index(const types::name_index_t &name_index, int i) {
   return name;
 }
 
-void mutating_merge(const types::predicate_map_t::value_type &pair,
-                    types::predicate_map_t &c) {
-  if (!in(pair.first, c)) {
-    c.insert(pair);
-  } else {
-    for (auto predicate : pair.second) {
-      c[pair.first].insert(predicate);
-    }
-  }
-}
-void mutating_merge(const types::predicate_map_t &a,
-                    types::predicate_map_t &c) {
-  for (auto pair : a) {
-    mutating_merge(pair, c);
+void mutating_merge(const types::class_constraints_t &as,
+                    types::class_constraints_t &c) {
+  for (auto &a : as) {
+    c.insert(a);
   }
 }
 
-types::predicate_map_t merge(const types::predicate_map_t &a,
-                             const types::predicate_map_t &b) {
-  types::predicate_map_t c;
+types::class_constraints_t merge(const types::class_constraints_t &a,
+                             const types::class_constraints_t &b) {
+  types::class_constraints_t c;
   mutating_merge(a, c);
   mutating_merge(b, c);
   return c;
 }
 
-types::predicate_map_t safe_merge(const types::predicate_map_t &a,
-                                  const types::predicate_map_t &b) {
-  types::predicate_map_t c;
+types::class_constraints_t safe_merge(const types::class_constraints_t &a,
+                                  const types::class_constraints_t &b) {
+  types::class_constraints_t c;
   mutating_merge(a, c);
   for (auto pair : b) {
     assert(!in(pair.first, c));
@@ -86,11 +76,11 @@ namespace types {
 /* Types                                                              */
 /**********************************************************************/
 
-const predicate_map_t &type_t::get_predicate_map() const {
+const class_constraints_t &type_t::get_class_constraints() const {
   /* maintain this object's predicate map cache */
-  if (!predicate_map_valid) {
-    compute_predicate_map();
-    predicate_map_valid = true;
+  if (!class_constraints_valid) {
+    compute_class_constraints();
+    class_constraints_valid = true;
   }
   return pm_;
 }
@@ -110,11 +100,12 @@ std::string type_t::repr(const map &bindings) const {
 }
 
 std::shared_ptr<scheme_t> type_t::generalize(
-    const types::predicate_map_t &pm) const {
+    const types::class_constraints_t &pm) const {
+  /* get a principal type scheme from a type and some class constraints */
   std::vector<std::string> vs;
-  predicate_map_t new_pm;
+  class_constraints_t new_pm;
   type_t::map bindings;
-  for (auto &ftv : get_predicate_map()) {
+  for (auto &ftv : get_class_constraints()) {
     if (!in(ftv.first, pm)) {
       vs.push_back(ftv.first);
       mutating_merge(ftv, new_pm);
@@ -158,7 +149,7 @@ int type_id_t::ftv_count() const {
   return 0;
 }
 
-void type_id_t::compute_predicate_map() const {
+void type_id_t::compute_class_constraints() const {
 }
 
 type_t::ref type_id_t::eval(const type_env_t &type_env) const {
@@ -228,7 +219,7 @@ int type_variable_t::ftv_count() const {
   return 1;
 }
 
-void type_variable_t::compute_predicate_map() const {
+void type_variable_t::compute_class_constraints() const {
   pm_[id.name] = predicates;
 }
 
@@ -291,9 +282,9 @@ int type_operator_t::ftv_count() const {
   return oper->ftv_count() + operand->ftv_count();
 }
 
-void type_operator_t::compute_predicate_map() const {
-  mutating_merge(oper->get_predicate_map(), pm_);
-  mutating_merge(operand->get_predicate_map(), pm_);
+void type_operator_t::compute_class_constraints() const {
+  mutating_merge(oper->get_class_constraints(), pm_);
+  mutating_merge(operand->get_class_constraints(), pm_);
 }
 
 type_t::ref type_operator_t::eval(const type_env_t &type_env) const {
@@ -359,9 +350,9 @@ int type_tuple_t::ftv_count() const {
   return ftv_sum;
 }
 
-void type_tuple_t::compute_predicate_map() const {
+void type_tuple_t::compute_class_constraints() const {
   for (auto dimension : dimensions) {
-    mutating_merge(dimension->get_predicate_map(), pm_);
+    mutating_merge(dimension->get_class_constraints(), pm_);
   }
 }
 
@@ -477,12 +468,12 @@ int type_lambda_t::ftv_count() const {
   return body->rebind(bindings)->ftv_count();
 }
 
-void type_lambda_t::compute_predicate_map() const {
+void type_lambda_t::compute_class_constraints() const {
   assert(false);
 #if 0
 		map bindings;
 		bindings[binding.name] = type_bottom();
-		return body->rebind(bindings)->get_predicate_map();
+		return body->rebind(bindings)->get_class_constraints();
 #endif
 }
 
@@ -516,7 +507,7 @@ type_t::ref type_lambda_t::remap_vars(
     auto new_binding = alphabetize(map.size());
     map[binding.name] = new_binding;
     assert(!in(new_binding, map_));
-    assert(!in(new_binding, get_predicate_map()));
+    assert(!in(new_binding, get_class_constraints()));
     return ::type_lambda(identifier_t{new_binding, binding.location},
                          body->remap_vars(map));
   }
@@ -593,10 +584,10 @@ scheme_t::ref scheme_t::rebind(const types::type_t::map &bindings) {
 
 scheme_t::ref scheme_t::normalize() {
   std::map<std::string, std::string> ord;
-  predicate_map_t pm;
+  class_constraints_t pm;
 
   int counter = 0;
-  for (auto &ftv : type->get_predicate_map()) {
+  for (auto &ftv : type->get_class_constraints()) {
     auto new_name = alphabetize(counter++);
     ord[ftv.first] = new_name;
     if (in(ftv.first, predicates)) {
@@ -633,15 +624,15 @@ int scheme_t::btvs() const {
   return sum;
 }
 
-const predicate_map_t &scheme_t::get_predicate_map() {
-  if (predicate_map_valid) {
+const class_constraints_t &scheme_t::get_class_constraints() {
+  if (class_constraints_valid) {
     return pm_;
   } else {
-    pm_ = type->get_predicate_map();
+    pm_ = type->get_class_constraints();
     for (auto var : vars) {
       pm_.erase(var);
     }
-    predicate_map_valid = true;
+    class_constraints_valid = true;
     return pm_;
   }
 }
@@ -652,7 +643,7 @@ location_t scheme_t::get_location() const {
 
 type_t::ref unitize(type_t::ref type) {
   type_t::map bindings;
-  for (auto &pair : type->get_predicate_map()) {
+  for (auto &pair : type->get_class_constraints()) {
     bindings[pair.first] = type_unit(INTERNAL_LOC());
     debug_above(6, log("assigning %s binding for [%s] to %s",
                        pair.first.c_str(), join(pair.second).c_str(),
@@ -675,10 +666,38 @@ bool is_callable(const type_t::ref &t) {
 
 std::unordered_set<std::string> get_ftvs(const types::type_t::ref &type) {
   std::unordered_set<std::string> ftvs;
-  for (auto &pair : type->get_predicate_map()) {
-    ftvs.insert(pair.first);
+  for (auto &class_constraint : type->get_class_constraints()) {
+    for (auto &tv : class_constraint.tvs) {
+      ftvs.insert(tv);
+    }
   }
   return ftvs;
+}
+
+class_constraint_t::class_constraint_t(std::string classname,
+                                       const std::vector<std::string> &tvs)
+    : classname(classname), tvs(tvs) {
+#ifdef ZION_DEBUG
+  assert(isupper(classname[0]));
+  for (auto &tv : tvs) {
+    assert(islower(tv[0]));
+  }
+#endif
+}
+
+bool class_constraint_t::operator<(const class_constraint_t &rhs) const {
+  if (classname < rhs.classname) {
+    return true;
+  }
+
+  for (int i = 0; i < tvs.size(); ++i) {
+    if (i >= rhs.tvs.size()) {
+      return false;
+    } else if (tvs[i] < rhs.tvs[i]) {
+      return true;
+    }
+  }
+  return false;
 }
 
 } // namespace types
@@ -750,7 +769,7 @@ types::type_t::ref type_operator(const types::type_t::refs &xs) {
 }
 
 types::scheme_t::ref scheme(std::vector<std::string> vars,
-                            const types::predicate_map_t &predicates,
+                            const types::class_constraints_t &predicates,
                             types::type_t::ref type) {
 #if 0
   if (type->str().find("|") != std::string::npos) {
@@ -861,7 +880,7 @@ std::string str(const types::type_t::map &coll) {
   return ss.str();
 }
 
-std::string str(const types::predicate_map_t &pm) {
+std::string str(const types::class_constraints_t &pm) {
   bool saw_predicate = false;
   std::stringstream ss;
   const char *delim = " [where ";

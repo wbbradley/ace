@@ -146,8 +146,10 @@ std::map<std::string, type_class_t *> check_type_classes(
       predicates.insert(type_class->id.name);
 
       types::type_t::map bindings;
-      bindings[type_class->type_var_id.name] = type_variable(
-          gensym(type_class->type_var_id.location), predicates);
+      for (auto &type_var_id : type_class->type_var_ids) {
+        bindings[type_var_id.name] = type_variable(gensym(type_var_id.location),
+                                                   predicates);
+      }
 
       for (auto pair : type_class->overloads) {
         if (in(pair.first, env.map)) {
@@ -1054,7 +1056,7 @@ int run_job(const job_t &job) {
   std::map<std::string, std::function<int(const job_t &, bool)>> cmd_map;
   cmd_map["help"] = [&](const job_t &job, bool explain) {
     std::cerr << "zion:" << std::endl;
-    for (auto &cmd_pair: cmd_map) {
+    for (auto &cmd_pair : cmd_map) {
       if (cmd_pair.first != "help") {
         /* run the command in explain mode */
         std::cerr << "\t";

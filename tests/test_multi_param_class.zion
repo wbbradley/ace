@@ -1,0 +1,21 @@
+# test: pass
+
+class Container container item {
+    fn contains(container, item) Bool
+}
+
+instance Container [a] a {
+    fn contains(xs, y) {
+        for x in xs {
+            if x == y {
+                return True
+            }
+        }
+        return False
+    }
+}
+
+fn main() {
+    assert(contains([3], 3))
+    print("PASS")
+}

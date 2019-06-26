@@ -415,11 +415,30 @@ location_t decl_t::get_location() const {
   return var.location;
 }
 
+type_class_t::type_class_t(
+    identifier_t id,
+    identifiers_t type_var_ids,
+    const std::set<types::class_constraint_t> &superclasses,
+    const types::type_t::map &overloads)
+    : id(id), type_var_ids(type_var_ids), superclasses(superclasses),
+      overloads(overloads) {
+}
+
 std::string type_class_t::str() const {
   return string_format(
-      "class %s %s {\n\t%s%s\n}", id.name.c_str(), type_var_id.name.c_str(),
+      "class %s %s {\n\t%s%s\n}", id.name.c_str(),
+      join_with(type_var_ids, " ",
+                [](const identifier_t &id) { return id.name; })
+          .c_str(),
       superclasses.size() != 0
-          ? string_format("has %s\n\t", join(superclasses, ", ").c_str())
+          ? string_format("has %s\n\t",
+                          join_with(superclasses, ", ",
+                                    [](const types::class_constraint_t &c) {
+                                      return string_format(
+                                          "%s %s", c.classname.c_str(),
+                                          join(c.tvs, " ").c_str());
+                                    })
+                              .c_str())
                 .c_str()
           : "",
       ::str(overloads).c_str());
