@@ -8,28 +8,26 @@
 #include "ptr.h"
 #include "types.h"
 
-struct unification_t {
+struct Unification {
   bool result;
-  location_t error_location;
+  Location error_location;
   std::string error_string;
-  types::type_t::map bindings;
-  std::vector<instance_requirement_t> instance_requirements;
+  types::Type::map bindings;
+  std::vector<InstanceRequirement> instance_requirements;
 
-  void add_instance_requirement(const instance_requirement_t &ir);
+  void add_instance_requirement(const InstanceRequirement &ir);
 };
 
-types::type_t::map solver(bool check_constraint_coverage,
-                          context_t &&context,
-                          constraints_t &constraints,
-                          env_t &env);
-unification_t unify(types::type_t::ref a, types::type_t::ref b);
-unification_t unify_many(const types::type_t::refs &as,
-                         const types::type_t::refs &b);
-types::type_t::map compose(const types::type_t::map &a,
-                           const types::type_t::map &b);
-unification_t compose(const unification_t &a, const unification_t &b);
-bool type_equality(types::type_t::ref a, types::type_t::ref b);
-bool scheme_equality(types::scheme_t::ref a, types::scheme_t::ref b);
+types::Type::map solver(bool check_constraint_coverage,
+                        Context &&context,
+                        constraints_t &constraints,
+                        Env &env);
+Unification unify(types::Type::ref a, types::Type::ref b);
+Unification unify_many(const types::Type::refs &as, const types::Type::refs &b);
+types::Type::map compose(const types::Type::map &a, const types::Type::map &b);
+Unification compose(const Unification &a, const Unification &b);
+bool type_equality(types::Type::ref a, types::Type::ref b);
+bool scheme_equality(types::Scheme::ref a, types::Scheme::ref b);
 void rebind_constraints(constraints_t::iterator iter,
                         const constraints_t::iterator &end,
-                        const types::type_t::map &env);
+                        const types::Type::map &env);

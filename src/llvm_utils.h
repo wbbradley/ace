@@ -16,18 +16,18 @@ llvm::Constant *llvm_create_constant_struct_instance(
 llvm::FunctionType *get_llvm_arrow_function_type(
     llvm::IRBuilder<> &builder,
     const types::type_env_t &type_env,
-    const types::type_t::refs &terms);
+    const types::Type::refs &terms);
 
 llvm::Type *get_llvm_closure_type(llvm::IRBuilder<> &builder,
                                   const types::type_env_t &type_env,
-                                  const types::type_t::refs &terms);
+                                  const types::Type::refs &terms);
 
 std::vector<llvm::Type *> get_llvm_types(llvm::IRBuilder<> &builder,
                                          const types::type_env_t &type_env,
-                                         const types::type_t::refs &types);
+                                         const types::Type::refs &types);
 llvm::Type *get_llvm_type(llvm::IRBuilder<> &builder,
                           const types::type_env_t &type_env,
-                          const types::type_t::ref &type);
+                          const types::Type::ref &type);
 
 llvm::Value *llvm_create_bool(llvm::IRBuilder<> &builder, bool value);
 llvm::ConstantInt *llvm_create_int(llvm::IRBuilder<> &builder, int64_t value);
@@ -41,8 +41,8 @@ llvm::GlobalVariable *llvm_get_global(llvm::Module *llvm_module,
                                       bool is_constant);
 llvm::Value *llvm_create_global_string(llvm::IRBuilder<> &builder,
                                        std::string value);
-// bound_var_t::ref create_global_str(llvm::IRBuilder<> &builder, scope_t::ref
-// scope, location_t location, std::string value);
+// bound_var_t::ref create_global_str(llvm::IRBuilder<> &builder, Scope::ref
+// scope, Location location, std::string value);
 llvm::Module *llvm_get_module(llvm::IRBuilder<> &builder);
 llvm::Function *llvm_get_function(llvm::IRBuilder<> &builder);
 std::string llvm_print_module(llvm::Module &module);
@@ -55,16 +55,15 @@ std::string llvm_print_function(llvm::Function *llvm_function);
 
 llvm::AllocaInst *llvm_create_entry_block_alloca(llvm::Function *llvm_function,
                                                  types::type_env_t &type_env,
-                                                 types::type_t::ref type,
+                                                 types::Type::ref type,
                                                  std::string var_name);
 
 llvm::Value *_llvm_resolve_alloca(llvm::IRBuilder<> &builder,
                                   llvm::Value *llvm_value);
 llvm::Type *llvm_resolve_type(llvm::Value *llvm_value);
-llvm::StructType *llvm_create_struct_type(
-    llvm::IRBuilder<> &builder,
-    types::type_env_t &type_env,
-    const types::type_t::refs &dimensions);
+llvm::StructType *llvm_create_struct_type(llvm::IRBuilder<> &builder,
+                                          types::type_env_t &type_env,
+                                          const types::Type::refs &dimensions);
 llvm::StructType *llvm_create_struct_type(
     llvm::IRBuilder<> &builder,
     const std::vector<llvm::Type *> &llvm_types);
@@ -81,7 +80,7 @@ llvm::Value *llvm_maybe_pointer_cast(llvm::IRBuilder<> &builder,
                                      llvm::Type *llvm_type);
 llvm::Value *llvm_maybe_pointer_cast(llvm::IRBuilder<> &builder,
                                      llvm::Value *llvm_value,
-                                     const types::type_t::ref &bound_type);
+                                     const types::Type::ref &bound_type);
 llvm::Value *llvm_int_cast(llvm::IRBuilder<> &builder,
                            llvm::Value *llvm_value,
                            llvm::Type *llvm_type);
@@ -93,13 +92,13 @@ void check_struct_initialization(
     llvm::ArrayRef<llvm::Constant *> llvm_struct_initialization,
     llvm::StructType *llvm_struct_type);
 
-void llvm_verify_function(location_t location, llvm::Function *llvm_function);
+void llvm_verify_function(Location location, llvm::Function *llvm_function);
 void llvm_verify_module(llvm::Module &llvm_module);
 
 /* flags for llvm_create_if_branch that tell it whether to invoke release_vars
  * for either branch */
 
-struct life_t;
+struct Life;
 
 #define IFF_THEN 1
 #define IFF_ELSE 2
@@ -107,8 +106,8 @@ struct life_t;
 
 void llvm_create_if_branch(llvm::IRBuilder<> &builder,
                            int iff,
-                           std::shared_ptr<life_t> life,
-                           location_t location,
+                           std::shared_ptr<Life> life,
+                           Location location,
                            llvm::Value *llvm_value,
                            bool allow_maybe_check,
                            llvm::BasicBlock *then_bb,
@@ -120,7 +119,7 @@ llvm::CallInst *llvm_create_call_inst(llvm::IRBuilder<> &builder,
                                       std::vector<llvm::Value *> llvm_values);
 
 void get_llvm_function_type_parts(llvm::IRBuilder<> &builder,
-                                  const types::type_t::refs &type_terms,
+                                  const types::Type::refs &type_terms,
                                   std::vector<llvm::Type *> *llvm_param_types,
                                   llvm::Type **llvm_return_type);
 

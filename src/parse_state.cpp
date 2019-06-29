@@ -11,12 +11,12 @@
 #include "types.h"
 #include "zion.h"
 
-parse_state_t::parse_state_t(std::string filename,
-                             std::string module_name,
-                             zion_lexer_t &lexer,
-                             std::vector<Token> &comments,
-                             std::set<LinkIn> &link_ins,
-                             const std::map<std::string, int> &builtin_arities)
+ParseState::ParseState(std::string filename,
+                       std::string module_name,
+                       zion_lexer_t &lexer,
+                       std::vector<Token> &comments,
+                       std::set<LinkIn> &link_ins,
+                       const std::map<std::string, int> &builtin_arities)
     : filename(filename),
       module_name(module_name.size() != 0
                       ? module_name
@@ -26,35 +26,35 @@ parse_state_t::parse_state_t(std::string filename,
   advance();
 }
 
-bool parse_state_t::advance() {
+bool ParseState::advance() {
   debug_lexer(log(log_info, "advanced from %s %s", tkstr(token.tk),
                   token.text.c_str()[0] != '\n' ? token.text.c_str() : ""));
   prior_token = token;
   return lexer.get_token(token, newline, &comments);
 }
 
-Token parse_state_t::token_and_advance() {
+Token ParseState::token_and_advance() {
   advance();
   return prior_token;
 }
 
-identifier_t parse_state_t::identifier_and_advance() {
+Identifier ParseState::identifier_and_advance() {
   assert(token.tk == tk_identifier);
   advance();
   assert(prior_token.tk == tk_identifier);
-  return id_mapped(identifier_t{prior_token.text, prior_token.location});
+  return id_mapped(Identifier{prior_token.text, prior_token.location});
 }
 
-identifier_t parse_state_t::id_mapped(identifier_t id) {
+Identifier ParseState::id_mapped(Identifier id) {
   auto iter = term_map.find(id.name);
   if (iter != term_map.end()) {
-    return identifier_t{iter->second, id.location};
+    return Identifier{iter->second, id.location};
   } else {
     return id;
   }
 }
 
-bool parse_state_t::is_mutable_var(std::string name) {
+bool ParseState::is_mutable_var(std::string name) {
   for (auto iter = scopes.rbegin(); iter != scopes.rend(); ++iter) {
     if ((*iter).id.name == name) {
       return (*iter).is_let;
@@ -63,7 +63,7 @@ bool parse_state_t::is_mutable_var(std::string name) {
   return false;
 }
 
-void parse_state_t::error(const char *format, ...) {
+void ParseState::error(const char *format, ...) {
   va_list args;
   va_start(args, format);
   auto error = user_error(token.location, format, args);
@@ -74,9 +74,9 @@ void parse_state_t::error(const char *format, ...) {
   throw error;
 }
 
-void parse_state_t::add_term_map(location_t location,
-                                 std::string key,
-                                 std::string value) {
+void ParseState::add_term_map(Location location,
+                              std::string key,
+                              std::string value) {
   // log("adding %s to term map => %s", key.c_str(), value.c_str());
   if (in(key, term_map)) {
     throw user_error(location, "symbol imported twice");

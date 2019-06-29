@@ -15,8 +15,8 @@ std::shared_ptr<T> parse_text(std::istream &is,
   std::vector<Token> comments;
   std::set<LinkIn> link_ins;
 
-  parse_state_t ps(filename, "<text>", lexer, comments, link_ins,
-                   get_builtin_arities());
+  ParseState ps(filename, "<text>", lexer, comments, link_ins,
+                get_builtin_arities());
 
   auto item = T::parse(ps);
   if (ps.token.tk != tk_none) {
@@ -33,8 +33,8 @@ std::shared_ptr<T> parse_text(const std::string &text,
 }
 
 bool token_begins_type(const Token &token);
-inline identifier_t iid(const Token &token) {
-  return identifier_t::from_token(token);
+inline Identifier iid(const Token &token) {
+  return Identifier::from_token(token);
 }
 
 #define eat_token()                                                            \
@@ -73,25 +73,24 @@ inline identifier_t iid(const Token &token) {
     eat_token();                                                               \
   } while (0)
 
-bitter::module_t *parse_module(
-    parse_state_t &ps,
-    std::vector<bitter::module_t *> auto_import_modules,
-    std::set<identifier_t> &module_deps);
+bitter::Module *parse_module(ParseState &ps,
+                             std::vector<bitter::Module *> auto_import_modules,
+                             std::set<Identifier> &module_deps);
 
-types::type_t::ref parse_type(parse_state_t &ps);
-bitter::expr_t *parse_literal(parse_state_t &ps);
-bitter::expr_t *parse_expr(parse_state_t &ps);
-bitter::expr_t *parse_assignment(parse_state_t &ps);
-bitter::expr_t *parse_tuple_expr(parse_state_t &ps);
-bitter::expr_t *parse_let(parse_state_t &ps, identifier_t var_id, bool is_let);
-bitter::expr_t *parse_block(parse_state_t &ps, bool expression_means_return);
-bitter::conditional_t *parse_if(parse_state_t &ps);
-bitter::while_t *parse_while(parse_state_t &ps);
-bitter::expr_t *parse_lambda(parse_state_t &ps);
-bitter::match_t *parse_match(parse_state_t &ps);
-bitter::predicate_t *parse_predicate(parse_state_t &ps,
-                                     bool allow_else,
-                                     maybe<identifier_t> name_assignment);
-bitter::predicate_t *unfold_application_into_predicate(
-    bitter::application_t *application);
-bitter::predicate_t *convert_expr_to_predicate(bitter::expr_t *expr);
+types::Type::ref parse_type(ParseState &ps);
+bitter::Expr *parse_literal(ParseState &ps);
+bitter::Expr *parse_expr(ParseState &ps);
+bitter::Expr *parse_assignment(ParseState &ps);
+bitter::Expr *parse_tuple_expr(ParseState &ps);
+bitter::Expr *parse_let(ParseState &ps, Identifier var_id, bool is_let);
+bitter::Expr *parse_block(ParseState &ps, bool expression_means_return);
+bitter::Conditional *parse_if(ParseState &ps);
+bitter::While *parse_while(ParseState &ps);
+bitter::Expr *parse_lambda(ParseState &ps);
+bitter::Match *parse_match(ParseState &ps);
+bitter::Predicate *parse_predicate(ParseState &ps,
+                                   bool allow_else,
+                                   maybe<Identifier> name_assignment);
+bitter::Predicate *unfold_application_into_predicate(
+    bitter::Application *application);
+bitter::Predicate *convert_expr_to_predicate(bitter::Expr *expr);

@@ -497,7 +497,7 @@ std::string join(int argc, const char *argv[]) {
   return ss.str();
 }
 
-void check_command_line_text(location_t location, std::string text) {
+void check_command_line_text(Location location, std::string text) {
   for (auto ch : "`$%&()|") {
     if (text.find(ch) != std::string::npos) {
       throw user_error(location,

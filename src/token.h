@@ -119,12 +119,12 @@ K(while);
 bool is_restricted_var_name(std::string x);
 
 struct Token {
-  Token(const location_t &location = {{""}, -1, -1},
+  Token(const Location &location = {{""}, -1, -1},
         token_kind tk = tk_none,
         std::string text = "")
       : location(location), tk(tk), text(text) {
   }
-  location_t location;
+  Location location;
   token_kind tk = tk_none;
   std::string text;
   std::string str() const;

@@ -8,49 +8,49 @@
 std::string prefix(const std::set<std::string> &bindings,
                    std::string pre,
                    std::string name);
-identifier_t prefix(const std::set<std::string> &bindings,
-                    std::string pre,
-                    identifier_t name);
+Identifier prefix(const std::set<std::string> &bindings,
+                  std::string pre,
+                  Identifier name);
 Token prefix(const std::set<std::string> &bindings,
              std::string pre,
              Token name);
-bitter::expr_t *prefix(const std::set<std::string> &bindings,
-                       std::string pre,
-                       bitter::expr_t *value);
-bitter::predicate_t *prefix(const std::set<std::string> &bindings,
-                            std::string pre,
-                            bitter::predicate_t *predicate,
-                            std::set<std::string> &new_symbols);
-bitter::pattern_block_t *prefix(const std::set<std::string> &bindings,
-                                std::string pre,
-                                bitter::pattern_block_t *pattern_block);
-bitter::decl_t *prefix(const std::set<std::string> &bindings,
-                       std::string pre,
-                       bitter::decl_t *value);
-bitter::type_decl_t prefix(const std::set<std::string> &bindings,
-                           std::string pre,
-                           const bitter::type_decl_t &type_decl);
-bitter::type_class_t *prefix(const std::set<std::string> &bindings,
-                             std::string pre,
-                             bitter::type_class_t *type_class);
-
-types::type_t::ref prefix(const std::set<std::string> &bindings,
+bitter::Expr *prefix(const std::set<std::string> &bindings,
+                     std::string pre,
+                     bitter::Expr *value);
+bitter::Predicate *prefix(const std::set<std::string> &bindings,
                           std::string pre,
-                          types::type_t::ref type);
-types::scheme_t::ref prefix(const std::set<std::string> &bindings,
-                            std::string pre,
-                            types::scheme_t::ref scheme);
-bitter::expr_t *prefix(const std::set<std::string> &bindings,
-                       std::string pre,
-                       bitter::expr_t *value);
-std::vector<bitter::expr_t *> prefix(const std::set<std::string> &bindings,
-                                     std::string pre,
-                                     std::vector<bitter::expr_t *> values);
-bitter::module_t *prefix(const std::set<std::string> &bindings,
-                         bitter::module_t *module);
-bitter::instance_t *prefix(const std::set<std::string> &bindings,
-                           std::string pre,
-                           bitter::instance_t *instance);
+                          bitter::Predicate *predicate,
+                          std::set<std::string> &new_symbols);
+bitter::PatternBlock *prefix(const std::set<std::string> &bindings,
+                             std::string pre,
+                             bitter::PatternBlock *pattern_block);
+bitter::Decl *prefix(const std::set<std::string> &bindings,
+                     std::string pre,
+                     bitter::Decl *value);
+bitter::TypeDecl prefix(const std::set<std::string> &bindings,
+                        std::string pre,
+                        const bitter::TypeDecl &type_decl);
+bitter::TypeClass *prefix(const std::set<std::string> &bindings,
+                          std::string pre,
+                          bitter::TypeClass *type_class);
+
+types::Type::ref prefix(const std::set<std::string> &bindings,
+                        std::string pre,
+                        types::Type::ref type);
+types::Scheme::ref prefix(const std::set<std::string> &bindings,
+                          std::string pre,
+                          types::Scheme::ref scheme);
+bitter::Expr *prefix(const std::set<std::string> &bindings,
+                     std::string pre,
+                     bitter::Expr *value);
+std::vector<bitter::Expr *> prefix(const std::set<std::string> &bindings,
+                                   std::string pre,
+                                   std::vector<bitter::Expr *> values);
+bitter::Module *prefix(const std::set<std::string> &bindings,
+                       bitter::Module *module);
+bitter::Instance *prefix(const std::set<std::string> &bindings,
+                         std::string pre,
+                         bitter::Instance *instance);
 data_ctors_map_t prefix(const std::set<std::string> &bindings,
                         std::string pre,
                         const data_ctors_map_t &data_ctors_map);

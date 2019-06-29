@@ -8,12 +8,12 @@
 #include "token.h"
 #include "utils.h"
 
-struct identifier_t {
-  identifier_t() = default;
-  identifier_t(const std::string &name, location_t location);
+struct Identifier {
+  Identifier() = default;
+  Identifier(const std::string &name, Location location);
   std::string const name;
-  location_t const location;
-  static identifier_t from_token(Token token);
+  Location const location;
+  static Identifier from_token(Token token);
   inline Token get_token() const {
     return Token{location, tk_identifier, name};
   }
@@ -21,29 +21,29 @@ struct identifier_t {
     return string_format(c_id("%s"), name.c_str());
   }
 
-  bool operator<(const identifier_t &rhs) const;
+  bool operator<(const Identifier &rhs) const;
 };
-using identifiers_t = std::vector<identifier_t>;
+using identifiers_t = std::vector<Identifier>;
 
 std::string str(identifiers_t ids);
 
 #define make_iid(name_)                                                        \
-  identifier_t {                                                               \
-    name_, location_t {                                                        \
+  Identifier {                                                                 \
+    name_, Location {                                                          \
       __FILE__, __LINE__, 1                                                    \
     }                                                                          \
   }
 
 namespace std {
-template <> struct hash<identifier_t> {
-  int operator()(const identifier_t &s) const {
+template <> struct hash<Identifier> {
+  int operator()(const Identifier &s) const {
     /* location is not a disambiguator for identifiers */
     return std::hash<std::string>()(s.name);
   }
 };
 } // namespace std
 
-std::set<identifier_t> to_set(const identifiers_t &identifiers);
+std::set<Identifier> to_set(const identifiers_t &identifiers);
 std::set<std::string> to_atom_set(const identifiers_t &refs);
 
-std::ostream &operator<<(std::ostream &os, const identifier_t &rhs);
+std::ostream &operator<<(std::ostream &os, const Identifier &rhs);

@@ -4,22 +4,22 @@
 #include "defn_id.h"
 #include "types.h"
 
-struct translation_env_t;
+struct TranslationEnv;
 
-bitter::expr_t *translate_match_expr(
-    const defn_id_t &for_defn_id,
-    bitter::match_t *match,
+bitter::Expr *translate_match_expr(
+    const DefnId &for_defn_id,
+    bitter::Match *match,
     const std::unordered_set<std::string> &bound_vars,
     const types::type_env_t &type_env,
-    const translation_env_t &tenv,
+    const TranslationEnv &tenv,
     tracked_types_t &typing,
     needed_defns_t &needed_defns,
     bool &returns);
 
-typedef const std::function<bitter::expr_t *(
+typedef const std::function<bitter::Expr *(
     const std::unordered_set<std::string> &bound_vars,
     const types::type_env_t &type_env,
-    const translation_env_t &tenv,
+    const TranslationEnv &tenv,
     tracked_types_t &typing,
     needed_defns_t &needed_defns,
     bool &returns)> &translate_continuation_t;

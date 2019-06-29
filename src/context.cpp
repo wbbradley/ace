@@ -2,10 +2,10 @@
 
 #include "utils.h"
 
-context_t make_context(location_t location, const char *format, ...) {
+Context make_context(Location location, const char *format, ...) {
   va_list args;
   va_start(args, format);
-  context_t context = context_t{location, string_formatv(format, args)};
+  Context context = Context{location, string_formatv(format, args)};
   va_end(args);
   return context;
 }

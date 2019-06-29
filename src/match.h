@@ -3,7 +3,7 @@
 
 #include "types.h"
 
-struct translation_env_t;
+struct TranslationEnv;
 
 namespace match {
 struct Pattern;
@@ -12,9 +12,9 @@ struct Nothing;
 struct Pattern {
   typedef std::shared_ptr<const Pattern> ref;
 
-  location_t location;
+  Location location;
 
-  Pattern(location_t location) : location(location) {
+  Pattern(Location location) : location(location) {
   }
   virtual ~Pattern() {
   }
@@ -29,8 +29,8 @@ extern std::shared_ptr<Nothing> theNothing;
 Pattern::ref intersect(Pattern::ref lhs, Pattern::ref rhs);
 Pattern::ref difference(Pattern::ref lhs, Pattern::ref rhs);
 Pattern::ref pattern_union(Pattern::ref lhs, Pattern::ref rhs);
-Pattern::ref all_of(location_t location,
-                    maybe<identifier_t> expr,
-                    const translation_env_t &env,
-                    types::type_t::ref type);
+Pattern::ref all_of(Location location,
+                    maybe<Identifier> expr,
+                    const TranslationEnv &env,
+                    types::Type::ref type);
 } // namespace match
