@@ -30,7 +30,7 @@ extern const char *VECTOR_TYPE;
 extern const char *STRING_TYPE;
 
 namespace types {
-struct scheme_t;
+struct Scheme;
 }
 
-const std::map<std::string, std::shared_ptr<types::scheme_t>> &get_builtins();
+const std::map<std::string, std::shared_ptr<types::Scheme>> &get_builtins();

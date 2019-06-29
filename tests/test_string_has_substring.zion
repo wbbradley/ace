@@ -1,3 +1,5 @@
+# test: pass
+
 fn main() {
     assert(has_substring("chewy", "he"))
     assert(not has_substring("he", "chewy"))

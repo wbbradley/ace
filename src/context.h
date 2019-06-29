@@ -4,9 +4,9 @@
 
 #include "location.h"
 
-struct context_t {
-  location_t location;
+struct Context {
+  Location location;
   std::string message;
 };
 
-context_t make_context(location_t location, const char *format, ...);
+Context make_context(Location location, const char *format, ...);

@@ -214,7 +214,7 @@ void init_host() {
   // V(SIGRTMAX);
 }
 
-int get_host_int(location_t location, std::string name) {
+int get_host_int(Location location, std::string name) {
   if (host_values.count(name) == 0) {
     throw user_error(location, "undefined host value %s", name.c_str());
   }

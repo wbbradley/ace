@@ -9,14 +9,14 @@
 #include "utils.h"
 #include "zion.h"
 
-location_t::location_t() : location_t({}, -1, -1) {
+Location::Location() : Location({}, -1, -1) {
 }
 
-location_t::location_t(std::string filename, int line, int col)
+Location::Location(std::string filename, int line, int col)
     : filename(filename), line(line), col(col) {
 }
 
-std::string location_t::filename_repr() const {
+std::string Location::filename_repr() const {
   static char *cwd = (char *)calloc(4096, 1);
   static unsigned cwdlen = 0;
   if (cwd[0] == 0) {
@@ -45,27 +45,27 @@ std::string location_t::filename_repr() const {
   return ss.str();
 }
 
-std::string location_t::str() const {
+std::string Location::str() const {
   std::stringstream ss;
   ss << C_LINE_REF << repr() << C_RESET;
   return ss.str();
 }
 
-std::string location_t::repr() const {
+std::string Location::repr() const {
   std::stringstream ss;
   ss << filename_repr() << ':' << line << ':' << col;
   return ss.str();
 }
 
-std::string location_t::operator()() const {
+std::string Location::operator()() const {
   return str();
 }
 
-std::ostream &operator<<(std::ostream &os, const location_t &location) {
+std::ostream &operator<<(std::ostream &os, const Location &location) {
   return os << location.str();
 }
 
-bool location_t::operator<(const location_t &rhs) const {
+bool Location::operator<(const Location &rhs) const {
   if (filename < rhs.filename) {
     return true;
   } else if (filename > rhs.filename) {
@@ -79,19 +79,19 @@ bool location_t::operator<(const location_t &rhs) const {
   }
 }
 
-bool location_t::operator==(const location_t &rhs) const {
+bool Location::operator==(const Location &rhs) const {
   return filename == rhs.filename && line == rhs.line && col == rhs.col;
 }
 
-bool location_t::operator!=(const location_t &rhs) const {
+bool Location::operator!=(const Location &rhs) const {
   return filename != rhs.filename || line != rhs.line || col != rhs.col;
 }
 
-bool location_t::has_file_location() const {
+bool Location::has_file_location() const {
   return filename.size() != 0 && line != -1 && col != -1;
 }
 
-location_t best_location(location_t a, location_t b) {
+Location best_location(Location a, Location b) {
   /* this function is entirely heuristic garbage. */
   // FUTURE: do better at plumbing info around so that heuristics like this are
   // less necessary

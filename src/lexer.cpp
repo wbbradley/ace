@@ -427,7 +427,7 @@ bool zion_lexer_t::_get_tokens() {
       case '\t':
         tk = tk_none;
         gts = gts_error;
-        log_location(log_error, location_t(m_filename, m_line, m_col),
+        log_location(log_error, Location(m_filename, m_line, m_col),
                      "encountered a tab character (\\t) used outside of a "
                      "string literal");
         break;
@@ -784,7 +784,7 @@ bool zion_lexer_t::handle_nests(token_kind tk) {
   case tk_lsquare:
   case tk_lparen:
   case tk_lcurly:
-    nested_tks.push_back({location_t(m_filename, m_line, m_col - 1), tk});
+    nested_tks.push_back({Location(m_filename, m_line, m_col - 1), tk});
     break;
   case tk_rsquare:
     pop_nested(tk_lsquare);
@@ -808,7 +808,7 @@ void zion_lexer_t::pop_nested(token_kind tk) {
   } else if (back_tk != tk) {
     log_location(
         log_error,
-        nested_tks.size() == 0 ? location_t{m_filename, m_line, m_col - 1}
+        nested_tks.size() == 0 ? Location{m_filename, m_line, m_col - 1}
                                : nested_tks.back().first,
         "detected unbalanced brackets %s != %s", tkstr(back_tk), tkstr(tk));
   }

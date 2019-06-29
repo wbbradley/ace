@@ -7,37 +7,37 @@
 
 namespace gen {
 
-strict_resolver_t::strict_resolver_t(llvm::Value *llvm_value)
+StrictResolver::StrictResolver(llvm::Value *llvm_value)
     : llvm_value(llvm_value) {
 }
 
-strict_resolver_t::~strict_resolver_t() {
+StrictResolver::~StrictResolver() {
 }
 
-llvm::Value *strict_resolver_t::resolve_impl() {
+llvm::Value *StrictResolver::resolve_impl() {
   return llvm_value;
 }
 
-std::string strict_resolver_t::str() const {
+std::string StrictResolver::str() const {
   return llvm_print(llvm_value);
 }
 
-location_t strict_resolver_t::get_location() const {
+Location StrictResolver::get_location() const {
   // TODO: plumbing
   return INTERNAL_LOC();
 }
 
-lazy_resolver_t::lazy_resolver_t(std::string name,
-                                 types::type_t::ref type,
-                                 lazy_resolver_callback_t &&callback)
+LazyResolver::LazyResolver(std::string name,
+                           types::Type::ref type,
+                           lazy_resolver_callback_t &&callback)
     : sort_color(sc_unresolved), name(name), type(type),
       callback(std::move(callback)) {
 }
 
-lazy_resolver_t::~lazy_resolver_t() {
+LazyResolver::~LazyResolver() {
 }
 
-llvm::Value *lazy_resolver_t::resolve_impl() {
+llvm::Value *LazyResolver::resolve_impl() {
   // FUTURE: this is a good candidate for concurrency
   switch (sort_color) {
   case sc_unresolved:
@@ -52,8 +52,7 @@ llvm::Value *lazy_resolver_t::resolve_impl() {
       break;
     }
     assert(value != nullptr);
-    debug_above(5,
-                log("lazy_resolver_t resolved %s", llvm_print(value).c_str()));
+    debug_above(5, log("LazyResolver resolved %s", llvm_print(value).c_str()));
     return value;
   case sc_resolving:
     /* we are already resolving this object, but progress on that front got far
@@ -71,7 +70,7 @@ llvm::Value *lazy_resolver_t::resolve_impl() {
   }
 }
 
-std::string lazy_resolver_t::str() const {
+std::string LazyResolver::str() const {
   switch (sort_color) {
   case sc_unresolved:
     return string_format("unresolved " c_id("%s") " :: %s", name.c_str(),
@@ -93,7 +92,7 @@ std::string lazy_resolver_t::str() const {
   }
 }
 
-location_t lazy_resolver_t::get_location() const {
+Location LazyResolver::get_location() const {
   // TODO: plumbing
   return INTERNAL_LOC();
 }

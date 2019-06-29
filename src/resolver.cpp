@@ -9,10 +9,10 @@
 
 namespace gen {
 
-resolver_t::~resolver_t() {
+Resolver::~Resolver() {
 }
 
-llvm::Value *resolver_t::resolve() {
+llvm::Value *Resolver::resolve() {
   try {
     return this->resolve_impl();
   } catch (user_error &e) {
@@ -21,24 +21,23 @@ llvm::Value *resolver_t::resolve() {
   }
 }
 
-std::shared_ptr<resolver_t> strict_resolver(llvm::Value *llvm_value) {
-  return std::make_shared<strict_resolver_t>(llvm_value);
+std::shared_ptr<Resolver> strict_resolver(llvm::Value *llvm_value) {
+  return std::make_shared<StrictResolver>(llvm_value);
 }
 
-std::shared_ptr<resolver_t> lazy_resolver(std::string name,
-                                          types::type_t::ref type,
-                                          lazy_resolver_callback_t &&callback) {
-  return std::make_shared<lazy_resolver_t>(name, type, std::move(callback));
+std::shared_ptr<Resolver> lazy_resolver(std::string name,
+                                        types::Type::ref type,
+                                        lazy_resolver_callback_t &&callback) {
+  return std::make_shared<LazyResolver>(name, type, std::move(callback));
 }
 
-publishable_t::publishable_t(llvm::Value **llvm_value)
-    : llvm_value(llvm_value) {
+Publishable::Publishable(llvm::Value **llvm_value) : llvm_value(llvm_value) {
 }
 
-publishable_t::~publishable_t() {
+Publishable::~Publishable() {
 }
 
-void publishable_t::publish(llvm::Value *llvm_value_) const {
+void Publishable::publish(llvm::Value *llvm_value_) const {
   *llvm_value = llvm_value_;
 }
 

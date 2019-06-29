@@ -24,7 +24,7 @@ void _emit_assert(const char *filename,
                   int line,
                   const char *assertion,
                   const char *function) {
-  location_t location(filename, line, 1);
+  Location location(filename, line, 1);
   std::stringstream ss;
   log_location(log_panic, location, c_error("============="));
   ss << c_error("assert failed");
@@ -37,7 +37,7 @@ void _emit_assert(const char *filename,
   DEBUG_BREAK();
 }
 
-depth_guard_t::depth_guard_t(location_t location, int &depth, int max_depth)
+DepthGuard::DepthGuard(Location location, int &depth, int max_depth)
     : depth(depth) {
   ++depth;
   if (!__depth_level_override && (depth > max_depth)) {
@@ -45,7 +45,7 @@ depth_guard_t::depth_guard_t(location_t location, int &depth, int max_depth)
   }
 }
 
-depth_guard_t::~depth_guard_t() {
+DepthGuard::~DepthGuard() {
   --depth;
 }
 

@@ -101,8 +101,8 @@ extern int __dbg_level;
 
 #include "colors.h"
 
-struct depth_guard_t {
+struct DepthGuard {
   int &depth;
-  depth_guard_t(location_t location, int &depth, int max_depth);
-  ~depth_guard_t();
+  DepthGuard(Location location, int &depth, int max_depth);
+  ~DepthGuard();
 };

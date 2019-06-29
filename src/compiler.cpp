@@ -42,7 +42,8 @@ const std::vector<std::string> &get_zion_paths() {
         }
       }
     } else {
-      log(log_error, "ZION_PATH is not set. It should be set to the dirname of std.zion. "
+      log(log_error,
+          "ZION_PATH is not set. It should be set to the dirname of std.zion. "
           "That is typically /usr/local/share/zion/lib.");
       exit(1);
     }
@@ -62,7 +63,7 @@ std::string get_executable_filename() {
   return "z.out";
 }
 
-std::string resolve_module_filename(location_t location,
+std::string resolve_module_filename(Location location,
                                     std::string name,
                                     std::string extension) {
   std::string filename_test_resolution;
@@ -136,26 +137,26 @@ std::string resolve_module_filename(location_t location,
   }
 }
 
-struct global_parser_state_t {
-  global_parser_state_t(const std::map<std::string, int> &builtin_arities)
+struct GlobalParserState {
+  GlobalParserState(const std::map<std::string, int> &builtin_arities)
       : builtin_arities(builtin_arities) {
   }
-  std::vector<module_t *> modules;
-  std::map<std::string, module_t *> modules_map_by_filename;
-  std::map<std::string, module_t *> modules_map_by_name;
+  std::vector<Module *> modules;
+  std::map<std::string, Module *> modules_map_by_filename;
+  std::map<std::string, Module *> modules_map_by_name;
   std::vector<Token> comments;
   std::set<LinkIn> link_ins;
   const std::map<std::string, int> &builtin_arities;
 
-  module_t *parse_module_statefully(identifier_t module_id) {
+  Module *parse_module_statefully(Identifier module_id) {
     if (auto module = get(modules_map_by_name, module_id.name,
-                          (module_t *)nullptr)) {
+                          (Module *)nullptr)) {
       return module;
     }
     std::string module_filename = compiler::resolve_module_filename(
         module_id.location, module_id.name, ".zion");
     if (auto module = get(modules_map_by_filename, module_filename,
-                          (module_t *)nullptr)) {
+                          (Module *)nullptr)) {
       return module;
     }
 
@@ -168,12 +169,12 @@ struct global_parser_state_t {
                           module_filename.c_str()));
       zion_lexer_t lexer({module_filename}, ifs);
 
-      parse_state_t ps(module_filename, "", lexer, comments, link_ins,
-                       builtin_arities);
+      ParseState ps(module_filename, "", lexer, comments, link_ins,
+                    builtin_arities);
 
-      std::set<identifier_t> dependencies;
-      module_t *module = ::parse_module(ps, {modules_map_by_name["std"]},
-                                        dependencies);
+      std::set<Identifier> dependencies;
+      Module *module = ::parse_module(ps, {modules_map_by_name["std"]},
+                                      dependencies);
 
       modules.push_back(module);
       modules_map_by_name[ps.module_name] = module;
@@ -199,11 +200,11 @@ struct global_parser_state_t {
 };
 
 std::set<std::string> get_top_level_decls(
-    const std::vector<decl_t *> &decls,
-    const std::vector<type_decl_t> &type_decls,
-    const std::vector<type_class_t *> &type_classes) {
-  std::map<std::string, location_t> module_decls;
-  for (decl_t *decl : decls) {
+    const std::vector<Decl *> &decls,
+    const std::vector<TypeDecl> &type_decls,
+    const std::vector<TypeClass *> &type_classes) {
+  std::map<std::string, Location> module_decls;
+  for (Decl *decl : decls) {
     if (module_decls.find(decl->var.name) != module_decls.end()) {
       auto error = user_error(decl->var.location, "duplicate symbol");
       error.add_info(module_decls[decl->var.name], "see prior definition here");
@@ -228,7 +229,7 @@ std::set<std::string> get_top_level_decls(
   return top_level_decls;
 }
 
-compilation_t::ref parse_program(
+Compilation::ref parse_program(
     std::string user_program_name,
     const std::map<std::string, int> &builtin_arities) {
   std::string program_name = strip_zion_extension(
@@ -238,12 +239,11 @@ compilation_t::ref parse_program(
      * module and bring them into our whole ast */
     auto module_name = program_name;
 
-    global_parser_state_t gps(builtin_arities);
+    GlobalParserState gps(builtin_arities);
 
     /* include the builtins library */
     if (getenv("NO_PRELUDE") == nullptr || atoi(getenv("NO_PRELUDE")) == 0) {
-      gps.parse_module_statefully(
-          {"std" /* lib/std */, location_t{"std", 0, 0}});
+      gps.parse_module_statefully({"std" /* lib/std */, Location{"std", 0, 0}});
     } else {
       gps.link_ins.insert(LinkIn{
           lit_pkgconfig, Token{INTERNAL_LOC(), tk_string, "\"bdw-gc\""}});
@@ -251,36 +251,36 @@ compilation_t::ref parse_program(
 
     /* now parse the main program module */
     gps.parse_module_statefully(
-        {user_program_name, location_t{"command line build parameters", 0, 0}});
+        {user_program_name, Location{"command line build parameters", 0, 0}});
 
     debug_above(11, log(log_info, "parse_module of %s succeeded",
                         module_name.c_str(), false /*global*/));
 
-    std::vector<decl_t *> program_decls;
-    std::vector<type_class_t *> program_type_classes;
-    std::vector<instance_t *> program_instances;
+    std::vector<Decl *> program_decls;
+    std::vector<TypeClass *> program_type_classes;
+    std::vector<Instance *> program_instances;
     ctor_id_map_t ctor_id_map;
     data_ctors_map_t data_ctors_map;
     types::type_env_t type_env;
 
     /* next, merge the entire set of modules into one program */
-    for (module_t *module : gps.modules) {
+    for (Module *module : gps.modules) {
       /* get a list of all top-level decls */
       std::set<std::string> bindings = get_top_level_decls(
           module->decls, module->type_decls, module->type_classes);
 
-      module_t *module_rebound = prefix(bindings, module);
+      Module *module_rebound = prefix(bindings, module);
 
       /* now all locally referring vars are fully qualified */
-      for (decl_t *decl : module_rebound->decls) {
+      for (Decl *decl : module_rebound->decls) {
         program_decls.push_back(decl);
       }
 
-      for (type_class_t *type_class : module_rebound->type_classes) {
+      for (TypeClass *type_class : module_rebound->type_classes) {
         program_type_classes.push_back(type_class);
       }
 
-      for (instance_t *instance : module_rebound->instances) {
+      for (Instance *instance : module_rebound->instances) {
         program_instances.push_back(instance);
       }
 
@@ -300,11 +300,11 @@ compilation_t::ref parse_program(
       }
     }
 
-    return std::make_shared<compilation_t>(
+    return std::make_shared<Compilation>(
         program_name,
-        new program_t(program_decls, program_type_classes, program_instances,
-                      new application_t(new var_t(make_iid("main")),
-                                        new tuple_t(INTERNAL_LOC(), {}))),
+        new Program(program_decls, program_type_classes, program_instances,
+                    new Application(new Var(make_iid("main")),
+                                    new Tuple(INTERNAL_LOC(), {}))),
         gps.comments, gps.link_ins, ctor_id_map, data_ctors_map, type_env);
   } catch (user_error &e) {
     print_exception(e);

@@ -35,7 +35,7 @@ struct CtorPatternValue {
 
 struct CtorPattern : std::enable_shared_from_this<CtorPattern>, Pattern {
   CtorPatternValue cpv;
-  CtorPattern(location_t location, CtorPatternValue cpv)
+  CtorPattern(Location location, CtorPatternValue cpv)
       : Pattern(location), cpv(cpv) {
   }
 
@@ -44,7 +44,7 @@ struct CtorPattern : std::enable_shared_from_this<CtorPattern>, Pattern {
 
 struct CtorPatterns : std::enable_shared_from_this<CtorPatterns>, Pattern {
   std::vector<CtorPatternValue> cpvs;
-  CtorPatterns(location_t location, std::vector<CtorPatternValue> cpvs)
+  CtorPatterns(Location location, std::vector<CtorPatternValue> cpvs)
       : Pattern(location), cpvs(cpvs) {
   }
 
@@ -52,14 +52,14 @@ struct CtorPatterns : std::enable_shared_from_this<CtorPatterns>, Pattern {
 };
 
 struct AllOf : std::enable_shared_from_this<AllOf>, Pattern {
-  maybe<identifier_t> name;
-  const translation_env_t &tenv;
-  types::type_t::ref type;
+  maybe<Identifier> name;
+  const TranslationEnv &tenv;
+  types::Type::ref type;
 
-  AllOf(location_t location,
-        maybe<identifier_t> name,
-        const translation_env_t &tenv,
-        types::type_t::ref type)
+  AllOf(Location location,
+        maybe<Identifier> name,
+        const TranslationEnv &tenv,
+        types::Type::ref type)
       : Pattern(location), name(name), tenv(tenv), type(type) {
   }
 
@@ -71,7 +71,7 @@ struct Scalars : std::enable_shared_from_this<Scalars<T>>, Pattern {
   enum Kind { Include, Exclude } kind;
   std::set<T> collection;
 
-  Scalars(location_t location, Kind kind, std::set<T> collection)
+  Scalars(Location location, Kind kind, std::set<T> collection)
       : Pattern(location), kind(kind), collection(collection) {
     assert_implies(kind == Include, collection.size() != 0);
   }
@@ -143,14 +143,14 @@ std::shared_ptr<Scalars<double>> allFloats = std::make_shared<Scalars<double>>(
     Scalars<double>::Exclude,
     std::set<double>{});
 
-Pattern::ref all_of(location_t location,
-                    maybe<identifier_t> expr,
-                    const translation_env_t &tenv,
-                    types::type_t::ref type) {
+Pattern::ref all_of(Location location,
+                    maybe<Identifier> expr,
+                    const TranslationEnv &tenv,
+                    types::Type::ref type) {
   return std::make_shared<match::AllOf>(location, expr, tenv, type);
 }
 
-Pattern::ref reduce_all_datatype(location_t location,
+Pattern::ref reduce_all_datatype(Location location,
                                  std::string type_name,
                                  Pattern::ref rhs,
                                  const std::vector<CtorPatternValue> &cpvs) {
@@ -174,7 +174,7 @@ Pattern::ref reduce_all_datatype(location_t location,
   }
 }
 
-Pattern::ref intersect(location_t location,
+Pattern::ref intersect(Location location,
                        const CtorPatternValue &lhs,
                        const CtorPatternValue &rhs) {
   assert(lhs.type_name == rhs.type_name);
@@ -205,7 +205,7 @@ Pattern::ref cpv_intersect(Pattern::ref lhs, const CtorPatternValue &rhs) {
   return intersect(lhs->location, ctor_pattern->cpv, rhs);
 }
 
-Pattern::ref intersect(location_t location,
+Pattern::ref intersect(Location location,
                        const std::vector<CtorPatternValue> &lhs,
                        const std::vector<CtorPatternValue> &rhs) {
   Pattern::ref intersection = theNothing;
@@ -378,10 +378,10 @@ Pattern::ref pattern_union(Pattern::ref lhs, Pattern::ref rhs) {
   return nullptr;
 }
 
-Pattern::ref from_type(location_t location,
-                       const translation_env_t &tenv,
-                       type_t::ref type) {
-  if (auto tuple_type = dyncast<const types::type_tuple_t>(type)) {
+Pattern::ref from_type(Location location,
+                       const TranslationEnv &tenv,
+                       Type::ref type) {
+  if (auto tuple_type = dyncast<const types::TypeTuple>(type)) {
     std::vector<Pattern::ref> args;
     for (auto dim : tuple_type->dimensions) {
       args.push_back(from_type(location, tenv, dim));
@@ -409,7 +409,7 @@ Pattern::ref from_type(location_t location,
       args.reserve(ctor_terms.size() - 1);
 
       for (size_t i = 0; i < ctor_terms.size() - 1; ++i) {
-        args.push_back(std::make_shared<AllOf>(location, maybe<identifier_t>(),
+        args.push_back(std::make_shared<AllOf>(location, maybe<Identifier>(),
                                                tenv, ctor_terms[i]));
       }
       /* add a ctor */
@@ -428,9 +428,9 @@ Pattern::ref from_type(location_t location,
   /* just accept all of whatever this is */
   return std::make_shared<AllOf>(
       type->get_location(),
-      maybe<identifier_t>(
-          identifier_t{string_format("AllOf(%s)", type->str().c_str()),
-                       type->get_location()}),
+      maybe<Identifier>(
+          Identifier{string_format("AllOf(%s)", type->str().c_str()),
+                     type->get_location()}),
       tenv, type);
 }
 
@@ -438,7 +438,7 @@ void difference(Pattern::ref lhs,
                 Pattern::ref rhs,
                 const std::function<void(Pattern::ref)> &send);
 
-void difference(location_t location,
+void difference(Location location,
                 const CtorPatternValue &lhs,
                 const CtorPatternValue &rhs,
                 const std::function<void(Pattern::ref)> &send) {
@@ -684,11 +684,10 @@ namespace bitter {
 using namespace ::match;
 using namespace ::types;
 
-Pattern::ref tuple_predicate_t::get_pattern(
-    type_t::ref type,
-    const translation_env_t &tenv) const {
+Pattern::ref TuplePredicate::get_pattern(Type::ref type,
+                                         const TranslationEnv &tenv) const {
   std::vector<Pattern::ref> args;
-  if (auto tuple_type = dyncast<const type_tuple_t>(type)) {
+  if (auto tuple_type = dyncast<const TypeTuple>(type)) {
     if (tuple_type->dimensions.size() != params.size()) {
       throw user_error(location,
                        "tuple predicate has an incorrect number of "
@@ -710,9 +709,8 @@ Pattern::ref tuple_predicate_t::get_pattern(
     return nullptr;
   }
 }
-Pattern::ref ctor_predicate_t::get_pattern(
-    type_t::ref type,
-    const translation_env_t &tenv) const {
+Pattern::ref CtorPredicate::get_pattern(Type::ref type,
+                                        const TranslationEnv &tenv) const {
   auto ctor_terms = tenv.get_data_ctor_terms(type, ctor_name);
 
   std::vector<Pattern::ref> args;
@@ -732,13 +730,13 @@ Pattern::ref ctor_predicate_t::get_pattern(
   return std::make_shared<CtorPattern>(
       location, CtorPatternValue{type->repr(), ctor_name.name, args});
 }
-Pattern::ref irrefutable_predicate_t::get_pattern(
-    type_t::ref type,
-    const translation_env_t &tenv) const {
+Pattern::ref IrrefutablePredicate::get_pattern(
+    Type::ref type,
+    const TranslationEnv &tenv) const {
   return std::make_shared<AllOf>(location, name_assignment, tenv, type);
 }
-Pattern::ref literal_t::get_pattern(type_t::ref type,
-                                    const translation_env_t &tenv) const {
+Pattern::ref Literal::get_pattern(Type::ref type,
+                                  const TranslationEnv &tenv) const {
   if (type_equality(type, type_int(INTERNAL_LOC()))) {
     if (token.tk == tk_integer) {
       int64_t value = parse_int_value(token);

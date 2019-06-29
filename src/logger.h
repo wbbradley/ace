@@ -22,11 +22,11 @@ struct logger {
   virtual ~logger() throw() {
   }
   virtual void logv(log_level_t level,
-                    const location_t *location,
+                    const Location *location,
                     const char *format,
                     va_list args) = 0;
   virtual void log(log_level_t level,
-                   const location_t *location,
+                   const Location *location,
                    const char *format,
                    ...) = 0;
   virtual int get_depth() const = 0;
@@ -39,11 +39,11 @@ public:
   virtual ~standard_logger();
 
   void logv(log_level_t level,
-            const location_t *location,
+            const Location *location,
             const char *format,
             va_list args);
   void log(log_level_t level,
-           const location_t *location,
+           const Location *location,
            const char *format,
            ...);
   void close();
@@ -71,11 +71,11 @@ struct tee_logger : public logger {
   virtual ~tee_logger() throw();
 
   virtual void logv(log_level_t level,
-                    const location_t *location,
+                    const Location *location,
                     const char *format,
                     va_list args);
   virtual void log(log_level_t level,
-                   const location_t *location,
+                   const Location *location,
                    const char *format,
                    ...);
   void dump();
@@ -86,20 +86,20 @@ struct tee_logger : public logger {
   }
 
   logger *logger_old;
-  std::list<std::tuple<log_level_t, maybe<location_t>, std::string>>
+  std::list<std::tuple<log_level_t, maybe<Location>, std::string>>
       captured_logs;
 };
 
 struct indent_logger : logger {
-  indent_logger(location_t location, int level, std::string message);
+  indent_logger(Location location, int level, std::string message);
   virtual ~indent_logger() throw();
 
   virtual void logv(log_level_t level,
-                    const location_t *location,
+                    const Location *location,
                     const char *format,
                     va_list args);
   virtual void log(log_level_t level,
-                   const location_t *location,
+                   const Location *location,
                    const char *format,
                    ...);
   virtual void dump();
@@ -108,7 +108,7 @@ struct indent_logger : logger {
     return logger_old->get_depth() + 1;
   }
 
-  location_t location;
+  Location location;
   std::string msg;
   int level;
   logger *logger_old;
@@ -127,11 +127,11 @@ struct note_logger : logger {
   virtual ~note_logger() throw();
 
   virtual void logv(log_level_t level,
-                    const location_t *location,
+                    const Location *location,
                     const char *format,
                     va_list args);
   virtual void log(log_level_t level,
-                   const location_t *location,
+                   const Location *location,
                    const char *format,
                    ...);
   virtual void dump();
@@ -145,6 +145,6 @@ struct note_logger : logger {
 
 void write_log_streamv(std::ostream &os,
                        log_level_t level,
-                       const location_t *location,
+                       const Location *location,
                        const char *format,
                        va_list args);
