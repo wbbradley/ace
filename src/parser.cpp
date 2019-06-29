@@ -1933,18 +1933,33 @@ Instance *parse_type_class_instance(ParseState &ps) {
 TypeClass *parse_type_class(ParseState &ps) {
   TypeDecl type_decl = parse_type_decl(ps);
 
-  if (type_decl.params.size() != 1) {
+  if (type_decl.params.size() == 0) {
     throw user_error(
         type_decl.id.location,
-        "type classes must be parameterized over (only) one type variable");
+        "type classes must be parameterized over at least one type variable");
+  }
+
+  /* Check for duplicate type class params */
+  {
+    std::unordered_set<std::string> params;
+    for (auto &param : type_decl.params) {
+      if (in(param.name, params)) {
+        throw user_error(param.location,
+                         "type class parameter " c_type("%s") " is repeated",
+                         param.name.c_str());
+      }
+      params.insert(param.name);
+    }
   }
 
   chomp_token(tk_lcurly);
-  std::set<std::string> superclasses;
+  types::ClassPredicates class_predicates;
   types::Type::map overloads;
   while (true) {
     if (ps.token.is_ident(K(has))) {
       ps.advance();
+
+
       expect_token(tk_identifier);
       if (!isupper(ps.token.text[0])) {
         throw user_error(ps.token.location,
