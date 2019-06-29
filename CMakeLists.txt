@@ -40,6 +40,7 @@ set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-rpath,${LLVM_INSTALL_
 add_executable(zion
 	src/ast.cpp
 	src/builtins.cpp
+	src/class_predicate.cpp
 	src/compiler.cpp
 	src/context.cpp
 	src/dbg.cpp
