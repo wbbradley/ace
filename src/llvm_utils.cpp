@@ -226,7 +226,7 @@ std::string llvm_print(llvm::Type *llvm_type) {
 
 llvm::AllocaInst *llvm_create_entry_block_alloca(llvm::Function *llvm_function,
                                                  types::type_env_t &type_env,
-                                                 types::type_t::ref type,
+                                                 types::Type::ref type,
                                                  std::string var_name) {
   /* we'll need to place the alloca instance in the entry block, so let's
    * make a builder that points there */
@@ -306,10 +306,9 @@ llvm::StructType *llvm_create_struct_type(
   return llvm_struct_type;
 }
 
-llvm::StructType *llvm_create_struct_type(
-    llvm::IRBuilder<> &builder,
-    types::type_env_t &type_env,
-    const types::type_t::refs &dimensions) {
+llvm::StructType *llvm_create_struct_type(llvm::IRBuilder<> &builder,
+                                          types::type_env_t &type_env,
+                                          const types::Type::refs &dimensions) {
   return llvm_create_struct_type(builder,
                                  get_llvm_types(builder, type_env, dimensions));
 }
@@ -324,7 +323,7 @@ llvm::StructType *llvm_create_struct_type(
   return llvm_create_struct_type(builder, llvm_types);
 }
 
-void llvm_verify_function(location_t location, llvm::Function *llvm_function) {
+void llvm_verify_function(Location location, llvm::Function *llvm_function) {
   debug_above(5, log("writing to function-verification-failure.ll..."));
   std::string llir_filename = "function-verification-failure.ll";
 #if 1
@@ -340,7 +339,7 @@ void llvm_verify_function(location_t location, llvm::Function *llvm_function) {
     ss << llvm_print_function(llvm_function);
     auto error = user_error(location, "LLVM function verification failed: %s",
                             ss.str().c_str());
-    error.add_info(location_t{llir_filename, 1, 1}, "consult LLVM module dump");
+    error.add_info(Location{llir_filename, 1, 1}, "consult LLVM module dump");
     throw error;
   }
 }
@@ -350,7 +349,7 @@ void llvm_verify_module(llvm::Module &llvm_module) {
   llvm::raw_os_ostream os(ss);
   if (llvm::verifyModule(llvm_module, &os)) {
     os.flush();
-    throw user_error(location_t{},
+    throw user_error(Location{},
                      "module %s: failed verification. %s\nModule listing:\n%s",
                      llvm_module.getName().str().c_str(), ss.str().c_str(),
                      llvm_print_module(llvm_module).c_str());
@@ -439,7 +438,7 @@ llvm::GlobalVariable *llvm_get_global(llvm::Module *llvm_module,
 #if 0
 bound_var_t::ref llvm_create_global_tag(
 		llvm::IRBuilder<> &builder,
-		scope_t::ref scope,
+		Scope::ref scope,
 		bound_type_t::ref tag_type,
 		std::string tag,
 		identifier::ref id)
@@ -575,7 +574,7 @@ llvm::Value *llvm_last_param(llvm::Function *llvm_function) {
 llvm::FunctionType *get_llvm_arrow_function_type(
     llvm::IRBuilder<> &builder,
     const types::type_env_t &type_env,
-    const types::type_t::refs &terms) {
+    const types::Type::refs &terms) {
   assert(terms.size() > 1);
   llvm::Type *param_types[] = {get_llvm_type(builder, type_env, terms[0]),
                                builder.getInt8Ty()->getPointerTo()};
@@ -593,7 +592,7 @@ llvm::FunctionType *get_llvm_arrow_function_type(
 
 llvm::Type *get_llvm_closure_type(llvm::IRBuilder<> &builder,
                                   const types::type_env_t &type_env,
-                                  const types::type_t::refs &terms) {
+                                  const types::Type::refs &terms) {
   return llvm::StructType::get(
              get_llvm_arrow_function_type(builder, type_env, terms)
                  ->getPointerTo(),
@@ -603,10 +602,10 @@ llvm::Type *get_llvm_closure_type(llvm::IRBuilder<> &builder,
 
 llvm::Type *get_llvm_type(llvm::IRBuilder<> &builder,
                           const types::type_env_t &type_env,
-                          const types::type_t::ref &type_) {
+                          const types::Type::ref &type_) {
   auto type = type_->eval(type_env);
   debug_above(3, log("get_llvm_type(%s)...", type->str().c_str()));
-  if (auto id = dyncast<const types::type_id_t>(type)) {
+  if (auto id = dyncast<const types::TypeId>(type)) {
     const std::string &name = id->id.name;
     if (name == CHAR_TYPE) {
       return builder.getInt8Ty();
@@ -617,7 +616,7 @@ llvm::Type *get_llvm_type(llvm::IRBuilder<> &builder,
     } else {
       return builder.getInt8Ty()->getPointerTo();
     }
-  } else if (auto tuple_type = dyncast<const types::type_tuple_t>(type)) {
+  } else if (auto tuple_type = dyncast<const types::TypeTuple>(type)) {
     if (tuple_type->dimensions.size() == 0) {
       return builder.getInt8Ty()->getPointerTo();
     }
@@ -626,13 +625,13 @@ llvm::Type *get_llvm_type(llvm::IRBuilder<> &builder,
     llvm::StructType *llvm_struct_type = llvm_create_struct_type(builder,
                                                                  llvm_types);
     return llvm_struct_type->getPointerTo();
-  } else if (auto operator_ = dyncast<const types::type_operator_t>(type)) {
+  } else if (auto operator_ = dyncast<const types::TypeOperator>(type)) {
     if (types::is_type_id(operator_->oper, PTR_TYPE_OPERATOR)) {
       /* handle pointer types */
       return get_llvm_type(builder, type_env, operator_->operand)
           ->getPointerTo();
     } else {
-      types::type_t::refs terms;
+      types::Type::refs terms;
       unfold_binops_rassoc(ARROW_TYPE_OPERATOR, type, terms);
       if (terms.size() == 1) {
         /* user defined types are recast at their usage site, not passed around
@@ -643,10 +642,10 @@ llvm::Type *get_llvm_type(llvm::IRBuilder<> &builder,
         return get_llvm_closure_type(builder, type_env, terms);
       }
     }
-  } else if (auto variable = dyncast<const types::type_variable_t>(type)) {
+  } else if (auto variable = dyncast<const types::TypeVariable>(type)) {
     assert(false);
     return nullptr;
-  } else if (auto lambda = dyncast<const types::type_lambda_t>(type)) {
+  } else if (auto lambda = dyncast<const types::TypeLambda>(type)) {
     assert(false);
     return nullptr;
   } else {
@@ -657,7 +656,7 @@ llvm::Type *get_llvm_type(llvm::IRBuilder<> &builder,
 
 std::vector<llvm::Type *> get_llvm_types(llvm::IRBuilder<> &builder,
                                          const types::type_env_t &type_env,
-                                         const types::type_t::refs &types) {
+                                         const types::Type::refs &types) {
   debug_above(7, log("get_llvm_types([%s])...", join_str(types, ", ").c_str()));
   std::vector<llvm::Type *> llvm_types;
   for (auto type : types) {

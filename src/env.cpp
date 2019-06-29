@@ -6,12 +6,12 @@
 #include "types.h"
 #include "user_error.h"
 
-std::vector<std::pair<std::string, types::type_t::refs>> env_t::get_ctors(
-    types::type_t::ref type) const {
+std::vector<std::pair<std::string, types::Type::refs>> Env::get_ctors(
+    types::Type::ref type) const {
   return {};
 }
 
-types::type_t::ref env_t::maybe_lookup_env(identifier_t id) const {
+types::Type::ref Env::maybe_lookup_env(Identifier id) const {
   auto iter = map.find(id.name);
   if (iter != map.end()) {
     // log_location(id.location, "found %s :: %s", id.str().c_str(),
@@ -22,7 +22,7 @@ types::type_t::ref env_t::maybe_lookup_env(identifier_t id) const {
   }
 }
 
-types::type_t::ref env_t::lookup_env(identifier_t id) const {
+types::Type::ref Env::lookup_env(Identifier id) const {
   auto type = maybe_lookup_env(id);
   if (type != nullptr) {
     return type;
@@ -38,16 +38,16 @@ types::type_t::ref env_t::lookup_env(identifier_t id) const {
   throw error;
 }
 
-void env_t::rebind_env(const types::type_t::map &bindings) {
+void Env::rebind_env(const types::Type::map &bindings) {
   if (bindings.size() == 0) {
     return;
   }
   for (auto pair : map) {
     map[pair.first] = pair.second->rebind(bindings);
   }
-  std::vector<instance_requirement_t> new_instance_requirements;
+  std::vector<InstanceRequirement> new_instance_requirements;
   for (auto &ir : instance_requirements) {
-    new_instance_requirements.push_back(instance_requirement_t{
+    new_instance_requirements.push_back(InstanceRequirement{
         ir.type_class_name, ir.location, ir.type->rebind(bindings)});
   }
   std::swap(instance_requirements, new_instance_requirements);
@@ -61,15 +61,14 @@ void env_t::rebind_env(const types::type_t::map &bindings) {
   temp_tracked_types.swap(*tracked_types);
 }
 
-types::type_t::ref env_t::track(const bitter::expr_t *expr,
-                                types::type_t::ref type) {
+types::Type::ref Env::track(const bitter::Expr *expr, types::Type::ref type) {
   assert(tracked_types != nullptr);
   assert(!in(expr, *tracked_types));
   (*tracked_types)[expr] = type;
   return type;
 }
 
-types::type_t::ref env_t::get_tracked_type(bitter::expr_t *expr) const {
+types::Type::ref Env::get_tracked_type(bitter::Expr *expr) const {
   auto type = maybe_get_tracked_type(expr);
   if (type == nullptr) {
     throw user_error(expr->get_location(),
@@ -80,13 +79,13 @@ types::type_t::ref env_t::get_tracked_type(bitter::expr_t *expr) const {
   return type;
 }
 
-types::type_t::ref env_t::maybe_get_tracked_type(bitter::expr_t *expr) const {
+types::Type::ref Env::maybe_get_tracked_type(bitter::Expr *expr) const {
   assert(tracked_types != nullptr);
   auto iter = tracked_types->find(expr);
   return (iter != tracked_types->end()) ? iter->second : nullptr;
 }
 
-void env_t::add_instance_requirement(const instance_requirement_t &ir) {
+void Env::add_instance_requirement(const InstanceRequirement &ir) {
   debug_above(6,
               log_location(log_info, ir.location,
                            "adding type class requirement for %s %s",
@@ -94,9 +93,9 @@ void env_t::add_instance_requirement(const instance_requirement_t &ir) {
   instance_requirements.push_back(ir);
 }
 
-void env_t::extend(identifier_t id,
-                   types::scheme_t::ref scheme,
-                   bool allow_subscoping) {
+void Env::extend(Identifier id,
+                 types::Scheme::ref scheme,
+                 bool allow_subscoping) {
   if (!allow_subscoping && in(id.name, map)) {
     throw user_error(
         id.location,
@@ -108,7 +107,7 @@ void env_t::extend(identifier_t id,
                      scheme->str().c_str()));
 }
 
-types::predicate_map_t env_t::get_predicate_map() const {
+types::predicate_map_t Env::get_predicate_map() const {
   types::predicate_map_t predicates;
   for (auto pair : map) {
     mutating_merge(pair.second->get_predicate_map(), predicates);
@@ -116,7 +115,7 @@ types::predicate_map_t env_t::get_predicate_map() const {
   return predicates;
 }
 
-std::string str(const types::scheme_t::map &m) {
+std::string str(const types::Scheme::map &m) {
   std::stringstream ss;
   ss << "{";
   ss << join_with(m, ", ", [](const auto &pair) {
@@ -127,7 +126,7 @@ std::string str(const types::scheme_t::map &m) {
   return ss.str();
 }
 
-std::string env_t::str() const {
+std::string Env::str() const {
   std::stringstream ss;
   ss << "{context: " << ::str(map);
   if (return_type != nullptr) {
@@ -136,7 +135,7 @@ std::string env_t::str() const {
   if (instance_requirements.size() != 0) {
     ss << ", instance_requirements: ["
        << join_with(instance_requirements, ", ",
-                    [](const instance_requirement_t &ir) {
+                    [](const InstanceRequirement &ir) {
                       std::stringstream ss;
                       ss << "{" << ir.type_class_name << ", " << ir.location
                          << ", " << ir.type->str() << "}";
@@ -148,7 +147,7 @@ std::string env_t::str() const {
   return ss.str();
 }
 
-std::string instance_requirement_t::str() const {
+std::string InstanceRequirement::str() const {
   std::stringstream ss;
   ss << type_class_name << " " << type;
   return ss.str();

@@ -3,16 +3,16 @@
 #include "types.h"
 #include "user_error.h"
 
-location_t defn_id_t::get_location() const {
+Location DefnId::get_location() const {
   return id.location;
 }
 
-std::string defn_id_t::str() const {
+std::string DefnId::str() const {
   return C_VAR + repr() + C_RESET;
 }
 
-defn_id_t defn_id_t::unitize() const {
-  auto defn_id = defn_id_t{
+DefnId DefnId::unitize() const {
+  auto defn_id = DefnId{
       id, types::unitize(scheme->instantiate(INTERNAL_LOC()))->generalize({})};
 
   if (scheme->btvs() != 0) {
@@ -24,7 +24,7 @@ defn_id_t defn_id_t::unitize() const {
   return std::move(defn_id);
 }
 
-std::string defn_id_t::repr() const {
+std::string DefnId::repr() const {
   assert(id.name[0] != '(');
   if (cached_repr.size() != 0) {
     return cached_repr;
@@ -34,26 +34,26 @@ std::string defn_id_t::repr() const {
   }
 }
 
-identifier_t defn_id_t::repr_id() const {
+Identifier DefnId::repr_id() const {
   return {repr(), id.location};
 }
 
-bool defn_id_t::operator<(const defn_id_t &rhs) const {
+bool DefnId::operator<(const DefnId &rhs) const {
   return repr() < rhs.repr();
 }
 
-types::type_t::ref defn_id_t::get_lambda_param_type() const {
-  auto lambda_type = safe_dyncast<const types::type_operator_t>(
+types::Type::ref DefnId::get_lambda_param_type() const {
+  auto lambda_type = safe_dyncast<const types::TypeOperator>(
       scheme->instantiate(INTERNAL_LOC()));
   return lambda_type->oper;
 }
 
-types::type_t::ref defn_id_t::get_lambda_return_type() const {
-  auto lambda_type = safe_dyncast<const types::type_operator_t>(
+types::Type::ref DefnId::get_lambda_return_type() const {
+  auto lambda_type = safe_dyncast<const types::TypeOperator>(
       scheme->instantiate(INTERNAL_LOC()));
   return lambda_type->operand;
 }
 
-std::ostream &operator<<(std::ostream &os, const defn_id_t &defn_id) {
+std::ostream &operator<<(std::ostream &os, const DefnId &defn_id) {
   return os << defn_id.str();
 }

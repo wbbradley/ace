@@ -5,4 +5,4 @@
 #include "location.h"
 
 void init_host();
-int get_host_int(location_t location, std::string name);
+int get_host_int(Location location, std::string name);

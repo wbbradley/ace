@@ -6,19 +6,19 @@
 #include "env.h"
 #include "types.h"
 
-struct constraint_t {
-  constraint_t() = delete;
-  constraint_t(types::type_t::ref a, types::type_t::ref b, context_t &&context);
+struct Constraint {
+  Constraint() = delete;
+  Constraint(types::Type::ref a, types::Type::ref b, Context &&context);
 
-  types::type_t::ref a;
-  types::type_t::ref b;
-  context_t context;
+  types::Type::ref a;
+  types::Type::ref b;
+  Context context;
 
-  void rebind(const types::type_t::map &env);
+  void rebind(const types::Type::map &env);
   std::string str() const;
 };
-typedef std::vector<constraint_t> constraints_t;
-types::type_t::ref infer(bitter::expr_t *expr,
-                         env_t &env,
-                         constraints_t &constraints);
+typedef std::vector<Constraint> constraints_t;
+types::Type::ref infer(bitter::Expr *expr,
+                       Env &env,
+                       constraints_t &constraints);
 std::string str(const constraints_t &constraints);

@@ -6,25 +6,25 @@
 #include "zion.h"
 
 struct user_error : std::exception {
-  user_error(log_level_t log_level, location_t location);
-  user_error(log_level_t log_level, location_t location, const char *format...);
+  user_error(log_level_t log_level, Location location);
+  user_error(log_level_t log_level, Location location, const char *format...);
   user_error(log_level_t log_level,
-             location_t location,
+             Location location,
              const char *format,
              va_list args);
-  user_error(location_t location, const char *format...);
-  user_error(location_t location, const char *format, va_list args);
+  user_error(Location location, const char *format...);
+  user_error(Location location, const char *format, va_list args);
 
   virtual ~user_error() {
   }
   virtual const char *what() const noexcept;
-  void add_info(location_t location, const char *format...);
+  void add_info(Location location, const char *format...);
 
   log_level_t log_level;
-  location_t location;
+  Location location;
   std::string message;
 
-  std::shared_ptr<std::vector<std::pair<location_t, std::string>>> extra_info;
+  std::shared_ptr<std::vector<std::pair<Location, std::string>>> extra_info;
 
   // Use print_exception externally, not display...
   void display() const;

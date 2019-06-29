@@ -8,23 +8,23 @@ struct token_matcher {
   token_kind tk;
 };
 
-void zion_token_queue_t::enqueue(const location_t &location, token_kind tk) {
+void ZionTokenQueue::enqueue(const Location &location, token_kind tk) {
   zion_string_t token_text;
   enqueue(location, tk, token_text);
 }
 
-void zion_token_queue_t::enqueue(const location_t &location,
-                                 token_kind tk,
-                                 const zion_string_t &token_text) {
+void ZionTokenQueue::enqueue(const Location &location,
+                             token_kind tk,
+                             const zion_string_t &token_text) {
   m_last_tk = tk;
   m_queue.push_back({location, tk, token_text.str()});
 }
 
-bool zion_token_queue_t::empty() const {
+bool ZionTokenQueue::empty() const {
   return m_queue.empty();
 }
 
-Token zion_token_queue_t::pop() {
+Token ZionTokenQueue::pop() {
   Token token = m_queue.front();
   m_queue.pop_front();
   if (m_queue.empty()) {
@@ -44,10 +44,10 @@ Token zion_token_queue_t::pop() {
   }
 }
 
-token_kind zion_token_queue_t::last_tk() const {
+token_kind ZionTokenQueue::last_tk() const {
   return m_last_tk;
 }
 
-void zion_token_queue_t::set_last_tk(token_kind tk) {
+void ZionTokenQueue::set_last_tk(token_kind tk) {
   m_last_tk = tk;
 }

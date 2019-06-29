@@ -8,52 +8,52 @@
 #include "types.h"
 
 namespace types {
-struct type_t;
-struct scheme_t;
+struct Type;
+struct Scheme;
 }; // namespace types
 
-struct instance_requirement_t {
+struct InstanceRequirement {
   std::string type_class_name;
-  location_t location;
-  types::type_t::ref type;
+  Location location;
+  types::Type::ref type;
   std::string str() const;
 };
 
 namespace bitter {
-struct expr_t;
+struct Expr;
 }
 
-struct env_t : public translation_env_t {
-  using ref = const env_t &;
+struct Env : public TranslationEnv {
+  using ref = const Env &;
 
-  env_t(const types::scheme_t::map &map,
-        const std::shared_ptr<const types::type_t> &return_type,
-        const std::vector<instance_requirement_t> &instance_requirements,
-        std::shared_ptr<tracked_types_t> tracked_types,
-        const ctor_id_map_t &ctor_id_map,
-        const data_ctors_map_t &data_ctors_map)
-      : translation_env_t(tracked_types, ctor_id_map, data_ctors_map), map(map),
+  Env(const types::Scheme::map &map,
+      const std::shared_ptr<const types::Type> &return_type,
+      const std::vector<InstanceRequirement> &instance_requirements,
+      std::shared_ptr<tracked_types_t> tracked_types,
+      const ctor_id_map_t &ctor_id_map,
+      const data_ctors_map_t &data_ctors_map)
+      : TranslationEnv(tracked_types, ctor_id_map, data_ctors_map), map(map),
         return_type(return_type), instance_requirements(instance_requirements) {
   }
 
-  types::scheme_t::map map;
-  std::shared_ptr<const types::type_t> return_type;
-  std::vector<instance_requirement_t> instance_requirements;
+  types::Scheme::map map;
+  std::shared_ptr<const types::Type> return_type;
+  std::vector<InstanceRequirement> instance_requirements;
 
-  types::type_t::ref track(const bitter::expr_t *expr, types::type_t::ref type);
-  types::type_t::ref get_tracked_type(bitter::expr_t *expr) const;
-  types::type_t::ref maybe_get_tracked_type(bitter::expr_t *expr) const;
-  void add_instance_requirement(const instance_requirement_t &ir);
-  void extend(identifier_t id,
-              std::shared_ptr<types::scheme_t> scheme,
+  types::Type::ref track(const bitter::Expr *expr, types::Type::ref type);
+  types::Type::ref get_tracked_type(bitter::Expr *expr) const;
+  types::Type::ref maybe_get_tracked_type(bitter::Expr *expr) const;
+  void add_instance_requirement(const InstanceRequirement &ir);
+  void extend(Identifier id,
+              std::shared_ptr<types::Scheme> scheme,
               bool allow_subscoping);
-  void rebind_env(const types::type_t::map &env);
+  void rebind_env(const types::Type::map &env);
   types::predicate_map_t get_predicate_map() const;
-  std::shared_ptr<const types::type_t> lookup_env(identifier_t id) const;
-  std::shared_ptr<const types::type_t> maybe_lookup_env(identifier_t id) const;
-  std::vector<std::pair<std::string, types::type_t::refs>> get_ctors(
-      types::type_t::ref type) const;
+  std::shared_ptr<const types::Type> lookup_env(Identifier id) const;
+  std::shared_ptr<const types::Type> maybe_lookup_env(Identifier id) const;
+  std::vector<std::pair<std::string, types::Type::refs>> get_ctors(
+      types::Type::ref type) const;
   std::string str() const;
 };
 
-std::string str(const types::scheme_t::map &m);
+std::string str(const types::Scheme::map &m);

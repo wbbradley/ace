@@ -5,15 +5,15 @@
 #include "utils.h"
 
 #define INTERNAL_LOC()                                                         \
-  ::location_t {                                                               \
+  ::Location {                                                                 \
     __FILE__, __LINE__, 1                                                      \
   }
 
-struct location_t {
-  template <typename T> location_t(T t) = delete;
+struct Location {
+  template <typename T> Location(T t) = delete;
 
-  location_t();
-  location_t(std::string filename, int line, int col);
+  Location();
+  Location(std::string filename, int line, int col);
 
   std::string str() const;
   std::string repr() const;
@@ -25,10 +25,10 @@ struct location_t {
   int col = -1;
 
   bool has_file_location() const;
-  bool operator<(const location_t &rhs) const;
-  bool operator==(const location_t &rhs) const;
-  bool operator!=(const location_t &rhs) const;
+  bool operator<(const Location &rhs) const;
+  bool operator==(const Location &rhs) const;
+  bool operator!=(const Location &rhs) const;
 };
 
-std::ostream &operator<<(std::ostream &os, const location_t &location);
-location_t best_location(location_t a, location_t b);
+std::ostream &operator<<(std::ostream &os, const Location &location);
+Location best_location(Location a, Location b);

@@ -22,7 +22,7 @@ public:
   bool _get_tokens();
   bool eof();
 
-  std::list<std::pair<location_t, token_kind>> nested_tks;
+  std::list<std::pair<Location, token_kind>> nested_tks;
 
 private:
   void reset_token();
@@ -32,5 +32,5 @@ private:
   std::string m_filename;
   std::istream &m_is;
   int m_line = 1, m_col = 1;
-  zion_token_queue_t m_token_queue;
+  ZionTokenQueue m_token_queue;
 };
