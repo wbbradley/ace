@@ -44,12 +44,12 @@ struct FreeVars {
   int count() const {
     return typed_ids.size();
   }
-  void add(Identifier id, types::Type::ref type) {
+  void add(Identifier id, types::Type::Ref type) {
     debug_above(5, log("adding free var %s", id.str().c_str()));
     assert(type != nullptr);
     typed_ids.insert({id, type});
   }
-  bool contains(Identifier id, types::Type::ref type) {
+  bool contains(Identifier id, types::Type::Ref type) {
     return in(TypedId{id, type}, typed_ids);
   }
   std::string str() const {
@@ -57,7 +57,7 @@ struct FreeVars {
   }
 };
 
-types::Type::ref get_nth_type_in_arrow(types::Type::ref arrow_type, int n) {
+types::Type::Ref get_nth_type_in_arrow(types::Type::Ref arrow_type, int n) {
   types::Type::refs terms;
   unfold_binops_rassoc(ARROW_TYPE_OPERATOR, arrow_type, terms);
   assert(n < terms.size());
@@ -150,13 +150,13 @@ void get_free_vars(const bitter::Expr *expr,
 
 llvm::Value *maybe_get_env_var(const gen_env_t &gen_env,
                                std::string name,
-                               types::Type::ref type) {
+                               types::Type::Ref type) {
   return maybe_get_env_var(gen_env, make_iid(name), type);
 }
 
 llvm::Value *maybe_get_env_var(const gen_env_t &gen_env,
                                Identifier id,
-                               types::Type::ref type) {
+                               types::Type::Ref type) {
   auto iter_id = gen_env.find(id.name);
   if (iter_id != gen_env.end()) {
     type = types::unitize(type);
@@ -188,11 +188,10 @@ llvm::Value *maybe_get_env_var(const gen_env_t &gen_env,
 llvm::Value *get_env_var(llvm::IRBuilder<> &builder,
                          const gen_env_t &gen_env,
                          Identifier id,
-                         types::Type::ref type) {
+                         types::Type::Ref type) {
   llvm::IRBuilderBase::InsertPointGuard ipg(builder);
   llvm::Value *llvm_value = maybe_get_env_var(gen_env, id, type);
   if (llvm_value == nullptr) {
-    type = types::unitize(type);
     auto error = user_error(id.location, "we need a definition for %s :: %s",
                             id.str().c_str(), type->str().c_str());
     for (auto pair : gen_env) {
@@ -221,7 +220,7 @@ llvm::Value *get_env_var(llvm::IRBuilder<> &builder,
 
 void set_env_var(gen_local_env_t &gen_env,
                  std::string name,
-                 types::Type::ref type,
+                 types::Type::Ref type,
                  llvm::Value *llvm_value) {
   assert(name.size() != 0);
   debug_above(4, log("gen::set_env_var(0x%08llx, %s, %s)",
@@ -247,7 +246,7 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
                          const std::string &ffi_name,
                          const std::vector<llvm::Value *> &params,
                          const types::Type::refs &types,
-                         const types::Type::ref &type_builtin,
+                         const types::Type::Ref &type_builtin,
                          const types::type_env_t &type_env) {
   const std::string &name = id.name;
   debug_above(4, log("lowering builtin %s(%s)...", name.c_str(),
@@ -650,7 +649,7 @@ void gen_lambda(std::string name,
                 llvm::IRBuilder<> &builder,
                 llvm::Module *llvm_module,
                 const bitter::Lambda *lambda,
-                types::Type::ref type,
+                types::Type::Ref type,
                 const tracked_types_t &typing,
                 const types::type_env_t &type_env,
                 const gen_env_t &gen_env_globals,
@@ -836,7 +835,7 @@ void gen_lambda(std::string name,
 resolution_status_t gen_literal(std::string name,
                                 llvm::IRBuilder<> &builder,
                                 const bitter::Literal *literal,
-                                types::Type::ref type,
+                                types::Type::Ref type,
                                 Publisher *publisher) {
   auto &token = literal->token;
   debug_above(6, log("emitting literal %s :: %s", token.str().c_str(),
@@ -1021,7 +1020,7 @@ resolution_status_t gen(std::string name,
       auto new_env_locals = gen_env_locals;
       set_env_var(new_env_locals, let->var.name,
                   get(typing, static_cast<const bitter::Expr *>(let->value),
-                      types::Type::ref{}),
+                      types::Type::Ref{}),
                   let_value);
 
       publish(gen(builder, llvm_module, break_to_block, continue_to_block,
