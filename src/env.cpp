@@ -6,12 +6,22 @@
 #include "types.h"
 #include "user_error.h"
 
-std::vector<std::pair<std::string, types::Type::refs>> Env::get_ctors(
-    types::Type::ref type) const {
+Env::Env(const types::Scheme::Map &map,
+         const std::shared_ptr<const types::Type> &return_type,
+         const std::vector<InstanceRequirement> &instance_requirements,
+         std::shared_ptr<TrackedTypes> tracked_types,
+         const CtorIdMap &ctor_id_map,
+         const DataCtorsMap &data_ctors_map)
+    : TranslationEnv(tracked_types, ctor_id_map, data_ctors_map), map(map),
+      return_type(return_type), instance_requirements(instance_requirements) {
+}
+
+std::vector<std::pair<std::string, types::Refs>> Env::get_ctors(
+    types::Ref type) const {
   return {};
 }
 
-types::Type::ref Env::maybe_lookup_env(Identifier id) const {
+types::Ref Env::maybe_lookup_env(Identifier id) const {
   auto iter = map.find(id.name);
   if (iter != map.end()) {
     // log_location(id.location, "found %s :: %s", id.str().c_str(),
@@ -22,7 +32,7 @@ types::Type::ref Env::maybe_lookup_env(Identifier id) const {
   }
 }
 
-types::Type::ref Env::lookup_env(Identifier id) const {
+types::Ref Env::lookup_env(Identifier id) const {
   auto type = maybe_lookup_env(id);
   if (type != nullptr) {
     return type;
@@ -38,7 +48,7 @@ types::Type::ref Env::lookup_env(Identifier id) const {
   throw error;
 }
 
-void Env::rebind_env(const types::Type::map &bindings) {
+void Env::rebind_env(const types::Map &bindings) {
   if (bindings.size() == 0) {
     return;
   }
@@ -52,7 +62,7 @@ void Env::rebind_env(const types::Type::map &bindings) {
   }
   std::swap(instance_requirements, new_instance_requirements);
   assert(tracked_types != nullptr);
-  tracked_types_t temp_tracked_types;
+  TrackedTypes temp_tracked_types;
 
   for (auto pair : *tracked_types) {
     assert(temp_tracked_types.count(pair.first) == 0);
@@ -61,14 +71,14 @@ void Env::rebind_env(const types::Type::map &bindings) {
   temp_tracked_types.swap(*tracked_types);
 }
 
-types::Type::ref Env::track(const bitter::Expr *expr, types::Type::ref type) {
+types::Ref Env::track(const bitter::Expr *expr, types::Ref type) {
   assert(tracked_types != nullptr);
   assert(!in(expr, *tracked_types));
   (*tracked_types)[expr] = type;
   return type;
 }
 
-types::Type::ref Env::get_tracked_type(bitter::Expr *expr) const {
+types::Ref Env::get_tracked_type(bitter::Expr *expr) const {
   auto type = maybe_get_tracked_type(expr);
   if (type == nullptr) {
     throw user_error(expr->get_location(),
@@ -79,7 +89,7 @@ types::Type::ref Env::get_tracked_type(bitter::Expr *expr) const {
   return type;
 }
 
-types::Type::ref Env::maybe_get_tracked_type(bitter::Expr *expr) const {
+types::Ref Env::maybe_get_tracked_type(bitter::Expr *expr) const {
   assert(tracked_types != nullptr);
   auto iter = tracked_types->find(expr);
   return (iter != tracked_types->end()) ? iter->second : nullptr;
@@ -94,7 +104,7 @@ void Env::add_instance_requirement(const InstanceRequirement &ir) {
 }
 
 void Env::extend(Identifier id,
-                 types::Scheme::ref scheme,
+                 types::Scheme::Ref scheme,
                  bool allow_subscoping) {
   if (!allow_subscoping && in(id.name, map)) {
     throw user_error(
@@ -107,15 +117,19 @@ void Env::extend(Identifier id,
                      scheme->str().c_str()));
 }
 
-types::predicate_map_t Env::get_predicate_map() const {
-  types::predicate_map_t predicates;
+types::ClassPredicates Env::get_predicate_map() const {
+  assert(false);
+  return {};
+#if 0
+  types::ClassPredicates predicates;
   for (auto pair : map) {
     mutating_merge(pair.second->get_predicate_map(), predicates);
   }
   return predicates;
+#endif
 }
 
-std::string str(const types::Scheme::map &m) {
+std::string str(const types::Scheme::Map &m) {
   std::stringstream ss;
   ss << "{";
   ss << join_with(m, ", ", [](const auto &pair) {

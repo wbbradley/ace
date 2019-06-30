@@ -14,7 +14,7 @@
 
 using namespace types;
 
-bool scheme_equality(types::Scheme::ref a, types::Scheme::ref b) {
+bool scheme_equality(types::Scheme::Ref a, types::Scheme::Ref b) {
   if (a == nullptr || b == nullptr) {
     assert(false);
     return false;
@@ -38,7 +38,7 @@ bool scheme_equality(types::Scheme::ref a, types::Scheme::ref b) {
   return unification.result;
 }
 
-bool type_equality(types::Type::ref a, types::Type::ref b) {
+bool type_equality(types::Ref a, types::Ref b) {
   if (a == b) {
     /* the same pointer */
     return true;
@@ -87,12 +87,12 @@ bool type_equality(types::Type::ref a, types::Type::ref b) {
   return false;
 }
 
-bool occurs_check(std::string a, Type::ref type) {
-  return in(a, type->get_predicate_map());
+bool occurs_check(std::string a, Ref type) {
+  return in(a, type->get_ftvs());
 }
 
 Unification bind(std::string a,
-                 Type::ref type,
+                 Ref type,
                  const std::set<std::string> &instances) {
   if (occurs_check(a, type)) {
     return Unification{false,
@@ -130,7 +130,7 @@ Unification bind(std::string a,
   return unification;
 }
 
-Unification unify(Type::ref a, Type::ref b) {
+Unification unify(Ref a, Ref b) {
   debug_above(8, log("unify(%s, %s)", a->str().c_str(), b->str().c_str()));
   if (type_equality(a, b)) {
     return Unification{true, INTERNAL_LOC(), "", {}, {}};
@@ -161,7 +161,7 @@ Unification unify(Type::ref a, Type::ref b) {
 }
 
 void check_constraints_cover_tracked_types(const Context &context,
-                                           const tracked_types_t &tracked_types,
+                                           const TrackedTypes &tracked_types,
                                            const constraints_t &constraints) {
   std::unordered_set<std::string> ftvs;
   for (auto pair : tracked_types) {
@@ -188,16 +188,16 @@ void check_constraints_cover_tracked_types(const Context &context,
   }
 }
 
-types::Type::map solver(bool check_constraint_coverage,
-                        Context &&context,
-                        constraints_t &constraints,
-                        Env &env) {
+types::Map solver(bool check_constraint_coverage,
+                  Context &&context,
+                  constraints_t &constraints,
+                  Env &env) {
   if (check_constraint_coverage) {
     check_constraints_cover_tracked_types(context, *env.tracked_types,
                                           constraints);
   }
 
-  types::Type::map bindings;
+  types::Map bindings;
   for (auto iter = constraints.begin(); iter != constraints.end();) {
     Unification unification = unify(iter->a, iter->b);
     if (unification.result) {
@@ -227,7 +227,7 @@ types::Type::map solver(bool check_constraint_coverage,
   return bindings;
 }
 
-types::Type::map compose(const types::Type::map &a, const types::Type::map &b) {
+types::Map compose(const types::Map &a, const types::Map &b) {
   debug_above(11,
               log("composing {%s} with {%s}",
                   join_with(a, ", ",
@@ -240,7 +240,7 @@ types::Type::map compose(const types::Type::map &a, const types::Type::map &b) {
                     return string_format("%s: %s", pair.first.c_str(),
                                          pair.second->str().c_str());
                   }).c_str()));
-  types::Type::map m;
+  types::Map m;
   for (auto pair : b) {
     m[pair.first] = pair.second->rebind(a);
   }
@@ -282,10 +282,10 @@ Unification compose(const Unification &a, const Unification &b) {
   }
 }
 
-std::vector<Type::ref> rebind_tails(const std::vector<Type::ref> &types,
-                                    const Type::map &bindings) {
+std::vector<Ref> rebind_tails(const std::vector<Ref> &types,
+                              const Map &bindings) {
   assert(1 <= types.size());
-  std::vector<Type::ref> new_types;
+  std::vector<Ref> new_types;
   for (int i = 1; i < types.size(); ++i) {
     new_types.push_back(types[i]->rebind(bindings));
   }
@@ -294,14 +294,13 @@ std::vector<Type::ref> rebind_tails(const std::vector<Type::ref> &types,
 
 void rebind_constraints(constraints_t::iterator iter,
                         const constraints_t::iterator &end,
-                        const Type::map &bindings) {
+                        const Map &bindings) {
   while (iter != end) {
     (*iter++).rebind(bindings);
   }
 }
 
-Unification unify_many(const types::Type::refs &as,
-                       const types::Type::refs &bs) {
+Unification unify_many(const types::Refs &as, const types::Refs &bs) {
   debug_above(8, log("unify_many([%s], [%s])", join_str(as, ", ").c_str(),
                      join_str(bs, ", ").c_str()));
   if (as.size() == 0 && bs.size() == 0) {

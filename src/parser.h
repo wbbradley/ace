@@ -77,7 +77,7 @@ bitter::Module *parse_module(ParseState &ps,
                              std::vector<bitter::Module *> auto_import_modules,
                              std::set<Identifier> &module_deps);
 
-types::Type::ref parse_type(ParseState &ps);
+types::Ref parse_type(ParseState &ps);
 bitter::Expr *parse_literal(ParseState &ps);
 bitter::Expr *parse_expr(ParseState &ps);
 bitter::Expr *parse_assignment(ParseState &ps);

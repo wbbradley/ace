@@ -118,9 +118,9 @@ Instance *prefix(const std::set<std::string> &bindings,
                       prefix(bindings, pre, instance->decls));
 }
 
-types::Type::ref prefix(const std::set<std::string> &bindings,
-                        std::string pre,
-                        types::Type::ref type) {
+types::Ref prefix(const std::set<std::string> &bindings,
+                  std::string pre,
+                  types::Ref type) {
   if (type == nullptr) {
     return nullptr;
   }
@@ -204,10 +204,10 @@ std::vector<Expr *> prefix(const std::set<std::string> &bindings,
   return new_values;
 }
 
-types::Type::map prefix(const std::set<std::string> &bindings,
-                        std::string pre,
-                        const types::Type::map &data_ctors) {
-  types::Type::map new_data_ctors;
+types::Map prefix(const std::set<std::string> &bindings,
+                  std::string pre,
+                  const types::Map &data_ctors) {
+  types::Map new_data_ctors;
   for (auto pair : data_ctors) {
     new_data_ctors[prefix(bindings, pre, pair.first)] = prefix(bindings, pre,
                                                                pair.second);
@@ -215,10 +215,10 @@ types::Type::map prefix(const std::set<std::string> &bindings,
   return new_data_ctors;
 }
 
-data_ctors_map_t prefix(const std::set<std::string> &bindings,
-                        std::string pre,
-                        const data_ctors_map_t &data_ctors_map) {
-  data_ctors_map_t new_data_ctors_map;
+DataCtorsMap prefix(const std::set<std::string> &bindings,
+                    std::string pre,
+                    const DataCtorsMap &data_ctors_map) {
+  DataCtorsMap new_data_ctors_map;
   for (auto pair : data_ctors_map) {
     new_data_ctors_map[prefix(bindings, pre, pair.first)] = prefix(
         bindings, pre, pair.second);
@@ -237,9 +237,9 @@ Module *prefix(const std::set<std::string> &bindings, Module *module) {
                     prefix(bindings, module->name, module->type_env));
 }
 
-types::Scheme::ref prefix(const std::set<std::string> &bindings,
+types::Scheme::Ref prefix(const std::set<std::string> &bindings,
                           std::string pre,
-                          types::Scheme::ref scheme) {
+                          types::Scheme::Ref scheme) {
   return ::scheme(scheme->vars, {},
                   // prefix(bindings, pre, scheme->predicates, false),
                   prefix(bindings, pre, scheme->type));

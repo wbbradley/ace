@@ -8,17 +8,15 @@
 
 struct Constraint {
   Constraint() = delete;
-  Constraint(types::Type::ref a, types::Type::ref b, Context &&context);
+  Constraint(types::Ref a, types::Ref b, Context &&context);
 
-  types::Type::ref a;
-  types::Type::ref b;
+  types::Ref a;
+  types::Ref b;
   Context context;
 
-  void rebind(const types::Type::map &env);
+  void rebind(const types::Map &env);
   std::string str() const;
 };
 typedef std::vector<Constraint> constraints_t;
-types::Type::ref infer(bitter::Expr *expr,
-                       Env &env,
-                       constraints_t &constraints);
+types::Ref infer(bitter::Expr *expr, Env &env, constraints_t &constraints);
 std::string str(const constraints_t &constraints);

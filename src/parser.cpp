@@ -1436,10 +1436,9 @@ Match *parse_match(ParseState &ps) {
   return new Match(scrutinee, pattern_blocks);
 }
 
-std::pair<Identifier, types::Type::ref> parse_lambda_param_core(
-    ParseState &ps) {
+std::pair<Identifier, types::Ref> parse_lambda_param_core(ParseState &ps) {
   auto param_token = ps.token_and_advance();
-  types::Type::ref type;
+  types::Ref type;
   if (token_begins_type(ps.token)) {
     type = parse_type(ps);
   }
@@ -1447,7 +1446,7 @@ std::pair<Identifier, types::Type::ref> parse_lambda_param_core(
   return {iid(param_token), type};
 }
 
-std::pair<Identifier, types::Type::ref> parse_lambda_param(ParseState &ps) {
+std::pair<Identifier, types::Ref> parse_lambda_param(ParseState &ps) {
   if (ps.token.tk == tk_lparen) {
     ps.advance();
     if (ps.token.tk == tk_identifier) {
@@ -1483,7 +1482,7 @@ Expr *parse_lambda(ParseState &ps) {
   } else if (ps.token.tk == tk_rparen) {
     ps.advance();
 
-    types::Type::ref return_type;
+    types::Ref return_type;
     if (token_begins_type(ps.token) && !ps.line_broke()) {
       return_type = parse_type(ps);
     }
@@ -1494,9 +1493,9 @@ Expr *parse_lambda(ParseState &ps) {
   }
 }
 
-types::Type::ref parse_function_type(ParseState &ps) {
+types::Ref parse_function_type(ParseState &ps) {
   chomp_token(tk_lparen);
-  types::Type::refs params;
+  types::Refs params;
   while (true) {
     if (ps.token.tk == tk_rparen) {
       ps.advance();
@@ -1521,9 +1520,9 @@ types::Type::ref parse_function_type(ParseState &ps) {
   return type_arrows(params);
 }
 
-types::Type::ref parse_tuple_type(ParseState &ps) {
+types::Ref parse_tuple_type(ParseState &ps) {
   chomp_token(tk_lparen);
-  std::vector<types::Type::ref> dims;
+  std::vector<types::Ref> dims;
   bool is_tuple = false;
   while (true) {
     if (ps.token.tk == tk_rparen) {
@@ -1552,7 +1551,7 @@ types::Type::ref parse_tuple_type(ParseState &ps) {
   }
 }
 
-types::Type::ref parse_square_type(ParseState &ps) {
+types::Ref parse_square_type(ParseState &ps) {
   auto location = ps.token.location;
   chomp_token(tk_lsquare);
   auto lhs = parse_type(ps);
@@ -1567,7 +1566,7 @@ types::Type::ref parse_square_type(ParseState &ps) {
   }
 }
 
-types::Type::ref parse_named_type(ParseState &ps) {
+types::Ref parse_named_type(ParseState &ps) {
   if (islower(ps.token.text[0])) {
     return type_variable(iid(ps.token_and_advance()));
   } else {
@@ -1575,9 +1574,9 @@ types::Type::ref parse_named_type(ParseState &ps) {
   }
 }
 
-types::Type::ref parse_type(ParseState &ps) {
+types::Ref parse_type(ParseState &ps) {
   /* look for type application */
-  std::vector<types::Type::ref> types;
+  std::vector<types::Ref> types;
   if (ps.line_broke()) {
     throw user_error(
         ps.token.location,
@@ -1639,9 +1638,9 @@ TypeDecl parse_type_decl(ParseState &ps) {
   return TypeDecl{class_id, params};
 }
 
-types::Type::ref create_ctor_type(Location location,
-                                  const TypeDecl &type_decl,
-                                  types::Type::refs param_types) {
+types::Ref create_ctor_type(Location location,
+                            const TypeDecl &type_decl,
+                            types::Refs param_types) {
   /* push the return type on as the final type */
   param_types.push_back(type_decl.get_type());
   auto type = type_arrows(param_types);
@@ -1655,7 +1654,7 @@ types::Type::ref create_ctor_type(Location location,
 Expr *create_ctor(Location location,
                   int ctor_id,
                   const TypeDecl &type_decl,
-                  types::Type::refs param_types) {
+                  types::Refs param_types) {
   std::vector<Expr *> dims;
   /* add the ctor's id value as the first element in the tuple */
   dims.push_back(
@@ -1687,11 +1686,11 @@ struct DataTypeDecl {
   std::vector<Decl *> decls;
 };
 
-DataTypeDecl parse_struct_decl(ParseState &ps, types::Type::map &data_ctors) {
+DataTypeDecl parse_struct_decl(ParseState &ps, types::Map &data_ctors) {
   TypeDecl type_decl = parse_type_decl(ps);
   std::vector<Decl *> decls;
-  types::Type::refs dims;
-  identifiers_t member_ids;
+  types::Refs dims;
+  Identifiers member_ids;
 
   member_ids.push_back(make_iid("ctor_id"));
   /* ctor_id */
@@ -1747,8 +1746,8 @@ DataTypeDecl parse_struct_decl(ParseState &ps, types::Type::map &data_ctors) {
 }
 
 DataTypeDecl parse_newtype_decl(ParseState &ps,
-                                types::Type::map &data_ctors,
-                                ctor_id_map_t &ctor_id_map) {
+                                types::Map &data_ctors,
+                                CtorIdMap &ctor_id_map) {
   expect_token(tk_identifier);
   Token type_name = ps.token;
   TypeDecl type_decl = parse_type_decl(ps);
@@ -1761,10 +1760,10 @@ DataTypeDecl parse_newtype_decl(ParseState &ps,
   }
 
   chomp_token(tk_identifier);
-  types::Type::ref rhs_type = parse_type(ps);
+  types::Ref rhs_type = parse_type(ps);
 
   Decl *decl;
-  std::vector<types::Type::ref> ctor_parts;
+  std::vector<types::Ref> ctor_parts;
   if (auto tuple_type = dyncast<const types::TypeTuple>(rhs_type)) {
     debug_above(3, log("build decl for tuple newtype ctor :: " c_id("%s") "%s",
                        type_name.text.c_str(), tuple_type->str().c_str()));
@@ -1806,7 +1805,7 @@ DataTypeDecl parse_newtype_decl(ParseState &ps,
   /* because this is a newtype, we need to remember the type mapping within the
    * type environment for reference later in pattern matching, and in code
    * generation. */
-  types::Type::ref body = rhs_type;
+  types::Ref body = rhs_type;
   for (auto param : type_decl.params) {
     body = type_lambda(param, body);
   }
@@ -1818,14 +1817,14 @@ DataTypeDecl parse_newtype_decl(ParseState &ps,
 }
 
 DataTypeDecl parse_data_type_decl(ParseState &ps,
-                                  types::Type::map &data_ctors,
-                                  ctor_id_map_t &ctor_id_map) {
+                                  types::Map &data_ctors,
+                                  CtorIdMap &ctor_id_map) {
   TypeDecl type_decl = parse_type_decl(ps);
 
   chomp_token(tk_lcurly);
   struct DataCtorParts {
     Token ctor_token;
-    types::Type::refs param_types;
+    types::Refs param_types;
   };
   std::list<std::unique_ptr<DataCtorParts>> data_ctors_parts;
 
@@ -1904,7 +1903,7 @@ DataTypeDecl parse_data_type_decl(ParseState &ps,
 
 Instance *parse_type_class_instance(ParseState &ps) {
   Identifier type_class_id = ps.identifier_and_advance();
-  types::Type::ref type = parse_type(ps);
+  types::Ref type = parse_type(ps);
   chomp_token(tk_lcurly);
 
   std::vector<Decl *> decls;
@@ -1954,11 +1953,10 @@ TypeClass *parse_type_class(ParseState &ps) {
 
   chomp_token(tk_lcurly);
   types::ClassPredicates class_predicates;
-  types::Type::map overloads;
+  types::Map overloads;
   while (true) {
     if (ps.token.is_ident(K(has))) {
       ps.advance();
-
 
       expect_token(tk_identifier);
       if (!isupper(ps.token.text[0])) {
@@ -1966,11 +1964,21 @@ TypeClass *parse_type_class(ParseState &ps) {
                          "type class requirements need to be upper-case "
                          "because type classes need to be uppercase");
       }
-      if (in(ps.token.text, superclasses)) {
-        throw user_error(ps.token.location,
-                         "type class requirement mentioned more than once");
+      std::string classname = ps.token_and_advance().text;
+      Identifiers ftvs;
+
+      while (!ps.line_broke() && ps.token.tk == tk_identifier) {
+        if (islower(ps.token.text[0])) {
+          ftvs.push_back(Identifier::from_token(ps.token));
+        } else {
+          throw user_error(ps.token.location,
+                           "illegal type reference (" C_TYPE "%s" C_RESET
+                           ") in class predicate",
+                           ps.token.text.c_str());
+        }
       }
-      superclasses.insert(ps.identifier_and_advance().name);
+      
+      class_predicates.insert(std::make_shared<ClassPredicate>(classname, ftvs));
     } else if (ps.token.is_ident(K(fn))) {
       /* an overloaded function */
       ps.advance();
@@ -1981,7 +1989,7 @@ TypeClass *parse_type_class(ParseState &ps) {
       auto predicates = superclasses;
       predicates.insert(type_decl.id.name);
 
-      types::Type::map bindings;
+      types::Map bindings;
       bindings[type_decl.params[0].name] =
       type_variable(gensym(type_decl.params[0].location), predicates);
       */
@@ -1993,7 +2001,7 @@ TypeClass *parse_type_class(ParseState &ps) {
     }
   }
 
-  return new TypeClass(type_decl.id, type_decl.params[0], superclasses,
+  return new TypeClass(type_decl.id, type_decl.params[0], class_predicates,
                        overloads);
 }
 
@@ -2069,7 +2077,7 @@ Module *parse_module(ParseState &ps,
       decls.push_back(new Decl(id, parse_lambda(ps)));
     } else if (ps.token.is_ident(K(struct))) {
       ps.advance();
-      types::Type::map data_ctors;
+      types::Map data_ctors;
       auto data_type = parse_struct_decl(ps, data_ctors);
       type_decls.push_back(data_type.type_decl);
       for (auto &decl : data_type.decls) {
@@ -2079,7 +2087,7 @@ Module *parse_module(ParseState &ps,
     } else if (ps.token.is_ident(K(newtype))) {
       /* module-level newtypes */
       ps.advance();
-      types::Type::map data_ctors;
+      types::Map data_ctors;
       DataTypeDecl data_type = parse_newtype_decl(ps, data_ctors,
                                                   ps.ctor_id_map);
       type_decls.push_back(data_type.type_decl);
@@ -2090,7 +2098,7 @@ Module *parse_module(ParseState &ps,
     } else if (ps.token.is_ident(K(data))) {
       /* module-level data types */
       ps.advance();
-      types::Type::map data_ctors;
+      types::Map data_ctors;
       DataTypeDecl data_type = parse_data_type_decl(ps, data_ctors,
                                                     ps.ctor_id_map);
       type_decls.push_back(data_type.type_decl);
