@@ -32,5 +32,5 @@ Pattern::ref pattern_union(Pattern::ref lhs, Pattern::ref rhs);
 Pattern::ref all_of(Location location,
                     maybe<Identifier> expr,
                     const TranslationEnv &env,
-                    types::Type::ref type);
+                    types::Ref type);
 } // namespace match

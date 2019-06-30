@@ -4,10 +4,10 @@
 #include "types.h"
 
 struct TypedId {
-  TypedId(Identifier id, types::Type::ref type) : id(id), type(type) {
+  TypedId(Identifier id, types::Ref type) : id(id), type(type) {
   }
   Identifier const id;
-  types::Type::ref const type;
+  types::Ref const type;
 
 private:
   mutable std::string cached_repr;

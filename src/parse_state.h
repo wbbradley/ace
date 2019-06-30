@@ -44,9 +44,9 @@ struct ParseState {
 
   std::vector<Token> &comments;
   std::set<LinkIn> &link_ins;
-  ctor_id_map_t ctor_id_map;
-  data_ctors_map_t data_ctors_map;
-  types::type_env_t type_env;
+  CtorIdMap ctor_id_map;
+  DataCtorsMap data_ctors_map;
+  types::TypeEnv type_env;
 
   /* scoped expression contexts */
   std::list<Scope> scopes;

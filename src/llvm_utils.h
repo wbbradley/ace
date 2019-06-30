@@ -13,21 +13,20 @@ llvm::Constant *llvm_create_constant_struct_instance(
     llvm::StructType *llvm_struct_type,
     std::vector<llvm::Constant *> llvm_struct_data);
 
-llvm::FunctionType *get_llvm_arrow_function_type(
-    llvm::IRBuilder<> &builder,
-    const types::type_env_t &type_env,
-    const types::Type::refs &terms);
+llvm::FunctionType *get_llvm_arrow_function_type(llvm::IRBuilder<> &builder,
+                                                 const types::TypeEnv &type_env,
+                                                 const types::Refs &terms);
 
 llvm::Type *get_llvm_closure_type(llvm::IRBuilder<> &builder,
-                                  const types::type_env_t &type_env,
-                                  const types::Type::refs &terms);
+                                  const types::TypeEnv &type_env,
+                                  const types::Refs &terms);
 
 std::vector<llvm::Type *> get_llvm_types(llvm::IRBuilder<> &builder,
-                                         const types::type_env_t &type_env,
-                                         const types::Type::refs &types);
+                                         const types::TypeEnv &type_env,
+                                         const types::Refs &types);
 llvm::Type *get_llvm_type(llvm::IRBuilder<> &builder,
-                          const types::type_env_t &type_env,
-                          const types::Type::ref &type);
+                          const types::TypeEnv &type_env,
+                          const types::Ref &type);
 
 llvm::Value *llvm_create_bool(llvm::IRBuilder<> &builder, bool value);
 llvm::ConstantInt *llvm_create_int(llvm::IRBuilder<> &builder, int64_t value);
@@ -54,16 +53,16 @@ std::string llvm_print(llvm::Type *llvm_type);
 std::string llvm_print_function(llvm::Function *llvm_function);
 
 llvm::AllocaInst *llvm_create_entry_block_alloca(llvm::Function *llvm_function,
-                                                 types::type_env_t &type_env,
-                                                 types::Type::ref type,
+                                                 types::TypeEnv &type_env,
+                                                 types::Ref type,
                                                  std::string var_name);
 
 llvm::Value *_llvm_resolve_alloca(llvm::IRBuilder<> &builder,
                                   llvm::Value *llvm_value);
 llvm::Type *llvm_resolve_type(llvm::Value *llvm_value);
 llvm::StructType *llvm_create_struct_type(llvm::IRBuilder<> &builder,
-                                          types::type_env_t &type_env,
-                                          const types::Type::refs &dimensions);
+                                          types::TypeEnv &type_env,
+                                          const types::Refs &dimensions);
 llvm::StructType *llvm_create_struct_type(
     llvm::IRBuilder<> &builder,
     const std::vector<llvm::Type *> &llvm_types);
@@ -80,7 +79,7 @@ llvm::Value *llvm_maybe_pointer_cast(llvm::IRBuilder<> &builder,
                                      llvm::Type *llvm_type);
 llvm::Value *llvm_maybe_pointer_cast(llvm::IRBuilder<> &builder,
                                      llvm::Value *llvm_value,
-                                     const types::Type::ref &bound_type);
+                                     const types::Ref &bound_type);
 llvm::Value *llvm_int_cast(llvm::IRBuilder<> &builder,
                            llvm::Value *llvm_value,
                            llvm::Type *llvm_type);
@@ -119,7 +118,7 @@ llvm::CallInst *llvm_create_call_inst(llvm::IRBuilder<> &builder,
                                       std::vector<llvm::Value *> llvm_values);
 
 void get_llvm_function_type_parts(llvm::IRBuilder<> &builder,
-                                  const types::Type::refs &type_terms,
+                                  const types::Refs &type_terms,
                                   std::vector<llvm::Type *> *llvm_param_types,
                                   llvm::Type **llvm_return_type);
 

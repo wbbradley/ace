@@ -28,7 +28,7 @@ Location StrictResolver::get_location() const {
 }
 
 LazyResolver::LazyResolver(std::string name,
-                           types::Type::ref type,
+                           types::Ref type,
                            lazy_resolver_callback_t &&callback)
     : sort_color(sc_unresolved), name(name), type(type),
       callback(std::move(callback)) {

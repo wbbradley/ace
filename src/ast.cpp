@@ -388,8 +388,8 @@ Identifier IrrefutablePredicate::instantiate_name_assignment() const {
   }
 }
 
-types::Type::ref TypeDecl::get_type() const {
-  std::vector<types::Type::ref> types;
+types::Ref TypeDecl::get_type() const {
+  std::vector<types::Ref> types;
   assert(isupper(id.name[0]));
   types.push_back(type_id(id));
   for (auto param : params) {
@@ -412,6 +412,14 @@ std::string Decl::str() const {
 
 Location Decl::get_location() const {
   return var.location;
+}
+
+TypeClass::TypeClass(Identifier id,
+                     Identifiers type_var_ids,
+                     const ClassPredicates &class_predicates,
+                     const types::Map &overloads)
+    : id(id), type_var_id(type_var_id), class_predicates(class_predicates),
+      overloads(overloads) {
 }
 
 std::string TypeClass::str() const {
