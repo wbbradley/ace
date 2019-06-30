@@ -415,18 +415,20 @@ Location Decl::get_location() const {
 }
 
 TypeClass::TypeClass(Identifier id,
-                     Identifiers type_var_ids,
-                     const ClassPredicates &class_predicates,
+                     const Identifiers &type_var_ids,
+                     const types::ClassPredicates &class_predicates,
                      const types::Map &overloads)
-    : id(id), type_var_id(type_var_id), class_predicates(class_predicates),
+    : id(id), type_var_ids(type_var_ids), class_predicates(class_predicates),
       overloads(overloads) {
 }
 
 std::string TypeClass::str() const {
   return string_format(
-      "class %s %s {\n\t%s%s\n}", id.name.c_str(), type_var_id.name.c_str(),
-      superclasses.size() != 0
-          ? string_format("has %s\n\t", join(superclasses, ", ").c_str())
+      "class %s %s {\n\t%s%s\n}", id.name.c_str(),
+      join_with(type_var_ids, " ", [](const Identifier &id) { return id.name; })
+          .c_str(),
+      class_predicates.size() != 0
+          ? string_format("has %s\n\t", join(class_predicates, ", ").c_str())
                 .c_str()
           : "",
       ::str(overloads).c_str());

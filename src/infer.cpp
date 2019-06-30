@@ -14,7 +14,7 @@ Constraint::Constraint(types::Ref a, types::Ref b, Context &&context)
     : a(a), b(b), context(std::move(context)) {
 }
 
-void append(constraints_t &constraints,
+void append(Constraints &constraints,
             types::Ref a,
             types::Ref b,
             Context &&context) {
@@ -29,7 +29,7 @@ void append(constraints_t &constraints,
   constraints.push_back({a, b, std::move(context)});
 }
 
-types::Ref infer_core(Expr *expr, Env &env, constraints_t &constraints) {
+types::Ref infer_core(Expr *expr, Env &env, Constraints &constraints) {
   debug_above(8, log("infer(%s, ..., ...)", expr->str().c_str()));
   if (auto literal = dcast<Literal *>(expr)) {
     return literal->non_tracking_infer();
@@ -217,11 +217,11 @@ types::Ref infer_core(Expr *expr, Env &env, constraints_t &constraints) {
                    expr->str().c_str());
 }
 
-types::Ref infer(Expr *expr, Env &env, constraints_t &constraints) {
+types::Ref infer(Expr *expr, Env &env, Constraints &constraints) {
   return env.track(expr, infer_core(expr, env, constraints));
 }
 
-types::Ref Literal::tracking_infer(Env &env, constraints_t &constraints) const {
+types::Ref Literal::tracking_infer(Env &env, Constraints &constraints) const {
   return env.track(this, non_tracking_infer());
 }
 
@@ -241,7 +241,7 @@ types::Ref Literal::non_tracking_infer() const {
 }
 
 types::Ref TuplePredicate::tracking_infer(Env &env,
-                                          constraints_t &constraints) const {
+                                          Constraints &constraints) const {
   types::Refs types;
   for (auto param : params) {
     types.push_back(param->tracking_infer(env, constraints));
@@ -251,7 +251,7 @@ types::Ref TuplePredicate::tracking_infer(Env &env,
 
 types::Ref IrrefutablePredicate::tracking_infer(
     Env &env,
-    constraints_t &constraints) const {
+    Constraints &constraints) const {
   auto tv = type_variable(location);
   if (name_assignment.valid) {
     env.extend(name_assignment.t, scheme({}, {}, tv),
@@ -261,7 +261,7 @@ types::Ref IrrefutablePredicate::tracking_infer(
 }
 
 types::Ref CtorPredicate::tracking_infer(Env &env,
-                                         constraints_t &constraints) const {
+                                         Constraints &constraints) const {
   types::Refs ctor_params = env.get_fresh_data_ctor_terms(ctor_name);
 
   debug_above(8, log("got fresh ctor params %s :: %s", ctor_name.str().c_str(),
@@ -299,7 +299,7 @@ std::string Constraint::str() const {
                        b->str().c_str(), context.message.c_str());
 }
 
-std::string str(const constraints_t &constraints) {
+std::string str(const Constraints &constraints) {
   std::stringstream ss;
   ss << "[";
   const char *delim = "";

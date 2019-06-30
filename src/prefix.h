@@ -33,7 +33,13 @@ bitter::TypeDecl prefix(const std::set<std::string> &bindings,
 bitter::TypeClass *prefix(const std::set<std::string> &bindings,
                           std::string pre,
                           bitter::TypeClass *type_class);
-
+types::ClassPredicateRef prefix(
+    const std::set<std::string> &bindings,
+    std::string pre,
+    const types::ClassPredicateRef &class_predicate);
+types::ClassPredicates prefix(const std::set<std::string> &bindings,
+                              std::string pre,
+                              const types::ClassPredicates &class_predicates);
 types::Ref prefix(const std::set<std::string> &bindings,
                   std::string pre,
                   types::Ref type);

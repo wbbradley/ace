@@ -3,12 +3,13 @@
 #include <iostream>
 
 #include "ast.h"
+#include "class_predicate.h"
 #include "types.h"
 #include "user_error.h"
 
 Env::Env(const types::Scheme::Map &map,
          const std::shared_ptr<const types::Type> &return_type,
-         const std::vector<InstanceRequirement> &instance_requirements,
+         const types::ClassPredicates &instance_requirements,
          std::shared_ptr<TrackedTypes> tracked_types,
          const CtorIdMap &ctor_id_map,
          const DataCtorsMap &data_ctors_map)
@@ -55,12 +56,9 @@ void Env::rebind_env(const types::Map &bindings) {
   for (auto pair : map) {
     map[pair.first] = pair.second->rebind(bindings);
   }
-  std::vector<InstanceRequirement> new_instance_requirements;
-  for (auto &ir : instance_requirements) {
-    new_instance_requirements.push_back(InstanceRequirement{
-        ir.type_class_name, ir.location, ir.type->rebind(bindings)});
-  }
-  std::swap(instance_requirements, new_instance_requirements);
+  /* rebind the class predicates */
+  instance_requirements = types::rebind(instance_requirements, bindings);
+
   assert(tracked_types != nullptr);
   TrackedTypes temp_tracked_types;
 
@@ -95,12 +93,12 @@ types::Ref Env::maybe_get_tracked_type(bitter::Expr *expr) const {
   return (iter != tracked_types->end()) ? iter->second : nullptr;
 }
 
-void Env::add_instance_requirement(const InstanceRequirement &ir) {
-  debug_above(6,
-              log_location(log_info, ir.location,
-                           "adding type class requirement for %s %s",
-                           ir.type_class_name.c_str(), ir.type->str().c_str()));
-  instance_requirements.push_back(ir);
+void Env::add_instance_requirement(const types::ClassPredicateRef &ir) {
+  debug_above(6, log_location(log_info, ir->classname.location,
+                              "adding type class requirement for %s %s",
+                              ir->classname.name.c_str(),
+                              join_str(ir->params, " ").c_str()));
+  instance_requirements.insert(ir);
 }
 
 void Env::extend(Identifier id,
@@ -118,15 +116,7 @@ void Env::extend(Identifier id,
 }
 
 types::ClassPredicates Env::get_predicate_map() const {
-  assert(false);
-  return {};
-#if 0
-  types::ClassPredicates predicates;
-  for (auto pair : map) {
-    mutating_merge(pair.second->get_predicate_map(), predicates);
-  }
-  return predicates;
-#endif
+  return instance_requirements;
 }
 
 std::string str(const types::Scheme::Map &m) {
@@ -146,23 +136,8 @@ std::string Env::str() const {
   if (return_type != nullptr) {
     ss << ", return_type: (" << return_type->str() << ")";
   }
-  if (instance_requirements.size() != 0) {
-    ss << ", instance_requirements: ["
-       << join_with(instance_requirements, ", ",
-                    [](const InstanceRequirement &ir) {
-                      std::stringstream ss;
-                      ss << "{" << ir.type_class_name << ", " << ir.location
-                         << ", " << ir.type->str() << "}";
-                      return ss.str();
-                    })
-       << "]";
-  }
-  ss << "}";
-  return ss.str();
-}
-
-std::string InstanceRequirement::str() const {
-  std::stringstream ss;
-  ss << type_class_name << " " << type;
+  ss << ", instance_requirements: [" << join_str(instance_requirements, ", ")
+     << "]"
+     << "}";
   return ss.str();
 }

@@ -6,6 +6,7 @@
 #include <string>
 
 #include "ast.h"
+#include "class_predicate.h"
 #include "compiler.h"
 #include "disk.h"
 #include "host.h"
@@ -1964,7 +1965,7 @@ TypeClass *parse_type_class(ParseState &ps) {
                          "type class requirements need to be upper-case "
                          "because type classes need to be uppercase");
       }
-      std::string classname = ps.token_and_advance().text;
+      Identifier classname = Identifier::from_token(ps.token_and_advance());
       Identifiers ftvs;
 
       while (!ps.line_broke() && ps.token.tk == tk_identifier) {
@@ -1977,31 +1978,22 @@ TypeClass *parse_type_class(ParseState &ps) {
                            ps.token.text.c_str());
         }
       }
-      
-      class_predicates.insert(std::make_shared<ClassPredicate>(classname, ftvs));
+
+      class_predicates.insert(
+          std::make_shared<types::ClassPredicate>(classname, ftvs));
     } else if (ps.token.is_ident(K(fn))) {
       /* an overloaded function */
       ps.advance();
       auto id = Identifier{ps.token.text, ps.token.location};
       ps.advance();
-
-      /*
-      auto predicates = superclasses;
-      predicates.insert(type_decl.id.name);
-
-      types::Map bindings;
-      bindings[type_decl.params[0].name] =
-      type_variable(gensym(type_decl.params[0].location), predicates);
-      */
-      overloads[id.name] = parse_function_type(
-          ps); // ->rebind(bindings)->generalize({})->normalize();
+      overloads[id.name] = parse_function_type(ps);
     } else {
       chomp_token(tk_rcurly);
       break;
     }
   }
 
-  return new TypeClass(type_decl.id, type_decl.params[0], class_predicates,
+  return new TypeClass(type_decl.id, type_decl.params, class_predicates,
                        overloads);
 }
 

@@ -23,9 +23,9 @@ struct Identifier {
 
   bool operator<(const Identifier &rhs) const;
 };
-using identifiers_t = std::vector<Identifier>;
+using Identifiers = std::vector<Identifier>;
 
-std::string str(identifiers_t ids);
+std::string str(Identifiers ids);
 
 #define make_iid(name_)                                                        \
   Identifier {                                                                 \
@@ -43,7 +43,7 @@ template <> struct hash<Identifier> {
 };
 } // namespace std
 
-std::set<Identifier> to_set(const identifiers_t &identifiers);
-std::set<std::string> to_atom_set(const identifiers_t &refs);
+std::set<Identifier> to_set(const Identifiers &identifiers);
+std::set<std::string> to_atom_set(const Identifiers &refs);
 
 std::ostream &operator<<(std::ostream &os, const Identifier &rhs);

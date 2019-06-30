@@ -4,6 +4,7 @@
 #include <sstream>
 
 #include "ast.h"
+#include "class_predicate.h"
 #include "dbg.h"
 #include "env.h"
 #include "parens.h"
@@ -40,40 +41,17 @@ std::string get_name_from_index(const types::NameIndex &name_index, int i) {
   return name;
 }
 
-void mutating_merge(const types::ClassPredicates::value_type &pair,
-                    types::ClassPredicates &c) {
-  if (!in(pair.first, c)) {
-    c.insert(pair);
-  } else {
-    for (auto predicate : pair.second) {
-      c[pair.first].insert(predicate);
-    }
-  }
-}
 void mutating_merge(const types::ClassPredicates &a,
                     types::ClassPredicates &c) {
-  for (auto pair : a) {
-    mutating_merge(pair, c);
+  for (auto class_predicate : a) {
+    c.insert(class_predicate);
   }
 }
 
-types::ClassPredicates merge(const types::ClassPredicates &a,
+types::ClassPredicates merge(types::ClassPredicates a,
                              const types::ClassPredicates &b) {
-  types::ClassPredicates c;
-  mutating_merge(a, c);
-  mutating_merge(b, c);
-  return c;
-}
-
-types::ClassPredicates safe_merge(const types::ClassPredicates &a,
-                                  const types::ClassPredicates &b) {
-  types::ClassPredicates c;
-  mutating_merge(a, c);
-  for (auto pair : b) {
-    assert(!in(pair.first, c));
-  }
-  mutating_merge(b, c);
-  return c;
+  mutating_merge(b, a);
+  return a;
 }
 
 namespace types {
@@ -99,14 +77,14 @@ const Ftvs &Type::get_ftvs() const {
 }
 
 std::string Type::str() const {
-  return str(map{});
+  return str(Map{});
 }
 
-std::string Type::str(const map &bindings) const {
+std::string Type::str(const Map &bindings) const {
   return string_format(c_type("%s"), this->repr(bindings).c_str());
 }
 
-std::string Type::repr(const map &bindings) const {
+std::string Type::repr(const Map &bindings) const {
   std::stringstream ss;
   emit(ss, bindings, 0);
   return ss.str();
@@ -157,14 +135,9 @@ TypeId::TypeId(Identifier id) : id(id) {
 }
 
 std::ostream &TypeId::emit(std::ostream &os,
-                           const map &bindings,
+                           const Map &bindings,
                            int parent_precedence) const {
   return os << id.name;
-}
-
-int TypeId::ftv_count() const {
-  /* how many free type variables exist in this type? */
-  return 0;
 }
 
 void TypeId::compute_ftvs() const {
@@ -176,7 +149,7 @@ Ref TypeId::eval(const TypeEnv &type_env) const {
   return get(type_env, id.name, shared_from_this());
 }
 
-Ref TypeId::rebind(const map &bindings) const {
+Ref TypeId::rebind(const Map &bindings) const {
   return shared_from_this();
 }
 
@@ -210,25 +183,15 @@ TypeVariable::TypeVariable(Location location) : id(gensym(location)) {
 }
 
 std::ostream &TypeVariable::emit(std::ostream &os,
-                                 const map &bindings,
+                                 const Map &bindings,
                                  int parent_precedence) const {
   auto instance_iter = bindings.find(id.name);
   if (instance_iter != bindings.end()) {
     assert(instance_iter->second != shared_from_this());
     return instance_iter->second->emit(os, bindings, parent_precedence);
   } else {
-    if (predicates.size() == 0) {
-      return os << string_format("%s", id.name.c_str());
-    } else {
-      return os << string_format("%s|[%s]", id.name.c_str(),
-                                 join(predicates, ", ").c_str());
-    }
+    return os << string_format("%s", id.name.c_str());
   }
-}
-
-/* how many free type variables exist in this type? */
-int TypeVariable::ftv_count() const {
-  return 1;
 }
 
 void TypeVariable::compute_ftvs() const {
@@ -239,7 +202,7 @@ Ref TypeVariable::eval(const TypeEnv &type_env) const {
   return shared_from_this();
 }
 
-Ref TypeVariable::rebind(const map &bindings) const {
+Ref TypeVariable::rebind(const Map &bindings) const {
   return get(bindings, id.name, shared_from_this());
 }
 
@@ -252,7 +215,7 @@ Ref TypeVariable::remap_vars(
 
 Ref TypeVariable::prefix_ids(const std::set<std::string> &bindings,
                              const std::string &pre) const {
-  return type_variable(id, prefix(bindings, pre, predicates));
+  return shared_from_this();
 }
 
 Location TypeVariable::get_location() const {
@@ -264,7 +227,7 @@ TypeOperator::TypeOperator(Ref oper, Ref operand)
 }
 
 std::ostream &TypeOperator::emit(std::ostream &os,
-                                 const map &bindings,
+                                 const Map &bindings,
                                  int parent_precedence) const {
   if (is_type_id(oper->rebind(bindings), VECTOR_TYPE)) {
     os << "[";
@@ -290,10 +253,6 @@ std::ostream &TypeOperator::emit(std::ostream &os,
   }
 }
 
-int TypeOperator::ftv_count() const {
-  return oper->ftv_count() + operand->ftv_count();
-}
-
 Ref TypeOperator::eval(const TypeEnv &type_env) const {
   if (type_env.size() == 0) {
     return shared_from_this();
@@ -306,7 +265,7 @@ Ref TypeOperator::eval(const TypeEnv &type_env) const {
   return shared_from_this();
 }
 
-Ref TypeOperator::rebind(const map &bindings) const {
+Ref TypeOperator::rebind(const Map &bindings) const {
   if (bindings.size() == 0) {
     return shared_from_this();
   }
@@ -339,7 +298,7 @@ TypeTuple::TypeTuple(Location location, const Refs &dimensions)
 }
 
 std::ostream &TypeTuple::emit(std::ostream &os,
-                              const map &bindings,
+                              const Map &bindings,
                               int parent_precedence) const {
   os << "(";
   join_dimensions(os, dimensions, {}, bindings);
@@ -349,21 +308,13 @@ std::ostream &TypeTuple::emit(std::ostream &os,
   return os << ")";
 }
 
-int TypeTuple::ftv_count() const {
-  int ftv_sum = 0;
-  for (auto dimension : dimensions) {
-    ftv_sum += dimension->ftv_count();
-  }
-  return ftv_sum;
-}
-
 Ref TypeTuple::eval(const TypeEnv &type_env) const {
   if (type_env.size() == 0) {
     return shared_from_this();
   }
 
   bool anything_affected = false;
-  refs type_dimensions;
+  Refs type_dimensions;
   for (auto dimension : dimensions) {
     auto new_dim = dimension->eval(type_env);
     if (new_dim != dimension) {
@@ -379,13 +330,13 @@ Ref TypeTuple::eval(const TypeEnv &type_env) const {
   }
 }
 
-Ref TypeTuple::rebind(const map &bindings) const {
+Ref TypeTuple::rebind(const Map &bindings) const {
   if (bindings.size() == 0) {
     return shared_from_this();
   }
 
   bool anything_was_rebound = false;
-  refs type_dimensions;
+  Refs type_dimensions;
   for (auto dimension : dimensions) {
     auto new_dim = dimension->rebind(bindings);
     if (new_dim != dimension) {
@@ -403,7 +354,7 @@ Ref TypeTuple::rebind(const map &bindings) const {
 
 Ref TypeTuple::remap_vars(const std::map<std::string, std::string> &map) const {
   bool anything_was_rebound = false;
-  refs type_dimensions;
+  Refs type_dimensions;
   for (auto dimension : dimensions) {
     auto new_dim = dimension->remap_vars(map);
     if (new_dim != dimension) {
@@ -422,7 +373,7 @@ Ref TypeTuple::remap_vars(const std::map<std::string, std::string> &map) const {
 Ref TypeTuple::prefix_ids(const std::set<std::string> &bindings,
                           const std::string &pre) const {
   bool anything_was_rebound = false;
-  refs type_dimensions;
+  Refs type_dimensions;
   for (auto dimension : dimensions) {
     auto new_dim = dimension->prefix_ids(bindings, pre);
     if (new_dim != dimension) {
@@ -448,41 +399,34 @@ TypeLambda::TypeLambda(Identifier binding, Ref body)
 }
 
 std::ostream &TypeLambda::emit(std::ostream &os,
-                               const map &bindings_,
+                               const Map &bindings_,
                                int parent_precedence) const {
   Parens parens(os, parent_precedence, get_precedence());
 
   auto var_name = binding.name;
   auto new_name = gensym(get_location());
   os << "Λ " << new_name.name << " . ";
-  map bindings = bindings_;
+  Map bindings = bindings_;
   bindings[var_name] = type_id(new_name);
   body->emit(os, bindings, get_precedence());
   return os;
 }
 
-int TypeLambda::ftv_count() const {
-  /* pretend this is getting applied */
-  map bindings;
-  bindings[binding.name] = type_bottom();
-  return body->rebind(bindings)->ftv_count();
-}
-
 void TypeLambda::compute_ftvs() const {
   assert(false);
 #if 0
-		map bindings;
+		Map bindings;
 		bindings[binding.name] = type_bottom();
 		return body->rebind(bindings)->get_predicate_map();
 #endif
 }
 
-Ref TypeLambda::rebind(const map &bindings_) const {
+Ref TypeLambda::rebind(const Map &bindings_) const {
   if (bindings_.size() == 0) {
     return shared_from_this();
   }
 
-  map bindings = bindings_;
+  Map bindings = bindings_;
   auto binding_iter = bindings.find(binding.name);
   if (binding_iter != bindings.end()) {
     bindings.erase(binding_iter);
@@ -521,7 +465,7 @@ Ref TypeLambda::prefix_ids(const std::set<std::string> &bindings,
 }
 
 Ref TypeLambda::apply(types::Ref type) const {
-  map bindings;
+  Map bindings;
   bindings[binding.name] = type;
   return body->rebind(bindings);
 }
@@ -555,11 +499,17 @@ Refs rebind(const Refs &types, const Map &bindings) {
 }
 
 types::Ref Scheme::instantiate(Location location) {
-  Map subst;
+  types::Map subst;
   for (auto var : vars) {
-    subst[var] = type_variable(gensym(location), predicates.count(var)
-                                                     ? predicates.at(var)
-                                                     : std::set<std::string>{});
+#ifdef ZION_DEBUG
+    bool ret =
+#endif
+
+        subst.insert({var, type_variable(gensym(location))});
+
+#ifdef ZION_DEBUG
+    assert(ret);
+#endif
   }
   return type->rebind(subst);
 }
@@ -583,18 +533,14 @@ Scheme::Ref Scheme::rebind(const types::Map &bindings) {
 
 Scheme::Ref Scheme::normalize() {
   std::map<std::string, std::string> ord;
-  ClassPredicates pm;
 
   int counter = 0;
   for (auto &ftv : type->get_ftvs()) {
     auto new_name = alphabetize(counter++);
     ord[ftv] = new_name;
-    if (in(ftv, predicates)) {
-      assert(predicates.count(ftv));
-      pm[new_name] = predicates.at(ftv);
-    }
   }
-  return scheme(values(ord), pm, type->remap_vars(ord));
+  return scheme(values(ord), types::remap_vars(predicates, ord),
+                type->remap_vars(ord));
 }
 
 std::string Scheme::str() const {
@@ -616,11 +562,13 @@ std::string Scheme::repr() const {
 }
 
 int Scheme::btvs() const {
-  int sum = 0;
-  for (auto pair : predicates) {
-    sum += pair.second.size();
+  /* get the number of type variables that are predicated */
+  const Ftvs &ftvs = type->get_ftvs();
+  Ftvs predicated_tvs;
+  for (auto &cp: predicates) {
+    set_merge(predicated_tvs, cp->get_ftvs());
   }
-  return sum;
+  return set_intersect(ftvs, predicated_tvs).size();
 }
 
 Location Scheme::get_location() const {
@@ -629,8 +577,8 @@ Location Scheme::get_location() const {
 
 Ref unitize(Ref type) {
   Map bindings;
-  for (auto &pair : type->get_predicate_map()) {
-    bindings[pair.first] = type_unit(INTERNAL_LOC());
+  for (auto &ftv : type->get_ftvs()) {
+    bindings[ftv] = type_unit(INTERNAL_LOC());
     debug_above(6, log("assigning %s binding for [%s] to %s",
                        pair.first.c_str(), join(pair.second).c_str(),
                        bindings.at(pair.first)->str().c_str()));
@@ -650,27 +598,14 @@ bool is_callable(const Ref &t) {
   return false;
 }
 
-std::unordered_set<std::string> get_ftvs(const types::Ref &type) {
-  std::unordered_set<std::string> ftvs;
-  for (auto &pair : type->get_predicate_map()) {
-    ftvs.insert(pair.first);
-  }
-  return ftvs;
-}
-
 } // namespace types
 
 types::Ref type_id(Identifier id) {
   return std::make_shared<types::TypeId>(id);
 }
 
-types::Ref type_variable(Identifier id) {
+types::Ref type_variable(const Identifier &id) {
   return std::make_shared<types::TypeVariable>(id);
-}
-
-types::Ref type_variable(Identifier id,
-                         const std::set<std::string> &predicates) {
-  return std::make_shared<types::TypeVariable>(id, predicates);
 }
 
 types::Ref type_variable(Location location) {
@@ -806,11 +741,11 @@ std::ostream &operator<<(std::ostream &os, const types::Ref &type) {
   return os;
 }
 
-std::string str(types::Refs refs) {
+std::string str(types::Refs Refs) {
   std::stringstream ss;
   ss << "(";
   const char *sep = "";
-  for (auto p : refs) {
+  for (auto p : Refs) {
     ss << sep << p->str();
     sep = ", ";
   }
