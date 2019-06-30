@@ -17,6 +17,7 @@ struct Constraint {
   void rebind(const types::Map &env);
   std::string str() const;
 };
-typedef std::vector<Constraint> constraints_t;
-types::Ref infer(bitter::Expr *expr, Env &env, constraints_t &constraints);
-std::string str(const constraints_t &constraints);
+
+typedef std::vector<Constraint> Constraints;
+types::Ref infer(bitter::Expr *expr, Env &env, Constraints &constraints);
+std::string str(const Constraints &constraints);

@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "types.h"
+#include "identifier.h"
 
 namespace types {
 
@@ -12,13 +13,16 @@ struct ClassPredicate final {
 
   ClassPredicate() = delete;
   ClassPredicate(const ClassPredicate &) = delete;
-  ClassPredicate(std::string classname, const Refs &params);
-  ClassPredicate(std::string classname, const Identifiers &params);
+  ClassPredicate(Identifier classname, const Refs &params);
+  ClassPredicate(Identifier classname, const Identifiers &params);
 
   std::string repr() const;
   std::string str() const;
 
-  std::string const classname;
+  Ref remap_vars(const std::map<std::string, std::string> &remapping) const;
+  const Ftvs &get_ftvs() const;
+
+  Identifier const classname;
   Refs const params;
 
   bool operator<(const ClassPredicate &rhs) const;
@@ -26,6 +30,8 @@ struct ClassPredicate final {
 private:
   mutable bool has_repr_;
   mutable std::string repr_;
+  mutable bool has_ftvs_;
+  mutable Ftvs ftvs_;
 };
 
 } // namespace types

@@ -44,6 +44,12 @@ template <typename T> std::set<T> without(const std::set<T> &s, T v) {
   return c;
 }
 
+template <typename T> void set_merge(T &as, const T &bs) {
+  for (auto b : bs) {
+    as.insert(b);
+  }
+}
+
 template <typename T> T set_union(const T &as, const T &bs) {
   T t(as);
   for (auto b : bs) {
@@ -150,6 +156,14 @@ template <typename T> std::set<T> set_diff(std::set<T> a, std::set<T> b) {
   std::set_difference(a.begin(), a.end(), b.begin(), b.end(),
                       std::inserter(diff, diff.begin()));
   return diff;
+}
+
+template <typename T>
+std::set<T> set_intersect(const std::set<T> &a, const std::set<T> &b) {
+  std::set<T> intersection;
+  std::set_intersection(a.begin(), a.end(), b.begin(), b.end(),
+                        std::inserter(intersection, intersection.begin()));
+  return intersection;
 }
 
 bool starts_with(const std::string &str, const std::string &search);

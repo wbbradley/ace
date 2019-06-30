@@ -86,7 +86,7 @@ void check(bool check_constraint_coverage,
            Identifier id,
            Expr *expr,
            Env &env) {
-  constraints_t constraints;
+  Constraints constraints;
   // std::cout << C_ID "------------------------------" C_RESET << std::endl;
   debug_above(
       4, log("type checking %s = %s", id.str().c_str(), expr->str().c_str()));
@@ -141,8 +141,9 @@ std::map<std::string, TypeClass *> check_type_classes(
         type_class_map[type_class->id.name] = type_class;
       }
 
-      auto predicates = type_class->superclasses;
-      predicates.insert(type_class->id.name);
+      auto predicates = type_class->class_predicates;
+      predicates.insert(std::make_shared<types::ClassPredicate>(
+          type_class->id, type_class->type_var_ids));
 
       types::Map bindings;
       bindings[type_class->type_var_id.name] = type_variable(

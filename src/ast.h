@@ -73,7 +73,7 @@ struct Predicate {
   virtual match::Pattern::ref get_pattern(types::Ref type,
                                           const TranslationEnv &env) const = 0;
   virtual types::Ref tracking_infer(Env &env,
-                                    constraints_t &constraints) const = 0;
+                                    Constraints &constraints) const = 0;
   virtual Location get_location() const = 0;
   virtual Identifier instantiate_name_assignment() const = 0;
   virtual void get_bound_vars(
@@ -103,7 +103,7 @@ struct TuplePredicate : public Predicate {
   match::Pattern::ref get_pattern(types::Ref type,
                                   const TranslationEnv &env) const override;
   types::Ref tracking_infer(Env &env,
-                            constraints_t &constraints) const override;
+                            Constraints &constraints) const override;
   Identifier instantiate_name_assignment() const override;
   void get_bound_vars(
       std::unordered_set<std::string> &bound_vars) const override;
@@ -134,7 +134,7 @@ struct IrrefutablePredicate : public Predicate {
   match::Pattern::ref get_pattern(types::Ref type,
                                   const TranslationEnv &env) const override;
   types::Ref tracking_infer(Env &env,
-                            constraints_t &constraints) const override;
+                            Constraints &constraints) const override;
   Identifier instantiate_name_assignment() const override;
   void get_bound_vars(
       std::unordered_set<std::string> &bound_vars) const override;
@@ -168,7 +168,7 @@ struct CtorPredicate : public Predicate {
   match::Pattern::ref get_pattern(types::Ref type,
                                   const TranslationEnv &env) const override;
   types::Ref tracking_infer(Env &env,
-                            constraints_t &constraints) const override;
+                            Constraints &constraints) const override;
   Identifier instantiate_name_assignment() const override;
   void get_bound_vars(
       std::unordered_set<std::string> &bound_vars) const override;
@@ -305,7 +305,7 @@ struct Literal : public Expr, public Predicate {
   match::Pattern::ref get_pattern(types::Ref type,
                                   const TranslationEnv &env) const override;
   types::Ref tracking_infer(Env &env,
-                            constraints_t &constraints) const override;
+                            Constraints &constraints) const override;
   types::Ref non_tracking_infer() const;
   Identifier instantiate_name_assignment() const override;
   void get_bound_vars(
@@ -391,8 +391,7 @@ struct Decl {
 };
 
 struct TypeDecl {
-  TypeDecl(Identifier id, const Identifiers &params)
-      : id(id), params(params) {
+  TypeDecl(Identifier id, const Identifiers &params) : id(id), params(params) {
   }
 
   Identifier const id;
@@ -406,7 +405,7 @@ struct TypeDecl {
 
 struct TypeClass {
   TypeClass(Identifier id,
-            Identifier type_var_id,
+            const Identifiers &type_var_ids,
             const types::ClassPredicates &class_predicates,
             const types::Map &overloads);
 

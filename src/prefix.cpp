@@ -105,8 +105,8 @@ TypeClass *prefix(const std::set<std::string> &bindings,
                   std::string pre,
                   TypeClass *type_class) {
   return new TypeClass(
-      prefix(bindings, pre, type_class->id), type_class->type_var_id,
-      prefix(bindings, pre, type_class->superclasses),
+      prefix(bindings, pre, type_class->id), type_class->type_var_ids,
+      prefix(bindings, pre, type_class->class_predicates),
       prefix(bindings, pre, type_class->overloads, true /*include_keys*/));
 }
 

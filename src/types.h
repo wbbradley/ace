@@ -18,7 +18,21 @@ struct ClassPredicate;
 typedef std::set<std::string> Ftvs;
 typedef std::map<std::string, int> NameIndex;
 typedef std::shared_ptr<const ClassPredicate> ClassPredicateRef;
-typedef std::unordered_set<ClassPredicateRef> ClassPredicates;
+
+struct ClassPredicateRefHasher {
+  size_t operator()(const ClassPredicateRef &) const;
+};
+
+struct ClassPredicateRefEqualTo {
+  bool operator()(const ClassPredicateRef &lhs,
+                  const ClassPredicateRef &rhs) const;
+};
+
+typedef std::unordered_set<ClassPredicateRef,
+                           ClassPredicateRefHasher,
+                           ClassPredicateRefEqualTo>
+    ClassPredicates;
+
 typedef std::map<std::string, std::shared_ptr<const Type>> TypeEnv;
 typedef std::shared_ptr<const Type> Ref;
 typedef std::vector<Ref> Refs;
@@ -191,7 +205,7 @@ struct Scheme final : public std::enable_shared_from_this<Scheme> {
   Scheme::Ref rebind(const types::Map &env);
   Scheme::Ref normalize();
 
-  /* count of the bounded type variables */
+  /* count of the constrained type variables */
   int btvs() const;
 
   const ClassPredicates &get_class_predicates();
@@ -208,12 +222,16 @@ private:
   mutable ClassPredicates pm_;
 };
 
-bool is_unit(Ref type);
-bool is_type_id(Ref type, const std::string &type_name);
-Refs rebind(const Refs &types, const Map &bindings);
 Ref unitize(Ref type);
+ClassPredicates rebind(const ClassPredicates &class_predicates,
+                       const Map &bindings);
+ClassPredicates remap_vars(const ClassPredicates &class_predicates,
+                           const std::map<std::string, std::string> &remapping);
+Refs rebind(const Refs &types, const Map &bindings);
 bool is_callable(const types::Ref &type);
-std::unordered_set<std::string> get_ftvs(const types::Ref &type);
+bool is_type_id(Ref type, const std::string &type_name);
+bool is_unit(Ref type);
+
 }; // namespace types
 
 typedef std::map<std::string, types::Map> DataCtorsMap;
@@ -246,9 +264,7 @@ types::Ref type_arrow(Location location, types::Ref a, types::Ref b);
 types::Ref type_arrow(types::Ref a, types::Ref b);
 types::Ref type_arrows(types::Refs types, int offset = 0);
 types::Ref type_id(Identifier var);
-types::Ref type_variable(Identifier id,
-                         const std::set<std::string> &predicates);
-types::Ref type_variable(Identifier name);
+types::Ref type_variable(const Identifier &id);
 types::Ref type_variable(Location location);
 types::Ref type_operator(types::Ref operator_, types::Ref operand);
 types::Ref type_operator(const types::Refs &xs);
@@ -278,10 +294,8 @@ void unfold_ops_lassoc(types::Ref t, types::Refs &unfolding);
 void mutating_merge(const types::ClassPredicates::value_type &pair,
                     types::ClassPredicates &c);
 void mutating_merge(const types::ClassPredicates &a, types::ClassPredicates &c);
-types::ClassPredicates merge(const types::ClassPredicates &a,
+types::ClassPredicates merge(types::ClassPredicates a,
                              const types::ClassPredicates &b);
-types::ClassPredicates safe_merge(const types::ClassPredicates &a,
-                                  const types::ClassPredicates &b);
 
 std::ostream &join_dimensions(std::ostream &os,
                               const types::Refs &dimensions,
