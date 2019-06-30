@@ -110,8 +110,6 @@ void mutating_merge(const types::ClassPredicates::value_type &pair,
 void mutating_merge(const types::ClassPredicates &a, types::ClassPredicates &c);
 types::ClassPredicates merge(const types::ClassPredicates &a,
                              const types::ClassPredicates &b);
-types::ClassPredicates safe_merge(const types::ClassPredicates &a,
-                                  const types::ClassPredicates &b);
 
 std::ostream &join_dimensions(std::ostream &os,
                               const types::TypeRefs &dimensions,

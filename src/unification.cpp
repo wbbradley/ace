@@ -52,8 +52,7 @@ bool type_equality(types::Ref a, types::Ref b) {
     }
   } else if (auto tv_a = dyncast<const TypeVariable>(a)) {
     if (auto tv_b = dyncast<const TypeVariable>(b)) {
-      return tv_a->id.name == tv_b->id.name &&
-             tv_a->predicates == tv_b->predicates;
+      return tv_a->id.name == tv_b->id.name;
     } else {
       return false;
     }
@@ -87,59 +86,36 @@ bool type_equality(types::Ref a, types::Ref b) {
   return false;
 }
 
-bool occurs_check(std::string a, Ref type) {
+inline bool occurs_check(std::string a, Ref type) {
   return in(a, type->get_ftvs());
 }
 
-Unification bind(std::string a,
-                 Ref type,
-                 const std::set<std::string> &instances) {
-  if (occurs_check(a, type)) {
+Unification bind(std::string a, Ref type) {
+  /* return a Unification which is the result of substitution [type/a] */
+
+  /* first do an occurs check */
+  if (type->get_ftvs().count(a) != 0) {
+    /* this type exists within its own substitution. Fail. */
     return Unification{false,
                        type->get_location(),
                        string_format("infinite type detected! %s = %s",
                                      a.c_str(), type->str().c_str()),
-                       {},
                        {}};
   }
 
-  Unification unification{true, INTERNAL_LOC(), "", {}, {}};
-  if (auto tv = dyncast<const types::TypeVariable>(type)) {
-    if (tv->id.name == a && all_in(instances, tv->predicates)) {
-      assert(false);
-      assert(instances.size() == tv->predicates.size());
-      return {true, INTERNAL_LOC(), "", {}, {}};
-    }
-
-    type = type_variable(gensym(type->get_location()),
-                         set_union(instances, tv->predicates));
-    debug_above(10, log("adding a binding from %s to new freshie %s",
-                        tv->id.str().c_str(), type->str().c_str()));
-    unification.bindings[tv->id.name] = type;
-  } else {
-    for (auto instance : instances) {
-      unification.add_instance_requirement(
-          {instance, type->get_location(), type});
-    }
-  }
-
-  unification.bindings[a] = type;
-  debug_above(6,
-              log("binding type variable %s to %s gives bindings %s", a.c_str(),
-                  type->str().c_str(), str(unification.bindings).c_str()));
-  return unification;
+  return Unification{true, type->get_location(), "", Map{{a, type}}};
 }
 
 Unification unify(Ref a, Ref b) {
   debug_above(8, log("unify(%s, %s)", a->str().c_str(), b->str().c_str()));
   if (type_equality(a, b)) {
-    return Unification{true, INTERNAL_LOC(), "", {}, {}};
+    return Unification{true, INTERNAL_LOC(), "", {}};
   }
 
   if (auto tv_a = dyncast<const TypeVariable>(a)) {
-    return bind(tv_a->id.name, b, tv_a->predicates);
+    return bind(tv_a->id.name, b);
   } else if (auto tv_b = dyncast<const TypeVariable>(b)) {
-    return bind(tv_b->id.name, a, tv_b->predicates);
+    return bind(tv_b->id.name, a);
   } else if (auto to_a = dyncast<const TypeOperator>(a)) {
     if (auto to_b = dyncast<const TypeOperator>(b)) {
       return unify_many({to_a->oper, to_a->operand},
@@ -157,12 +133,12 @@ Unification unify(Ref a, Ref b) {
       location,
       string_format("type error. %s != %s", a->str().c_str(), b->str().c_str()),
       {},
-      {}};
+  };
 }
 
 void check_constraints_cover_tracked_types(const Context &context,
                                            const TrackedTypes &tracked_types,
-                                           const constraints_t &constraints) {
+                                           const Constraints &constraints) {
   std::unordered_set<std::string> ftvs;
   for (auto pair : tracked_types) {
     auto s = types::get_ftvs(pair.second);
@@ -190,7 +166,7 @@ void check_constraints_cover_tracked_types(const Context &context,
 
 types::Map solver(bool check_constraint_coverage,
                   Context &&context,
-                  constraints_t &constraints,
+                  Constraints &constraints,
                   Env &env) {
   if (check_constraint_coverage) {
     check_constraints_cover_tracked_types(context, *env.tracked_types,
@@ -201,18 +177,14 @@ types::Map solver(bool check_constraint_coverage,
   for (auto iter = constraints.begin(); iter != constraints.end();) {
     Unification unification = unify(iter->a, iter->b);
     if (unification.result) {
-      auto new_bindings = compose(unification.bindings, bindings);
-      for (auto &instance_requirement : unification.instance_requirements) {
-        /* rewrite the instance requirements to use this contraint's location to
-         * get better error messages */
-        env.add_instance_requirement(InstanceRequirement{
-            instance_requirement.type_class_name,
-            iter->context.location,
-            instance_requirement.type,
-        });
+      if (unification.bindings.size() != 0) {
+        // TODO: reexamine whether it is really necessary to rebind_env with the
+        // composed bindings since we have already rebound the whole env with
+        // the prior bindings.
+        types::Map new_bindings = compose(unification.bindings, bindings);
+        env.rebind_env(new_bindings);
+        std::swap(bindings, new_bindings);
       }
-      env.rebind_env(new_bindings);
-      std::swap(bindings, new_bindings);
       ++iter;
       rebind_constraints(iter, constraints.end(), bindings);
       continue;
@@ -261,23 +233,12 @@ types::Map compose(const types::Map &a, const types::Map &b) {
 
 Unification compose(const Unification &a, const Unification &b) {
   if (a.result && b.result) {
-    auto unification = Unification{
-        true, INTERNAL_LOC(), "", compose(a.bindings, b.bindings), {}};
-    unification.instance_requirements.reserve(a.instance_requirements.size() +
-                                              b.instance_requirements.size());
-
-    for (auto ir : a.instance_requirements) {
-      unification.add_instance_requirement(ir);
-    }
-    for (auto ir : b.instance_requirements) {
-      unification.add_instance_requirement(ir);
-    }
-    return unification;
+    return Unification{true, INTERNAL_LOC(), "",
+                       compose(a.bindings, b.bindings)};
   } else {
     return Unification{false,
                        a.result ? b.error_location : a.error_location,
                        a.result ? b.error_string : a.error_string,
-                       {},
                        {}};
   }
 }
@@ -292,9 +253,14 @@ std::vector<Ref> rebind_tails(const std::vector<Ref> &types,
   return new_types;
 }
 
-void rebind_constraints(constraints_t::iterator iter,
-                        const constraints_t::iterator &end,
+void rebind_constraints(Constraints::iterator iter,
+                        const Constraints::iterator &end,
                         const Map &bindings) {
+  if (bindings.size() == 0) {
+    /* nothing to rebind, bail */
+    return;
+  }
+
   while (iter != end) {
     (*iter++).rebind(bindings);
   }
@@ -304,7 +270,7 @@ Unification unify_many(const types::Refs &as, const types::Refs &bs) {
   debug_above(8, log("unify_many([%s], [%s])", join_str(as, ", ").c_str(),
                      join_str(bs, ", ").c_str()));
   if (as.size() == 0 && bs.size() == 0) {
-    return Unification{true, INTERNAL_LOC(), "", {}, {}};
+    return Unification{true, INTERNAL_LOC(), "", {}};
   } else if (as.size() != bs.size()) {
     throw user_error(as[0]->get_location(), "unification mismatch %s != %s",
                      join_str(as, " -> ").c_str(), join(bs, " -> ").c_str());
@@ -314,12 +280,4 @@ Unification unify_many(const types::Refs &as, const types::Refs &bs) {
   auto u2 = unify_many(rebind_tails(as, u1.bindings),
                        rebind_tails(bs, u1.bindings));
   return compose(u2, u1);
-}
-
-void Unification::add_instance_requirement(const InstanceRequirement &ir) {
-  debug_above(6,
-              log_location(log_info, ir.location,
-                           "adding type class requirement for %s %s",
-                           ir.type_class_name.c_str(), ir.type->str().c_str()));
-  instance_requirements.push_back(ir);
 }
