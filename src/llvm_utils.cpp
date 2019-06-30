@@ -225,8 +225,8 @@ std::string llvm_print(llvm::Type *llvm_type) {
 }
 
 llvm::AllocaInst *llvm_create_entry_block_alloca(llvm::Function *llvm_function,
-                                                 types::type_env_t &type_env,
-                                                 types::Type::ref type,
+                                                 types::TypeEnv &type_env,
+                                                 types::Ref type,
                                                  std::string var_name) {
   /* we'll need to place the alloca instance in the entry block, so let's
    * make a builder that points there */
@@ -307,8 +307,8 @@ llvm::StructType *llvm_create_struct_type(
 }
 
 llvm::StructType *llvm_create_struct_type(llvm::IRBuilder<> &builder,
-                                          types::type_env_t &type_env,
-                                          const types::Type::refs &dimensions) {
+                                          types::TypeEnv &type_env,
+                                          const types::Refs &dimensions) {
   return llvm_create_struct_type(builder,
                                  get_llvm_types(builder, type_env, dimensions));
 }
@@ -571,10 +571,9 @@ llvm::Value *llvm_last_param(llvm::Function *llvm_function) {
   return last;
 }
 
-llvm::FunctionType *get_llvm_arrow_function_type(
-    llvm::IRBuilder<> &builder,
-    const types::type_env_t &type_env,
-    const types::Type::refs &terms) {
+llvm::FunctionType *get_llvm_arrow_function_type(llvm::IRBuilder<> &builder,
+                                                 const types::TypeEnv &type_env,
+                                                 const types::Refs &terms) {
   assert(terms.size() > 1);
   llvm::Type *param_types[] = {get_llvm_type(builder, type_env, terms[0]),
                                builder.getInt8Ty()->getPointerTo()};
@@ -591,8 +590,8 @@ llvm::FunctionType *get_llvm_arrow_function_type(
 }
 
 llvm::Type *get_llvm_closure_type(llvm::IRBuilder<> &builder,
-                                  const types::type_env_t &type_env,
-                                  const types::Type::refs &terms) {
+                                  const types::TypeEnv &type_env,
+                                  const types::Refs &terms) {
   return llvm::StructType::get(
              get_llvm_arrow_function_type(builder, type_env, terms)
                  ->getPointerTo(),
@@ -601,8 +600,8 @@ llvm::Type *get_llvm_closure_type(llvm::IRBuilder<> &builder,
 }
 
 llvm::Type *get_llvm_type(llvm::IRBuilder<> &builder,
-                          const types::type_env_t &type_env,
-                          const types::Type::ref &type_) {
+                          const types::TypeEnv &type_env,
+                          const types::Ref &type_) {
   auto type = type_->eval(type_env);
   debug_above(3, log("get_llvm_type(%s)...", type->str().c_str()));
   if (auto id = dyncast<const types::TypeId>(type)) {
@@ -631,7 +630,7 @@ llvm::Type *get_llvm_type(llvm::IRBuilder<> &builder,
       return get_llvm_type(builder, type_env, operator_->operand)
           ->getPointerTo();
     } else {
-      types::Type::refs terms;
+      types::Refs terms;
       unfold_binops_rassoc(ARROW_TYPE_OPERATOR, type, terms);
       if (terms.size() == 1) {
         /* user defined types are recast at their usage site, not passed around
@@ -655,8 +654,8 @@ llvm::Type *get_llvm_type(llvm::IRBuilder<> &builder,
 }
 
 std::vector<llvm::Type *> get_llvm_types(llvm::IRBuilder<> &builder,
-                                         const types::type_env_t &type_env,
-                                         const types::Type::refs &types) {
+                                         const types::TypeEnv &type_env,
+                                         const types::Refs &types) {
   debug_above(7, log("get_llvm_types([%s])...", join_str(types, ", ").c_str()));
   std::vector<llvm::Type *> llvm_types;
   for (auto type : types) {

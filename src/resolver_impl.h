@@ -22,7 +22,7 @@ struct LazyResolver final : public Resolver {
   /* there is a resolver for each top-level symbol, since top-level symbols can
    * reference one another */
   LazyResolver(std::string name,
-               types::Type::ref type,
+               types::Ref type,
                lazy_resolver_callback_t &&callback);
   ~LazyResolver();
   llvm::Value *resolve_impl() override;
@@ -39,7 +39,7 @@ private:
   };
   sort_color_t sort_color;
   std::string name;
-  types::Type::ref type;
+  types::Ref type;
   lazy_resolver_callback_t callback;
   llvm::Value *value = nullptr;
 };

@@ -22,8 +22,8 @@ const char *MAYBE_TYPE = "std.Maybe";
 const char *VECTOR_TYPE = "std.Vector";
 const char *STRING_TYPE = "std.String";
 
-const types::Scheme::map &get_builtins() {
-  static std::unique_ptr<types::Scheme::map> map;
+const types::Scheme::Map &get_builtins() {
+  static std::unique_ptr<types::Scheme::Map> map;
   if (map == nullptr) {
     auto Unit = type_unit(INTERNAL_LOC());
     auto Int = type_id(make_iid(INT_TYPE));
@@ -37,7 +37,7 @@ const types::Scheme::map &get_builtins() {
     auto tv_b = type_variable(make_iid("b"));
     auto tp_b = type_ptr(tv_b);
 
-    map = std::make_unique<types::Scheme::map>();
+    map = std::make_unique<types::Scheme::Map>();
 
     // TODO: unify this map with the implementation of these in gen.cpp
     (*map)["__builtin_hello"] = scheme({}, {}, Unit);
@@ -45,7 +45,7 @@ const types::Scheme::map &get_builtins() {
     (*map)["__builtin_word_size"] = scheme({}, {}, Int);
     (*map)["__builtin_ffi_0"] = scheme({}, {}, type_arrows({PtrToChar, tv_a}));
     for (int i = 1; i <= 16; ++i) {
-      types::Type::refs terms{PtrToChar};
+      types::Refs terms{PtrToChar};
       for (int j = 0; j < i + 1; ++j) {
         terms.push_back(type_variable(INTERNAL_LOC()));
       }

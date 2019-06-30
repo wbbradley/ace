@@ -34,12 +34,12 @@ bitter::TypeClass *prefix(const std::set<std::string> &bindings,
                           std::string pre,
                           bitter::TypeClass *type_class);
 
-types::Type::ref prefix(const std::set<std::string> &bindings,
-                        std::string pre,
-                        types::Type::ref type);
-types::Scheme::ref prefix(const std::set<std::string> &bindings,
+types::Ref prefix(const std::set<std::string> &bindings,
+                  std::string pre,
+                  types::Ref type);
+types::Scheme::Ref prefix(const std::set<std::string> &bindings,
                           std::string pre,
-                          types::Scheme::ref scheme);
+                          types::Scheme::Ref scheme);
 bitter::Expr *prefix(const std::set<std::string> &bindings,
                      std::string pre,
                      bitter::Expr *value);
@@ -51,9 +51,9 @@ bitter::Module *prefix(const std::set<std::string> &bindings,
 bitter::Instance *prefix(const std::set<std::string> &bindings,
                          std::string pre,
                          bitter::Instance *instance);
-data_ctors_map_t prefix(const std::set<std::string> &bindings,
-                        std::string pre,
-                        const data_ctors_map_t &data_ctors_map);
+DataCtorsMap prefix(const std::set<std::string> &bindings,
+                    std::string pre,
+                    const DataCtorsMap &data_ctors_map);
 inline int prefix(const std::set<std::string> &, std::string, int x) {
   return x;
 }

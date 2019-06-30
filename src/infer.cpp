@@ -10,15 +10,13 @@ using namespace bitter;
 
 const bool dbg_show_constraints = getenv("ZION_SHOW_CONSTRAINTS") != nullptr;
 
-Constraint::Constraint(types::Type::ref a,
-                       types::Type::ref b,
-                       Context &&context)
+Constraint::Constraint(types::Ref a, types::Ref b, Context &&context)
     : a(a), b(b), context(std::move(context)) {
 }
 
 void append(constraints_t &constraints,
-            types::Type::ref a,
-            types::Type::ref b,
+            types::Ref a,
+            types::Ref b,
             Context &&context) {
   if (dbg_show_constraints) {
     log_location(context.location, "constraining a: %s b: %s because %s",
@@ -31,7 +29,7 @@ void append(constraints_t &constraints,
   constraints.push_back({a, b, std::move(context)});
 }
 
-types::Type::ref infer_core(Expr *expr, Env &env, constraints_t &constraints) {
+types::Ref infer_core(Expr *expr, Env &env, constraints_t &constraints) {
   debug_above(8, log("infer(%s, ..., ...)", expr->str().c_str()));
   if (auto literal = dcast<Literal *>(expr)) {
     return literal->non_tracking_infer();
@@ -123,7 +121,7 @@ types::Type::ref infer_core(Expr *expr, Env &env, constraints_t &constraints) {
     auto t2 = infer(while_->block, env, constraints);
     return type_unit(while_->get_location());
   } else if (auto block = dcast<Block *>(expr)) {
-    types::Type::ref last_expr_type = type_unit(block->get_location());
+    types::Ref last_expr_type = type_unit(block->get_location());
     for (int i = 0; i < block->statements.size(); ++i) {
       auto expr = block->statements[i];
       auto t1 = infer(expr, env, constraints);
@@ -149,13 +147,13 @@ types::Type::ref infer_core(Expr *expr, Env &env, constraints_t &constraints) {
                         env.return_type->str().c_str()));
     return type_unit(return_->get_location());
   } else if (auto tuple = dcast<Tuple *>(expr)) {
-    std::vector<types::Type::ref> dimensions;
+    std::vector<types::Ref> dimensions;
     for (auto dim : tuple->dims) {
       dimensions.push_back(infer(dim, env, constraints));
     }
     return type_tuple(tuple->location, dimensions);
   } else if (auto tuple_deref = dcast<TupleDeref *>(expr)) {
-    types::Type::refs dims;
+    types::Refs dims;
     for (int i = 0; i < tuple_deref->max; ++i) {
       dims.push_back(type_variable(INTERNAL_LOC()));
     }
@@ -167,7 +165,7 @@ types::Type::ref infer_core(Expr *expr, Env &env, constraints_t &constraints) {
                         tuple_deref->index, tuple_deref->max));
     return dims[tuple_deref->index];
   } else if (auto builtin = dcast<Builtin *>(expr)) {
-    types::Type::refs ts;
+    types::Refs ts;
     for (auto expr : builtin->exprs) {
       ts.push_back(infer(expr, env, constraints));
     }
@@ -180,8 +178,8 @@ types::Type::ref infer_core(Expr *expr, Env &env, constraints_t &constraints) {
   } else if (auto as = dcast<As *>(expr)) {
     auto t1 = infer(as->expr, env, constraints);
     auto as_type = as->scheme->instantiate(as->get_location());
-    types::Type::ref t2 = !as->force_cast ? as_type
-                                          : type_variable(as->get_location());
+    types::Ref t2 = !as->force_cast ? as_type
+                                    : type_variable(as->get_location());
     append(constraints, t1, t2,
            make_context(as->get_location(), "we can get type %s from %s",
                         as->scheme->str().c_str(), as->expr->str().c_str()));
@@ -190,7 +188,7 @@ types::Type::ref infer_core(Expr *expr, Env &env, constraints_t &constraints) {
     return type_id(Identifier{INT_TYPE, sizeof_->get_location()});
   } else if (auto match = dcast<Match *>(expr)) {
     auto t1 = infer(match->scrutinee, env, constraints);
-    types::Type::ref match_type;
+    types::Ref match_type;
     for (auto pattern_block : match->pattern_blocks) {
       /* recurse through the pattern_block->predicate to generate more
        * constraints */
@@ -219,16 +217,15 @@ types::Type::ref infer_core(Expr *expr, Env &env, constraints_t &constraints) {
                    expr->str().c_str());
 }
 
-types::Type::ref infer(Expr *expr, Env &env, constraints_t &constraints) {
+types::Ref infer(Expr *expr, Env &env, constraints_t &constraints) {
   return env.track(expr, infer_core(expr, env, constraints));
 }
 
-types::Type::ref Literal::tracking_infer(Env &env,
-                                         constraints_t &constraints) const {
+types::Ref Literal::tracking_infer(Env &env, constraints_t &constraints) const {
   return env.track(this, non_tracking_infer());
 }
 
-types::Type::ref Literal::non_tracking_infer() const {
+types::Ref Literal::non_tracking_infer() const {
   switch (token.tk) {
   case tk_integer:
     return type_id(Identifier{INT_TYPE, token.location});
@@ -243,17 +240,16 @@ types::Type::ref Literal::non_tracking_infer() const {
   }
 }
 
-types::Type::ref TuplePredicate::tracking_infer(
-    Env &env,
-    constraints_t &constraints) const {
-  types::Type::refs types;
+types::Ref TuplePredicate::tracking_infer(Env &env,
+                                          constraints_t &constraints) const {
+  types::Refs types;
   for (auto param : params) {
     types.push_back(param->tracking_infer(env, constraints));
   }
   return type_tuple(types);
 }
 
-types::Type::ref IrrefutablePredicate::tracking_infer(
+types::Ref IrrefutablePredicate::tracking_infer(
     Env &env,
     constraints_t &constraints) const {
   auto tv = type_variable(location);
@@ -264,10 +260,9 @@ types::Type::ref IrrefutablePredicate::tracking_infer(
   return tv;
 }
 
-types::Type::ref CtorPredicate::tracking_infer(
-    Env &env,
-    constraints_t &constraints) const {
-  types::Type::refs ctor_params = env.get_fresh_data_ctor_terms(ctor_name);
+types::Ref CtorPredicate::tracking_infer(Env &env,
+                                         constraints_t &constraints) const {
+  types::Refs ctor_params = env.get_fresh_data_ctor_terms(ctor_name);
 
   debug_above(8, log("got fresh ctor params %s :: %s", ctor_name.str().c_str(),
                      ::join_str(ctor_params, " -> ").c_str()));
@@ -281,7 +276,7 @@ types::Type::ref CtorPredicate::tracking_infer(
         ::join_str(ctor_params, ", ").c_str());
   }
 
-  types::Type::ref result_type;
+  types::Ref result_type;
   for (int i = 0; i < params.size(); ++i) {
     auto tp = params[i]->tracking_infer(env, constraints);
     append(constraints, tp, ctor_params[i],
@@ -294,7 +289,7 @@ types::Type::ref CtorPredicate::tracking_infer(
   return ctor_params.back();
 }
 
-void Constraint::rebind(const types::Type::map &env) {
+void Constraint::rebind(const types::Map &env) {
   a = a->rebind(env);
   b = b->rebind(env);
 }

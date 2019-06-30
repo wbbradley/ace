@@ -42,13 +42,13 @@ bool DefnId::operator<(const DefnId &rhs) const {
   return repr() < rhs.repr();
 }
 
-types::Type::ref DefnId::get_lambda_param_type() const {
+types::Ref DefnId::get_lambda_param_type() const {
   auto lambda_type = safe_dyncast<const types::TypeOperator>(
       scheme->instantiate(INTERNAL_LOC()));
   return lambda_type->oper;
 }
 
-types::Type::ref DefnId::get_lambda_return_type() const {
+types::Ref DefnId::get_lambda_return_type() const {
   auto lambda_type = safe_dyncast<const types::TypeOperator>(
       scheme->instantiate(INTERNAL_LOC()));
   return lambda_type->operand;

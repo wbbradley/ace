@@ -15,17 +15,17 @@ runtimedir = $(DESTDIR)/$(prefix)/share/$(PN)/runtime
 test_destdir ?= $(HOME)/var/zion-test
 
 .PHONY: $(BUILT_BINARY)
-$(BUILT_BINARY): $(BUILD_DIR)/build.ninja
-	@(cd $(BUILD_DIR) && ninja -j8 $(PN))
+$(BUILT_BINARY): $(BUILD_DIR)/Makefile
+	@(cd $(BUILD_DIR) && make -j8 $(PN))
 
-$(BUILD_DIR)/build.ninja: $(LLVM_DIR)/LLVMConfig.cmake CMakeLists.txt
+$(BUILD_DIR)/Makefile: $(LLVM_DIR)/LLVMConfig.cmake CMakeLists.txt
 	-mkdir -p $(BUILD_DIR)
 	@if [ "$(DEBUG)" = "" ]; then \
 		echo "Release mode..."; \
-		(cd $(BUILD_DIR) && cmake $(SRCDIR) -G Ninja) \
+		(cd $(BUILD_DIR) && cmake $(SRCDIR) -G 'Unix Makefiles') \
 	else \
 		echo "Debug mode..."; \
-		(cd $(BUILD_DIR) && cmake $(SRCDIR) -DDEBUG=1 -G Ninja) \
+		(cd $(BUILD_DIR) && cmake $(SRCDIR) -DDEBUG=1 -G 'Unix Makefiles') \
 	fi
 
 ZION_LIBS=$(shell cd lib && find *.zion)

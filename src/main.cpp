@@ -29,9 +29,9 @@ bool debug_types = getenv("SHOW_TYPES") != nullptr;
 bool debug_all_expr_types = getenv("SHOW_EXPR_TYPES") != nullptr;
 bool debug_all_translated_defns = getenv("SHOW_DEFN_TYPES") != nullptr;
 
-types::Type::ref program_main_type = type_arrows(
+types::Ref program_main_type = type_arrows(
     {type_unit(INTERNAL_LOC()), type_unit(INTERNAL_LOC())});
-types::Scheme::ref program_main_scheme = scheme({}, {}, program_main_type);
+types::Scheme::Ref program_main_scheme = scheme({}, {}, program_main_type);
 
 int run_program(std::string executable, std::vector<const char *> args) {
   pid_t pid = fork();
@@ -90,12 +90,11 @@ void check(bool check_constraint_coverage,
   // std::cout << C_ID "------------------------------" C_RESET << std::endl;
   debug_above(
       4, log("type checking %s = %s", id.str().c_str(), expr->str().c_str()));
-  types::Type::ref ty = infer(expr, env, constraints);
-  types::Type::map bindings = solver(
-      check_constraint_coverage,
-      make_context(id.location, "solving %s :: %s", id.name.c_str(),
-                   ty->str().c_str()),
-      constraints, env);
+  types::Ref ty = infer(expr, env, constraints);
+  types::Map bindings = solver(check_constraint_coverage,
+                               make_context(id.location, "solving %s :: %s",
+                                            id.name.c_str(), ty->str().c_str()),
+                               constraints, env);
 
   // log("GOT ty = %s", ty->str().c_str());
   ty = ty->rebind(bindings);
@@ -145,7 +144,7 @@ std::map<std::string, TypeClass *> check_type_classes(
       auto predicates = type_class->superclasses;
       predicates.insert(type_class->id.name);
 
-      types::Type::map bindings;
+      types::Map bindings;
       bindings[type_class->type_var_id.name] = type_variable(
           gensym(type_class->type_var_id.location), predicates);
 
@@ -230,10 +229,10 @@ Identifier make_instance_dict_id(std::string type_class_name,
 
 void check_instance_for_type_class_overload(
     std::string name,
-    types::Type::ref type,
+    types::Ref type,
     Instance *instance,
     TypeClass *type_class,
-    const types::Type::map &subst,
+    const types::Map &subst,
     std::set<std::string> &names_checked,
     std::vector<Decl *> &instance_decls,
     std::map<DefnId, Decl *> &overrides_map,
@@ -255,7 +254,7 @@ void check_instance_for_type_class_overload(
       local_env.instance_requirements.resize(0);
       Identifier instance_decl_id = make_instance_decl_id(type_class->id.name,
                                                           instance, decl->var);
-      types::Scheme::ref expected_scheme = type->rebind(subst)->generalize(
+      types::Scheme::Ref expected_scheme = type->rebind(subst)->generalize(
           local_env.get_predicate_map());
 
       Expr *instance_decl_expr = new As(decl->value, expected_scheme,
@@ -314,7 +313,7 @@ void check_instance_for_type_class_overloads(
     Env &env) {
   /* make a template for the type that the instance implementation should
    * conform to */
-  types::Type::map subst;
+  types::Map subst;
   subst[type_class->type_var_id.name] = instance->type->generalize({})
                                             ->instantiate(INTERNAL_LOC());
 
@@ -515,14 +514,14 @@ public:
 
 struct phase_2_t {
   std::shared_ptr<Compilation const> const compilation;
-  types::Scheme::map const typing;
+  types::Scheme::Map const typing;
   defn_map_t const defn_map;
-  ctor_id_map_t const ctor_id_map;
-  data_ctors_map_t const data_ctors_map;
+  CtorIdMap const ctor_id_map;
+  DataCtorsMap const data_ctors_map;
 
   std::ostream &dump(std::ostream &os) {
     for (auto pair : defn_map.decl_map) {
-      auto scheme = get(typing, pair.first, types::Scheme::ref{});
+      auto scheme = get(typing, pair.first, types::Scheme::Ref{});
       assert(scheme != nullptr);
       os << pair.first << " = " << pair.second->str() << " :: " << scheme->str()
          << std::endl;
@@ -532,10 +531,10 @@ struct phase_2_t {
 };
 
 std::map<std::string, int> get_builtin_arities() {
-  const types::Scheme::map &map = get_builtins();
+  const types::Scheme::Map &map = get_builtins();
   std::map<std::string, int> builtin_arities;
   for (auto pair : map) {
-    types::Type::refs terms;
+    types::Refs terms;
     unfold_binops_rassoc(ARROW_TYPE_OPERATOR,
                          pair.second->instantiate(INTERNAL_LOC()), terms);
     builtin_arities[pair.first] = terms.size() - 1;
@@ -562,7 +561,7 @@ phase_2_t compile(std::string user_program_name_) {
   Env env{{} /*map*/,
           nullptr /*return_type*/,
           {} /*instance_requirements*/,
-          std::make_shared<tracked_types_t>(),
+          std::make_shared<TrackedTypes>(),
           compilation->ctor_id_map,
           compilation->data_ctors_map};
 
@@ -636,19 +635,18 @@ phase_2_t compile(std::string user_program_name_) {
                    compilation->data_ctors_map};
 }
 
-typedef std::map<
-    std::string,
-    std::map<types::Type::ref, Translation::ref, types::CompareType>>
+typedef std::map<std::string,
+                 std::map<types::Ref, Translation::ref, types::CompareType>>
     translation_map_t;
 
-void specialize_core(const types::type_env_t &type_env,
+void specialize_core(const types::TypeEnv &type_env,
                      const defn_map_t &defn_map,
-                     const types::Scheme::map &typing,
-                     const ctor_id_map_t &ctor_id_map,
-                     const data_ctors_map_t &data_ctors_map,
+                     const types::Scheme::Map &typing,
+                     const CtorIdMap &ctor_id_map,
+                     const DataCtorsMap &data_ctors_map,
                      DefnId defn_id,
                      /* output */ translation_map_t &translation_map,
-                     /* output */ needed_defns_t &needed_defns) {
+                     /* output */ NeededDefns &needed_defns) {
   if (starts_with(defn_id.id.name, "__builtin_")) {
     return;
   }
@@ -701,7 +699,7 @@ void specialize_core(const types::type_env_t &type_env,
             data_ctors_map};
     // TODO: clean this up. it is ugly. we're accessing the base class
     // TranslationEnv's tracked_types
-    auto tracked_types = std::make_shared<tracked_types_t>();
+    auto tracked_types = std::make_shared<TrackedTypes>();
     env.tracked_types = tracked_types;
 
     Decl *decl_to_check = defn_map.maybe_lookup(defn_id);
@@ -734,7 +732,7 @@ void specialize_core(const types::type_env_t &type_env,
 #if 0
     for (auto pair : tracked_types) {
       const bitter::Expr *expr;
-      types::Type::ref type;
+      types::Ref type;
       std::tie(std::ref(expr), std::ref(type)) = pair;
     }
 #endif
@@ -787,7 +785,7 @@ phase_3_t specialize(const phase_2_t &phase_2) {
       {make_iid(phase_2.compilation->program_name + ".main"),
        program_main_scheme});
 
-  needed_defns_t needed_defns;
+  NeededDefns needed_defns;
   DefnId main_defn{program_main->var, program_main_scheme};
   insert_needed_defn(needed_defns, main_defn, INTERNAL_LOC(), main_defn);
 
@@ -865,8 +863,8 @@ struct phase_4_t {
 
 struct CodeSymbol {
   std::string name;
-  types::Type::ref type;
-  const tracked_types_t &typing;
+  types::Ref type;
+  const TrackedTypes &typing;
   const bitter::Expr *expr;
 };
 
@@ -890,7 +888,7 @@ void build_main_function(llvm::IRBuilder<> &builder,
                          const gen::gen_env_t &gen_env,
                          std::string program_name) {
   std::string main_closure = program_name + ".main";
-  types::Type::ref main_type = type_arrows(
+  types::Ref main_type = type_arrows(
       {type_unit(INTERNAL_LOC()), type_unit(INTERNAL_LOC())});
 
   llvm::Type *llvm_main_args_types[] = {
@@ -955,7 +953,7 @@ phase_4_t ssa_gen(llvm::LLVMContext &context, const phase_3_t &phase_3) {
     for (auto pair : phase_3.translation_map) {
       for (auto &overload : pair.second) {
         const std::string &name = pair.first;
-        const types::Type::ref &type = overload.first;
+        const types::Ref &type = overload.first;
         Translation::ref translation = overload.second;
 
         debug_above(4, log("fetching %s expression type from translated types",

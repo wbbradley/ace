@@ -259,9 +259,9 @@ Compilation::ref parse_program(
     std::vector<Decl *> program_decls;
     std::vector<TypeClass *> program_type_classes;
     std::vector<Instance *> program_instances;
-    ctor_id_map_t ctor_id_map;
-    data_ctors_map_t data_ctors_map;
-    types::type_env_t type_env;
+    CtorIdMap ctor_id_map;
+    DataCtorsMap data_ctors_map;
+    types::TypeEnv type_env;
 
     /* next, merge the entire set of modules into one program */
     for (Module *module : gps.modules) {

@@ -54,12 +54,12 @@ struct CtorPatterns : std::enable_shared_from_this<CtorPatterns>, Pattern {
 struct AllOf : std::enable_shared_from_this<AllOf>, Pattern {
   maybe<Identifier> name;
   const TranslationEnv &tenv;
-  types::Type::ref type;
+  types::Ref type;
 
   AllOf(Location location,
         maybe<Identifier> name,
         const TranslationEnv &tenv,
-        types::Type::ref type)
+        types::Ref type)
       : Pattern(location), name(name), tenv(tenv), type(type) {
   }
 
@@ -146,7 +146,7 @@ std::shared_ptr<Scalars<double>> allFloats = std::make_shared<Scalars<double>>(
 Pattern::ref all_of(Location location,
                     maybe<Identifier> expr,
                     const TranslationEnv &tenv,
-                    types::Type::ref type) {
+                    types::Ref type) {
   return std::make_shared<match::AllOf>(location, expr, tenv, type);
 }
 
@@ -380,7 +380,7 @@ Pattern::ref pattern_union(Pattern::ref lhs, Pattern::ref rhs) {
 
 Pattern::ref from_type(Location location,
                        const TranslationEnv &tenv,
-                       Type::ref type) {
+                       Ref type) {
   if (auto tuple_type = dyncast<const types::TypeTuple>(type)) {
     std::vector<Pattern::ref> args;
     for (auto dim : tuple_type->dimensions) {
@@ -684,7 +684,7 @@ namespace bitter {
 using namespace ::match;
 using namespace ::types;
 
-Pattern::ref TuplePredicate::get_pattern(Type::ref type,
+Pattern::ref TuplePredicate::get_pattern(Ref type,
                                          const TranslationEnv &tenv) const {
   std::vector<Pattern::ref> args;
   if (auto tuple_type = dyncast<const TypeTuple>(type)) {
@@ -709,7 +709,7 @@ Pattern::ref TuplePredicate::get_pattern(Type::ref type,
     return nullptr;
   }
 }
-Pattern::ref CtorPredicate::get_pattern(Type::ref type,
+Pattern::ref CtorPredicate::get_pattern(Ref type,
                                         const TranslationEnv &tenv) const {
   auto ctor_terms = tenv.get_data_ctor_terms(type, ctor_name);
 
@@ -731,12 +731,11 @@ Pattern::ref CtorPredicate::get_pattern(Type::ref type,
       location, CtorPatternValue{type->repr(), ctor_name.name, args});
 }
 Pattern::ref IrrefutablePredicate::get_pattern(
-    Type::ref type,
+    Ref type,
     const TranslationEnv &tenv) const {
   return std::make_shared<AllOf>(location, name_assignment, tenv, type);
 }
-Pattern::ref Literal::get_pattern(Type::ref type,
-                                  const TranslationEnv &tenv) const {
+Pattern::ref Literal::get_pattern(Ref type, const TranslationEnv &tenv) const {
   if (type_equality(type, type_int(INTERNAL_LOC()))) {
     if (token.tk == tk_integer) {
       int64_t value = parse_int_value(token);

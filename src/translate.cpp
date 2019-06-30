@@ -9,7 +9,7 @@
 using namespace bitter;
 
 void check_typing_for_ftvs(const std::string &context,
-                           const tracked_types_t &typing) {
+                           const TrackedTypes &typing) {
   return;
   for (auto pair : typing) {
     if (pair.second->ftv_count() != 0) {
@@ -25,7 +25,7 @@ void check_typing_for_ftvs(const std::string &context,
 
 struct TTC {
   /* the typing checker */
-  TTC(const std::string &&context, const tracked_types_t &typing)
+  TTC(const std::string &&context, const TrackedTypes &typing)
       : context(std::move(context)), typing(typing) {
   }
   ~TTC() {
@@ -33,17 +33,17 @@ struct TTC {
   }
 
   const std::string context;
-  const tracked_types_t &typing;
+  const TrackedTypes &typing;
 };
 
 Expr *texpr(const DefnId &for_defn_id,
             bitter::Expr *expr,
             const std::unordered_set<std::string> &bound_vars,
-            types::Type::ref type,
-            const types::type_env_t &type_env,
+            types::Ref type,
+            const types::TypeEnv &type_env,
             const TranslationEnv &tenv,
-            tracked_types_t &typing,
-            needed_defns_t &needed_defns,
+            TrackedTypes &typing,
+            NeededDefns &needed_defns,
             bool &returns) {
   TTC ttc(string_format("texpr(%s, %s, ..., %s, ...)",
                         for_defn_id.str().c_str(), expr->str().c_str(),
@@ -112,7 +112,7 @@ Expr *texpr(const DefnId &for_defn_id,
       auto new_body = texpr(for_defn_id, lambda->body, new_bound_vars,
                             tenv.get_type(lambda->body), type_env, tenv, typing,
                             needed_defns, lambda_returns);
-      types::Type::refs lambda_terms;
+      types::Refs lambda_terms;
       unfold_binops_rassoc(ARROW_TYPE_OPERATOR, type, lambda_terms);
       assert(lambda_terms.size() >= 2);
       if (!lambda_returns &&
@@ -127,16 +127,16 @@ Expr *texpr(const DefnId &for_defn_id,
       typing[new_lambda] = type;
       return new_lambda;
     } else if (auto application = dcast<Application *>(expr)) {
-      types::Type::ref operator_type = tenv.get_type(application->a);
-      types::Type::ref operand_type = tenv.get_type(application->b);
+      types::Ref operator_type = tenv.get_type(application->a);
+      types::Ref operand_type = tenv.get_type(application->b);
 
       /* if we have unresolved types below us in the tree, we need to
        * propagate our known types down into them */
-      types::Type::refs terms;
+      types::Refs terms;
       unfold_binops_rassoc(ARROW_TYPE_OPERATOR, operator_type, terms);
       assert(terms.size() > 1);
 
-      types::Type::ref resolution_type = type_arrows({operand_type, type});
+      types::Ref resolution_type = type_arrows({operand_type, type});
       Unification unification = unify(operator_type, resolution_type);
       assert(unification.result);
       operator_type = operator_type->rebind(unification.bindings);
@@ -297,19 +297,18 @@ Translation::ref translate_expr(
     const DefnId &for_defn_id,
     bitter::Expr *expr,
     const std::unordered_set<std::string> &bound_vars,
-    const types::type_env_t &type_env,
+    const types::TypeEnv &type_env,
     const TranslationEnv &tenv,
-    needed_defns_t &needed_defns,
+    NeededDefns &needed_defns,
     bool &returns) {
-  tracked_types_t typing;
+  TrackedTypes typing;
   Expr *translated_expr = texpr(for_defn_id, expr, bound_vars,
                                 tenv.get_type(expr), type_env, tenv, typing,
                                 needed_defns, returns);
   return std::make_shared<Translation>(translated_expr, typing);
 }
 
-Translation::Translation(const bitter::Expr *expr,
-                         const tracked_types_t &typing)
+Translation::Translation(const bitter::Expr *expr, const TrackedTypes &typing)
     : expr(expr), typing(typing) {
   check_typing_for_ftvs(std::string("making a Translation"), typing);
 }
@@ -323,7 +322,7 @@ Location Translation::get_location() const {
   return expr->get_location();
 }
 
-types::Type::ref TranslationEnv::get_type(const bitter::Expr *e) const {
+types::Ref TranslationEnv::get_type(const bitter::Expr *e) const {
   auto t = (*tracked_types)[e];
   if (t == nullptr) {
     log_location(log_error, e->get_location(),
@@ -334,19 +333,18 @@ types::Type::ref TranslationEnv::get_type(const bitter::Expr *e) const {
   return t;
 }
 
-types::Type::refs TranslationEnv::get_data_ctor_terms(
-    types::Type::ref type,
-    Identifier ctor_id) const {
+types::Refs TranslationEnv::get_data_ctor_terms(types::Ref type,
+                                                Identifier ctor_id) const {
   // TODO: destructure the inbound type operator to find the id and the params.
   // look up the type to find the ctors, then look up the ctor from the inbound
   // ctor_id, and apply the params to the ctor's lambda to get the ctor_type.
   // unfold / destructure the terms of the ctor_type and return that list of
   // terms.
 
-  // types::Type::refs ctor_terms;
+  // types::Refs ctor_terms;
   // unfold_binops_rassoc(ARROW_TYPE_OPERATOR, ctor_type, ctor_terms);
 
-  types::Type::refs type_terms;
+  types::Refs type_terms;
   unfold_ops_lassoc(type, type_terms);
   assert(type_terms.size() != 0);
 
@@ -371,14 +369,14 @@ types::Type::refs TranslationEnv::get_data_ctor_terms(
   }
   debug_above(7, log("resolved ctor_type as %s", ctor_type->str().c_str()));
 
-  types::Type::refs ctor_terms;
+  types::Refs ctor_terms;
   unfold_binops_rassoc(ARROW_TYPE_OPERATOR, ctor_type, ctor_terms);
   return ctor_terms;
 }
 
-std::map<std::string, types::Type::refs> TranslationEnv::get_data_ctors_terms(
-    types::Type::ref type) const {
-  types::Type::refs type_terms;
+std::map<std::string, types::Refs> TranslationEnv::get_data_ctors_terms(
+    types::Ref type) const {
+  types::Refs type_terms;
   unfold_ops_lassoc(type, type_terms);
   assert(type_terms.size() != 0);
 
@@ -390,7 +388,7 @@ std::map<std::string, types::Type::refs> TranslationEnv::get_data_ctors_terms(
   assert(data_ctors_map.count(id->id.name) != 0);
   auto &data_ctors = data_ctors_map.at(id->id.name);
 
-  std::map<std::string, types::Type::refs> data_ctors_terms;
+  std::map<std::string, types::Refs> data_ctors_terms;
 
   for (auto pair : data_ctors) {
     auto ctor_type = pair.second;
@@ -402,7 +400,7 @@ std::map<std::string, types::Type::refs> TranslationEnv::get_data_ctors_terms(
     }
     debug_above(7, log("resolved ctor_type as %s", ctor_type->str().c_str()));
 
-    types::Type::refs ctor_terms;
+    types::Refs ctor_terms;
     unfold_binops_rassoc(ARROW_TYPE_OPERATOR, ctor_type, ctor_terms);
 
     data_ctors_terms[pair.first] = ctor_terms;
@@ -410,13 +408,13 @@ std::map<std::string, types::Type::refs> TranslationEnv::get_data_ctors_terms(
   return data_ctors_terms;
 }
 
-types::Type::refs TranslationEnv::get_fresh_data_ctor_terms(
+types::Refs TranslationEnv::get_fresh_data_ctor_terms(
     Identifier ctor_id) const {
   // FUTURE: build an index to make this faster
   for (auto type_ctors : data_ctors_map) {
     for (auto ctors : type_ctors.second) {
       if (ctors.first == ctor_id.name) {
-        types::Type::ref ctor_type = ctors.second;
+        types::Ref ctor_type = ctors.second;
         while (true) {
           if (auto type_lambda = dyncast<const types::TypeLambda>(ctor_type)) {
             ctor_type = type_lambda->apply(type_variable(INTERNAL_LOC()));
@@ -424,7 +422,7 @@ types::Type::refs TranslationEnv::get_fresh_data_ctor_terms(
             break;
           }
         }
-        types::Type::refs terms;
+        types::Refs terms;
         unfold_binops_rassoc(ARROW_TYPE_OPERATOR, ctor_type, terms);
         return terms;
       }
