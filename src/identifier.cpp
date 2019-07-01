@@ -42,3 +42,12 @@ bool Identifier::operator<(const Identifier &rhs) const {
 std::ostream &operator<<(std::ostream &os, const Identifier &rhs) {
   return os << rhs.str();
 }
+
+bool in(std::string needle, const Identifiers &haystack) {
+  for (auto &id : haystack) {
+    if (needle == id.name) {
+      return true;
+    }
+  }
+  return false;
+}

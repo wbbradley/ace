@@ -1902,9 +1902,45 @@ DataTypeDecl parse_data_type_decl(ParseState &ps,
   return {type_decl, decls};
 }
 
+types::ClassPredicateRef parse_class_predicate(ParseState &ps) {
+  expect_token(tk_identifier);
+  if (!isupper(ps.token.text[0])) {
+    throw user_error(ps.token.location,
+                     "type class requirements need to be upper-case "
+                     "because type classes need to be uppercase");
+  }
+  Identifier classname = Identifier::from_token(ps.token_and_advance());
+  types::Refs type_parameters;
+
+  while (!ps.line_broke() && ps.token.tk != tk_lcurly) {
+    if (ps.token.tk == tk_identifier) {
+      if (islower(ps.token.text[0])) {
+        type_parameters.push_back(
+            type_variable(Identifier::from_token(ps.token_and_advance())));
+      } else {
+        // TODO: have a flag that allows or doesn't allow non-variable types
+        if (true) {
+          type_parameters.push_back(
+              type_id(Identifier::from_token(ps.token_and_advance())));
+        } else {
+          throw user_error(ps.token.location,
+                           "illegal type reference (" C_TYPE "%s" C_RESET
+                           ") in class predicate",
+                           ps.token.text.c_str());
+        }
+      }
+    } else {
+      assert(ps.token.tk == tk_lparen);
+      ps.advance();
+      type_parameters.push_back(parse_type(ps));
+      chomp_token(tk_rparen);
+    }
+  }
+  return std::make_shared<types::ClassPredicate>(classname, type_parameters);
+}
+
 Instance *parse_type_class_instance(ParseState &ps) {
-  Identifier type_class_id = ps.identifier_and_advance();
-  types::Ref type = parse_type(ps);
+  types::ClassPredicateRef class_predicate = parse_class_predicate(ps);
   chomp_token(tk_lcurly);
 
   std::vector<Decl *> decls;
@@ -1927,7 +1963,7 @@ Instance *parse_type_class_instance(ParseState &ps) {
     }
   }
 
-  return new Instance{type_class_id, type, decls};
+  return new Instance{class_predicate, decls};
 }
 
 TypeClass *parse_type_class(ParseState &ps) {
@@ -1958,29 +1994,7 @@ TypeClass *parse_type_class(ParseState &ps) {
   while (true) {
     if (ps.token.is_ident(K(has))) {
       ps.advance();
-
-      expect_token(tk_identifier);
-      if (!isupper(ps.token.text[0])) {
-        throw user_error(ps.token.location,
-                         "type class requirements need to be upper-case "
-                         "because type classes need to be uppercase");
-      }
-      Identifier classname = Identifier::from_token(ps.token_and_advance());
-      Identifiers ftvs;
-
-      while (!ps.line_broke() && ps.token.tk == tk_identifier) {
-        if (islower(ps.token.text[0])) {
-          ftvs.push_back(Identifier::from_token(ps.token_and_advance()));
-        } else {
-          throw user_error(ps.token.location,
-                           "illegal type reference (" C_TYPE "%s" C_RESET
-                           ") in class predicate",
-                           ps.token.text.c_str());
-        }
-      }
-
-      class_predicates.insert(
-          std::make_shared<types::ClassPredicate>(classname, ftvs));
+      class_predicates.insert(parse_class_predicate(ps));
     } else if (ps.token.is_ident(K(fn))) {
       /* an overloaded function */
       ps.advance();

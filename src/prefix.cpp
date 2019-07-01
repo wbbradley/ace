@@ -134,8 +134,7 @@ types::ClassPredicates prefix(const std::set<std::string> &bindings,
 Instance *prefix(const std::set<std::string> &bindings,
                  std::string pre,
                  Instance *instance) {
-  return new Instance(prefix(bindings, pre, instance->type_class_id),
-                      prefix(bindings, pre, instance->type),
+  return new Instance(prefix(bindings, pre, instance->class_predicate),
                       prefix(bindings, pre, instance->decls));
 }
 

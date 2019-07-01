@@ -415,16 +415,14 @@ struct TypeClass {
 };
 
 struct Instance {
-  Instance(Identifier type_class_id,
-           types::Ref type,
+  Instance(const types::ClassPredicateRef &class_predicate,
            const std::vector<Decl *> &decls)
-      : type_class_id(type_class_id), type(type), decls(decls) {
+      : class_predicate(class_predicate), decls(decls) {
   }
   std::string str() const;
   Location get_location() const;
 
-  Identifier const type_class_id;
-  types::Ref const type;
+  types::ClassPredicateRef const class_predicate;
   std::vector<Decl *> const decls;
 };
 
