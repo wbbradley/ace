@@ -23,11 +23,13 @@ const char *BOTTOM_TYPE = "⊥";
 
 int next_generic = 1;
 
+std::string gensym_name() {
+  return string_format("__%s", alphabetize(next_generic++).c_str());
+}
+
 Identifier gensym(Location location) {
-  /* generate fresh "any" variables */
-  return Identifier{
-      string_format("__%s", alphabetize(next_generic++).c_str()).c_str(),
-      location};
+  /* generate fresh variable names */
+  return Identifier{gensym_name(), location};
 }
 
 std::string get_name_from_index(const types::NameIndex &name_index, int i) {
@@ -90,25 +92,63 @@ std::string Type::repr(const Map &bindings) const {
   return ss.str();
 }
 
+types::ClassPredicates get_overlapping_predicates(
+    const types::ClassPredicates &cps,
+    const Ftvs &ftvs,
+    Ftvs *overlapping_ftvs) {
+  /* eliminate class predicates that do not mention any ftvs. fill out the
+   * |overlapping_ftvs|.  */
+  log("looking for overlapping predicates between {%s} and {%s}",
+      join_str(cps, ", ").c_str(),
+      join(ftvs, ", ").c_str());
+  types::ClassPredicates new_cps;
+  Ftvs existing_ftvs;
+  for (auto &cp : cps) {
+    const Ftvs &cp_ftvs = cp->get_ftvs();
+    if (any_in(ftvs, cp_ftvs)) {
+      set_concat(existing_ftvs, cp_ftvs);
+      new_cps.insert(cp);
+    }
+  }
+  if (overlapping_ftvs != nullptr) {
+    overlapping_ftvs->clear();
+    std::swap(*overlapping_ftvs, existing_ftvs);
+  }
+  return new_cps;
+}
+
+Ftvs get_ftvs(const types::ClassPredicates &cps) {
+  Ftvs ftvs;
+  for (auto &cp : cps) {
+    set_concat(ftvs, cp->get_ftvs());
+  }
+  return ftvs;
+}
+
 std::shared_ptr<Scheme> Type::generalize(
     const types::ClassPredicates &pm) const {
   // TODO: return the principal type for this type in the context of these class
   // predicates.
-  assert(false);
-  return {};
-#if 0
+  Ftvs overlapping_ftvs;
+  Ftvs this_ftvs = this->get_ftvs();
+  ClassPredicates new_predicates = get_overlapping_predicates(
+      pm, this_ftvs, &overlapping_ftvs);
+  std::map<std::string, std::string> remapping;
+  for (auto &ftv : overlapping_ftvs) {
+    remapping[ftv] = gensym_name();
+  }
+  new_predicates = types::remap_vars(new_predicates, remapping);
   std::vector<std::string> vs;
-  ClassPredicates new_pm;
-  Map bindings;
-  for (auto &class_predicate : this->get_class_predicates()) {
-    if (!in(ftv.first, pm)) {
-      vs.push_back(ftv.first);
-      mutating_merge(ftv, new_pm);
-      bindings[ftv.first] = type_variable(make_iid(ftv.first));
+  for (auto &ftv : this_ftvs) {
+    /* make sure all the type variables are accounted for */
+    if (in(ftv, remapping)) {
+      vs.push_back(remapping.at(ftv));
+    } else {
+      vs.push_back(gensym_name());
+      remapping[ftv] = vs.back();
     }
   }
-  return scheme(vs, new_pm, rebind(bindings));
-#endif
+  return scheme(vs, new_predicates, remap_vars(remapping));
 }
 
 Ref Type::apply(types::Ref type) const {
@@ -209,8 +249,11 @@ Ref TypeVariable::rebind(const Map &bindings) const {
 Ref TypeVariable::remap_vars(
     const std::map<std::string, std::string> &map) const {
   auto iter = map.find(id.name);
-  assert(iter != map.end());
-  return type_variable(Identifier{iter->second, id.location});
+  if (iter != map.end()) {
+    return type_variable(Identifier{iter->second, id.location});
+  } else {
+    return shared_from_this();
+  }
 }
 
 Ref TypeVariable::prefix_ids(const std::set<std::string> &bindings,
@@ -251,6 +294,11 @@ std::ostream &TypeOperator::emit(std::ostream &os,
     operand->emit(os, bindings, get_precedence() + 1);
     return os;
   }
+}
+
+void TypeOperator::compute_ftvs() const {
+  set_concat(ftvs_, oper->get_ftvs());
+  set_concat(ftvs_, operand->get_ftvs());
 }
 
 Ref TypeOperator::eval(const TypeEnv &type_env) const {
@@ -306,6 +354,12 @@ std::ostream &TypeTuple::emit(std::ostream &os,
     os << ",";
   }
   return os << ")";
+}
+
+void TypeTuple::compute_ftvs() const {
+  for (auto &dimension : dimensions) {
+    set_concat(ftvs_, dimension->get_ftvs());
+  }
 }
 
 Ref TypeTuple::eval(const TypeEnv &type_env) const {
@@ -501,16 +555,8 @@ Refs rebind(const Refs &types, const Map &bindings) {
 types::Ref Scheme::instantiate(Location location) {
   types::Map subst;
   for (auto var : vars) {
-#ifdef ZION_DEBUG
-    bool ret =
-#endif
-
-        subst.insert({var, type_variable(gensym(location))});
-
-#ifdef ZION_DEBUG
-    assert(ret);
-#endif
-  }
+    subst[var] = type_variable(gensym(location));
+  };
   return type->rebind(subst);
 }
 
@@ -536,15 +582,14 @@ Scheme::Ref Scheme::normalize() {
 
   int counter = 0;
   for (auto &ftv : type->get_ftvs()) {
-    auto new_name = alphabetize(counter++);
-    ord[ftv] = new_name;
+    ord[ftv] = alphabetize(counter++);
   }
   return scheme(values(ord), types::remap_vars(predicates, ord),
                 type->remap_vars(ord));
 }
 
 std::string Scheme::str() const {
-  return repr();
+  return string_format(c_good("%s"), repr().c_str());
 }
 
 std::string Scheme::repr() const {
@@ -565,7 +610,7 @@ int Scheme::btvs() const {
   /* get the number of type variables that are predicated */
   const Ftvs &ftvs = type->get_ftvs();
   Ftvs predicated_tvs;
-  for (auto &cp: predicates) {
+  for (auto &cp : predicates) {
     set_merge(predicated_tvs, cp->get_ftvs());
   }
   return set_intersect(ftvs, predicated_tvs).size();
@@ -579,10 +624,6 @@ Ref unitize(Ref type) {
   Map bindings;
   for (auto &ftv : type->get_ftvs()) {
     bindings[ftv] = type_unit(INTERNAL_LOC());
-    debug_above(6, log("assigning %s binding for [%s] to %s",
-                       pair.first.c_str(), join(pair.second).c_str(),
-                       bindings.at(pair.first)->str().c_str()));
-    assert(pair.second.size() == 0);
   }
   return type->rebind(bindings);
 }
@@ -610,6 +651,15 @@ types::Ref type_variable(const Identifier &id) {
 
 types::Ref type_variable(Location location) {
   return std::make_shared<types::TypeVariable>(location);
+}
+
+types::Refs type_variables(const Identifiers &ids) {
+  types::Refs types;
+  types.reserve(ids.size());
+  for (auto &id: ids) {
+    types.push_back(type_variable(id));
+  }
+  return types;
 }
 
 types::Ref type_unit(Location location) {
@@ -771,14 +821,12 @@ std::string str(const types::Map &coll) {
 std::string str(const types::ClassPredicates &pm) {
   bool saw_predicate = false;
   std::stringstream ss;
-  const char *delim = " [where ";
-  for (auto pair : pm) {
-    for (auto predicate : pair.second) {
-      ss << delim;
-      ss << predicate << " " << pair.first;
-      delim = ", ";
-      saw_predicate = true;
-    }
+  const char *delim = " [";
+  for (auto class_predicate : pm) {
+    ss << delim << "has ";
+    ss << class_predicate->repr();
+    delim = ", ";
+    saw_predicate = true;
   }
   if (saw_predicate) {
     ss << "]";

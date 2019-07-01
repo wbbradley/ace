@@ -20,6 +20,12 @@ struct shared_comparator {
   }
 };
 
+template <class T>
+std::size_t hash_combine(std::size_t s, const T &v) {
+  std::hash<T> h;
+  return s ^ (h(v) + 0x9e3779b9 + (s << 6) + (s >> 2));
+}
+
 void base64_encode(const void *buffer,
                    unsigned long size,
                    std::string &encoded_output);
@@ -331,6 +337,16 @@ bool all_in(const C1 &items, const C2 &set) {
     }
   }
   return true;
+}
+
+template <typename C1, typename C2>
+bool any_in(const C1 &needles, const C2 &haystack) {
+  for (auto &needle : needles) {
+    if (in(needle, haystack)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 template <typename V>

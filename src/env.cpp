@@ -112,7 +112,7 @@ void Env::extend(Identifier id,
   }
   map[id.name] = scheme;
   debug_above(9, log("extending env with %s => %s", id.str().c_str(),
-                     scheme->str().c_str()));
+                     scheme->normalize()->str().c_str()));
 }
 
 types::ClassPredicates Env::get_predicate_map() const {

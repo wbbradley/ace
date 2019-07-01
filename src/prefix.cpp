@@ -1,5 +1,7 @@
 #include "prefix.h"
 
+#include "class_predicate.h"
+
 using namespace bitter;
 
 std::string prefix(const std::set<std::string> &bindings,
@@ -108,6 +110,25 @@ TypeClass *prefix(const std::set<std::string> &bindings,
       prefix(bindings, pre, type_class->id), type_class->type_var_ids,
       prefix(bindings, pre, type_class->class_predicates),
       prefix(bindings, pre, type_class->overloads, true /*include_keys*/));
+}
+
+types::ClassPredicateRef prefix(
+    const std::set<std::string> &bindings,
+    std::string pre,
+    const types::ClassPredicateRef &class_predicate) {
+  return std::make_shared<types::ClassPredicate>(
+      prefix(bindings, pre, class_predicate->classname),
+      prefix(bindings, pre, class_predicate->params));
+}
+
+types::ClassPredicates prefix(const std::set<std::string> &bindings,
+                              std::string pre,
+                              const types::ClassPredicates &class_predicates) {
+  types::ClassPredicates new_cps;
+  for (auto &cp : class_predicates) {
+    new_cps.insert(prefix(bindings, pre, cp));
+  }
+  return new_cps;
 }
 
 Instance *prefix(const std::set<std::string> &bindings,
