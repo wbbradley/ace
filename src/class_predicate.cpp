@@ -1,21 +1,45 @@
 #include "class_predicate.h"
 
 #include <ctype.h>
+#include <cstring>
 #include <sstream>
 
 #include "colors.h"
 #include "types.h"
+#include "utils.h"
 
 namespace types {
+
+size_t ClassPredicateRefHasher::operator()(const ClassPredicateRef &rhs) const {
+  return std::hash<std::string>()(rhs->repr());
+}
+
+bool ClassPredicateRefEqualTo::operator()(const ClassPredicateRef &lhs,
+                                          const ClassPredicateRef &rhs) const {
+  return !(*lhs < *rhs || *rhs < *lhs);
+}
 
 ClassPredicate::ClassPredicate(Identifier classname, const types::Refs &params)
     : classname(classname), params(params) {
 #ifdef ZION_DEBUG
-  assert(isupper(classname.name[0]));
+  if (std::strchr(classname.name.c_str(), '.') != nullptr) {
+    assert(isupper(split(classname.name, ".")[1][0]));
+  } else {
+    assert(isupper(classname.name[0]));
+  }
 #endif
 }
 
+ClassPredicate::ClassPredicate(Identifier classname, const Identifiers &params)
+    : ClassPredicate(classname, type_variables(params)) {
+}
+
+Location ClassPredicate::get_location() const {
+  return classname.location;
+}
+
 bool ClassPredicate::operator<(const ClassPredicate &rhs) const {
+  assert(false);
   if (classname < rhs.classname) {
     return true;
   }
@@ -23,7 +47,7 @@ bool ClassPredicate::operator<(const ClassPredicate &rhs) const {
   for (int i = 0; i < params.size(); ++i) {
     if (i >= rhs.params.size()) {
       return false;
-    } else if (params[i] < rhs.params[i]) {
+    } else if (params[i]->repr() < rhs.params[i]->repr()) {
       return true;
     }
   }

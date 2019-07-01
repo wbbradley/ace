@@ -142,8 +142,8 @@ class LoadableValue f {
     fn load_value(f a) a
 }
 
-class StorableValue f {
-    fn store_value(f a, a) ()
+class StorableValue g {
+    fn store_value(g q, q) ()
 }
 
 instance LoadableValue Ref {

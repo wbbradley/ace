@@ -102,8 +102,7 @@ struct TuplePredicate : public Predicate {
   std::ostream &render(std::ostream &os) const override;
   match::Pattern::ref get_pattern(types::Ref type,
                                   const TranslationEnv &env) const override;
-  types::Ref tracking_infer(Env &env,
-                            Constraints &constraints) const override;
+  types::Ref tracking_infer(Env &env, Constraints &constraints) const override;
   Identifier instantiate_name_assignment() const override;
   void get_bound_vars(
       std::unordered_set<std::string> &bound_vars) const override;
@@ -133,8 +132,7 @@ struct IrrefutablePredicate : public Predicate {
   std::ostream &render(std::ostream &os) const override;
   match::Pattern::ref get_pattern(types::Ref type,
                                   const TranslationEnv &env) const override;
-  types::Ref tracking_infer(Env &env,
-                            Constraints &constraints) const override;
+  types::Ref tracking_infer(Env &env, Constraints &constraints) const override;
   Identifier instantiate_name_assignment() const override;
   void get_bound_vars(
       std::unordered_set<std::string> &bound_vars) const override;
@@ -167,8 +165,7 @@ struct CtorPredicate : public Predicate {
   std::ostream &render(std::ostream &os) const override;
   match::Pattern::ref get_pattern(types::Ref type,
                                   const TranslationEnv &env) const override;
-  types::Ref tracking_infer(Env &env,
-                            Constraints &constraints) const override;
+  types::Ref tracking_infer(Env &env, Constraints &constraints) const override;
   Identifier instantiate_name_assignment() const override;
   void get_bound_vars(
       std::unordered_set<std::string> &bound_vars) const override;
@@ -304,8 +301,7 @@ struct Literal : public Expr, public Predicate {
   std::ostream &render(std::ostream &os) const override;
   match::Pattern::ref get_pattern(types::Ref type,
                                   const TranslationEnv &env) const override;
-  types::Ref tracking_infer(Env &env,
-                            Constraints &constraints) const override;
+  types::Ref tracking_infer(Env &env, Constraints &constraints) const override;
   types::Ref non_tracking_infer() const;
   Identifier instantiate_name_assignment() const override;
   void get_bound_vars(
