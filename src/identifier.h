@@ -47,3 +47,5 @@ std::set<Identifier> to_set(const Identifiers &identifiers);
 std::set<std::string> to_atom_set(const Identifiers &refs);
 
 std::ostream &operator<<(std::ostream &os, const Identifier &rhs);
+
+bool in(std::string needle, const Identifiers &haystack);

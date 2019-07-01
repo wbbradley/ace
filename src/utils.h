@@ -163,6 +163,13 @@ template <typename T> std::set<T> set_diff(std::set<T> a, std::set<T> b) {
   return diff;
 }
 
+template <typename T> std::set<T> set_diff(std::set<T> a, std::vector<T> b) {
+  std::set<T> diff;
+  std::set_difference(a.begin(), a.end(), b.begin(), b.end(),
+                      std::inserter(diff, diff.begin()));
+  return diff;
+}
+
 template <typename T>
 std::set<T> set_intersect(const std::set<T> &a, const std::set<T> &b) {
   std::set<T> intersection;
