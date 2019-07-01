@@ -5,6 +5,7 @@
 #include <sys/wait.h>
 
 #include "ast.h"
+#include "class_predicate.h"
 #include "compiler.h"
 #include "disk.h"
 #include "env.h"
@@ -145,9 +146,11 @@ std::map<std::string, TypeClass *> check_type_classes(
       predicates.insert(std::make_shared<types::ClassPredicate>(
           type_class->id, type_class->type_var_ids));
 
-      types::Map bindings;
-      bindings[type_class->type_var_id.name] = type_variable(
-          gensym(type_class->type_var_id.location), predicates);
+      std::map<std::string, std::string> remapping;
+      for (auto &var_id : type_class->type_var_ids) {
+        remapping[var_id.name] = gensym_name();
+      }
+      predicates = types::remap_vars(predicates, remapping);
 
       for (auto pair : type_class->overloads) {
         if (in(pair.first, env.map)) {
@@ -159,8 +162,9 @@ std::map<std::string, TypeClass *> check_type_classes(
           throw error;
         }
 
+        log("extending...");
         env.extend(Identifier{pair.first, pair.second->get_location()},
-                   pair.second->rebind(bindings)->generalize({})->normalize(),
+                   pair.second->remap_vars(remapping)->generalize(predicates),
                    false /*allow_duplicates*/);
       }
     } catch (user_error &e) {
@@ -252,7 +256,6 @@ void check_instance_for_type_class_overload(
       names_checked.insert(decl->var.name);
 
       Env local_env{env};
-      local_env.instance_requirements.resize(0);
       Identifier instance_decl_id = make_instance_decl_id(type_class->id.name,
                                                           instance, decl->var);
       types::Scheme::Ref expected_scheme = type->rebind(subst)->generalize(
@@ -288,7 +291,7 @@ void check_instance_for_type_class_overload(
       /* keep track of any instance requirements that were referenced inside the
        * implementation of the type class instance components */
       for (auto ir : local_env.instance_requirements) {
-        env.instance_requirements.push_back(ir);
+        env.instance_requirements.insert(ir);
       }
 
       env.map[instance_decl_id.name] = expected_scheme;
@@ -312,6 +315,8 @@ void check_instance_for_type_class_overloads(
     std::vector<Decl *> &instance_decls,
     std::map<DefnId, Decl *> &overrides_map,
     Env &env) {
+  assert(false);
+#if 0
   /* make a template for the type that the instance implementation should
    * conform to */
   types::Map subst;
@@ -340,6 +345,7 @@ void check_instance_for_type_class_overloads(
                        join(names_checked, ", ").c_str());
     }
   }
+#endif
 }
 
 std::vector<Decl *> check_instances(
@@ -387,21 +393,25 @@ std::vector<Decl *> check_instances(
 }
 
 bool instance_matches_requirement(Instance *instance,
-                                  const InstanceRequirement &ir,
+                                  const types::ClassPredicateRef &ir,
                                   Env &env) {
   // log("checking %s %s vs. %s %s", ir.type_class_name.c_str(),
   // ir.type->str().c_str(), instance->type_class_id.name.c_str(),
   // instance->type->str().c_str());
   auto pm = env.get_predicate_map();
-  return instance->type_class_id.name == ir.type_class_name &&
+  assert(false);
+  return false;
+#if 0
+  return instance->type_class_id.name == ir.classname &&
          scheme_equality(ir.type->generalize(pm)->normalize(),
                          instance->type->generalize(pm)->normalize());
+#endif
 }
 
 void check_instance_requirements(const std::vector<Instance *> &instances,
                                  Env &env) {
   for (auto ir : env.instance_requirements) {
-    debug_above(8, log("checking instance requirement %s", ir.str().c_str()));
+    debug_above(8, log("checking instance requirement %s", ir->str().c_str()));
     std::vector<Instance *> matching_instances;
     for (auto instance : instances) {
       if (instance_matches_requirement(instance, ir, env)) {
@@ -411,13 +421,13 @@ void check_instance_requirements(const std::vector<Instance *> &instances,
 
     if (matching_instances.size() == 0) {
       throw user_error(
-          ir.location,
+          ir->get_location(),
           "could not find an instance that supports the requirement %s",
-          ir.str().c_str());
+          ir->str().c_str());
     } else if (matching_instances.size() != 1) {
-      auto error = user_error(ir.location,
+      auto error = user_error(ir->get_location(),
                               "found multiple instances implementing %s",
-                              ir.str().c_str());
+                              ir->str().c_str());
       for (auto mi : matching_instances) {
         error.add_info(mi->get_location(), "matching instance found is %s %s",
                        mi->type_class_id.str().c_str(),

@@ -139,9 +139,9 @@ Unification unify(Ref a, Ref b) {
 void check_constraints_cover_tracked_types(const Context &context,
                                            const TrackedTypes &tracked_types,
                                            const Constraints &constraints) {
-  std::unordered_set<std::string> ftvs;
+  Ftvs ftvs;
   for (auto pair : tracked_types) {
-    auto s = types::get_ftvs(pair.second);
+    const Ftvs &s = pair.second->get_ftvs();
     set_concat(ftvs, s);
     debug_above(5, log_location(pair.first->get_location(),
                                 "%s :: %s contains {%s}",
@@ -149,10 +149,10 @@ void check_constraints_cover_tracked_types(const Context &context,
                                 pair.second->str().c_str(), join(s).c_str()));
   }
 
-  std::unordered_set<std::string> constrained_tvs;
+  Ftvs constrained_tvs;
   for (auto &constraint : constraints) {
-    set_concat(constrained_tvs, types::get_ftvs(constraint.a));
-    set_concat(constrained_tvs, types::get_ftvs(constraint.b));
+    set_concat(constrained_tvs, constraint.a->get_ftvs());
+    set_concat(constrained_tvs, constraint.b->get_ftvs());
   }
   for (auto &constrained_tv : constrained_tvs) {
     ftvs.erase(constrained_tv);

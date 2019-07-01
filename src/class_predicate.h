@@ -3,8 +3,8 @@
 #include <string>
 #include <vector>
 
-#include "types.h"
 #include "identifier.h"
+#include "types.h"
 
 namespace types {
 
@@ -19,6 +19,7 @@ struct ClassPredicate final {
   std::string repr() const;
   std::string str() const;
 
+  Location get_location() const;
   Ref remap_vars(const std::map<std::string, std::string> &remapping) const;
   const Ftvs &get_ftvs() const;
 

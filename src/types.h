@@ -126,8 +126,6 @@ struct TypeId final : public Type {
 };
 
 struct TypeOperator final : public Type {
-  typedef std::shared_ptr<const TypeOperator> Ref;
-
   TypeOperator(Ref oper, Ref operand);
   Ref oper;
   Ref operand;
@@ -140,12 +138,11 @@ struct TypeOperator final : public Type {
                      const Map &bindings,
                      int parent_precedence) const override;
   void compute_ftvs() const override;
-  types::Ref eval(const TypeEnv &type_env) const override;
-  types::Ref rebind(const Map &bindings) const override;
-  types::Ref remap_vars(
-      const std::map<std::string, std::string> &map) const override;
-  types::Ref prefix_ids(const std::set<std::string> &bindings,
-                        const std::string &pre) const override;
+  Ref eval(const TypeEnv &type_env) const override;
+  Ref rebind(const Map &bindings) const override;
+  Ref remap_vars(const std::map<std::string, std::string> &map) const override;
+  Ref prefix_ids(const std::set<std::string> &bindings,
+                 const std::string &pre) const override;
   Location get_location() const override;
 };
 
@@ -231,6 +228,7 @@ Refs rebind(const Refs &types, const Map &bindings);
 bool is_callable(const types::Ref &type);
 bool is_type_id(Ref type, const std::string &type_name);
 bool is_unit(Ref type);
+Ftvs get_ftvs(const ClassPredicates &class_predicates);
 
 }; // namespace types
 
@@ -248,6 +246,7 @@ void insert_needed_defn(NeededDefns &needed_defns,
                         Location location,
                         const DefnId &from_defn_id);
 
+std::string gensym_name();
 Identifier gensym(Location location);
 
 /* type data ctors */
@@ -266,6 +265,7 @@ types::Ref type_arrows(types::Refs types, int offset = 0);
 types::Ref type_id(Identifier var);
 types::Ref type_variable(const Identifier &id);
 types::Ref type_variable(Location location);
+types::Refs type_variables(const Identifiers &ids);
 types::Ref type_operator(types::Ref operator_, types::Ref operand);
 types::Ref type_operator(const types::Refs &xs);
 types::Ref type_deref(types::Ref type);
