@@ -1970,7 +1970,7 @@ TypeClass *parse_type_class(ParseState &ps) {
 
       while (!ps.line_broke() && ps.token.tk == tk_identifier) {
         if (islower(ps.token.text[0])) {
-          ftvs.push_back(Identifier::from_token(ps.token));
+          ftvs.push_back(Identifier::from_token(ps.token_and_advance()));
         } else {
           throw user_error(ps.token.location,
                            "illegal type reference (" C_TYPE "%s" C_RESET

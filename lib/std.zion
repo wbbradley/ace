@@ -255,7 +255,8 @@ instance Bitwise Int {
 }
 
 class Num a {
-    has Eq
+    # TODO: test "has Eq" with no "a"
+    has Eq a
     fn from_int(Int) a
     fn +(a, a) a
     fn *(a, a) a

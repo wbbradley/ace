@@ -20,18 +20,19 @@ struct ClassPredicate final {
   std::string str() const;
 
   Location get_location() const;
+  Ref rebind(const types::Map &bindings) const;
   Ref remap_vars(const std::map<std::string, std::string> &remapping) const;
   const Ftvs &get_ftvs() const;
 
   Identifier const classname;
   Refs const params;
 
-  bool operator<(const ClassPredicate &rhs) const;
+  bool operator==(const ClassPredicate &rhs) const;
 
 private:
-  mutable bool has_repr_;
+  mutable bool has_repr_ = false;
   mutable std::string repr_;
-  mutable bool has_ftvs_;
+  mutable bool has_ftvs_ = false;
   mutable Ftvs ftvs_;
 };
 
