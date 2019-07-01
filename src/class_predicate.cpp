@@ -1,11 +1,12 @@
 #include "class_predicate.h"
 
-#include <ctype.h>
 #include <cstring>
+#include <ctype.h>
 #include <sstream>
 
 #include "colors.h"
 #include "types.h"
+#include "unification.h"
 #include "utils.h"
 
 namespace types {
@@ -16,7 +17,7 @@ size_t ClassPredicateRefHasher::operator()(const ClassPredicateRef &rhs) const {
 
 bool ClassPredicateRefEqualTo::operator()(const ClassPredicateRef &lhs,
                                           const ClassPredicateRef &rhs) const {
-  return !(*lhs < *rhs || *rhs < *lhs);
+  return *lhs == *rhs;
 }
 
 ClassPredicate::ClassPredicate(Identifier classname, const types::Refs &params)
@@ -38,26 +39,27 @@ Location ClassPredicate::get_location() const {
   return classname.location;
 }
 
-bool ClassPredicate::operator<(const ClassPredicate &rhs) const {
-  assert(false);
-  if (classname < rhs.classname) {
-    return true;
+bool ClassPredicate::operator==(const ClassPredicate &rhs) const {
+  if (classname.name != rhs.classname.name) {
+    return false;
+  }
+
+  if (params.size() != rhs.params.size()) {
+    return false;
   }
 
   for (int i = 0; i < params.size(); ++i) {
-    if (i >= rhs.params.size()) {
+    if (!type_equality(params[i], rhs.params[i])) {
       return false;
-    } else if (params[i]->repr() < rhs.params[i]->repr()) {
-      return true;
     }
   }
-  return false;
+  return true;
 }
 
 std::string ClassPredicate::repr() const {
   if (!has_repr_) {
     std::stringstream ss;
-    ss << classname;
+    ss << classname.name;
     for (auto &param : params) {
       ss << " " << param->repr();
     }
@@ -69,14 +71,23 @@ std::string ClassPredicate::repr() const {
 
 std::string ClassPredicate::str() const {
   std::stringstream ss;
-  ss << C_GOOD << repr() << C_RESET;
+  ss << C_TYPECLASS << classname.name << C_RESET;
+  for (auto &param : params) {
+    ss << " " << param->str();
+  }
   return ss.str();
 }
 
 ClassPredicates rebind(const ClassPredicates &class_predicates,
                        const Map &bindings) {
-  assert(false);
-  return {};
+  ClassPredicates new_class_predicates;
+  for (auto &cp : class_predicates) {
+    new_class_predicates.insert(cp->rebind(bindings));
+  }
+  log("rebinding {%s} with bindings %s results in %s",
+      ::str(class_predicates).c_str(), ::str(bindings).c_str(),
+      ::str(new_class_predicates).c_str());
+  return new_class_predicates;
 }
 
 ClassPredicate::Ref ClassPredicate::remap_vars(
@@ -88,6 +99,18 @@ ClassPredicate::Ref ClassPredicate::remap_vars(
 
   for (const types::Ref &param : params) {
     new_params.push_back(param->remap_vars(remapping));
+  }
+
+  return std::make_shared<types::ClassPredicate>(classname, new_params);
+}
+
+ClassPredicate::Ref ClassPredicate::rebind(const types::Map &bindings) const {
+  /* rebind all the types in a ClassPredicate. */
+  Refs new_params;
+  new_params.reserve(params.size());
+
+  for (const types::Ref &param : params) {
+    new_params.push_back(param->rebind(bindings));
   }
 
   return std::make_shared<types::ClassPredicate>(classname, new_params);

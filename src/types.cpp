@@ -99,8 +99,7 @@ types::ClassPredicates get_overlapping_predicates(
   /* eliminate class predicates that do not mention any ftvs. fill out the
    * |overlapping_ftvs|.  */
   log("looking for overlapping predicates between {%s} and {%s}",
-      join_str(cps, ", ").c_str(),
-      join(ftvs, ", ").c_str());
+      join_str(cps, ", ").c_str(), join(ftvs, ", ").c_str());
   types::ClassPredicates new_cps;
   Ftvs existing_ftvs;
   for (auto &cp : cps) {
@@ -127,28 +126,16 @@ Ftvs get_ftvs(const types::ClassPredicates &cps) {
 
 std::shared_ptr<Scheme> Type::generalize(
     const types::ClassPredicates &pm) const {
-  // TODO: return the principal type for this type in the context of these class
-  // predicates.
-  Ftvs overlapping_ftvs;
   Ftvs this_ftvs = this->get_ftvs();
+  Ftvs overlapping_ftvs;
   ClassPredicates new_predicates = get_overlapping_predicates(
       pm, this_ftvs, &overlapping_ftvs);
-  std::map<std::string, std::string> remapping;
-  for (auto &ftv : overlapping_ftvs) {
-    remapping[ftv] = gensym_name();
-  }
-  new_predicates = types::remap_vars(new_predicates, remapping);
   std::vector<std::string> vs;
   for (auto &ftv : this_ftvs) {
     /* make sure all the type variables are accounted for */
-    if (in(ftv, remapping)) {
-      vs.push_back(remapping.at(ftv));
-    } else {
-      vs.push_back(gensym_name());
-      remapping[ftv] = vs.back();
-    }
+    vs.push_back(ftv);
   }
-  return scheme(vs, new_predicates, remap_vars(remapping));
+  return scheme(vs, new_predicates, shared_from_this());
 }
 
 Ref Type::apply(types::Ref type) const {
@@ -589,7 +576,17 @@ Scheme::Ref Scheme::normalize() {
 }
 
 std::string Scheme::str() const {
-  return string_format(c_good("%s"), repr().c_str());
+  std::stringstream ss;
+  if (vars.size() != 0) {
+    ss << "(∀ " << C_TYPE << join(vars, " ") << C_RESET;
+    ss << ::str(predicates);
+    ss << " . ";
+  }
+  ss << type->str();
+  if (vars.size() != 0) {
+    ss << ")";
+  }
+  return ss.str();
 }
 
 std::string Scheme::repr() const {
@@ -656,7 +653,7 @@ types::Ref type_variable(Location location) {
 types::Refs type_variables(const Identifiers &ids) {
   types::Refs types;
   types.reserve(ids.size());
-  for (auto &id: ids) {
+  for (auto &id : ids) {
     types.push_back(type_variable(id));
   }
   return types;
@@ -822,9 +819,9 @@ std::string str(const types::ClassPredicates &pm) {
   bool saw_predicate = false;
   std::stringstream ss;
   const char *delim = " [";
-  for (auto class_predicate : pm) {
-    ss << delim << "has ";
-    ss << class_predicate->repr();
+  for (auto &class_predicate : pm) {
+    ss << delim;
+    ss << class_predicate->str();
     delim = ", ";
     saw_predicate = true;
   }
