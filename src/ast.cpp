@@ -1,5 +1,6 @@
 #include "ast.h"
 
+#include "class_predicate.h"
 #include "parens.h"
 
 std::ostream &operator<<(std::ostream &os, bitter::Program *program) {
@@ -439,12 +440,12 @@ Location TypeClass::get_location() const {
 }
 
 std::string Instance::str() const {
-  return string_format("instance %s %s {\n\t%s\n}", type_class_id.name.c_str(),
-                       type->str().c_str(), ::join_str(decls, "\n\t").c_str());
+  return string_format("instance %s {\n\t%s\n}", class_predicate->str().c_str(),
+                       ::join_str(decls, "\n\t").c_str());
 }
 
 Location Instance::get_location() const {
-  return type_class_id.location;
+  return class_predicate->get_location();
 }
 
 int next_fresh = 0;

@@ -212,24 +212,11 @@ void check_decls(std::string entry_point_name,
   }
 }
 
-#define INSTANCE_ID_SEP "/"
-Identifier make_instance_id(std::string type_class_name, Instance *instance) {
-  return Identifier{type_class_name + INSTANCE_ID_SEP + instance->type->repr(),
-                    instance->get_location()};
-}
-
-Identifier make_instance_decl_id(std::string type_class_name,
-                                 Instance *instance,
-                                 Identifier decl_id) {
-  return Identifier{make_instance_id(type_class_name, instance).name +
-                        INSTANCE_ID_SEP + decl_id.name,
+Identifier make_instance_decl_id(Instance *instance, Identifier decl_id) {
+  return Identifier{string_format("%s/%s",
+                                  instance->class_predicate->repr().c_str(),
+                                  decl_id.name.c_str()),
                     decl_id.location};
-}
-
-Identifier make_instance_dict_id(std::string type_class_name,
-                                 Instance *instance) {
-  auto id = make_instance_id(type_class_name, instance);
-  return Identifier{"dict" INSTANCE_ID_SEP + id.name, id.location};
 }
 
 void check_instance_for_type_class_overload(
@@ -256,8 +243,7 @@ void check_instance_for_type_class_overload(
       names_checked.insert(decl->var.name);
 
       Env local_env{env};
-      Identifier instance_decl_id = make_instance_decl_id(type_class->id.name,
-                                                          instance, decl->var);
+      Identifier instance_decl_id = make_instance_decl_id(instance, decl->var);
       types::Scheme::Ref expected_scheme = type->rebind(subst)->generalize(
           local_env.get_predicate_map());
 
@@ -303,9 +289,8 @@ void check_instance_for_type_class_overload(
   }
   if (!found) {
     throw user_error(type->get_location(),
-                     "could not find decl for %s in instance %s %s",
-                     name.c_str(), type_class->id.str().c_str(),
-                     instance->type->str().c_str());
+                     "could not find decl for %s in instance %s", name.c_str(),
+                     instance->class_predicate->str().c_str());
   }
 }
 
@@ -315,13 +300,23 @@ void check_instance_for_type_class_overloads(
     std::vector<Decl *> &instance_decls,
     std::map<DefnId, Decl *> &overrides_map,
     Env &env) {
-  assert(false);
-#if 0
-  /* make a template for the type that the instance implementation should
+  /* make a template for the types that the instance implementation should
    * conform to */
   types::Map subst;
-  subst[type_class->type_var_id.name] = instance->type->generalize({})
-                                            ->instantiate(INTERNAL_LOC());
+
+  // find all ftvs
+  // freshen them all
+  const types::Ftvs &ftvs = instance->class_predicate->get_ftvs();
+  for (auto &ftv : ftvs) {
+    assert(in(ftv, type_class->type_var_ids));
+  }
+  int i = 0;
+  for (auto &type_var_id : type_class->type_var_ids) {
+    assert(in(type_var_id.name, ftvs));
+    subst[type_var_id.name] = instance->class_predicate->params[i++]
+                                  ->generalize({})
+                                  ->instantiate(INTERNAL_LOC());
+  }
 
   /* check whether this instance properly implements the given type class */
   std::set<std::string> names_checked;
@@ -338,14 +333,13 @@ void check_instance_for_type_class_overloads(
   for (auto decl : instance->decls) {
     if (!in(decl->var.name, names_checked)) {
       throw user_error(decl->var.location,
-                       "extraneous declaration %s found in instance %s %s "
+                       "extraneous declaration %s found in instance %s "
                        "(names_checked = {%s})",
-                       decl->var.str().c_str(), type_class->id.str().c_str(),
-                       instance->type->str().c_str(),
+                       decl->var.str().c_str(),
+                       instance->class_predicate->str().c_str(),
                        join(names_checked, ", ").c_str());
     }
   }
-#endif
 }
 
 std::vector<Decl *> check_instances(
@@ -357,16 +351,17 @@ std::vector<Decl *> check_instances(
 
   for (Instance *instance : instances) {
     try {
-      TypeClass *type_class = get(type_class_map, instance->type_class_id.name,
+      TypeClass *type_class = get(type_class_map,
+                                  instance->class_predicate->classname.name,
                                   static_cast<TypeClass *>(nullptr));
 
       if (type_class == nullptr) {
         /* Error Handling */
-        auto error = user_error(instance->type_class_id.location,
-                                "could not find type class for instance %s %s",
-                                instance->type_class_id.str().c_str(),
-                                instance->type->str().c_str());
-        auto leaf_name = split(instance->type_class_id.name, ".").back();
+        auto error = user_error(instance->class_predicate->get_location(),
+                                "could not find type class for instance %s",
+                                instance->class_predicate->str().c_str());
+        auto leaf_name = split(instance->class_predicate->classname.name, ".")
+                             .back();
         for (auto type_class_pair : type_class_map) {
           auto type_class = type_class_pair.second;
           if (type_class->id.name.find(leaf_name) != std::string::npos) {
@@ -383,9 +378,9 @@ std::vector<Decl *> check_instances(
           instance, type_class, instance_decls, overrides_map, env);
 
     } catch (user_error &e) {
-      e.add_info(
-          instance->type_class_id.location, "while checking instance %s %s",
-          instance->type_class_id.str().c_str(), instance->type->str().c_str());
+      e.add_info(instance->class_predicate->get_location(),
+                 "while checking instance %s",
+                 instance->class_predicate->str().c_str());
       print_exception(e);
     }
   }
@@ -429,9 +424,8 @@ void check_instance_requirements(const std::vector<Instance *> &instances,
                               "found multiple instances implementing %s",
                               ir->str().c_str());
       for (auto mi : matching_instances) {
-        error.add_info(mi->get_location(), "matching instance found is %s %s",
-                       mi->type_class_id.str().c_str(),
-                       mi->type->str().c_str());
+        error.add_info(mi->get_location(), "matching instance found is %s",
+                       mi->class_predicate->str().c_str());
       }
       throw error;
     }
@@ -1139,7 +1133,7 @@ int run_job(const Job &job) {
         log_location(type_class->id.location, "%s", type_class->str().c_str());
       }
       for (auto instance : compilation->program->instances) {
-        log_location(instance->type_class_id.location, "%s",
+        log_location(instance->class_predicate->get_location(), "%s",
                      instance->str().c_str());
       }
       return EXIT_SUCCESS;
