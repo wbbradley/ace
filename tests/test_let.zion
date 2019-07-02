@@ -8,19 +8,4 @@ instance Getter Int {
     fn getter() => 0
 }
 
-instance Getter Float {
-    fn getter() => 0.0
-}
-
-fn dealWithInt(x Int) () {
-}
-
-fn use_getter() {
-    return getter()
-}
-
-fn main() {
-    g := use_getter()
-    dealWithInt(g)
-    __builtin_pass_test
-}
+fn use_getter() => getter()

@@ -274,6 +274,11 @@ void check_instance_for_type_class_overload(
         throw error;
       }
 
+      log("while checking instance decl %s :: %s we found predicates %s",
+          name.c_str(),
+          type->str().c_str(),
+          str(local_env.instance_requirements).c_str());
+
       /* keep track of any instance requirements that were referenced inside the
        * implementation of the type class instance components */
       for (auto ir : local_env.instance_requirements) {
@@ -315,9 +320,7 @@ void check_instance_for_type_class_overloads(
   int i = 0;
   assert(instance->class_predicate->params.size() == type_class->type_var_ids.size());
   for (auto &type_var_id : type_class->type_var_ids) {
-    subst[type_var_id.name] = instance->class_predicate->params[i++]
-                                  ->generalize({})
-                                  ->instantiate(INTERNAL_LOC());
+    subst[type_var_id.name] = instance->class_predicate->params[i++];
   }
 
   /* check whether this instance properly implements the given type class */
@@ -396,13 +399,12 @@ bool instance_matches_requirement(Instance *instance,
   // ir.type->str().c_str(), instance->type_class_id.name.c_str(),
   // instance->type->str().c_str());
   auto pm = env.get_predicate_map();
-  assert(false);
-  return false;
-#if 0
-  return instance->type_class_id.name == ir.classname &&
-         scheme_equality(ir.type->generalize(pm)->normalize(),
-                         instance->type->generalize(pm)->normalize());
-#endif
+  if (instance->class_predicate->classname.name != ir->classname.name) {
+    return false;
+  }
+
+  return type_equality(type_tuple(ir->params),
+                       type_tuple(instance->class_predicate->params));
 }
 
 void check_instance_requirements(const std::vector<Instance *> &instances,
@@ -502,8 +504,13 @@ public:
      * of compilation */
     for (auto pair : decl_map) {
       assert(pair.first == pair.second->var.name);
-      types::Scheme::Ref scheme = env.lookup_env(pair.second->var)->normalize();
-      DefnId defn_id = DefnId{pair.second->var, scheme};
+      types::Scheme::Ref scheme = env.lookup_env(pair.second->var);
+      types::Scheme::Ref normalized_scheme = scheme->type
+                                                 ->generalize(set_union(
+                                                     env.instance_requirements,
+                                                     scheme->predicates))
+                                                 ->normalize();
+      DefnId defn_id = DefnId{pair.second->var, normalized_scheme};
       assert(!in(defn_id, map));
       debug_above(8, log("populating defn_map with %s", defn_id.str().c_str()));
       map[defn_id] = pair.second;
@@ -541,8 +548,7 @@ std::map<std::string, int> get_builtin_arities() {
   std::map<std::string, int> builtin_arities;
   for (auto pair : map) {
     types::Refs terms;
-    unfold_binops_rassoc(ARROW_TYPE_OPERATOR,
-                         pair.second->instantiate(INTERNAL_LOC()), terms);
+    unfold_binops_rassoc(ARROW_TYPE_OPERATOR, pair.second->type, terms);
     builtin_arities[pair.first] = terms.size() - 1;
   }
   debug_above(
@@ -564,9 +570,10 @@ phase_2_t compile(std::string user_program_name_) {
 
   Program *program = compilation->program;
 
+  types::ClassPredicates class_predicates;
   Env env{{} /*map*/,
           nullptr /*return_type*/,
-          {} /*instance_requirements*/,
+          class_predicates,
           std::make_shared<TrackedTypes>(),
           compilation->ctor_id_map,
           compilation->data_ctors_map};
@@ -697,9 +704,10 @@ void specialize_core(const types::TypeEnv &type_env,
 #endif
 
     /* start the process of specializing our decl */
+    types::ClassPredicates class_predicates;
     Env env{typing /*map*/,
             nullptr /*return_type*/,
-            {} /*instance_requirements*/,
+            class_predicates,
             {} /*tracked_types*/,
             ctor_id_map,
             data_ctors_map};
