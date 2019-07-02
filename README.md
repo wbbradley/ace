@@ -55,19 +55,19 @@ The evaluation of Zion is strict, not lazy. The call-by-value method of passing
 arguments is used.
 
 There is no explicit notion of immutability, however it is implicit
-unles `Ref` is used. `var` declarations automatically wrap the initialization
-value in a `Ref`. The primary way to maintain mutable state is to use `Ref`. 
+unless `Ref` is used. `var` declarations automatically wrap initialization
+values in a `Ref`. The primary way to maintain mutable state is to use `Ref`. 
 
 ### Encapsulation
 
-There is no class-based encapsulation in Zion. Encapsulation can be acheived by
-not letting local variables in a function escape, or by using module-local
+There is no class-based encapsulation in Zion. Encapsulation can be achieved by
+not letting local variables escape from functions (or blocks), or by using module-local
 functions.
 
 ### Type System
 
-Types are inferred but type annotations are also possible and occasionally
-necessary when types cannot be inferred.
+Types are inferred but type annotations are also allowed/encouraged as documentation and occasionally
+necessary when types cannot be inferred. See [this StackOverflow post](https://stackoverflow.com/questions/54000708/how-does-the-haskell-compiler-emit-code-for-frominteger-0-frominteger-0) and to understand when it becomes necessary to annotate types. Zion does not support default type class instances by design (although, if a good enough design for that comes along, it might happen.)
 
 ### Polymorphism
 
@@ -84,8 +84,7 @@ classes with any number of derived implementations.
 
 Since Zion treats functions as values, and allows closure over `fn`
 definitions, you can `return` new behaviors as functions, and then the users of
-those functions will be using something whose behavior may vary at run-time,
-but whose type is static. For example, the `Iterable` type class requires a
+those functions will get statically checked run-time varying behavior (aka run-time polymorphism). For example, the `Iterable` type class requires a
 single function which will itself return a function which can be called
 repeatedly to iterate. It has a signature like
 
