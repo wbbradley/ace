@@ -40,7 +40,12 @@ types::Ref infer_core(Expr *expr, Env &env, Constraints &constraints) {
         make_context(static_print->get_location(), "to avoid warnings later"));
     return type_unit(static_print->location);
   } else if (auto var = dcast<Var *>(expr)) {
-    return env.lookup_env(var->id);
+    /* get a fresh version of this principal type to inject into the context,
+     * and the inference constraints */
+    types::Scheme::Ref scheme = env.lookup_env(var->id)->freshen();
+    assert(scheme != nullptr);
+    set_concat(env.instance_requirements, scheme->predicates);
+    return scheme->type;
   } else if (auto lambda = dcast<Lambda *>(expr)) {
     auto tv = lambda->param_type != nullptr
                   ? lambda->param_type

@@ -2,6 +2,7 @@
 
 #include <string>
 
+#include "dbg.h"
 #include "llvm_utils.h"
 #include "user_error.h"
 

@@ -1,6 +1,7 @@
 #include "prefix.h"
 
 #include "class_predicate.h"
+#include "ptr.h"
 
 using namespace bitter;
 

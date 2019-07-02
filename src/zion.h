@@ -1,21 +1,5 @@
 #pragma once
-#if 0
-#include <algorithm>
-#include <cctype>
-#include <cstdlib>
-#include <glob.h>
-#include <locale>
-#include <math.h>
-#include <memory>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string>
-#endif
 
-#include "builtins.h"
-#include "logger_decls.h"
-#include "ptr.h"
 #include "zion_assert.h"
 
 #define ZION 1

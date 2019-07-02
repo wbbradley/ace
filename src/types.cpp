@@ -4,6 +4,7 @@
 #include <sstream>
 
 #include "ast.h"
+#include "builtins.h"
 #include "class_predicate.h"
 #include "dbg.h"
 #include "env.h"
@@ -41,19 +42,6 @@ std::string get_name_from_index(const types::NameIndex &name_index, int i) {
     }
   }
   return name;
-}
-
-void mutating_merge(const types::ClassPredicates &a,
-                    types::ClassPredicates &c) {
-  for (auto class_predicate : a) {
-    c.insert(class_predicate);
-  }
-}
-
-types::ClassPredicates merge(types::ClassPredicates a,
-                             const types::ClassPredicates &b) {
-  mutating_merge(b, a);
-  return a;
 }
 
 namespace types {
@@ -98,8 +86,10 @@ types::ClassPredicates get_overlapping_predicates(
     Ftvs *overlapping_ftvs) {
   /* eliminate class predicates that do not mention any ftvs. fill out the
    * |overlapping_ftvs|.  */
-  log("looking for overlapping predicates between {%s} and {%s}",
-      join_str(cps, ", ").c_str(), join(ftvs, ", ").c_str());
+  if (cps.size() != 0 || ftvs.size() != 0) {
+    log("looking for overlapping predicates between {%s} and {%s}",
+        join_str(cps, ", ").c_str(), join(ftvs, ", ").c_str());
+  }
   types::ClassPredicates new_cps;
   Ftvs existing_ftvs;
   for (auto &cp : cps) {
@@ -113,6 +103,9 @@ types::ClassPredicates get_overlapping_predicates(
     overlapping_ftvs->clear();
     std::swap(*overlapping_ftvs, existing_ftvs);
   }
+  if (cps.size() != 0) {
+    log("found new cps %s", str(new_cps).c_str());
+  }
   return new_cps;
 }
 
@@ -124,7 +117,7 @@ Ftvs get_ftvs(const types::ClassPredicates &cps) {
   return ftvs;
 }
 
-std::shared_ptr<Scheme> Type::generalize(
+std::shared_ptr<const Scheme> Type::generalize(
     const types::ClassPredicates &pm) const {
   Ftvs this_ftvs = this->get_ftvs();
   Ftvs overlapping_ftvs;
@@ -539,84 +532,6 @@ Refs rebind(const Refs &types, const Map &bindings) {
   return rebound_types;
 }
 
-types::Ref Scheme::instantiate(Location location) {
-  types::Map subst;
-  for (auto var : vars) {
-    subst[var] = type_variable(gensym(location));
-  };
-  return type->rebind(subst);
-}
-
-Map remove_bindings(const Map &env, const std::vector<std::string> &vars) {
-  Map new_map{env};
-  for (auto var : vars) {
-    new_map.erase(var);
-  }
-  return new_map;
-}
-
-Scheme::Ref Scheme::rebind(const types::Map &bindings) {
-  /* this is subtle because it actually rebinds type variables that are free
-   * within the not-yet-normalized scheme. This is because the map containing
-   * the schemes is a working set of types that are waiting to be bound. In some
-   * cases the variability of the inner types can be resolved. */
-  return scheme(vars, predicates,
-                type->rebind(remove_bindings(bindings, vars)));
-}
-
-Scheme::Ref Scheme::normalize() {
-  std::map<std::string, std::string> ord;
-
-  int counter = 0;
-  for (auto &ftv : type->get_ftvs()) {
-    ord[ftv] = alphabetize(counter++);
-  }
-  return scheme(values(ord), types::remap_vars(predicates, ord),
-                type->remap_vars(ord));
-}
-
-std::string Scheme::str() const {
-  std::stringstream ss;
-  if (vars.size() != 0) {
-    ss << "(∀ " << C_TYPE << join(vars, " ") << C_RESET;
-    ss << ::str(predicates);
-    ss << " . ";
-  }
-  ss << type->str();
-  if (vars.size() != 0) {
-    ss << ")";
-  }
-  return ss.str();
-}
-
-std::string Scheme::repr() const {
-  std::stringstream ss;
-  if (vars.size() != 0) {
-    ss << "(∀ " << join(vars, " ");
-    ss << ::str(predicates);
-    ss << " . ";
-  }
-  type->emit(ss, {}, 0);
-  if (vars.size() != 0) {
-    ss << ")";
-  }
-  return ss.str();
-}
-
-int Scheme::btvs() const {
-  /* get the number of type variables that are predicated */
-  const Ftvs &ftvs = type->get_ftvs();
-  Ftvs predicated_tvs;
-  for (auto &cp : predicates) {
-    set_merge(predicated_tvs, cp->get_ftvs());
-  }
-  return set_intersect(ftvs, predicated_tvs).size();
-}
-
-Location Scheme::get_location() const {
-  return type->get_location();
-}
-
 Ref unitize(Ref type) {
   Map bindings;
   for (auto &ftv : type->get_ftvs()) {
@@ -709,16 +624,7 @@ types::Ref type_operator(const types::Refs &xs) {
 
 types::Scheme::Ref scheme(std::vector<std::string> vars,
                           const types::ClassPredicates &predicates,
-                          types::Ref type) {
-#if 0
-  if (type->str().find("|") != std::string::npos) {
-    log_location(type->get_location(),
-                 "found predicates in %s when calling scheme({%s}, {%s}, %s)",
-                 type->str().c_str(), join(vars).c_str(),
-                 str(predicates).c_str(), type->str().c_str());
-    dbg();
-  }
-#endif
+                          const types::Ref &type) {
   return std::make_shared<types::Scheme>(vars, predicates, type);
 }
 
@@ -815,23 +721,6 @@ std::string str(const types::Map &coll) {
   return ss.str();
 }
 
-std::string str(const types::ClassPredicates &pm) {
-  bool saw_predicate = false;
-  std::stringstream ss;
-  const char *delim = " [";
-  for (auto &class_predicate : pm) {
-    ss << delim;
-    ss << class_predicate->str();
-    delim = ", ";
-    saw_predicate = true;
-  }
-  if (saw_predicate) {
-    ss << "]";
-  }
-
-  return ss.str();
-}
-
 std::string str(const DataCtorsMap &data_ctors_map) {
   std::stringstream ss;
   const char *delim = "";
@@ -839,6 +728,15 @@ std::string str(const DataCtorsMap &data_ctors_map) {
     ss << delim << pair.first << ": " << ::str(pair.second);
     delim = ", ";
   }
+  return ss.str();
+}
+
+std::string str(const types::Ftvs &ftvs) {
+  std::stringstream ss;
+  ss << "{";
+  ss << join_with(ftvs, ", ",
+                  [](const std::string &s) { return "C_TYPE" + s + C_RESET; });
+  ss << "}";
   return ss.str();
 }
 
