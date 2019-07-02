@@ -44,6 +44,8 @@ types::Ref infer_core(Expr *expr, Env &env, Constraints &constraints) {
      * and the inference constraints */
     types::Scheme::Ref scheme = env.lookup_env(var->id)->freshen();
     assert(scheme != nullptr);
+    log_location(var->get_location(), "found var ref %s with scheme %s",
+                 var->id.str().c_str(), scheme->str().c_str());
     set_concat(env.instance_requirements, scheme->predicates);
     return scheme->type;
   } else if (auto lambda = dcast<Lambda *>(expr)) {
@@ -51,8 +53,11 @@ types::Ref infer_core(Expr *expr, Env &env, Constraints &constraints) {
                   ? lambda->param_type
                   : type_variable(lambda->var.location);
     auto return_type = type_variable(lambda->var.location);
-    auto local_env = Env{env};
+    Env local_env = Env{env};
     local_env.return_type = return_type;
+    /* lambdas are monomorphic at the time of initialization/definition/capture.
+     * so, we do not include the var $tv in the scheme. this way, when the
+     * scheme freshens, it will not erase the reference to this variable. */
     local_env.extend(lambda->var, scheme({}, {}, tv),
                      true /*allow_subscoping*/);
     auto body_type = infer(lambda->body, local_env, constraints);
@@ -80,7 +85,7 @@ types::Ref infer_core(Expr *expr, Env &env, Constraints &constraints) {
   } else if (auto let = dcast<Let *>(expr)) {
     Env local_env{env.map,
                   nullptr /*return_type*/,
-                  {} /*instance_requirements*/,
+                  env.instance_requirements /*instance_requirements*/,
                   env.tracked_types,
                   env.ctor_id_map,
                   env.data_ctors_map};
@@ -90,7 +95,7 @@ types::Ref infer_core(Expr *expr, Env &env, Constraints &constraints) {
     append(constraints, tv, t1,
            make_context(let->value->get_location(), "digging deeper..."));
 
-    auto body_env = Env{env};
+    Env body_env = Env{env};
     body_env.extend(let->var, scheme({}, {}, tv), true /*allow_subscoping*/);
     auto t2 = infer(let->body, body_env, constraints);
     debug_above(3, log("the let variable is %s :: %s and the body is %s :: %s",
@@ -182,7 +187,7 @@ types::Ref infer_core(Expr *expr, Env &env, Constraints &constraints) {
     return ts.back();
   } else if (auto as = dcast<As *>(expr)) {
     auto t1 = infer(as->expr, env, constraints);
-    auto as_type = as->scheme->instantiate(as->get_location());
+    auto as_type = as->scheme->type;
     types::Ref t2 = !as->force_cast ? as_type
                                     : type_variable(as->get_location());
     append(constraints, t1, t2,
