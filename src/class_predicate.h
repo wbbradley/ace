@@ -1,7 +1,30 @@
 #pragma once
 
+#include <memory>
 #include <string>
 #include <vector>
+#include <unordered_set>
+
+namespace types {
+
+struct ClassPredicate;
+typedef std::shared_ptr<const ClassPredicate> ClassPredicateRef;
+
+struct ClassPredicateRefHasher {
+  size_t operator()(const ClassPredicateRef &) const;
+};
+
+struct ClassPredicateRefEqualTo {
+  bool operator()(const ClassPredicateRef &lhs,
+                  const ClassPredicateRef &rhs) const;
+};
+
+typedef std::unordered_set<ClassPredicateRef,
+                           ClassPredicateRefHasher,
+                           ClassPredicateRefEqualTo>
+    ClassPredicates;
+
+} // namespace types
 
 #include "identifier.h"
 #include "types.h"
@@ -36,4 +59,12 @@ private:
   mutable Ftvs ftvs_;
 };
 
+ClassPredicates rebind(const ClassPredicates &class_predicates,
+                       const Map &bindings);
+ClassPredicates remap_vars(const ClassPredicates &class_predicates,
+                           const std::map<std::string, std::string> &remapping);
+Ftvs get_ftvs(const ClassPredicates &class_predicates);
+
 } // namespace types
+
+std::string str(const types::ClassPredicates &pm);

@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include "ast.h"
+#include "builtins.h"
 #include "compiler.h"
 #include "translate.h"
 #include "unification.h"

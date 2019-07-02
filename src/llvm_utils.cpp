@@ -2,6 +2,7 @@
 
 #include <iostream>
 
+#include "builtins.h"
 #include "compiler.h"
 #include "location.h"
 #include "logger.h"

@@ -2,6 +2,8 @@
 
 #include "class_predicate.h"
 #include "parens.h"
+#include "ptr.h"
+#include "zion.h"
 
 std::ostream &operator<<(std::ostream &os, bitter::Program *program) {
   os << "program";

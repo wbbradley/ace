@@ -5,6 +5,7 @@
 #include <typeinfo>
 
 #include "ast.h"
+#include "builtins.h"
 #include "env.h"
 #include "translate.h"
 #include "types.h"

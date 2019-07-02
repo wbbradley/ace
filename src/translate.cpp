@@ -3,6 +3,7 @@
 #include <unordered_set>
 
 #include "ast.h"
+#include "builtins.h"
 #include "unification.h"
 #include "user_error.h"
 

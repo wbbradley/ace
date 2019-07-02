@@ -1,7 +1,6 @@
 #pragma once
-#include <set>
 #include <string>
-#include <unordered_map>
+#include <memory>
 
 #include "identifier.h"
 #include "translate.h"
@@ -30,12 +29,12 @@ struct Env : public TranslationEnv {
   types::Ref maybe_get_tracked_type(bitter::Expr *expr) const;
   void add_instance_requirement(const types::ClassPredicateRef &ir);
   void extend(Identifier id,
-              std::shared_ptr<types::Scheme> scheme,
+              const types::SchemeRef &scheme,
               bool allow_subscoping);
   void rebind_env(const types::Map &env);
   types::ClassPredicates get_predicate_map() const;
-  types::Ref lookup_env(Identifier id) const;
-  types::Ref maybe_lookup_env(Identifier id) const;
+  types::Scheme::Ref lookup_env(Identifier id) const;
+  types::Scheme::Ref maybe_lookup_env(Identifier id) const;
   std::vector<std::pair<std::string, types::Refs>> get_ctors(
       types::Ref type) const;
   std::string str() const;

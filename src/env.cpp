@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include "ast.h"
+#include "dbg.h"
 #include "class_predicate.h"
 #include "types.h"
 #include "user_error.h"
@@ -22,18 +23,11 @@ std::vector<std::pair<std::string, types::Refs>> Env::get_ctors(
   return {};
 }
 
-types::Ref Env::maybe_lookup_env(Identifier id) const {
-  auto iter = map.find(id.name);
-  if (iter != map.end()) {
-    // log_location(id.location, "found %s :: %s", id.str().c_str(),
-    // iter->second->str().c_str());
-    return iter->second->instantiate(id.location);
-  } else {
-    return nullptr;
-  }
+types::Scheme::Ref Env::maybe_lookup_env(Identifier id) const {
+  return get(map, id.name, types::Scheme::Ref{});
 }
 
-types::Ref Env::lookup_env(Identifier id) const {
+types::Scheme::Ref Env::lookup_env(Identifier id) const {
   auto type = maybe_lookup_env(id);
   if (type != nullptr) {
     return type;
@@ -102,7 +96,7 @@ void Env::add_instance_requirement(const types::ClassPredicateRef &ir) {
 }
 
 void Env::extend(Identifier id,
-                 types::Scheme::Ref scheme,
+                 const types::Scheme::Ref &scheme,
                  bool allow_subscoping) {
   if (!allow_subscoping && in(id.name, map)) {
     throw user_error(

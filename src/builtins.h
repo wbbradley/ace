@@ -4,7 +4,7 @@
 #include <memory>
 #include <string>
 
-#include "types.h"
+#include "scheme.h"
 
 extern const char *MAYBE_TYPE;
 extern const char *INT_TYPE;
@@ -29,8 +29,4 @@ extern const char *REF_TYPE_OPERATOR;
 extern const char *VECTOR_TYPE;
 extern const char *STRING_TYPE;
 
-namespace types {
-struct Scheme;
-}
-
-const std::map<std::string, std::shared_ptr<types::Scheme>> &get_builtins();
+const types::SchemeMap &get_builtins();

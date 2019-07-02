@@ -15,8 +15,12 @@ instance Getter Float {
 fn dealWithInt(x Int) () {
 }
 
+fn use_getter() {
+    return getter()
+}
+
 fn main() {
-    g := getter()
+    g := use_getter()
     dealWithInt(g)
     __builtin_pass_test
 }
