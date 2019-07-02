@@ -1,43 +1,34 @@
 #pragma once
 
+#include <map>
 #include <memory>
+#include <set>
+#include <string>
 #include <unordered_set>
-
-#include "ast_decls.h"
-#include "defn_id.h"
-#include "identifier.h"
-#include "utils.h"
-#include "zion.h"
 
 namespace types {
 
 struct Type;
-struct Scheme;
-struct ClassPredicate;
 
 typedef std::set<std::string> Ftvs;
 typedef std::map<std::string, int> NameIndex;
-typedef std::shared_ptr<const ClassPredicate> ClassPredicateRef;
-
-struct ClassPredicateRefHasher {
-  size_t operator()(const ClassPredicateRef &) const;
-};
-
-struct ClassPredicateRefEqualTo {
-  bool operator()(const ClassPredicateRef &lhs,
-                  const ClassPredicateRef &rhs) const;
-};
-
-typedef std::unordered_set<ClassPredicateRef,
-                           ClassPredicateRefHasher,
-                           ClassPredicateRefEqualTo>
-    ClassPredicates;
 
 typedef std::map<std::string, std::shared_ptr<const Type>> TypeEnv;
 typedef std::shared_ptr<const Type> Ref;
 typedef std::vector<Ref> Refs;
 typedef std::map<std::string, Ref> Map;
 typedef std::pair<Ref, Ref> Pair;
+
+} // namespace types
+
+#include "ast_decls.h"
+#include "defn_id.h"
+#include "identifier.h"
+#include "utils.h"
+#include "scheme.h"
+#include "class_predicate.h"
+
+namespace types {
 
 struct Type : public std::enable_shared_from_this<Type> {
   virtual ~Type() {
@@ -53,7 +44,7 @@ struct Type : public std::enable_shared_from_this<Type> {
   virtual void compute_ftvs() const = 0;
 
   virtual Ref eval(const TypeEnv &type_env) const = 0;
-  std::shared_ptr<Scheme> generalize(const types::ClassPredicates &pm) const;
+  SchemeRef generalize(const types::ClassPredicates &pm) const;
   std::string repr(const Map &bindings) const;
   std::string repr() const {
     return this->repr({});
@@ -188,63 +179,17 @@ struct TypeLambda final : public Type {
   Location get_location() const override;
 };
 
-struct Scheme final : public std::enable_shared_from_this<Scheme> {
-  typedef std::shared_ptr<Scheme> Ref;
-  typedef std::vector<Ref> Refs;
-  typedef std::map<std::string, Ref> Map;
-
-  Scheme(std::vector<std::string> vars,
-         const ClassPredicates &predicates,
-         types::Ref type)
-      : vars(vars), predicates(predicates), type(type) {
-  }
-  types::Ref instantiate(Location location);
-  Scheme::Ref rebind(const types::Map &env);
-  Scheme::Ref normalize();
-
-  /* count of the constrained type variables */
-  int btvs() const;
-
-  const ClassPredicates &get_class_predicates();
-  std::string str() const;
-  std::string repr() const;
-  Location get_location() const;
-
-  std::vector<std::string> const vars;
-  ClassPredicates const predicates;
-  types::Ref const type;
-
-private:
-  mutable bool ftvs_valid_ = false;
-  mutable ClassPredicates pm_;
-};
-
 Ref unitize(Ref type);
-ClassPredicates rebind(const ClassPredicates &class_predicates,
-                       const Map &bindings);
-ClassPredicates remap_vars(const ClassPredicates &class_predicates,
-                           const std::map<std::string, std::string> &remapping);
 Refs rebind(const Refs &types, const Map &bindings);
 bool is_callable(const types::Ref &type);
 bool is_type_id(Ref type, const std::string &type_name);
 bool is_unit(Ref type);
-Ftvs get_ftvs(const ClassPredicates &class_predicates);
 
 }; // namespace types
 
 typedef std::map<std::string, types::Map> DataCtorsMap;
 typedef std::unordered_map<const bitter::Expr *, types::Ref> TrackedTypes;
 typedef std::unordered_map<std::string, int> CtorIdMap;
-struct DefnRef {
-  Location location;
-  DefnId from_defn_id;
-};
-
-typedef std::map<DefnId, std::vector<DefnRef>> NeededDefns;
-void insert_needed_defn(NeededDefns &needed_defns,
-                        const DefnId &defn_id,
-                        Location location,
-                        const DefnId &from_defn_id);
 
 std::string gensym_name();
 Identifier gensym(Location location);
@@ -269,9 +214,6 @@ types::Refs type_variables(const Identifiers &ids);
 types::Ref type_operator(types::Ref operator_, types::Ref operand);
 types::Ref type_operator(const types::Refs &xs);
 types::Ref type_deref(types::Ref type);
-types::Scheme::Ref scheme(std::vector<std::string> vars,
-                          const types::ClassPredicates &predicates,
-                          types::Ref type);
 types::TypeTuple::Ref type_tuple(types::Refs dimensions);
 types::TypeTuple::Ref type_tuple(Location location, types::Refs dimensions);
 types::Ref type_ptr(types::Ref raw);
@@ -283,19 +225,14 @@ types::Ref type_tuple_accessor(int i,
 
 std::string str(types::Refs Refs);
 std::string str(const types::Map &coll);
-std::string str(const types::ClassPredicates &pm);
 std::string str(const DataCtorsMap &data_ctors_map);
+std::string str(const types::Ftvs &ftvs);
 std::ostream &operator<<(std::ostream &out, const types::Ref &type);
 bool operator<(const types::Ref &lhs, const types::Ref &rhs);
 
 types::Ref tuple_deref_type(Location location, types::Ref tuple, int index);
 void unfold_binops_rassoc(std::string id, types::Ref t, types::Refs &unfolding);
 void unfold_ops_lassoc(types::Ref t, types::Refs &unfolding);
-void mutating_merge(const types::ClassPredicates::value_type &pair,
-                    types::ClassPredicates &c);
-void mutating_merge(const types::ClassPredicates &a, types::ClassPredicates &c);
-types::ClassPredicates merge(types::ClassPredicates a,
-                             const types::ClassPredicates &b);
 
 std::ostream &join_dimensions(std::ostream &os,
                               const types::Refs &dimensions,

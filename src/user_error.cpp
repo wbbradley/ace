@@ -4,6 +4,7 @@
 #include <stdarg.h>
 
 #include "ast.h"
+#include "dbg.h"
 #include "logger.h"
 
 static bool errors_occurred = false;

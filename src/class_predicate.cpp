@@ -80,6 +80,9 @@ std::string ClassPredicate::str() const {
 
 ClassPredicates rebind(const ClassPredicates &class_predicates,
                        const Map &bindings) {
+  if (class_predicates.size() == 0) {
+    return {};
+  }
   ClassPredicates new_class_predicates;
   for (auto &cp : class_predicates) {
     new_class_predicates.insert(cp->rebind(bindings));
@@ -140,3 +143,21 @@ ClassPredicates remap_vars(
 }
 
 } // namespace types
+
+std::string str(const types::ClassPredicates &pm) {
+  bool saw_predicate = false;
+  std::stringstream ss;
+  const char *delim = "[";
+  for (auto &class_predicate : pm) {
+    ss << delim;
+    ss << class_predicate->str();
+    delim = ", ";
+    saw_predicate = true;
+  }
+  if (saw_predicate) {
+    ss << "]";
+  }
+
+  return ss.str();
+}
+

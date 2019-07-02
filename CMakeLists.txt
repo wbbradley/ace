@@ -64,6 +64,7 @@ add_executable(zion
 	src/prefix.cpp
 	src/resolver.cpp
 	src/resolver_impl.cpp
+	src/scheme.cpp
 	src/scope.cpp
 	src/token.cpp
 	src/token_queue.cpp

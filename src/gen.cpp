@@ -1,6 +1,7 @@
 #include "gen.h"
 
 #include "ast.h"
+#include "builtins.h"
 #include "logger.h"
 #include "ptr.h"
 #include "typed_id.h"

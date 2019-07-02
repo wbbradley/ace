@@ -5,6 +5,7 @@
 #include <sys/wait.h>
 
 #include "ast.h"
+#include "builtins.h"
 #include "class_predicate.h"
 #include "compiler.h"
 #include "disk.h"
@@ -223,7 +224,6 @@ void check_instance_for_type_class_overload(
     std::string name,
     types::Ref type,
     Instance *instance,
-    TypeClass *type_class,
     const types::Map &subst,
     std::set<std::string> &names_checked,
     std::vector<Decl *> &instance_decls,
@@ -304,6 +304,8 @@ void check_instance_for_type_class_overloads(
    * conform to */
   types::Map subst;
 
+  types::Refs new_type_parameters;
+
   // find all ftvs
   // freshen them all
   const types::Ftvs &ftvs = instance->class_predicate->get_ftvs();
@@ -311,8 +313,8 @@ void check_instance_for_type_class_overloads(
     assert(in(ftv, type_class->type_var_ids));
   }
   int i = 0;
+  assert(instance->class_predicate->params.size() == type_class->type_var_ids.size());
   for (auto &type_var_id : type_class->type_var_ids) {
-    assert(in(type_var_id.name, ftvs));
     subst[type_var_id.name] = instance->class_predicate->params[i++]
                                   ->generalize({})
                                   ->instantiate(INTERNAL_LOC());
@@ -325,7 +327,7 @@ void check_instance_for_type_class_overloads(
     auto name = pair.first;
     auto type = pair.second;
     check_instance_for_type_class_overload(
-        name, type, instance, type_class, subst, names_checked, instance_decls,
+        name, type, instance, subst, names_checked, instance_decls,
         overrides_map, env /*, type_class->defaults*/);
   }
 
@@ -500,9 +502,8 @@ public:
      * of compilation */
     for (auto pair : decl_map) {
       assert(pair.first == pair.second->var.name);
-      auto scheme =
-          env.lookup_env(pair.second->var)->generalize({})->normalize();
-      auto defn_id = DefnId{pair.second->var, scheme};
+      types::Scheme::Ref scheme = env.lookup_env(pair.second->var)->normalize();
+      DefnId defn_id = DefnId{pair.second->var, scheme};
       assert(!in(defn_id, map));
       debug_above(8, log("populating defn_map with %s", defn_id.str().c_str()));
       map[defn_id] = pair.second;

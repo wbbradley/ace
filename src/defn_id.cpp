@@ -1,5 +1,6 @@
 #include "defn_id.h"
 
+#include "ptr.h"
 #include "types.h"
 #include "user_error.h"
 

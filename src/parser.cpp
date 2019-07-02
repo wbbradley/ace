@@ -6,6 +6,7 @@
 #include <string>
 
 #include "ast.h"
+#include "builtins.h"
 #include "class_predicate.h"
 #include "compiler.h"
 #include "disk.h"
