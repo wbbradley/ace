@@ -15,14 +15,14 @@ struct Env : public TranslationEnv {
 
   Env(const types::Scheme::Map &map,
       const std::shared_ptr<const types::Type> &return_type,
-      const types::ClassPredicates &instance_requirements,
+      types::ClassPredicates &instance_requirements,
       std::shared_ptr<TrackedTypes> tracked_types,
       const CtorIdMap &ctor_id_map,
       const DataCtorsMap &data_ctors_map);
 
   types::Scheme::Map map;
   std::shared_ptr<const types::Type> return_type;
-  types::ClassPredicates instance_requirements;
+  types::ClassPredicates &instance_requirements;
 
   types::Ref track(const bitter::Expr *expr, types::Ref type);
   types::Ref get_tracked_type(bitter::Expr *expr) const;

@@ -43,14 +43,17 @@ const types::Scheme::Map &get_builtins() {
     (*map)["__builtin_hello"] = scheme({}, {}, Unit);
     (*map)["__builtin_goodbye"] = scheme({}, {}, Unit);
     (*map)["__builtin_word_size"] = scheme({}, {}, Int);
-    (*map)["__builtin_ffi_0"] = scheme({}, {}, type_arrows({PtrToChar, tv_a}));
-    for (int i = 1; i <= 16; ++i) {
+    for (int i = 0; i <= 16; ++i) {
       types::Refs terms{PtrToChar};
+      std::vector<std::string> vars;
       for (int j = 0; j < i + 1; ++j) {
-        terms.push_back(type_variable(INTERNAL_LOC()));
+        vars.push_back(gensym_name());
+      }
+      for (int j = 0; j < i + 1; ++j) {
+        terms.push_back(type_variable(Identifier{vars[j], INTERNAL_LOC()}));
       }
       (*map)[string_format("__builtin_ffi_%d", i)] =
-          scheme({}, {}, type_arrows(terms))->normalize();
+          scheme(vars, {}, type_arrows(terms))->normalize();
     }
 
     (*map)["__builtin_min_int"] = scheme({}, {}, Int);
