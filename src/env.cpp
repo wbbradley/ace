@@ -3,19 +3,18 @@
 #include <iostream>
 
 #include "ast.h"
-#include "dbg.h"
 #include "class_predicate.h"
+#include "dbg.h"
 #include "types.h"
 #include "user_error.h"
 
 Env::Env(const types::Scheme::Map &map,
          const std::shared_ptr<const types::Type> &return_type,
-         types::ClassPredicates &instance_requirements,
          std::shared_ptr<TrackedTypes> tracked_types,
          const CtorIdMap &ctor_id_map,
          const DataCtorsMap &data_ctors_map)
     : TranslationEnv(tracked_types, ctor_id_map, data_ctors_map), map(map),
-      return_type(return_type), instance_requirements(instance_requirements) {
+      return_type(return_type) {
 }
 
 std::vector<std::pair<std::string, types::Refs>> Env::get_ctors(
@@ -50,8 +49,6 @@ void Env::rebind_env(const types::Map &bindings) {
   for (auto pair : map) {
     map[pair.first] = pair.second->rebind(bindings);
   }
-  /* rebind the class predicates */
-  instance_requirements = types::rebind(instance_requirements, bindings);
 
   assert(tracked_types != nullptr);
   TrackedTypes temp_tracked_types;
@@ -87,14 +84,6 @@ types::Ref Env::maybe_get_tracked_type(bitter::Expr *expr) const {
   return (iter != tracked_types->end()) ? iter->second : nullptr;
 }
 
-void Env::add_instance_requirement(const types::ClassPredicateRef &ir) {
-  debug_above(6, log_location(log_info, ir->classname.location,
-                              "adding type class requirement for %s %s",
-                              ir->classname.name.c_str(),
-                              join_str(ir->params, " ").c_str()));
-  instance_requirements.insert(ir);
-}
-
 void Env::extend(Identifier id,
                  const types::Scheme::Ref &scheme,
                  bool allow_subscoping) {
@@ -107,10 +96,6 @@ void Env::extend(Identifier id,
   map[id.name] = scheme;
   debug_above(9, log("extending env with %s => %s", id.str().c_str(),
                      scheme->normalize()->str().c_str()));
-}
-
-types::ClassPredicates Env::get_predicate_map() const {
-  return instance_requirements;
 }
 
 std::string str(const types::Scheme::Map &m) {
@@ -130,8 +115,6 @@ std::string Env::str() const {
   if (return_type != nullptr) {
     ss << ", return_type: (" << return_type->str() << ")";
   }
-  ss << ", instance_requirements: [" << join_str(instance_requirements, ", ")
-     << "]"
-     << "}";
+  ss << "}";
   return ss.str();
 }

@@ -11,18 +11,18 @@
 
 using namespace bitter;
 
-Expr *build_patterns(const DefnId &for_defn_id,
-                     const pattern_blocks_t &pattern_blocks,
-                     int index,
-                     const std::unordered_set<std::string> &bound_vars_,
-                     const types::TypeEnv &type_env,
-                     const TranslationEnv &tenv,
-                     TrackedTypes &typing,
-                     NeededDefns &needed_defns,
-                     bool &returns,
-                     Identifier scrutinee_id,
-                     types::Ref scrutinee_type,
-                     types::Ref expected_type) {
+const Expr *build_patterns(const DefnId &for_defn_id,
+                           const pattern_blocks_t &pattern_blocks,
+                           int index,
+                           const std::unordered_set<std::string> &bound_vars_,
+                           const types::TypeEnv &type_env,
+                           const TranslationEnv &tenv,
+                           TrackedTypes &typing,
+                           NeededDefns &needed_defns,
+                           bool &returns,
+                           Identifier scrutinee_id,
+                           types::Ref scrutinee_type,
+                           types::Ref expected_type) {
   if (index == pattern_blocks.size()) {
     auto last_block = unit_expr(INTERNAL_LOC());
     typing[last_block] = type_unit(INTERNAL_LOC());
@@ -56,7 +56,7 @@ Expr *build_patterns(const DefnId &for_defn_id,
                 const std::unordered_set<std::string> &bound_vars,
                 const types::TypeEnv &type_env, const TranslationEnv &tenv,
                 TrackedTypes &typing, NeededDefns &needed_defns,
-                bool &returns) -> Expr * {
+                bool &returns) -> const Expr * {
               return texpr(for_defn_id, pattern_block->result, bound_vars,
                            tenv.get_type(pattern_block->result), type_env, tenv,
                            typing, needed_defns, returns);
@@ -66,7 +66,7 @@ Expr *build_patterns(const DefnId &for_defn_id,
                 const std::unordered_set<std::string> &bound_vars,
                 const types::TypeEnv &type_env, const TranslationEnv &tenv,
                 TrackedTypes &typing, NeededDefns &needed_defns,
-                bool &returns) -> Expr * {
+                bool &returns) -> const Expr * {
               if (index + 1 < pattern_blocks.size()) {
                 return build_patterns(for_defn_id, pattern_blocks, index + 1,
                                       bound_vars, type_env, tenv, typing,
@@ -120,8 +120,8 @@ void check_patterns(Location location,
   }
 }
 
-Expr *translate_match_expr(const DefnId &for_defn_id,
-                           bitter::Match *match,
+const Expr *translate_match_expr(const DefnId &for_defn_id,
+                           const bitter::Match *match,
                            const std::unordered_set<std::string> &bound_vars,
                            const types::TypeEnv &type_env,
                            const TranslationEnv &tenv,
@@ -161,7 +161,7 @@ void Literal::get_bound_vars(
     std::unordered_set<std::string> &bound_vars) const {
 }
 
-Expr *Literal::translate(const DefnId &for_defn_id,
+const Expr *Literal::translate(const DefnId &for_defn_id,
                          const Identifier &scrutinee_id,
                          const types::Ref &scrutinee_type,
                          bool do_checks,
@@ -216,13 +216,13 @@ Expr *Literal::translate(const DefnId &for_defn_id,
   return cond;
 }
 
-Expr *translate_next(const DefnId &for_defn_id,
+const Expr *translate_next(const DefnId &for_defn_id,
                      const Identifier &scrutinee_id,
                      const types::Ref &scrutinee_type,
                      const types::Refs &param_types,
                      bool do_checks,
                      const std::unordered_set<std::string> &bound_vars_,
-                     const std::vector<Predicate *> &params,
+                     const std::vector<const Predicate *> &params,
                      int param_index,
                      int dim_offset,
                      const types::TypeEnv &type_env,
@@ -296,7 +296,7 @@ void CtorPredicate::get_bound_vars(
   }
 }
 
-Expr *CtorPredicate::translate(
+const Expr *CtorPredicate::translate(
     const DefnId &for_defn_id,
     const Identifier &scrutinee_id,
     const types::Ref &scrutinee_type,
@@ -434,7 +434,7 @@ void TuplePredicate::get_bound_vars(
   }
 }
 
-Expr *TuplePredicate::translate(
+const Expr *TuplePredicate::translate(
     const DefnId &for_defn_id,
     const Identifier &scrutinee_id,
     const types::Ref &scrutinee_type,
@@ -465,7 +465,7 @@ void IrrefutablePredicate::get_bound_vars(
   }
 }
 
-Expr *IrrefutablePredicate::translate(
+const Expr *IrrefutablePredicate::translate(
     const DefnId &for_defn_id,
     const Identifier &scrutinee_id,
     const types::Ref &scrutinee_type,

@@ -86,10 +86,13 @@ types::ClassPredicates get_overlapping_predicates(
     Ftvs *overlapping_ftvs) {
   /* eliminate class predicates that do not mention any ftvs. fill out the
    * |overlapping_ftvs|.  */
+#ifdef ZION_DEBUG
   if (cps.size() != 0 || ftvs.size() != 0) {
-    log("looking for overlapping predicates between {%s} and {%s}",
-        join_str(cps, ", ").c_str(), join(ftvs, ", ").c_str());
+    debug_above(5,
+                log("looking for overlapping predicates between {%s} and {%s}",
+                    join_str(cps, ", ").c_str(), join(ftvs, ", ").c_str()));
   }
+#endif
   types::ClassPredicates new_cps;
   Ftvs existing_ftvs;
   for (auto &cp : cps) {
@@ -103,9 +106,11 @@ types::ClassPredicates get_overlapping_predicates(
     overlapping_ftvs->clear();
     std::swap(*overlapping_ftvs, existing_ftvs);
   }
+#ifdef ZION_DEBUG
   if (cps.size() != 0) {
-    log("found new cps %s", str(new_cps).c_str());
+    debug_above(5, log("found new cps %s", str(new_cps).c_str()));
   }
+#endif
   return new_cps;
 }
 
@@ -787,13 +792,6 @@ void unfold_ops_lassoc(types::Ref t, types::Refs &unfolding) {
   } else {
     unfolding.push_back(t);
   }
-}
-
-void insert_needed_defn(NeededDefns &needed_defns,
-                        const DefnId &defn_id,
-                        Location location,
-                        const DefnId &for_defn_id) {
-  needed_defns[defn_id.unitize()].push_back({location, for_defn_id.unitize()});
 }
 
 types::Ref type_deref(Location location, types::Ref type) {

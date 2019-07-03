@@ -22,11 +22,11 @@ typedef std::pair<Ref, Ref> Pair;
 } // namespace types
 
 #include "ast_decls.h"
+#include "class_predicate.h"
 #include "defn_id.h"
 #include "identifier.h"
-#include "utils.h"
 #include "scheme.h"
-#include "class_predicate.h"
+#include "utils.h"
 
 namespace types {
 

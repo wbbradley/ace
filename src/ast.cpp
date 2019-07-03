@@ -15,7 +15,7 @@ std::ostream &operator<<(std::ostream &os, bitter::Program *program) {
 }
 
 std::ostream &operator<<(std::ostream &os, bitter::Decl *decl) {
-  os << decl->var.name << " = ";
+  os << decl->id.name << " = ";
   return decl->value->render(os, 0);
 }
 
@@ -82,8 +82,8 @@ Location Application::get_location() const {
 std::ostream &Application::render(std::ostream &os,
                                   int parent_precedence) const {
   const int precedence = 5;
-  if (auto inner_app = dcast<Application *>(a)) {
-    if (auto oper = dcast<Var *>(inner_app->a)) {
+  if (auto inner_app = dcast<const Application *>(a)) {
+    if (auto oper = dcast<const Var *>(inner_app->a)) {
       if (strspn(oper->id.name.c_str(), MATHY_SYMBOLS) ==
           oper->id.name.size()) {
         os << "(";
@@ -298,18 +298,6 @@ std::ostream &Conditional::render(std::ostream &os,
   return os << ")";
 }
 
-Location Fix::get_location() const {
-  return f->get_location();
-}
-
-std::ostream &Fix::render(std::ostream &os, int parent_precedence) const {
-  const int precedence = 6;
-  Parens parens(os, parent_precedence, precedence);
-  os << C_TYPE "fix " C_RESET;
-  f->render(os, precedence);
-  return os;
-}
-
 std::ostream &PatternBlock::render(std::ostream &os) const {
   os << "(";
   predicate->render(os);
@@ -408,13 +396,13 @@ types::Ref TypeDecl::get_type() const {
 
 std::string Decl::str() const {
   std::stringstream ss;
-  ss << "let " << var << " = ";
+  ss << "let " << id << " = ";
   value->render(ss, 0);
   return ss.str();
 }
 
 Location Decl::get_location() const {
-  return var.location;
+  return id.location;
 }
 
 TypeClass::TypeClass(Identifier id,

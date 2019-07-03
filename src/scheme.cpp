@@ -80,12 +80,23 @@ Scheme::Ref Scheme::freshen() const {
 
 std::string Scheme::str() const {
   std::stringstream ss;
+  const char *delim = "";
   if (vars.size() != 0) {
     ss << "(∀ " << C_TYPE << join(vars, " ") << C_RESET;
-    ss << ::str(predicates);
-    ss << " . ";
+    delim = " ";
   }
-  ss << type->str();
+
+  auto predicates_str = ::str(predicates);
+  if (predicates_str.size() != 0) {
+    ss << delim << C_CONTROL "where " C_RESET << predicates_str;
+    delim = " ";
+  }
+
+  if (vars.size() != 0) {
+    ss << delim << ".";
+    delim = " ";
+  }
+  ss << delim << type->str();
   if (vars.size() != 0) {
     ss << ")";
   }
@@ -96,6 +107,10 @@ std::string Scheme::repr() const {
   std::stringstream ss;
   if (vars.size() != 0) {
     ss << "(∀ " << join(vars, " ");
+    auto predicates_str = ::str(predicates);
+    if (predicates_str.size() != 0) {
+      ss << " where " << predicates_str;
+    }
     ss << ::str(predicates);
     ss << " . ";
   }

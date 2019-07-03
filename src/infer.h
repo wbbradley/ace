@@ -19,5 +19,8 @@ struct Constraint {
 };
 
 typedef std::vector<Constraint> Constraints;
-types::Ref infer(bitter::Expr *expr, Env &env, Constraints &constraints);
+types::Ref infer(const bitter::Expr *expr,
+                 Env &env,
+                 Constraints &constraints,
+                 types::ClassPredicates &instance_requirements);
 std::string str(const Constraints &constraints);

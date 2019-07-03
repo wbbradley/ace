@@ -167,7 +167,8 @@ void check_constraints_cover_tracked_types(const Context &context,
 types::Map solver(bool check_constraint_coverage,
                   Context &&context,
                   Constraints &constraints,
-                  Env &env) {
+                  Env &env,
+                  types::ClassPredicates &instance_requirements) {
   if (check_constraint_coverage) {
     check_constraints_cover_tracked_types(context, *env.tracked_types,
                                           constraints);
@@ -187,6 +188,9 @@ types::Map solver(bool check_constraint_coverage,
       }
       ++iter;
       rebind_constraints(iter, constraints.end(), bindings);
+
+      /* rebind the class predicates */
+      instance_requirements = types::rebind(instance_requirements, bindings);
       continue;
     } else {
       auto error = user_error(unification.error_location, "%s",

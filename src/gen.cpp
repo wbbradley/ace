@@ -99,8 +99,6 @@ void get_free_vars(const bitter::Expr *expr,
     auto new_globals = globals;
     new_globals.insert(let->var.name);
     get_free_vars(let->body, typing, new_globals, locals, free_vars);
-  } else if (auto fix = dcast<const bitter::Fix *>(expr)) {
-    get_free_vars(fix->f, typing, globals, locals, free_vars);
   } else if (auto condition = dcast<const bitter::Conditional *>(expr)) {
     get_free_vars(condition->cond, typing, globals, locals, free_vars);
     get_free_vars(condition->truthy, typing, globals, locals, free_vars);
@@ -1028,8 +1026,6 @@ resolution_status_t gen(std::string name,
                   let->body, typing, type_env, gen_env_globals, new_env_locals,
                   globals));
       return rs_cache_resolution;
-    } else if (auto fix = dcast<const bitter::Fix *>(expr)) {
-      assert(false);
     } else if (auto condition = dcast<const bitter::Conditional *>(expr)) {
       llvm::Value *cond = gen(builder, llvm_module, break_to_block,
                               continue_to_block, condition->cond, typing,

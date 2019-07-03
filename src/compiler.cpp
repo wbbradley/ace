@@ -141,22 +141,22 @@ struct GlobalParserState {
   GlobalParserState(const std::map<std::string, int> &builtin_arities)
       : builtin_arities(builtin_arities) {
   }
-  std::vector<Module *> modules;
-  std::map<std::string, Module *> modules_map_by_filename;
-  std::map<std::string, Module *> modules_map_by_name;
+  std::vector<const Module *> modules;
+  std::map<std::string, const Module *> modules_map_by_filename;
+  std::map<std::string, const Module *> modules_map_by_name;
   std::vector<Token> comments;
   std::set<LinkIn> link_ins;
   const std::map<std::string, int> &builtin_arities;
 
-  Module *parse_module_statefully(Identifier module_id) {
+  const Module *parse_module_statefully(Identifier module_id) {
     if (auto module = get(modules_map_by_name, module_id.name,
-                          (Module *)nullptr)) {
+                          static_cast<const Module *>(nullptr))) {
       return module;
     }
     std::string module_filename = compiler::resolve_module_filename(
         module_id.location, module_id.name, ".zion");
     if (auto module = get(modules_map_by_filename, module_filename,
-                          (Module *)nullptr)) {
+                          static_cast<const Module *>(nullptr))) {
       return module;
     }
 
@@ -173,8 +173,8 @@ struct GlobalParserState {
                     builtin_arities);
 
       std::set<Identifier> dependencies;
-      Module *module = ::parse_module(ps, {modules_map_by_name["std"]},
-                                      dependencies);
+      const Module *module = ::parse_module(ps, {modules_map_by_name["std"]},
+                                            dependencies);
 
       modules.push_back(module);
       modules_map_by_name[ps.module_name] = module;
@@ -200,17 +200,17 @@ struct GlobalParserState {
 };
 
 std::set<std::string> get_top_level_decls(
-    const std::vector<Decl *> &decls,
-    const std::vector<TypeDecl> &type_decls,
-    const std::vector<TypeClass *> &type_classes) {
+    const std::vector<const Decl *> &decls,
+    const std::vector<const TypeDecl> &type_decls,
+    const std::vector<const TypeClass *> &type_classes) {
   std::map<std::string, Location> module_decls;
-  for (Decl *decl : decls) {
-    if (module_decls.find(decl->var.name) != module_decls.end()) {
-      auto error = user_error(decl->var.location, "duplicate symbol");
-      error.add_info(module_decls[decl->var.name], "see prior definition here");
+  for (const Decl *decl : decls) {
+    if (module_decls.find(decl->id.name) != module_decls.end()) {
+      auto error = user_error(decl->id.location, "duplicate symbol");
+      error.add_info(module_decls[decl->id.name], "see prior definition here");
       throw error;
     }
-    module_decls[decl->var.name] = decl->var.location;
+    module_decls[decl->id.name] = decl->id.location;
   }
   std::set<std::string> top_level_decls;
   for (auto pair : module_decls) {
@@ -256,31 +256,31 @@ Compilation::ref parse_program(
     debug_above(11, log(log_info, "parse_module of %s succeeded",
                         module_name.c_str(), false /*global*/));
 
-    std::vector<Decl *> program_decls;
-    std::vector<TypeClass *> program_type_classes;
-    std::vector<Instance *> program_instances;
+    std::vector<const Decl *> program_decls;
+    std::vector<const TypeClass *> program_type_classes;
+    std::vector<const Instance *> program_instances;
     CtorIdMap ctor_id_map;
     DataCtorsMap data_ctors_map;
     types::TypeEnv type_env;
 
     /* next, merge the entire set of modules into one program */
-    for (Module *module : gps.modules) {
+    for (const Module *module : gps.modules) {
       /* get a list of all top-level decls */
       std::set<std::string> bindings = get_top_level_decls(
           module->decls, module->type_decls, module->type_classes);
 
-      Module *module_rebound = prefix(bindings, module);
+      const Module *module_rebound = prefix(bindings, module);
 
       /* now all locally referring vars are fully qualified */
-      for (Decl *decl : module_rebound->decls) {
+      for (const Decl *decl : module_rebound->decls) {
         program_decls.push_back(decl);
       }
 
-      for (TypeClass *type_class : module_rebound->type_classes) {
+      for (const TypeClass *type_class : module_rebound->type_classes) {
         program_type_classes.push_back(type_class);
       }
 
-      for (Instance *instance : module_rebound->instances) {
+      for (const Instance *instance : module_rebound->instances) {
         program_instances.push_back(instance);
       }
 
