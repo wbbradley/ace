@@ -114,17 +114,17 @@ struct TuplePredicate : public Predicate {
   void get_bound_vars(
       std::unordered_set<std::string> &bound_vars) const override;
   const Expr *translate(const DefnId &defn_id,
-                  const Identifier &scrutinee_id,
-                  const types::Ref &scrutinee_type,
-                  bool do_checks,
-                  const std::unordered_set<std::string> &bound_vars,
-                  const types::TypeEnv &type_env,
-                  const TranslationEnv &tenv,
-                  TrackedTypes &typing,
-                  NeededDefns &needed_defns,
-                  bool &returns,
-                  translate_continuation_t &matched,
-                  translate_continuation_t &failed) const override;
+                        const Identifier &scrutinee_id,
+                        const types::Ref &scrutinee_type,
+                        bool do_checks,
+                        const std::unordered_set<std::string> &bound_vars,
+                        const types::TypeEnv &type_env,
+                        const TranslationEnv &tenv,
+                        TrackedTypes &typing,
+                        NeededDefns &needed_defns,
+                        bool &returns,
+                        translate_continuation_t &matched,
+                        translate_continuation_t &failed) const override;
   Location get_location() const override;
 
   Location const location;
@@ -147,17 +147,17 @@ struct IrrefutablePredicate : public Predicate {
   void get_bound_vars(
       std::unordered_set<std::string> &bound_vars) const override;
   const Expr *translate(const DefnId &defn_id,
-                  const Identifier &scrutinee_id,
-                  const types::Ref &scrutinee_type,
-                  bool do_checks,
-                  const std::unordered_set<std::string> &bound_vars,
-                  const types::TypeEnv &type_env,
-                  const TranslationEnv &tenv,
-                  TrackedTypes &typing,
-                  NeededDefns &needed_defns,
-                  bool &returns,
-                  translate_continuation_t &matched,
-                  translate_continuation_t &failed) const override;
+                        const Identifier &scrutinee_id,
+                        const types::Ref &scrutinee_type,
+                        bool do_checks,
+                        const std::unordered_set<std::string> &bound_vars,
+                        const types::TypeEnv &type_env,
+                        const TranslationEnv &tenv,
+                        TrackedTypes &typing,
+                        NeededDefns &needed_defns,
+                        bool &returns,
+                        translate_continuation_t &matched,
+                        translate_continuation_t &failed) const override;
   Location get_location() const override;
 
   Location const location;
@@ -294,7 +294,8 @@ struct TupleDeref : public Expr {
 };
 
 struct Builtin : public Expr {
-  Builtin(const Var *var, std::vector<const Expr *> exprs) : var(var), exprs(exprs) {
+  Builtin(const Var *var, std::vector<const Expr *> exprs)
+      : var(var), exprs(exprs) {
   }
 
   Location get_location() const override;
@@ -377,7 +378,8 @@ struct Break : public Expr {
 };
 
 struct While : public Expr {
-  While(const Expr *condition, const Expr *block) : condition(condition), block(block) {
+  While(const Expr *condition, const Expr *block)
+      : condition(condition), block(block) {
   }
   Location get_location() const override;
   std::ostream &render(std::ostream &os, int parent_precedence) const override;
