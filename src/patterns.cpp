@@ -120,14 +120,15 @@ void check_patterns(Location location,
   }
 }
 
-const Expr *translate_match_expr(const DefnId &for_defn_id,
-                           const bitter::Match *match,
-                           const std::unordered_set<std::string> &bound_vars,
-                           const types::TypeEnv &type_env,
-                           const TranslationEnv &tenv,
-                           TrackedTypes &typing,
-                           NeededDefns &needed_defns,
-                           bool &returns) {
+const Expr *translate_match_expr(
+    const DefnId &for_defn_id,
+    const bitter::Match *match,
+    const std::unordered_set<std::string> &bound_vars,
+    const types::TypeEnv &type_env,
+    const TranslationEnv &tenv,
+    TrackedTypes &typing,
+    NeededDefns &needed_defns,
+    bool &returns) {
   auto expected_type = tenv.get_type(match);
 
   debug_above(6, log("match expression is expecting type %s",
@@ -161,18 +162,19 @@ void Literal::get_bound_vars(
     std::unordered_set<std::string> &bound_vars) const {
 }
 
-const Expr *Literal::translate(const DefnId &for_defn_id,
-                         const Identifier &scrutinee_id,
-                         const types::Ref &scrutinee_type,
-                         bool do_checks,
-                         const std::unordered_set<std::string> &bound_vars,
-                         const types::TypeEnv &type_env,
-                         const TranslationEnv &tenv,
-                         TrackedTypes &typing,
-                         NeededDefns &needed_defns,
-                         bool &returns,
-                         translate_continuation_t &matched,
-                         translate_continuation_t &failed) const {
+const Expr *Literal::translate(
+    const DefnId &for_defn_id,
+    const Identifier &scrutinee_id,
+    const types::Ref &scrutinee_type,
+    bool do_checks,
+    const std::unordered_set<std::string> &bound_vars,
+    const types::TypeEnv &type_env,
+    const TranslationEnv &tenv,
+    TrackedTypes &typing,
+    NeededDefns &needed_defns,
+    bool &returns,
+    translate_continuation_t &matched,
+    translate_continuation_t &failed) const {
   if (!do_checks) {
     return matched(bound_vars, type_env, tenv, typing, needed_defns, returns);
   }
@@ -217,21 +219,21 @@ const Expr *Literal::translate(const DefnId &for_defn_id,
 }
 
 const Expr *translate_next(const DefnId &for_defn_id,
-                     const Identifier &scrutinee_id,
-                     const types::Ref &scrutinee_type,
-                     const types::Refs &param_types,
-                     bool do_checks,
-                     const std::unordered_set<std::string> &bound_vars_,
-                     const std::vector<const Predicate *> &params,
-                     int param_index,
-                     int dim_offset,
-                     const types::TypeEnv &type_env,
-                     const TranslationEnv &tenv,
-                     TrackedTypes &typing,
-                     NeededDefns &needed_defns,
-                     bool &returns,
-                     translate_continuation_t &matched,
-                     translate_continuation_t &failed) {
+                           const Identifier &scrutinee_id,
+                           const types::Ref &scrutinee_type,
+                           const types::Refs &param_types,
+                           bool do_checks,
+                           const std::unordered_set<std::string> &bound_vars_,
+                           const std::vector<const Predicate *> &params,
+                           int param_index,
+                           int dim_offset,
+                           const types::TypeEnv &type_env,
+                           const TranslationEnv &tenv,
+                           TrackedTypes &typing,
+                           NeededDefns &needed_defns,
+                           bool &returns,
+                           translate_continuation_t &matched,
+                           translate_continuation_t &failed) {
   Identifier param_id = params[param_index]->instantiate_name_assignment();
 
   auto bound_vars = bound_vars_;
