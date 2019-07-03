@@ -1,6 +1,6 @@
 #pragma once
-#include <string>
 #include <memory>
+#include <string>
 
 #include "identifier.h"
 #include "translate.h"
@@ -15,24 +15,20 @@ struct Env : public TranslationEnv {
 
   Env(const types::Scheme::Map &map,
       const std::shared_ptr<const types::Type> &return_type,
-      types::ClassPredicates &instance_requirements,
       std::shared_ptr<TrackedTypes> tracked_types,
       const CtorIdMap &ctor_id_map,
       const DataCtorsMap &data_ctors_map);
 
   types::Scheme::Map map;
   std::shared_ptr<const types::Type> return_type;
-  types::ClassPredicates &instance_requirements;
 
   types::Ref track(const bitter::Expr *expr, types::Ref type);
   types::Ref get_tracked_type(bitter::Expr *expr) const;
   types::Ref maybe_get_tracked_type(bitter::Expr *expr) const;
-  void add_instance_requirement(const types::ClassPredicateRef &ir);
   void extend(Identifier id,
               const types::SchemeRef &scheme,
               bool allow_subscoping);
   void rebind_env(const types::Map &env);
-  types::ClassPredicates get_predicate_map() const;
   types::Scheme::Ref lookup_env(Identifier id) const;
   types::Scheme::Ref maybe_lookup_env(Identifier id) const;
   std::vector<std::pair<std::string, types::Refs>> get_ctors(

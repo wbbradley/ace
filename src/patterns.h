@@ -6,9 +6,9 @@
 
 struct TranslationEnv;
 
-bitter::Expr *translate_match_expr(
+const bitter::Expr *translate_match_expr(
     const DefnId &for_defn_id,
-    bitter::Match *match,
+    const bitter::Match *match,
     const std::unordered_set<std::string> &bound_vars,
     const types::TypeEnv &type_env,
     const TranslationEnv &tenv,
@@ -16,7 +16,7 @@ bitter::Expr *translate_match_expr(
     NeededDefns &needed_defns,
     bool &returns);
 
-typedef const std::function<bitter::Expr *(
+typedef const std::function<const bitter::Expr *(
     const std::unordered_set<std::string> &bound_vars,
     const types::TypeEnv &type_env,
     const TranslationEnv &tenv,

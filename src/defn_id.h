@@ -5,8 +5,8 @@
 #include <vector>
 
 #include "identifier.h"
-#include "types.h"
 #include "scheme.h"
+#include "types.h"
 
 namespace types {
 struct Scheme;
@@ -52,4 +52,3 @@ void insert_needed_defn(NeededDefns &needed_defns,
                         const DefnId &defn_id,
                         Location location,
                         const DefnId &from_defn_id);
-

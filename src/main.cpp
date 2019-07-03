@@ -86,21 +86,20 @@ void handle_sigint(int sig) {
 
 void check(bool check_constraint_coverage,
            Identifier id,
-           Expr *expr,
+           const Expr *expr,
            Env &env) {
   Constraints constraints;
-  // std::cout << C_ID "------------------------------" C_RESET << std::endl;
-  debug_above(
-      4, log("type checking %s = %s", id.str().c_str(), expr->str().c_str()));
-  types::Ref ty = infer(expr, env, constraints);
+  types::ClassPredicates instance_requirements;
+  log("type checking %s = %s", id.str().c_str(), expr->str().c_str());
+  types::Ref ty = infer(expr, env, constraints, instance_requirements);
   types::Map bindings = solver(check_constraint_coverage,
                                make_context(id.location, "solving %s :: %s",
                                             id.name.c_str(), ty->str().c_str()),
-                               constraints, env);
+                               constraints, env, instance_requirements);
 
-  // log("GOT ty = %s", ty->str().c_str());
   ty = ty->rebind(bindings);
-  auto scheme = ty->generalize(env.get_predicate_map())->normalize();
+  instance_requirements = types::rebind(instance_requirements, bindings);
+  types::SchemeRef scheme = ty->generalize(instance_requirements)->normalize();
 
   debug_above(3, log_location(id.location, "adding %s to env as %s",
                               id.str().c_str(), scheme->str().c_str()));
@@ -123,14 +122,14 @@ void initialize_default_env(Env &env) {
   }
 }
 
-std::map<std::string, TypeClass *> check_type_classes(
-    const std::vector<TypeClass *> &type_classes,
+std::map<std::string, const TypeClass *> check_type_classes(
+    const std::vector<const TypeClass *> &type_classes,
     Env &env) {
-  std::map<std::string, TypeClass *> type_class_map;
+  std::map<std::string, const TypeClass *> type_class_map;
 
   /* introduce all the type class signatures into the env, and build up an
    * index of type_class names */
-  for (TypeClass *type_class : type_classes) {
+  for (const TypeClass *type_class : type_classes) {
     try {
       if (in(type_class->id.name, type_class_map)) {
         auto error = user_error(type_class->id.location,
@@ -163,7 +162,6 @@ std::map<std::string, TypeClass *> check_type_classes(
           throw error;
         }
 
-        log("extending...");
         env.extend(Identifier{pair.first, pair.second->get_location()},
                    pair.second->remap_vars(remapping)->generalize(predicates),
                    false /*allow_duplicates*/);
@@ -177,43 +175,37 @@ std::map<std::string, TypeClass *> check_type_classes(
 }
 
 void check_decls(std::string entry_point_name,
-                 const std::vector<Decl *> &decls,
+                 const std::vector<const Decl *> &decls,
                  Env &env) {
-  for (Decl *decl : decls) {
+  for (const Decl *decl : decls) {
     /* seed each decl with a type variable to let inference resolve */
-    env.extend(decl->var,
-               type_variable(INTERNAL_LOC())
-                   ->generalize(env.get_predicate_map())
-                   ->normalize(),
+    env.extend(decl->id, type_variable(INTERNAL_LOC())->generalize({}),
                true /*allow_subscoping*/);
   }
 
-  for (Decl *decl : decls) {
+  for (const Decl *decl : decls) {
     try {
-      if (decl->var.name == entry_point_name) {
-        /* make sure that the "main" function has the correct signature */
-        check(false /*check_constraint_coverage*/, decl->var,
-              new As(decl->value, program_main_scheme, false /*force_cast*/),
-              env);
-      } else {
-        check(false /*check_constraint_coverage*/, decl->var, decl->value, env);
-      }
+      /* make sure that the "main" function has the correct signature */
+      check(false /*check_constraint_coverage*/, decl->id,
+            (decl->id.name == entry_point_name)
+                ? new As(decl->value, program_main_scheme, false /*force_cast*/)
+                : decl->value,
+            env);
     } catch (user_error &e) {
       print_exception(e);
 
       /* keep trying other decls, and pretend like this function gives back
        * whatever the user wants... */
-      env.extend(decl->var,
+      env.extend(decl->id,
                  type_arrow(type_variable(INTERNAL_LOC()),
                             type_variable(INTERNAL_LOC()))
-                     ->generalize(env.get_predicate_map())
-                     ->normalize(),
+                     ->generalize({}),
                  false /*allow_subscoping*/);
     }
   }
 }
 
-Identifier make_instance_decl_id(Instance *instance, Identifier decl_id) {
+Identifier make_instance_decl_id(const Instance *instance, Identifier decl_id) {
   return Identifier{string_format("%s/%s",
                                   instance->class_predicate->repr().c_str(),
                                   decl_id.name.c_str()),
@@ -223,47 +215,47 @@ Identifier make_instance_decl_id(Instance *instance, Identifier decl_id) {
 void check_instance_for_type_class_overload(
     std::string name,
     types::Ref type,
-    Instance *instance,
+    const Instance *instance,
     const types::Map &subst,
     std::set<std::string> &names_checked,
-    std::vector<Decl *> &instance_decls,
-    std::map<DefnId, Decl *> &overrides_map,
-    Env &env) {
+    std::vector<const Decl *> &instance_decls,
+    std::map<DefnId, const Decl *> &overrides_map,
+    Env &env,
+    const types::ClassPredicates &class_predicates) {
   bool found = false;
-  for (auto decl : instance->decls) {
+  for (const Decl *decl : instance->decls) {
     assert(name.find(".") != std::string::npos);
-    // assert(decl->var.name.find(".") != std::string::npos);
-    if (decl->var.name == name) {
+    // assert(decl->id.name.find(".") != std::string::npos);
+    if (decl->id.name == name) {
       found = true;
       if (in(name, names_checked)) {
         throw user_error(decl->get_location(),
                          "name %s already duplicated in this instance",
-                         decl->var.str().c_str());
+                         decl->id.str().c_str());
       }
-      names_checked.insert(decl->var.name);
+      names_checked.insert(decl->id.name);
 
       Env local_env{env};
-      Identifier instance_decl_id = make_instance_decl_id(instance, decl->var);
+      Identifier instance_decl_id = make_instance_decl_id(instance, decl->id);
       types::Scheme::Ref expected_scheme = type->rebind(subst)->generalize(
-          local_env.get_predicate_map());
+          class_predicates);
 
       Expr *instance_decl_expr = new As(decl->value, expected_scheme,
                                         false /*force_cast*/);
       check(false /*check_constraint_coverage*/, instance_decl_id,
             instance_decl_expr, local_env);
-      debug_above(
-          5,
-          log("checking the instance fn %s gave scheme %s. we expected %s.",
-              instance_decl_id.str().c_str(),
-              local_env.map[instance_decl_id.name]->normalize()->str().c_str(),
-              expected_scheme->normalize()->str().c_str()));
+
+      log("checking the instance fn %s gave scheme %s. we expected %s.",
+          instance_decl_id.str().c_str(),
+          local_env.map[instance_decl_id.name]->normalize()->str().c_str(),
+          expected_scheme->normalize()->str().c_str());
 
       if (!scheme_equality(local_env.map[instance_decl_id.name],
                            expected_scheme->normalize())) {
         auto error = user_error(instance_decl_id.location,
                                 "instance component %s appears to be more "
                                 "constrained than the type class",
-                                decl->var.str().c_str());
+                                decl->id.str().c_str());
         error.add_info(
             instance_decl_id.location,
             "instance component declaration has scheme %s",
@@ -274,21 +266,10 @@ void check_instance_for_type_class_overload(
         throw error;
       }
 
-      log("while checking instance decl %s :: %s we found predicates %s",
-          name.c_str(),
-          type->str().c_str(),
-          str(local_env.instance_requirements).c_str());
-
-      /* keep track of any instance requirements that were referenced inside the
-       * implementation of the type class instance components */
-      for (auto ir : local_env.instance_requirements) {
-        env.instance_requirements.insert(ir);
-      }
-
       env.map[instance_decl_id.name] = expected_scheme;
 
       instance_decls.push_back(new Decl(instance_decl_id, instance_decl_expr));
-      auto defn_id = DefnId{decl->var, expected_scheme};
+      auto defn_id = DefnId{decl->id, expected_scheme};
       overrides_map[defn_id] = instance_decls.back();
     }
   }
@@ -299,11 +280,13 @@ void check_instance_for_type_class_overload(
   }
 }
 
+/* typecheck an instance for whether it properly overloads the type class with
+ * which it is associated */
 void check_instance_for_type_class_overloads(
-    Instance *instance,
-    TypeClass *type_class,
-    std::vector<Decl *> &instance_decls,
-    std::map<DefnId, Decl *> &overrides_map,
+    const Instance *instance,
+    const TypeClass *type_class,
+    std::vector<const Decl *> &instance_decls,
+    std::map<DefnId, const Decl *> &overrides_map,
     Env &env) {
   /* make a template for the types that the instance implementation should
    * conform to */
@@ -318,7 +301,8 @@ void check_instance_for_type_class_overloads(
     assert(in(ftv, type_class->type_var_ids));
   }
   int i = 0;
-  assert(instance->class_predicate->params.size() == type_class->type_var_ids.size());
+  assert(instance->class_predicate->params.size() ==
+         type_class->type_var_ids.size());
   for (auto &type_var_id : type_class->type_var_ids) {
     subst[type_var_id.name] = instance->class_predicate->params[i++];
   }
@@ -331,34 +315,35 @@ void check_instance_for_type_class_overloads(
     auto type = pair.second;
     check_instance_for_type_class_overload(
         name, type, instance, subst, names_checked, instance_decls,
-        overrides_map, env /*, type_class->defaults*/);
+        overrides_map, env,
+        type_class->class_predicates /*, type_class->defaults*/);
   }
 
   /* check for unrelated declarations inside of an instance */
-  for (auto decl : instance->decls) {
-    if (!in(decl->var.name, names_checked)) {
-      throw user_error(decl->var.location,
+  for (const Decl *decl : instance->decls) {
+    if (!in(decl->id.name, names_checked)) {
+      throw user_error(decl->id.location,
                        "extraneous declaration %s found in instance %s "
                        "(names_checked = {%s})",
-                       decl->var.str().c_str(),
+                       decl->id.str().c_str(),
                        instance->class_predicate->str().c_str(),
                        join(names_checked, ", ").c_str());
     }
   }
 }
 
-std::vector<Decl *> check_instances(
-    const std::vector<Instance *> &instances,
-    const std::map<std::string, TypeClass *> &type_class_map,
-    std::map<DefnId, Decl *> &overrides_map,
+std::vector<const Decl *> check_instances(
+    const std::vector<const Instance *> &instances,
+    const std::map<std::string, const TypeClass *> &type_class_map,
+    std::map<DefnId, const Decl *> &overrides_map,
     Env &env) {
-  std::vector<Decl *> instance_decls;
+  std::vector<const Decl *> instance_decls;
 
-  for (Instance *instance : instances) {
+  for (const Instance *instance : instances) {
     try {
-      TypeClass *type_class = get(type_class_map,
-                                  instance->class_predicate->classname.name,
-                                  static_cast<TypeClass *>(nullptr));
+      const TypeClass *type_class = get(
+          type_class_map, instance->class_predicate->classname.name,
+          static_cast<const TypeClass *>(nullptr));
 
       if (type_class == nullptr) {
         /* Error Handling */
@@ -392,6 +377,7 @@ std::vector<Decl *> check_instances(
   return instance_decls;
 }
 
+#if 0
 bool instance_matches_requirement(Instance *instance,
                                   const types::ClassPredicateRef &ir,
                                   Env &env) {
@@ -410,7 +396,7 @@ bool instance_matches_requirement(Instance *instance,
 void check_instance_requirements(const std::vector<Instance *> &instances,
                                  Env &env) {
   for (auto ir : env.instance_requirements) {
-    debug_above(8, log("checking instance requirement %s", ir->str().c_str()));
+    log("checking instance requirement %s", ir->str().c_str());
     std::vector<Instance *> matching_instances;
     for (auto instance : instances) {
       if (instance_matches_requirement(instance, ir, env)) {
@@ -435,17 +421,18 @@ void check_instance_requirements(const std::vector<Instance *> &instances,
     }
   }
 }
+#endif
 
 class defn_map_t {
-  std::map<DefnId, Decl *> map;
-  std::map<std::string, Decl *> decl_map;
+  std::map<DefnId, const Decl *> map;
+  std::map<std::string, const Decl *> decl_map;
 
   friend struct phase_2_t;
 
 public:
-  Decl *maybe_lookup(DefnId defn_id) const {
+  const Decl *maybe_lookup(DefnId defn_id) const {
     auto iter = map.find(defn_id);
-    Decl *decl = nullptr;
+    const Decl *decl = nullptr;
     if (iter != map.end()) {
       decl = iter->second;
     }
@@ -477,7 +464,7 @@ public:
     return nullptr;
   }
 
-  Decl *lookup(DefnId defn_id) const {
+  const Decl *lookup(DefnId defn_id) const {
     auto decl = maybe_lookup(defn_id);
     if (decl == nullptr) {
       auto error = user_error(defn_id.id.location,
@@ -495,32 +482,31 @@ public:
     }
   }
 
-  void populate(const std::map<std::string, Decl *> &decl_map_,
-                const std::map<DefnId, Decl *> &overrides_map,
+  void populate(const std::map<std::string, const Decl *> &decl_map_,
+                const std::map<DefnId, const Decl *> &overrides_map,
                 const Env &env) {
     decl_map = decl_map_;
 
     /* populate the definition map which is the main result of the first phase
      * of compilation */
-    for (auto pair : decl_map) {
-      assert(pair.first == pair.second->var.name);
-      types::Scheme::Ref scheme = env.lookup_env(pair.second->var);
-      types::Scheme::Ref normalized_scheme = scheme->type
-                                                 ->generalize(set_union(
-                                                     env.instance_requirements,
-                                                     scheme->predicates))
-                                                 ->normalize();
-      DefnId defn_id = DefnId{pair.second->var, normalized_scheme};
+    for (auto pair__ : decl_map) {
+      const std::string &decl_name = pair__.first;
+      const Decl *decl = pair__.second;
+      assert(decl_name == decl->id.name);
+
+      types::Scheme::Ref scheme = env.lookup_env(decl->id)->normalize();
+      DefnId defn_id = DefnId{decl->id, scheme};
       assert(!in(defn_id, map));
       debug_above(8, log("populating defn_map with %s", defn_id.str().c_str()));
-      map[defn_id] = pair.second;
+      map[defn_id] = decl;
     }
 
     for (auto pair : overrides_map) {
+      const DefnId &defn_id = pair.first;
       debug_above(8, log("populating defn_map with override %s",
-                         pair.first.str().c_str()));
-      assert(!in(pair.first, map));
-      map[pair.first] = pair.second;
+                         defn_id.str().c_str()));
+      assert(!in(defn_id, map));
+      map[defn_id] = pair.second;
     }
   }
 };
@@ -568,12 +554,10 @@ phase_2_t compile(std::string user_program_name_) {
     exit(EXIT_FAILURE);
   }
 
-  Program *program = compilation->program;
+  const Program *program = compilation->program;
 
-  types::ClassPredicates class_predicates;
   Env env{{} /*map*/,
           nullptr /*return_type*/,
-          class_predicates,
           std::make_shared<TrackedTypes>(),
           compilation->ctor_id_map,
           compilation->data_ctors_map};
@@ -583,23 +567,22 @@ phase_2_t compile(std::string user_program_name_) {
   auto type_class_map = check_type_classes(program->type_classes, env);
 
   check_decls(compilation->program_name + ".main", program->decls, env);
-  std::map<DefnId, Decl *> overrides_map;
+  std::map<DefnId, const Decl *> overrides_map;
 
-  auto instance_decls = check_instances(program->instances, type_class_map,
-                                        overrides_map, env);
+  std::vector<const Decl *> instance_decls = check_instances(
+      program->instances, type_class_map, overrides_map, env);
 
-  std::map<std::string, Decl *> decl_map;
-
-  for (auto decl : program->decls) {
-    assert(!in(decl->var.name, decl_map));
-    decl_map[decl->var.name] = decl;
+  std::map<std::string, const Decl *> decl_map;
+  for (const Decl *decl : program->decls) {
+    assert(!in(decl->id.name, decl_map));
+    decl_map[decl->id.name] = decl;
   }
 
   /* the instance decls were already checked, but let's add them to the list of
    * decls for the lowering step */
   for (auto decl : instance_decls) {
-    assert(!in(decl->var.name, decl_map));
-    decl_map[decl->var.name] = decl;
+    assert(!in(decl->id.name, decl_map));
+    decl_map[decl->id.name] = decl;
   }
 
 #if 0
@@ -613,10 +596,10 @@ phase_2_t compile(std::string user_program_name_) {
 #endif
 
   for (auto pair : decl_map) {
-    assert(pair.first == pair.second->var.name);
+    assert(pair.first == pair.second->id.name);
 
     auto type = env.lookup_env(
-        Identifier(pair.first, pair.second->var.location));
+        Identifier(pair.first, pair.second->id.location));
 #if 0
         if (debug_compiled_env) {
             INDENT(0, "--debug_compiled_env--");
@@ -626,11 +609,13 @@ phase_2_t compile(std::string user_program_name_) {
 #endif
   }
 
+#if 0
   try {
     check_instance_requirements(program->instances, env);
   } catch (user_error &e) {
     print_exception(e);
   }
+#endif
 
   if (debug_all_expr_types) {
     INDENT(0, "--debug_all_expr_types--");
@@ -707,23 +692,23 @@ void specialize_core(const types::TypeEnv &type_env,
     types::ClassPredicates class_predicates;
     Env env{typing /*map*/,
             nullptr /*return_type*/,
-            class_predicates,
             {} /*tracked_types*/,
             ctor_id_map,
             data_ctors_map};
+
     // TODO: clean this up. it is ugly. we're accessing the base class
     // TranslationEnv's tracked_types
     auto tracked_types = std::make_shared<TrackedTypes>();
     env.tracked_types = tracked_types;
 
-    Decl *decl_to_check = defn_map.maybe_lookup(defn_id);
+    const Decl *decl_to_check = defn_map.maybe_lookup(defn_id);
     if (decl_to_check == nullptr) {
       throw user_error(defn_id.id.location,
                        "could not find a definition for %s :: %s",
                        defn_id.id.str().c_str(), defn_id.scheme->str().c_str());
     }
 
-    Expr *to_check = decl_to_check->value;
+    const Expr *to_check = decl_to_check->value;
     const std::string final_name = defn_id.id.name;
 
     /* wrap this expr in it's asserted type to ensure that it monomorphizes */
@@ -795,12 +780,12 @@ phase_3_t specialize(const phase_2_t &phase_2) {
   if (user_error::errors_occurred()) {
     throw user_error(INTERNAL_LOC(), "quitting");
   }
-  Decl *program_main = phase_2.defn_map.lookup(
+  const Decl *program_main = phase_2.defn_map.lookup(
       {make_iid(phase_2.compilation->program_name + ".main"),
        program_main_scheme});
 
   NeededDefns needed_defns;
-  DefnId main_defn{program_main->var, program_main_scheme};
+  DefnId main_defn{program_main->id, program_main_scheme};
   insert_needed_defn(needed_defns, main_defn, INTERNAL_LOC(), main_defn);
 
   translation_map_t translation_map;
@@ -1135,7 +1120,7 @@ int run_job(const Job &job) {
                                                get_builtin_arities());
     if (compilation != nullptr) {
       for (auto decl : compilation->program->decls) {
-        log_location(decl->var.location, "%s = %s", decl->var.str().c_str(),
+        log_location(decl->id.location, "%s = %s", decl->id.str().c_str(),
                      decl->value->str().c_str());
       }
       for (auto type_class : compilation->program->type_classes) {

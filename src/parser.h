@@ -73,24 +73,25 @@ inline Identifier iid(const Token &token) {
     eat_token();                                                               \
   } while (0)
 
-bitter::Module *parse_module(ParseState &ps,
-                             std::vector<bitter::Module *> auto_import_modules,
-                             std::set<Identifier> &module_deps);
+const bitter::Module *parse_module(
+    ParseState &ps,
+    std::vector<const bitter::Module *> auto_import_modules,
+    std::set<Identifier> &module_deps);
 
 types::Ref parse_type(ParseState &ps);
-bitter::Expr *parse_literal(ParseState &ps);
-bitter::Expr *parse_expr(ParseState &ps);
-bitter::Expr *parse_assignment(ParseState &ps);
-bitter::Expr *parse_tuple_expr(ParseState &ps);
-bitter::Expr *parse_let(ParseState &ps, Identifier var_id, bool is_let);
-bitter::Expr *parse_block(ParseState &ps, bool expression_means_return);
-bitter::Conditional *parse_if(ParseState &ps);
-bitter::While *parse_while(ParseState &ps);
-bitter::Expr *parse_lambda(ParseState &ps);
-bitter::Match *parse_match(ParseState &ps);
-bitter::Predicate *parse_predicate(ParseState &ps,
-                                   bool allow_else,
-                                   maybe<Identifier> name_assignment);
-bitter::Predicate *unfold_application_into_predicate(
-    bitter::Application *application);
-bitter::Predicate *convert_expr_to_predicate(bitter::Expr *expr);
+const bitter::Expr *parse_literal(ParseState &ps);
+const bitter::Expr *parse_expr(ParseState &ps);
+const bitter::Expr *parse_assignment(ParseState &ps);
+const bitter::Expr *parse_tuple_expr(ParseState &ps);
+const bitter::Expr *parse_let(ParseState &ps, Identifier var_id, bool is_let);
+const bitter::Expr *parse_block(ParseState &ps, bool expression_means_return);
+const bitter::Conditional *parse_if(ParseState &ps);
+const bitter::While *parse_while(ParseState &ps);
+const bitter::Expr *parse_lambda(ParseState &ps);
+const bitter::Match *parse_match(ParseState &ps);
+const bitter::Predicate *parse_predicate(ParseState &ps,
+                                         bool allow_else,
+                                         maybe<Identifier> name_assignment);
+const bitter::Predicate *unfold_application_into_predicate(
+    const bitter::Application *application);
+const bitter::Predicate *convert_expr_to_predicate(const bitter::Expr *expr);

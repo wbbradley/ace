@@ -14,25 +14,25 @@ Identifier prefix(const std::set<std::string> &bindings,
 Token prefix(const std::set<std::string> &bindings,
              std::string pre,
              Token name);
-bitter::Expr *prefix(const std::set<std::string> &bindings,
-                     std::string pre,
-                     bitter::Expr *value);
-bitter::Predicate *prefix(const std::set<std::string> &bindings,
-                          std::string pre,
-                          bitter::Predicate *predicate,
-                          std::set<std::string> &new_symbols);
-bitter::PatternBlock *prefix(const std::set<std::string> &bindings,
-                             std::string pre,
-                             bitter::PatternBlock *pattern_block);
-bitter::Decl *prefix(const std::set<std::string> &bindings,
-                     std::string pre,
-                     bitter::Decl *value);
+const bitter::Expr *prefix(const std::set<std::string> &bindings,
+                           std::string pre,
+                           const bitter::Expr *value);
+const bitter::Predicate *prefix(const std::set<std::string> &bindings,
+                                std::string pre,
+                                const bitter::Predicate *predicate,
+                                std::set<std::string> &new_symbols);
+const bitter::PatternBlock *prefix(const std::set<std::string> &bindings,
+                                   std::string pre,
+                                   const bitter::PatternBlock *pattern_block);
+const bitter::Decl *prefix(const std::set<std::string> &bindings,
+                           std::string pre,
+                           const bitter::Decl *value);
 bitter::TypeDecl prefix(const std::set<std::string> &bindings,
                         std::string pre,
                         const bitter::TypeDecl &type_decl);
-bitter::TypeClass *prefix(const std::set<std::string> &bindings,
-                          std::string pre,
-                          bitter::TypeClass *type_class);
+const bitter::TypeClass *prefix(const std::set<std::string> &bindings,
+                                std::string pre,
+                                const bitter::TypeClass *type_class);
 types::ClassPredicateRef prefix(
     const std::set<std::string> &bindings,
     std::string pre,
@@ -46,17 +46,17 @@ types::Ref prefix(const std::set<std::string> &bindings,
 types::Scheme::Ref prefix(const std::set<std::string> &bindings,
                           std::string pre,
                           types::Scheme::Ref scheme);
-bitter::Expr *prefix(const std::set<std::string> &bindings,
-                     std::string pre,
-                     bitter::Expr *value);
+const bitter::Expr *prefix(const std::set<std::string> &bindings,
+                           std::string pre,
+                           const bitter::Expr *value);
 std::vector<bitter::Expr *> prefix(const std::set<std::string> &bindings,
                                    std::string pre,
                                    std::vector<bitter::Expr *> values);
-bitter::Module *prefix(const std::set<std::string> &bindings,
-                       bitter::Module *module);
-bitter::Instance *prefix(const std::set<std::string> &bindings,
-                         std::string pre,
-                         bitter::Instance *instance);
+const bitter::Module *prefix(const std::set<std::string> &bindings,
+                             const bitter::Module *module);
+const bitter::Instance *prefix(const std::set<std::string> &bindings,
+                               std::string pre,
+                               const bitter::Instance *instance);
 DataCtorsMap prefix(const std::set<std::string> &bindings,
                     std::string pre,
                     const DataCtorsMap &data_ctors_map);

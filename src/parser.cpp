@@ -54,11 +54,11 @@ bool token_begins_type(const Token &token) {
 }
 
 std::vector<std::pair<int, Identifier>> extract_ids(
-    const std::vector<Expr *> &dims) {
+    const std::vector<const Expr *> &dims) {
   std::vector<std::pair<int, Identifier>> refs;
   int i = 0;
   for (auto dim : dims) {
-    if (Var *var = dcast<Var *>(dim)) {
+    if (const Var *var = dcast<const Var *>(dim)) {
       if (var->id.name != "_") {
         refs.push_back({i, var->id});
       }
@@ -72,8 +72,8 @@ std::vector<std::pair<int, Identifier>> extract_ids(
   return refs;
 }
 
-void unfold_application_exprs(Expr *e, std::vector<Expr *> &exprs) {
-  auto app = dcast<Application *>(e);
+void unfold_application_exprs(const Expr *e, std::vector<const Expr *> &exprs) {
+  auto app = dcast<const Application *>(e);
   if (app != nullptr) {
     unfold_application_exprs(app->a, exprs);
     exprs.push_back(app->b);
@@ -82,24 +82,24 @@ void unfold_application_exprs(Expr *e, std::vector<Expr *> &exprs) {
   }
 }
 
-Predicate *convert_tuple_into_predicate(Tuple *tuple) {
-  std::vector<Predicate *> params;
+const Predicate *convert_tuple_into_predicate(const Tuple *tuple) {
+  std::vector<const Predicate *> params;
   for (auto dim : tuple->dims) {
     params.push_back(convert_expr_to_predicate(dim));
   }
   return new TuplePredicate(tuple->get_location(), params, maybe<Identifier>{});
 }
 
-Predicate *convert_var_to_predicate(Var *var) {
+const Predicate *convert_var_to_predicate(const Var *var) {
   return new IrrefutablePredicate(var->id.location, maybe<Identifier>(var->id));
 }
 
-Predicate *convert_expr_to_predicate(Expr *expr) {
-  if (auto application = dcast<Application *>(expr)) {
+const Predicate *convert_expr_to_predicate(const Expr *expr) {
+  if (auto application = dcast<const Application *>(expr)) {
     return unfold_application_into_predicate(application);
-  } else if (auto tuple = dcast<Tuple *>(expr)) {
+  } else if (auto tuple = dcast<const Tuple *>(expr)) {
     return convert_tuple_into_predicate(tuple);
-  } else if (auto var = dcast<Var *>(expr)) {
+  } else if (auto var = dcast<const Var *>(expr)) {
     return convert_var_to_predicate(var);
   } else {
     throw user_error(expr->get_location(),
@@ -107,14 +107,15 @@ Predicate *convert_expr_to_predicate(Expr *expr) {
   }
 }
 
-Predicate *unfold_application_into_predicate(Application *application) {
-  std::vector<Expr *> exprs;
+const Predicate *unfold_application_into_predicate(
+    const Application *application) {
+  std::vector<const Expr *> exprs;
   unfold_application_exprs(application, exprs);
   if (exprs.size() >= 1) {
-    if (Var *var = dcast<Var *>(exprs[0])) {
+    if (const Var *var = dcast<const Var *>(exprs[0])) {
       /* this may be a data constructor, treat it as such */
       auto ctor_name = var->id;
-      std::vector<Predicate *> params;
+      std::vector<const Predicate *> params;
       for (int i = 1; i < exprs.size(); ++i) {
         params.push_back(convert_expr_to_predicate(exprs[i]));
       }
@@ -134,28 +135,29 @@ Predicate *unfold_application_into_predicate(Application *application) {
   return nullptr;
 }
 
-Expr *parse_assign_ctor_destructure(ParseState &ps, Application *application) {
+const Expr *parse_assign_ctor_destructure(ParseState &ps,
+                                          const Application *application) {
   chomp_token(tk_becomes);
 
   // See if the application can be reversed into a ctor_predicate
-  Predicate *predicate = unfold_application_into_predicate(application);
-  Expr *rhs = parse_expr(ps);
-  Expr *body = parse_block(ps, false /*expression_means_return*/);
+  const Predicate *predicate = unfold_application_into_predicate(application);
+  const Expr *rhs = parse_expr(ps);
+  const Expr *body = parse_block(ps, false /*expression_means_return*/);
   return new Match(rhs, {new PatternBlock(predicate, body)});
 }
 
-Expr *parse_assign_tuple_destructure(ParseState &ps, Tuple *tuple) {
+const Expr *parse_assign_tuple_destructure(ParseState &ps, const Tuple *tuple) {
   eat_token();
 
-  Predicate *predicate = convert_tuple_into_predicate(tuple);
-  Expr *rhs = parse_expr(ps);
-  Expr *body = parse_block(ps, false /*expression_means_return*/);
+  const Predicate *predicate = convert_tuple_into_predicate(tuple);
+  const Expr *rhs = parse_expr(ps);
+  const Expr *body = parse_block(ps, false /*expression_means_return*/);
   return new Match(rhs, {new PatternBlock(predicate, body)});
 }
 
-Expr *parse_var_decl(ParseState &ps,
-                     bool is_let,
-                     bool allow_tuple_destructuring) {
+const Expr *parse_var_decl(ParseState &ps,
+                           bool is_let,
+                           bool allow_tuple_destructuring) {
   if (ps.token.tk == tk_lparen) {
     if (!is_let) {
       throw user_error(
@@ -167,7 +169,7 @@ Expr *parse_var_decl(ParseState &ps,
     }
 
     auto prior_token = ps.token;
-    auto tuple = dcast<Tuple *>(parse_tuple_expr(ps));
+    auto tuple = dcast<const Tuple *>(parse_tuple_expr(ps));
     if (tuple == nullptr) {
       throw user_error(
           prior_token.location,
@@ -189,9 +191,9 @@ Expr *parse_var_decl(ParseState &ps,
   }
 }
 
-Expr *parse_let(ParseState &ps, Identifier var_id, bool is_let) {
+const Expr *parse_let(ParseState &ps, Identifier var_id, bool is_let) {
   auto location = ps.token.location;
-  Expr *initializer = nullptr;
+  const Expr *initializer = nullptr;
 
   if (!ps.line_broke() &&
       (ps.token.tk == tk_assign || ps.token.tk == tk_becomes)) {
@@ -219,7 +221,7 @@ Expr *parse_let(ParseState &ps, Identifier var_id, bool is_let) {
                  parse_block(ps, false /*expression_means_return*/));
 }
 
-Expr *parse_return_statement(ParseState &ps) {
+const Expr *parse_return_statement(ParseState &ps) {
   auto return_token = ps.token;
   chomp_ident(K(return ));
   return new ReturnStatement((!ps.line_broke() && ps.token.tk != tk_rcurly)
@@ -227,9 +229,9 @@ Expr *parse_return_statement(ParseState &ps) {
                                  : unit_expr(INTERNAL_LOC()));
 }
 
-maybe<Identifier> parse_with_param(ParseState &ps, Expr *&expr) {
+maybe<Identifier> parse_with_param(ParseState &ps, const Expr *&expr) {
   expr = parse_expr(ps);
-  if (auto var = dcast<Var *>(expr)) {
+  if (auto var = dcast<const Var *>(expr)) {
     if (ps.token.tk == tk_becomes) {
       auto param_id = var->id;
       ps.advance();
@@ -240,7 +242,7 @@ maybe<Identifier> parse_with_param(ParseState &ps, Expr *&expr) {
   return maybe<Identifier>();
 }
 
-Expr *parse_with_block(ParseState &ps) {
+const Expr *parse_with_block(ParseState &ps) {
   return unit_expr(INTERNAL_LOC());
 #if 0
 	auto with_token = ps.token;
@@ -294,12 +296,12 @@ Expr *parse_with_block(ParseState &ps) {
 #endif
 }
 
-Expr *wrap_with_iter(ParseState &ps, Expr *expr) {
+const Expr *wrap_with_iter(ParseState &ps, const Expr *expr) {
   return new Application(
       new Var(ps.id_mapped(Identifier{"iter", expr->get_location()})), expr);
 }
 
-Expr *parse_for_block(ParseState &ps) {
+const Expr *parse_for_block(ParseState &ps) {
   chomp_ident("for");
 
   if (ps.token.tk == tk_lparen) {
@@ -341,7 +343,7 @@ Expr *parse_for_block(ParseState &ps) {
   }
 }
 
-Expr *parse_defer(ParseState &ps) {
+const Expr *parse_defer(ParseState &ps) {
   return unit_expr(INTERNAL_LOC());
 #if 0
 	auto defer = create<defer_t>(ps.token);
@@ -351,7 +353,7 @@ Expr *parse_defer(ParseState &ps) {
 #endif
 }
 
-Expr *parse_new_expr(ParseState &ps) {
+const Expr *parse_new_expr(ParseState &ps) {
   ps.advance();
   return new As(
       new Application(new Var(ps.id_mapped({"new", ps.prior_token.location})),
@@ -359,7 +361,7 @@ Expr *parse_new_expr(ParseState &ps) {
       scheme({}, {}, parse_type(ps)), false /*force_cast*/);
 }
 
-Expr *parse_static_print(ParseState &ps) {
+const Expr *parse_static_print(ParseState &ps) {
   auto location = ps.token_and_advance().location;
   chomp_token(tk_lparen);
   auto sp = new StaticPrint(location, parse_expr(ps));
@@ -368,16 +370,16 @@ Expr *parse_static_print(ParseState &ps) {
 }
 
 // assert macro expansion. should avoid lib/std for
-Expr *parse_assert(ParseState &ps) {
+const Expr *parse_assert(ParseState &ps) {
   Token assert_token = ps.token;
   chomp_ident(K(assert));
   chomp_token(tk_lparen);
 
-  Expr *condition = parse_expr(ps);
+  const Expr *condition = parse_expr(ps);
   std::string assert_message = string_format(
       "%s: assertion failed: (%s)\n", ps.token.location.repr().c_str(),
       clean_ansi_escapes(condition->str()).c_str());
-  Expr *assertion = new Conditional(
+  const Expr *assertion = new Conditional(
       condition, // The condition we are asserting
       unit_expr(ps.token.location),
       new Block({
@@ -411,7 +413,7 @@ Expr *parse_assert(ParseState &ps) {
   return assertion;
 }
 
-Expr *parse_statement(ParseState &ps) {
+const Expr *parse_statement(ParseState &ps) {
   assert(ps.token.tk != tk_rcurly);
 
   if (ps.token.is_ident(K(var))) {
@@ -457,7 +459,7 @@ Expr *parse_statement(ParseState &ps) {
   }
 }
 
-Expr *parse_var_ref(ParseState &ps) {
+const Expr *parse_var_ref(ParseState &ps) {
   // TODO: if this name is a var, then treat it as a load
   if (ps.token.tk != tk_identifier) {
     throw user_error(ps.token.location, "expected an identifier");
@@ -472,7 +474,7 @@ Expr *parse_var_ref(ParseState &ps) {
     int arity = get(ps.builtin_arities, ps.token.text, -1);
     assert(arity >= 0);
     auto builtin_token = ps.token_and_advance();
-    std::vector<Expr *> exprs;
+    std::vector<const Expr *> exprs;
     if (arity > 0) {
       chomp_token(tk_lparen);
       while (true) {
@@ -512,7 +514,7 @@ Expr *parse_var_ref(ParseState &ps) {
   return new Var(ps.identifier_and_advance());
 }
 
-Expr *parse_base_expr(ParseState &ps) {
+const Expr *parse_base_expr(ParseState &ps) {
   if (ps.token.tk == tk_lparen) {
     return parse_tuple_expr(ps);
   } else if (ps.token.is_ident(K(new))) {
@@ -520,9 +522,6 @@ Expr *parse_base_expr(ParseState &ps) {
   } else if (ps.token.is_ident(K(fn))) {
     ps.advance();
     return parse_lambda(ps);
-  } else if (ps.token.is_ident(K(fix))) {
-    ps.advance();
-    return new Fix(parse_base_expr(ps));
   } else if (ps.token.is_ident(K(match))) {
     return parse_match(ps);
   } else if (ps.token.is_ident(K(null))) {
@@ -539,10 +538,10 @@ Expr *parse_base_expr(ParseState &ps) {
   }
 }
 
-Expr *parse_array_literal(ParseState &ps) {
+const Expr *parse_array_literal(ParseState &ps) {
   Location location = ps.token.location;
   chomp_token(tk_lsquare);
-  std::vector<Expr *> exprs;
+  std::vector<const Expr *> exprs;
 
   int i = 0;
   while (ps.token.tk != tk_rsquare && ps.token.tk != tk_none) {
@@ -612,7 +611,7 @@ Expr *parse_array_literal(ParseState &ps) {
 
   /* take all the exprs from the array, and turn them into statements to fill
    * out a vector */
-  std::vector<Expr *> stmts;
+  std::vector<const Expr *> stmts;
   for (auto expr : exprs) {
     stmts.push_back(new Application(
         new Application(
@@ -637,7 +636,7 @@ Expr *parse_array_literal(ParseState &ps) {
                  new Block(stmts));
 }
 
-Expr *parse_literal(ParseState &ps) {
+const Expr *parse_literal(ParseState &ps) {
   switch (ps.token.tk) {
   case tk_integer:
     return new Literal(ps.token_and_advance());
@@ -692,8 +691,8 @@ Expr *parse_literal(ParseState &ps) {
   }
 }
 
-Expr *parse_postfix_expr(ParseState &ps) {
-  Expr *expr = parse_base_expr(ps);
+const Expr *parse_postfix_expr(ParseState &ps) {
+  const Expr *expr = parse_base_expr(ps);
 
   while (!ps.line_broke() &&
          (ps.token.tk == tk_lsquare || ps.token.tk == tk_lparen ||
@@ -736,7 +735,7 @@ Expr *parse_postfix_expr(ParseState &ps) {
       ps.advance();
       bool is_slice = false;
 
-      Expr *start = parse_expr(ps);
+      const Expr *start = parse_expr(ps);
 
       if (ps.token.tk == tk_colon) {
         is_slice = true;
@@ -765,7 +764,7 @@ Expr *parse_postfix_expr(ParseState &ps) {
               start);
         }
       } else {
-        Expr *stop = parse_expr(ps);
+        const Expr *stop = parse_expr(ps);
         chomp_token(tk_rsquare);
 
         assert(is_slice);
@@ -787,8 +786,8 @@ Expr *parse_postfix_expr(ParseState &ps) {
   return expr;
 }
 
-Expr *parse_cast_expr(ParseState &ps) {
-  Expr *expr = parse_postfix_expr(ps);
+const Expr *parse_cast_expr(ParseState &ps) {
+  const Expr *expr = parse_postfix_expr(ps);
   while (!ps.line_broke() && ps.token.is_ident(K(as))) {
     ps.advance();
     bool force_cast = false;
@@ -802,7 +801,7 @@ Expr *parse_cast_expr(ParseState &ps) {
   return expr;
 }
 
-Expr *parse_sizeof(ParseState &ps) {
+const Expr *parse_sizeof(ParseState &ps) {
   auto location = ps.token.location;
   ps.advance();
   chomp_token(tk_lparen);
@@ -811,7 +810,7 @@ Expr *parse_sizeof(ParseState &ps) {
   return new Sizeof(location, type);
 }
 
-Expr *parse_prefix_expr(ParseState &ps) {
+const Expr *parse_prefix_expr(ParseState &ps) {
   if (ps.token.is_ident(K(sizeof))) {
     return parse_sizeof(ps);
   }
@@ -825,7 +824,7 @@ Expr *parse_prefix_expr(ParseState &ps) {
     ps.advance();
   }
 
-  Expr *rhs;
+  const Expr *rhs;
   if (ps.token.is_ident(K(not)) || ps.token.tk == tk_minus ||
       ps.token.tk == tk_bang) {
     /* recurse to find more prefix expressions */
@@ -852,8 +851,8 @@ Expr *parse_prefix_expr(ParseState &ps) {
   }
 }
 
-Expr *parse_times_expr(ParseState &ps) {
-  Expr *expr = parse_prefix_expr(ps);
+const Expr *parse_times_expr(ParseState &ps) {
+  const Expr *expr = parse_prefix_expr(ps);
 
   while (!ps.line_broke() &&
          (ps.token.tk == tk_times || ps.token.tk == tk_divide_by ||
@@ -868,7 +867,7 @@ Expr *parse_times_expr(ParseState &ps) {
   return expr;
 }
 
-Expr *parse_plus_expr(ParseState &ps) {
+const Expr *parse_plus_expr(ParseState &ps) {
   auto expr = parse_times_expr(ps);
 
   while (!ps.line_broke() &&
@@ -884,7 +883,7 @@ Expr *parse_plus_expr(ParseState &ps) {
   return expr;
 }
 
-Expr *parse_shift_expr(ParseState &ps) {
+const Expr *parse_shift_expr(ParseState &ps) {
   auto expr = parse_plus_expr(ps);
 
   while (!ps.line_broke() &&
@@ -899,7 +898,7 @@ Expr *parse_shift_expr(ParseState &ps) {
   return expr;
 }
 
-Expr *parse_binary_eq_expr(ParseState &ps) {
+const Expr *parse_binary_eq_expr(ParseState &ps) {
   auto lhs = parse_shift_expr(ps);
   if (ps.line_broke() ||
       !(ps.token.tk == tk_binary_equal || ps.token.tk == tk_binary_inequal)) {
@@ -914,7 +913,7 @@ Expr *parse_binary_eq_expr(ParseState &ps) {
                          parse_shift_expr(ps));
 }
 
-Expr *parse_ineq_expr(ParseState &ps) {
+const Expr *parse_ineq_expr(ParseState &ps) {
   auto lhs = parse_binary_eq_expr(ps);
   if (ps.line_broke() || !(ps.token.tk == tk_gt || ps.token.tk == tk_gte ||
                            ps.token.tk == tk_lt || ps.token.tk == tk_lte)) {
@@ -929,7 +928,7 @@ Expr *parse_ineq_expr(ParseState &ps) {
                          parse_shift_expr(ps));
 }
 
-Expr *parse_eq_expr(ParseState &ps) {
+const Expr *parse_eq_expr(ParseState &ps) {
   auto lhs = parse_ineq_expr(ps);
   bool not_in = false;
   if (ps.token.is_ident(K(not))) {
@@ -953,7 +952,7 @@ Expr *parse_eq_expr(ParseState &ps) {
                          parse_ineq_expr(ps));
 }
 
-Expr *parse_bitwise_and(ParseState &ps) {
+const Expr *parse_bitwise_and(ParseState &ps) {
   auto expr = parse_eq_expr(ps);
 
   while (!ps.line_broke() && ps.token.tk == tk_ampersand) {
@@ -967,7 +966,7 @@ Expr *parse_bitwise_and(ParseState &ps) {
   return expr;
 }
 
-Expr *parse_bitwise_xor(ParseState &ps) {
+const Expr *parse_bitwise_xor(ParseState &ps) {
   auto expr = parse_bitwise_and(ps);
 
   while (!ps.line_broke() && ps.token.tk == tk_hat) {
@@ -980,7 +979,7 @@ Expr *parse_bitwise_xor(ParseState &ps) {
   return expr;
 }
 
-Expr *parse_bitwise_or(ParseState &ps) {
+const Expr *parse_bitwise_or(ParseState &ps) {
   auto expr = parse_bitwise_xor(ps);
 
   while (!ps.line_broke() && ps.token.tk == tk_pipe) {
@@ -994,7 +993,7 @@ Expr *parse_bitwise_or(ParseState &ps) {
   return expr;
 }
 
-Expr *fold_and_exprs(std::vector<Expr *> exprs, int index) {
+const Expr *fold_and_exprs(std::vector<const Expr *> exprs, int index) {
   if (index < exprs.size() - 1) {
     Identifier term_id = make_iid(fresh());
     return new Let(term_id, exprs[index],
@@ -1006,7 +1005,7 @@ Expr *fold_and_exprs(std::vector<Expr *> exprs, int index) {
   }
 }
 
-Expr *fold_or_exprs(std::vector<Expr *> exprs, int index) {
+const Expr *fold_or_exprs(std::vector<const Expr *> exprs, int index) {
   if (index < exprs.size() - 1) {
     Identifier term_id = make_iid(fresh());
     return new Let(term_id, exprs[index],
@@ -1018,8 +1017,8 @@ Expr *fold_or_exprs(std::vector<Expr *> exprs, int index) {
   }
 }
 
-Expr *parse_and_expr(ParseState &ps) {
-  std::vector<Expr *> exprs;
+const Expr *parse_and_expr(ParseState &ps) {
+  std::vector<const Expr *> exprs;
   exprs.push_back(parse_bitwise_or(ps));
 
   while (!ps.line_broke() && (ps.token.is_ident(K(and)))) {
@@ -1030,21 +1029,21 @@ Expr *parse_and_expr(ParseState &ps) {
   return fold_and_exprs(exprs, 0);
 }
 
-Expr *parse_tuple_expr(ParseState &ps) {
+const Expr *parse_tuple_expr(ParseState &ps) {
   auto start_token = ps.token;
   chomp_token(tk_lparen);
   if (ps.token.tk == tk_rparen) {
     /* we've got a reference to sole value of unit type */
     return unit_expr(ps.token_and_advance().location);
   }
-  Expr *expr = parse_expr(ps);
+  const Expr *expr = parse_expr(ps);
   if (ps.token.tk != tk_comma) {
     chomp_token(tk_rparen);
     return expr;
   } else {
     ps.advance();
 
-    std::vector<Expr *> exprs;
+    std::vector<const Expr *> exprs;
 
     exprs.push_back(expr);
 
@@ -1065,8 +1064,8 @@ Expr *parse_tuple_expr(ParseState &ps) {
   }
 }
 
-Expr *parse_or_expr(ParseState &ps) {
-  std::vector<Expr *> exprs;
+const Expr *parse_or_expr(ParseState &ps) {
+  std::vector<const Expr *> exprs;
   exprs.push_back(parse_and_expr(ps));
 
   while (!ps.line_broke() && (ps.token.is_ident(K(or)))) {
@@ -1077,12 +1076,12 @@ Expr *parse_or_expr(ParseState &ps) {
   return fold_or_exprs(exprs, 0);
 }
 
-Expr *parse_ternary_expr(ParseState &ps) {
-  Expr *condition = parse_or_expr(ps);
+const Expr *parse_ternary_expr(ParseState &ps) {
+  const Expr *condition = parse_or_expr(ps);
   if (ps.token.tk == tk_maybe) {
     ps.advance();
 
-    Expr *truthy_expr = parse_or_expr(ps);
+    const Expr *truthy_expr = parse_or_expr(ps);
     expect_token(tk_colon);
     ps.advance();
     return new Conditional(condition, truthy_expr, parse_expr(ps));
@@ -1091,12 +1090,12 @@ Expr *parse_ternary_expr(ParseState &ps) {
   }
 }
 
-Expr *parse_expr(ParseState &ps) {
+const Expr *parse_expr(ParseState &ps) {
   return parse_ternary_expr(ps);
 }
 
-Expr *parse_assignment(ParseState &ps) {
-  Expr *lhs = parse_expr(ps);
+const Expr *parse_assignment(ParseState &ps) {
+  const Expr *lhs = parse_expr(ps);
 
   if (ps.line_broke()) {
     return lhs;
@@ -1116,7 +1115,7 @@ Expr *parse_assignment(ParseState &ps) {
   case tk_times_eq: {
     auto op_token = ps.token_and_advance();
     assert(op_token.text.size() >= 1);
-    Expr *rhs = parse_expr(ps);
+    const Expr *rhs = parse_expr(ps);
     Identifier copy_value = Identifier{fresh(), lhs->get_location()};
     return new Application(
         new Application(
@@ -1132,11 +1131,11 @@ Expr *parse_assignment(ParseState &ps) {
                             rhs)));
   }
   case tk_becomes:
-    if (Var *var = dcast<Var *>(lhs)) {
+    if (const Var *var = dcast<const Var *>(lhs)) {
       return parse_let(ps, var->id, true /* is_let */);
-    } else if (auto tuple = dcast<Tuple *>(lhs)) {
+    } else if (auto tuple = dcast<const Tuple *>(lhs)) {
       return parse_assign_tuple_destructure(ps, tuple);
-    } else if (auto application = dcast<Application *>(lhs)) {
+    } else if (auto application = dcast<const Application *>(lhs)) {
       return parse_assign_ctor_destructure(ps, application);
     } else {
       throw user_error(ps.token.location,
@@ -1147,7 +1146,7 @@ Expr *parse_assignment(ParseState &ps) {
   }
 }
 
-Expr *parse_block(ParseState &ps, bool expression_means_return) {
+const Expr *parse_block(ParseState &ps, bool expression_means_return) {
   bool expression_block_syntax = false;
   Token expression_block_assign_token;
   bool finish_block = false;
@@ -1171,7 +1170,7 @@ Expr *parse_block(ParseState &ps, bool expression_means_return) {
     if (!ps.line_broke()) {
       auto statement = parse_statement(ps);
       if (expression_means_return) {
-        if (auto expression = dcast<Expr *>(statement)) {
+        if (auto expression = dcast<const Expr *>(statement)) {
           auto return_statement = new ReturnStatement(expression);
           statement = return_statement;
         }
@@ -1191,7 +1190,7 @@ Expr *parse_block(ParseState &ps, bool expression_means_return) {
                        "empty expression blocks are not allowed");
     }
   } else {
-    std::vector<Expr *> stmts;
+    std::vector<const Expr *> stmts;
     while (ps.token.tk != tk_rcurly) {
       while (ps.token.tk == tk_semicolon) {
         ps.advance();
@@ -1214,7 +1213,7 @@ Expr *parse_block(ParseState &ps, bool expression_means_return) {
   }
 }
 
-Conditional *parse_if(ParseState &ps) {
+const Conditional *parse_if(ParseState &ps) {
   if (ps.token.is_ident(K(if))) {
     ps.advance();
   } else {
@@ -1222,9 +1221,9 @@ Conditional *parse_if(ParseState &ps) {
   }
 
   Token condition_token = ps.token;
-  Expr *condition = parse_expr(ps);
-  Expr *block = parse_block(ps, false /*expression_means_return*/);
-  Expr *else_ = nullptr;
+  const Expr *condition = parse_expr(ps);
+  const Expr *block = parse_block(ps, false /*expression_means_return*/);
+  const Expr *else_ = nullptr;
   /* check the successive instructions for "else if" or else */
   if (ps.token.is_ident(K(else))) {
     ps.advance();
@@ -1243,7 +1242,7 @@ Conditional *parse_if(ParseState &ps) {
                                           : unit_expr(ps.token.location));
 }
 
-While *parse_while(ParseState &ps) {
+const While *parse_while(ParseState &ps) {
   auto while_token = ps.token;
   chomp_ident(K(while));
   Token condition_token = ps.token;
@@ -1258,12 +1257,12 @@ While *parse_while(ParseState &ps) {
   }
 }
 
-Predicate *parse_ctor_predicate(ParseState &ps,
-                                maybe<Identifier> name_assignment) {
+const Predicate *parse_ctor_predicate(ParseState &ps,
+                                      maybe<Identifier> name_assignment) {
   assert(ps.token.tk == tk_identifier && isupper(ps.token.text[0]));
   Identifier ctor_name = ps.identifier_and_advance();
 
-  std::vector<Predicate *> params;
+  std::vector<const Predicate *> params;
   if (ps.token.tk == tk_lparen) {
     ps.advance();
     while (ps.token.tk != tk_rparen) {
@@ -1279,12 +1278,12 @@ Predicate *parse_ctor_predicate(ParseState &ps,
                            name_assignment);
 }
 
-Predicate *parse_tuple_predicate(ParseState &ps,
-                                 maybe<Identifier> name_assignment) {
+const Predicate *parse_tuple_predicate(ParseState &ps,
+                                       maybe<Identifier> name_assignment) {
   assert(ps.token.tk == tk_lparen);
   ps.advance();
 
-  std::vector<Predicate *> params;
+  std::vector<const Predicate *> params;
   while (ps.token.tk != tk_rparen) {
     params.push_back(parse_predicate(ps, false /*allow_else*/,
                                      maybe<Identifier>() /*name_assignment*/));
@@ -1297,9 +1296,9 @@ Predicate *parse_tuple_predicate(ParseState &ps,
   return new TuplePredicate(ps.token.location, params, name_assignment);
 }
 
-Predicate *parse_predicate(ParseState &ps,
-                           bool allow_else,
-                           maybe<Identifier> name_assignment) {
+const Predicate *parse_predicate(ParseState &ps,
+                                 bool allow_else,
+                                 maybe<Identifier> name_assignment) {
   if (ps.token.is_ident(K(else))) {
     if (!allow_else) {
       throw user_error(
@@ -1370,7 +1369,7 @@ Predicate *parse_predicate(ParseState &ps,
     case tk_integer:
     case tk_float: {
       /* match a literal */
-      Predicate *literal = new Literal(
+      const Predicate *literal = new Literal(
           sign != ""
               ? Token(ps.token.location, ps.token.tk, sign + ps.token.text)
               : ps.token);
@@ -1386,14 +1385,14 @@ Predicate *parse_predicate(ParseState &ps,
   }
 }
 
-PatternBlock *parse_pattern_block(ParseState &ps) {
+const PatternBlock *parse_pattern_block(ParseState &ps) {
   return new PatternBlock(
       parse_predicate(ps, true /*allow_else*/,
                       maybe<Identifier>() /*name_assignment*/),
       parse_block(ps, false /*expression_means_return*/));
 }
 
-Match *parse_match(ParseState &ps) {
+const Match *parse_match(ParseState &ps) {
   chomp_ident(K(match));
   bool auto_else = false;
   Token bang_token = ps.token;
@@ -1467,7 +1466,7 @@ std::pair<Identifier, types::Ref> parse_lambda_param(ParseState &ps) {
 }
 
 // TODO: put type mappings into the scope
-Expr *parse_lambda(ParseState &ps) {
+const Expr *parse_lambda(ParseState &ps) {
   if (ps.token.tk == tk_identifier) {
     throw user_error(ps.token.location, "identifiers are unexpected here");
   }
@@ -1653,11 +1652,11 @@ types::Ref create_ctor_type(Location location,
   return type;
 }
 
-Expr *create_ctor(Location location,
-                  int ctor_id,
-                  const TypeDecl &type_decl,
-                  types::Refs param_types) {
-  std::vector<Expr *> dims;
+const Expr *create_ctor(Location location,
+                        int ctor_id,
+                        const TypeDecl &type_decl,
+                        types::Refs param_types) {
+  std::vector<const Expr *> dims;
   /* add the ctor's id value as the first element in the tuple */
   dims.push_back(
       new Literal({location, tk_integer, string_format("%d", ctor_id)}));
@@ -1669,9 +1668,9 @@ Expr *create_ctor(Location location,
     dims.push_back(new Var(params.back()));
   }
 
-  Expr *expr = new As(new Tuple(location, dims),
-                      scheme({}, {}, type_decl.get_type()),
-                      true /*force_cast*/);
+  const Expr *expr = new As(new Tuple(location, dims),
+                            scheme({}, {}, type_decl.get_type()),
+                            true /*force_cast*/);
 
   assert(dims.size() == params.size() + 1);
   for (int i = params.size() - 1; i >= 0; --i) {
@@ -1685,12 +1684,12 @@ Expr *create_ctor(Location location,
 
 struct DataTypeDecl {
   TypeDecl type_decl;
-  std::vector<Decl *> decls;
+  std::vector<const Decl *> decls;
 };
 
 DataTypeDecl parse_struct_decl(ParseState &ps, types::Map &data_ctors) {
   TypeDecl type_decl = parse_type_decl(ps);
-  std::vector<Decl *> decls;
+  std::vector<const Decl *> decls;
   types::Refs dims;
   Identifiers member_ids;
 
@@ -1764,14 +1763,14 @@ DataTypeDecl parse_newtype_decl(ParseState &ps,
   chomp_token(tk_identifier);
   types::Ref rhs_type = parse_type(ps);
 
-  Decl *decl;
+  const Decl *decl;
   std::vector<types::Ref> ctor_parts;
   if (auto tuple_type = dyncast<const types::TypeTuple>(rhs_type)) {
     debug_above(3, log("build decl for tuple newtype ctor :: " c_id("%s") "%s",
                        type_name.text.c_str(), tuple_type->str().c_str()));
     ctor_parts = tuple_type->dimensions;
     std::vector<Identifier> dim_names;
-    std::vector<Expr *> dims;
+    std::vector<const Expr *> dims;
     for (int i = 0; i < tuple_type->dimensions.size(); ++i) {
       dim_names.push_back(Identifier{
           bitter::fresh(), tuple_type->dimensions[i]->get_location()});
@@ -1779,9 +1778,9 @@ DataTypeDecl parse_newtype_decl(ParseState &ps,
     }
 
     /* the inner part of the newtype ctor */
-    Expr *body = new As(new Tuple(tuple_type->get_location(), dims),
-                        type_decl.get_type()->generalize({}),
-                        true /*force_cast*/);
+    const Expr *body = new As(new Tuple(tuple_type->get_location(), dims),
+                              type_decl.get_type()->generalize({}),
+                              true /*force_cast*/);
     int i = tuple_type->dimensions.size();
     for (auto type_iter = tuple_type->dimensions.rbegin();
          type_iter != tuple_type->dimensions.rend(); ++type_iter) {
@@ -1865,7 +1864,7 @@ DataTypeDecl parse_data_type_decl(ParseState &ps,
     }
   }
 
-  std::vector<Decl *> decls;
+  std::vector<const Decl *> decls;
   if (param_types_count == 0) {
     /* this is just an ENUM. this type can be simplified to just an Int */
     ps.type_env[type_decl.id.name] = type_id(make_iid(INT_TYPE));
@@ -1940,11 +1939,11 @@ types::ClassPredicateRef parse_class_predicate(ParseState &ps) {
   return std::make_shared<types::ClassPredicate>(classname, type_parameters);
 }
 
-Instance *parse_type_class_instance(ParseState &ps) {
+const Instance *parse_type_class_instance(ParseState &ps) {
   types::ClassPredicateRef class_predicate = parse_class_predicate(ps);
   chomp_token(tk_lcurly);
 
-  std::vector<Decl *> decls;
+  std::vector<const Decl *> decls;
   while (true) {
     if (ps.token.is_ident(K(fn))) {
       /* instance-level functions */
@@ -1967,7 +1966,7 @@ Instance *parse_type_class_instance(ParseState &ps) {
   return new Instance{class_predicate, decls};
 }
 
-TypeClass *parse_type_class(ParseState &ps) {
+const TypeClass *parse_type_class(ParseState &ps) {
   TypeDecl type_decl = parse_type_decl(ps);
 
   if (type_decl.params.size() == 0) {
@@ -2012,9 +2011,9 @@ TypeClass *parse_type_class(ParseState &ps) {
                        overloads);
 }
 
-Module *parse_module(ParseState &ps,
-                     std::vector<Module *> auto_import_modules,
-                     std::set<Identifier> &module_deps) {
+const Module *parse_module(ParseState &ps,
+                           std::vector<const Module *> auto_import_modules,
+                           std::set<Identifier> &module_deps) {
   debug_above(6, log("about to parse %s", ps.filename.c_str()));
 
   for (auto aim : auto_import_modules) {
@@ -2030,10 +2029,10 @@ Module *parse_module(ParseState &ps,
     }
   }
 
-  std::vector<Decl *> decls;
-  std::vector<TypeDecl> type_decls;
-  std::vector<TypeClass *> type_classes;
-  std::vector<Instance *> instances;
+  std::vector<const Decl *> decls;
+  std::vector<const TypeDecl> type_decls;
+  std::vector<const TypeClass *> type_classes;
+  std::vector<const Instance *> instances;
 
   while (ps.token.is_ident(K(get))) {
     ps.advance();

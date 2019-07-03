@@ -11,7 +11,7 @@ struct Translation {
 
   Translation(const bitter::Expr *expr, const TrackedTypes &typing);
 
-  const bitter::Expr *const expr;
+  const bitter::Expr *expr;
   TrackedTypes const typing;
 
   std::string str() const;
@@ -40,18 +40,18 @@ struct TranslationEnv {
 
 Translation::ref translate_expr(
     const DefnId &for_defn_id,
-    bitter::Expr *expr,
+    const bitter::Expr *expr,
     const std::unordered_set<std::string> &bound_vars,
     const types::TypeEnv &type_env,
     const TranslationEnv &tenv,
     NeededDefns &needed_defns,
     bool &returns);
-bitter::Expr *texpr(const DefnId &for_defn_id,
-                    bitter::Expr *expr,
-                    const std::unordered_set<std::string> &bound_vars,
-                    types::Ref type,
-                    const types::TypeEnv &type_env,
-                    const TranslationEnv &tenv,
-                    TrackedTypes &typing,
-                    NeededDefns &needed_defns,
-                    bool &returns);
+const bitter::Expr *texpr(const DefnId &for_defn_id,
+                          const bitter::Expr *expr,
+                          const std::unordered_set<std::string> &bound_vars,
+                          types::Ref type,
+                          const types::TypeEnv &type_env,
+                          const TranslationEnv &tenv,
+                          TrackedTypes &typing,
+                          NeededDefns &needed_defns,
+                          bool &returns);

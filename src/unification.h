@@ -3,6 +3,7 @@
 #include <memory>
 #include <vector>
 
+#include "class_predicate.h"
 #include "env.h"
 #include "infer.h"
 #include "ptr.h"
@@ -19,7 +20,8 @@ struct Unification {
 types::Map solver(bool check_constraint_coverage,
                   Context &&context,
                   Constraints &constraints,
-                  Env &env);
+                  Env &env,
+                  types::ClassPredicates &instance_requirements);
 Unification unify(types::Ref a, types::Ref b);
 Unification unify_many(const types::Refs &as, const types::Refs &b);
 types::Map compose(const types::Map &a, const types::Map &b);

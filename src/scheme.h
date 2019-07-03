@@ -11,9 +11,9 @@ typedef std::shared_ptr<const Scheme> SchemeRef;
 typedef std::map<std::string, SchemeRef> SchemeMap;
 } // namespace types
 
+#include "class_predicate.h"
 #include "location.h"
 #include "types.h"
-#include "class_predicate.h"
 
 namespace types {
 

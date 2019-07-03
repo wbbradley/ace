@@ -9,3 +9,6 @@ instance Getter Int {
 }
 
 fn use_getter() => getter()
+fn main() {
+    __builtin_print_int(use_getter())
+}
