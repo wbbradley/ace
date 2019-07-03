@@ -58,3 +58,10 @@ types::Ref DefnId::get_lambda_return_type() const {
 std::ostream &operator<<(std::ostream &os, const DefnId &defn_id) {
   return os << defn_id.str();
 }
+
+void insert_needed_defn(NeededDefns &needed_defns,
+                        const DefnId &defn_id,
+                        Location location,
+                        const DefnId &for_defn_id) {
+  needed_defns[defn_id.unitize()].push_back({location, for_defn_id.unitize()});
+}

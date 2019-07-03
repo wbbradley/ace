@@ -26,13 +26,14 @@ struct Expr {
 };
 
 struct StaticPrint : public Expr {
-  StaticPrint(Location location, Expr *expr) : location(location), expr(expr) {
+  StaticPrint(Location location, const Expr *expr)
+      : location(location), expr(expr) {
   }
   Location get_location() const override;
   std::ostream &render(std::ostream &os, int parent_precedence) const override;
 
   Location location;
-  Expr *const expr;
+  const Expr *expr;
 };
 
 struct Var : public Expr {
@@ -45,25 +46,25 @@ struct Var : public Expr {
 };
 
 struct PatternBlock {
-  PatternBlock(Predicate *predicate, Expr *result)
+  PatternBlock(const Predicate *predicate, const Expr *result)
       : predicate(predicate), result(result) {
   }
   std::ostream &render(std::ostream &os) const;
 
-  Predicate *const predicate;
-  Expr *const result;
+  const Predicate *predicate;
+  const Expr *result;
 };
 
-using pattern_blocks_t = std::vector<PatternBlock *>;
+typedef std::vector<const PatternBlock *> pattern_blocks_t;
 struct Match : public Expr {
-  Match(Expr *scrutinee, pattern_blocks_t pattern_blocks)
+  Match(const Expr *scrutinee, pattern_blocks_t pattern_blocks)
       : scrutinee(scrutinee), pattern_blocks(pattern_blocks) {
   }
   Location get_location() const override;
   std::ostream &render(std::ostream &os, int parent_precedence) const override;
 
-  Expr *const scrutinee;
-  pattern_blocks_t const pattern_blocks;
+  const Expr *scrutinee;
+  const pattern_blocks_t pattern_blocks;
 };
 
 struct Predicate {
@@ -72,41 +73,47 @@ struct Predicate {
   virtual std::ostream &render(std::ostream &os) const = 0;
   virtual match::Pattern::ref get_pattern(types::Ref type,
                                           const TranslationEnv &env) const = 0;
-  virtual types::Ref tracking_infer(Env &env,
-                                    Constraints &constraints) const = 0;
+  virtual types::Ref tracking_infer(
+      Env &env,
+      Constraints &constraints,
+      types::ClassPredicates &instance_requirements) const = 0;
   virtual Location get_location() const = 0;
   virtual Identifier instantiate_name_assignment() const = 0;
   virtual void get_bound_vars(
       std::unordered_set<std::string> &bound_vars) const = 0;
-  virtual Expr *translate(const DefnId &defn_id,
-                          const Identifier &scrutinee_id,
-                          const types::Ref &scrutinee_type,
-                          bool do_checks,
-                          const std::unordered_set<std::string> &bound_vars,
-                          const types::TypeEnv &type_env,
-                          const TranslationEnv &tenv,
-                          TrackedTypes &typing,
-                          NeededDefns &needed_defns,
-                          bool &returns,
-                          translate_continuation_t &matched,
-                          translate_continuation_t &failed) const = 0;
+  virtual const Expr *translate(
+      const DefnId &defn_id,
+      const Identifier &scrutinee_id,
+      const types::Ref &scrutinee_type,
+      bool do_checks,
+      const std::unordered_set<std::string> &bound_vars,
+      const types::TypeEnv &type_env,
+      const TranslationEnv &tenv,
+      TrackedTypes &typing,
+      NeededDefns &needed_defns,
+      bool &returns,
+      translate_continuation_t &matched,
+      translate_continuation_t &failed) const = 0;
   std::string str() const;
 };
 
 struct TuplePredicate : public Predicate {
   TuplePredicate(Location location,
-                 std::vector<Predicate *> params,
+                 std::vector<const Predicate *> params,
                  maybe<Identifier> name_assignment)
       : location(location), params(params), name_assignment(name_assignment) {
   }
   std::ostream &render(std::ostream &os) const override;
   match::Pattern::ref get_pattern(types::Ref type,
                                   const TranslationEnv &env) const override;
-  types::Ref tracking_infer(Env &env, Constraints &constraints) const override;
+  types::Ref tracking_infer(
+      Env &env,
+      Constraints &constraints,
+      types::ClassPredicates &instance_requirements) const override;
   Identifier instantiate_name_assignment() const override;
   void get_bound_vars(
       std::unordered_set<std::string> &bound_vars) const override;
-  Expr *translate(const DefnId &defn_id,
+  const Expr *translate(const DefnId &defn_id,
                   const Identifier &scrutinee_id,
                   const types::Ref &scrutinee_type,
                   bool do_checks,
@@ -121,7 +128,7 @@ struct TuplePredicate : public Predicate {
   Location get_location() const override;
 
   Location const location;
-  std::vector<Predicate *> const params;
+  std::vector<const Predicate *> const params;
   maybe<Identifier> const name_assignment;
 };
 
@@ -132,11 +139,14 @@ struct IrrefutablePredicate : public Predicate {
   std::ostream &render(std::ostream &os) const override;
   match::Pattern::ref get_pattern(types::Ref type,
                                   const TranslationEnv &env) const override;
-  types::Ref tracking_infer(Env &env, Constraints &constraints) const override;
+  types::Ref tracking_infer(
+      Env &env,
+      Constraints &constraints,
+      types::ClassPredicates &instance_requirements) const override;
   Identifier instantiate_name_assignment() const override;
   void get_bound_vars(
       std::unordered_set<std::string> &bound_vars) const override;
-  Expr *translate(const DefnId &defn_id,
+  const Expr *translate(const DefnId &defn_id,
                   const Identifier &scrutinee_id,
                   const types::Ref &scrutinee_type,
                   bool do_checks,
@@ -156,7 +166,7 @@ struct IrrefutablePredicate : public Predicate {
 
 struct CtorPredicate : public Predicate {
   CtorPredicate(Location location,
-                std::vector<Predicate *> params,
+                std::vector<const Predicate *> params,
                 Identifier ctor_name,
                 maybe<Identifier> name_assignment)
       : location(location), params(params), ctor_name(ctor_name),
@@ -165,48 +175,51 @@ struct CtorPredicate : public Predicate {
   std::ostream &render(std::ostream &os) const override;
   match::Pattern::ref get_pattern(types::Ref type,
                                   const TranslationEnv &env) const override;
-  types::Ref tracking_infer(Env &env, Constraints &constraints) const override;
+  types::Ref tracking_infer(
+      Env &env,
+      Constraints &constraints,
+      types::ClassPredicates &instance_requirements) const override;
   Identifier instantiate_name_assignment() const override;
   void get_bound_vars(
       std::unordered_set<std::string> &bound_vars) const override;
-  Expr *translate(const DefnId &defn_id,
-                  const Identifier &scrutinee_id,
-                  const types::Ref &scrutinee_type,
-                  bool do_checks,
-                  const std::unordered_set<std::string> &bound_vars,
-                  const types::TypeEnv &type_env,
-                  const TranslationEnv &tenv,
-                  TrackedTypes &typing,
-                  NeededDefns &needed_defns,
-                  bool &returns,
-                  translate_continuation_t &matched,
-                  translate_continuation_t &failed) const override;
+  const Expr *translate(const DefnId &defn_id,
+                        const Identifier &scrutinee_id,
+                        const types::Ref &scrutinee_type,
+                        bool do_checks,
+                        const std::unordered_set<std::string> &bound_vars,
+                        const types::TypeEnv &type_env,
+                        const TranslationEnv &tenv,
+                        TrackedTypes &typing,
+                        NeededDefns &needed_defns,
+                        bool &returns,
+                        translate_continuation_t &matched,
+                        translate_continuation_t &failed) const override;
   Location get_location() const override;
 
   Location const location;
-  std::vector<Predicate *> const params;
+  std::vector<const Predicate *> const params;
   Identifier const ctor_name;
   maybe<Identifier> const name_assignment;
 };
 
 struct Block : public Expr {
-  Block(std::vector<Expr *> statements) : statements(statements) {
+  Block(std::vector<const Expr *> statements) : statements(statements) {
   }
   Location get_location() const override;
   std::ostream &render(std::ostream &os, int parent_precedence) const override;
 
-  std::vector<Expr *> const statements;
+  std::vector<const Expr *> const statements;
 };
 
 struct As : public Expr {
-  As(Expr *expr, types::Scheme::Ref scheme, bool force_cast)
+  As(const Expr *expr, types::Scheme::Ref scheme, bool force_cast)
       : expr(expr), scheme(scheme), force_cast(force_cast) {
   }
   Location get_location() const override;
   std::ostream &render(std::ostream &os, int parent_precedence) const override;
 
-  Expr *const expr;
-  types::Scheme::Ref const scheme;
+  const Expr *expr;
+  types::Scheme::Ref scheme;
   bool force_cast;
 };
 
@@ -221,74 +234,74 @@ struct Sizeof : public Expr {
 };
 
 struct Application : public Expr {
-  Application(Expr *a, Expr *b) : a(a), b(b) {
+  Application(const Expr *a, const Expr *b) : a(a), b(b) {
   }
   Location get_location() const override;
   std::ostream &render(std::ostream &os, int parent_precedence) const override;
-  Expr *const a;
-  Expr *const b;
+  const Expr *a;
+  const Expr *b;
 };
 
 struct Lambda : public Expr {
   Lambda(Identifier var,
          types::Ref param_type,
          types::Ref return_type,
-         Expr *body)
+         const Expr *body)
       : var(var), param_type(param_type), return_type(return_type), body(body) {
   }
   Location get_location() const override;
   std::ostream &render(std::ostream &os, int parent_precedence) const override;
 
-  Identifier const var;
-  Expr *const body;
-  types::Ref const param_type;
-  types::Ref const return_type;
+  Identifier var;
+  const Expr *body;
+  types::Ref param_type;
+  types::Ref return_type;
 };
 
 struct Let : public Expr {
-  Let(Identifier var, Expr *value, Expr *body)
+  Let(Identifier var, const Expr *value, const Expr *body)
       : var(var), value(value), body(body) {
   }
   Location get_location() const override;
   std::ostream &render(std::ostream &os, int parent_precedence) const override;
 
-  Identifier const var;
-  Expr *const value;
-  Expr *const body;
+  Identifier var;
+  const Expr *value;
+  const Expr *body;
 };
 
 struct Tuple : public Expr {
-  Tuple(Location location, std::vector<Expr *> dims)
+  Tuple(Location location, std::vector<const Expr *> dims)
       : location(location), dims(dims) {
   }
   Location get_location() const override;
   std::ostream &render(std::ostream &os, int parent_precedence) const override;
 
   Location const location;
-  std::vector<Expr *> const dims;
+  std::vector<const Expr *> const dims;
 };
 
 struct TupleDeref : public Expr {
-  TupleDeref(Expr *expr, int index, int max)
+  TupleDeref(const Expr *expr, int index, int max)
       : expr(expr), index(index), max(max) {
   }
 
   Location get_location() const override;
   std::ostream &render(std::ostream &os, int parent_precedence) const override;
 
-  Expr *expr;
+  const Expr *expr;
   int index, max;
 };
 
 struct Builtin : public Expr {
-  Builtin(Var *var, std::vector<Expr *> exprs) : var(var), exprs(exprs) {
+  Builtin(const Var *var, std::vector<const Expr *> exprs) : var(var), exprs(exprs) {
   }
 
   Location get_location() const override;
   std::ostream &render(std::ostream &os, int parent_precedence) const override;
 
-  Var *var;
-  std::vector<Expr *> exprs;
+  const Var *var;
+  std::vector<const Expr *> exprs;
 };
 
 struct Literal : public Expr, public Predicate {
@@ -301,45 +314,50 @@ struct Literal : public Expr, public Predicate {
   std::ostream &render(std::ostream &os) const override;
   match::Pattern::ref get_pattern(types::Ref type,
                                   const TranslationEnv &env) const override;
-  types::Ref tracking_infer(Env &env, Constraints &constraints) const override;
+  types::Ref tracking_infer(
+      Env &env,
+      Constraints &constraints,
+      types::ClassPredicates &instance_requirements) const override;
   types::Ref non_tracking_infer() const;
   Identifier instantiate_name_assignment() const override;
   void get_bound_vars(
       std::unordered_set<std::string> &bound_vars) const override;
-  Expr *translate(const DefnId &defn_id,
-                  const Identifier &scrutinee_id,
-                  const types::Ref &scrutinee_type,
-                  bool do_checks,
-                  const std::unordered_set<std::string> &bound_vars,
-                  const types::TypeEnv &type_env,
-                  const TranslationEnv &tenv,
-                  TrackedTypes &typing,
-                  NeededDefns &needed_defns,
-                  bool &returns,
-                  translate_continuation_t &matched,
-                  translate_continuation_t &failed) const override;
+  const Expr *translate(const DefnId &defn_id,
+                        const Identifier &scrutinee_id,
+                        const types::Ref &scrutinee_type,
+                        bool do_checks,
+                        const std::unordered_set<std::string> &bound_vars,
+                        const types::TypeEnv &type_env,
+                        const TranslationEnv &tenv,
+                        TrackedTypes &typing,
+                        NeededDefns &needed_defns,
+                        bool &returns,
+                        translate_continuation_t &matched,
+                        translate_continuation_t &failed) const override;
   Location get_location() const override;
 
   Token const token;
 };
 
 struct Conditional : public Expr {
-  Conditional(Expr *cond, Expr *truthy, Expr *falsey)
+  Conditional(const Expr *cond, const Expr *truthy, const Expr *falsey)
       : cond(cond), truthy(truthy), falsey(falsey) {
   }
   Location get_location() const override;
   std::ostream &render(std::ostream &os, int parent_precedence) const override;
 
-  Expr *const cond, *const truthy, *const falsey;
+  const Expr *cond;
+  const Expr *truthy;
+  const Expr *falsey;
 };
 
 struct ReturnStatement : public Expr {
-  ReturnStatement(Expr *value) : value(value) {
+  ReturnStatement(const Expr *value) : value(value) {
   }
   Location get_location() const override;
   std::ostream &render(std::ostream &os, int parent_precedence) const override;
 
-  Expr *const value;
+  const Expr *value;
 };
 
 struct Continue : public Expr {
@@ -359,31 +377,23 @@ struct Break : public Expr {
 };
 
 struct While : public Expr {
-  While(Expr *condition, Expr *block) : condition(condition), block(block) {
+  While(const Expr *condition, const Expr *block) : condition(condition), block(block) {
   }
   Location get_location() const override;
   std::ostream &render(std::ostream &os, int parent_precedence) const override;
 
-  Expr *const condition, *const block;
-};
-
-struct Fix : public Expr {
-  Fix(Expr *f) : f(f) {
-  }
-  Location get_location() const override;
-  std::ostream &render(std::ostream &os, int parent_precedence) const override;
-
-  Expr *const f;
+  const Expr *condition;
+  const Expr *block;
 };
 
 struct Decl {
-  Decl(Identifier var, Expr *value) : var(var), value(value) {
+  Decl(Identifier id, const Expr *value) : id(id), value(value) {
   }
   std::string str() const;
   Location get_location() const;
 
-  Identifier const var;
-  Expr *const value;
+  Identifier const id;
+  const Expr *const value;
 };
 
 struct TypeDecl {
@@ -416,22 +426,22 @@ struct TypeClass {
 
 struct Instance {
   Instance(const types::ClassPredicateRef &class_predicate,
-           const std::vector<Decl *> &decls)
+           const std::vector<const Decl *> &decls)
       : class_predicate(class_predicate), decls(decls) {
   }
   std::string str() const;
   Location get_location() const;
 
   types::ClassPredicateRef const class_predicate;
-  std::vector<Decl *> const decls;
+  std::vector<const Decl *> const decls;
 };
 
 struct Module {
   Module(std::string name,
-         const std::vector<Decl *> &decls,
-         const std::vector<TypeDecl> &type_decls,
-         const std::vector<TypeClass *> &type_classes,
-         const std::vector<Instance *> &instances,
+         const std::vector<const Decl *> &decls,
+         const std::vector<const TypeDecl> &type_decls,
+         const std::vector<const TypeClass *> &type_classes,
+         const std::vector<const Instance *> &instances,
          const CtorIdMap &ctor_id_map,
          const DataCtorsMap &data_ctors_map,
          const types::TypeEnv &type_env)
@@ -442,28 +452,28 @@ struct Module {
   }
 
   std::string const name;
-  std::vector<Decl *> const decls;
-  std::vector<TypeDecl> const type_decls;
-  std::vector<TypeClass *> const type_classes;
-  std::vector<Instance *> const instances;
+  std::vector<const Decl *> const decls;
+  std::vector<const TypeDecl> const type_decls;
+  std::vector<const TypeClass *> const type_classes;
+  std::vector<const Instance *> const instances;
   CtorIdMap const ctor_id_map;
   DataCtorsMap const data_ctors_map;
   types::TypeEnv const type_env;
 };
 
 struct Program {
-  Program(const std::vector<Decl *> &decls,
-          const std::vector<TypeClass *> &type_classes,
-          const std::vector<Instance *> &instances,
-          Expr *expr)
+  Program(const std::vector<const Decl *> &decls,
+          const std::vector<const TypeClass *> &type_classes,
+          const std::vector<const Instance *> &instances,
+          const Expr *expr)
       : decls(decls), type_classes(type_classes), instances(instances),
         expr(expr) {
   }
 
-  std::vector<Decl *> const decls;
-  std::vector<TypeClass *> const type_classes;
-  std::vector<Instance *> const instances;
-  Expr *const expr;
+  std::vector<const Decl *> const decls;
+  std::vector<const TypeClass *> const type_classes;
+  std::vector<const Instance *> const instances;
+  const Expr *const expr;
 };
 } // namespace bitter
 

@@ -87,9 +87,9 @@ ClassPredicates rebind(const ClassPredicates &class_predicates,
   for (auto &cp : class_predicates) {
     new_class_predicates.insert(cp->rebind(bindings));
   }
-  log("rebinding {%s} with bindings %s results in %s",
-      ::str(class_predicates).c_str(), ::str(bindings).c_str(),
-      ::str(new_class_predicates).c_str());
+  debug_above(6, log("rebinding {%s} with bindings %s results in %s",
+                     ::str(class_predicates).c_str(), ::str(bindings).c_str(),
+                     ::str(new_class_predicates).c_str()));
   return new_class_predicates;
 }
 
@@ -160,4 +160,3 @@ std::string str(const types::ClassPredicates &pm) {
 
   return ss.str();
 }
-
