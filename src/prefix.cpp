@@ -33,9 +33,9 @@ Expr *prefix(const std::set<std::string> &bindings,
              Expr *value);
 
 const Predicate *prefix(const std::set<std::string> &bindings,
-                  std::string pre,
-                  const Predicate *predicate,
-                  std::set<std::string> &new_symbols) {
+                        std::string pre,
+                        const Predicate *predicate,
+                        std::set<std::string> &new_symbols) {
   if (auto p = dcast<const TuplePredicate *>(predicate)) {
     if (p->name_assignment.valid) {
       new_symbols.insert(p->name_assignment.t.name);
@@ -70,8 +70,8 @@ const Predicate *prefix(const std::set<std::string> &bindings,
 }
 
 const PatternBlock *prefix(const std::set<std::string> &bindings,
-                     std::string pre,
-                     const PatternBlock *pattern_block) {
+                           std::string pre,
+                           const PatternBlock *pattern_block) {
   std::set<std::string> new_symbols;
   const Predicate *new_predicate = prefix(
       bindings, pre, pattern_block->predicate, new_symbols);
@@ -105,8 +105,8 @@ std::set<std::string> only_uppercase_bindings(
 }
 
 const TypeClass *prefix(const std::set<std::string> &bindings,
-                  std::string pre,
-                  const TypeClass *type_class) {
+                        std::string pre,
+                        const TypeClass *type_class) {
   return new TypeClass(
       prefix(bindings, pre, type_class->id), type_class->type_var_ids,
       prefix(bindings, pre, type_class->class_predicates),
@@ -214,8 +214,8 @@ const Expr *prefix(const std::set<std::string> &bindings,
 }
 
 std::vector<const Expr *> prefix(const std::set<std::string> &bindings,
-                           std::string pre,
-                           std::vector<const Expr *> values) {
+                                 std::string pre,
+                                 std::vector<const Expr *> values) {
   std::vector<const Expr *> new_values;
   for (auto value : values) {
     new_values.push_back(prefix(bindings, pre, value));
