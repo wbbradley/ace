@@ -12,11 +12,11 @@ data Junky a {
     Junky(a)
 }
 
-instance Funky Junky a {
+instance Funky (Junky v) {
     funky = monkey
 }
 
-instance Monkey Junky b {
+instance Monkey (Junky b) {
     fn monkey(aa) => 4
 }
 

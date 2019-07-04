@@ -2,4 +2,4 @@
 set -ex
 
 cd /opt/zion
-make test
+make DEBUG= test

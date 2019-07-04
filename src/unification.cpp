@@ -26,8 +26,8 @@ bool scheme_equality(types::Scheme::Ref a, types::Scheme::Ref b) {
     return true;
   }
 
-  auto ta = a->instantiate(INTERNAL_LOC());
-  auto tb = b->instantiate(INTERNAL_LOC());
+  auto ta = a->freshen()->type;
+  auto tb = b->freshen()->type;
   auto unification = unify(ta, tb);
   if (!unification.result) {
     debug_above(9, log_location(unification.error_location,

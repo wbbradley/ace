@@ -90,7 +90,8 @@ void check(bool check_constraint_coverage,
            Env &env) {
   Constraints constraints;
   types::ClassPredicates instance_requirements;
-  log("type checking %s = %s", id.str().c_str(), expr->str().c_str());
+  debug_above(
+      4, log("type checking %s = %s", id.str().c_str(), expr->str().c_str()));
   types::Ref ty = infer(expr, env, constraints, instance_requirements);
   types::Map bindings = solver(check_constraint_coverage,
                                make_context(id.location, "solving %s :: %s",
@@ -245,10 +246,12 @@ void check_instance_for_type_class_overload(
       check(false /*check_constraint_coverage*/, instance_decl_id,
             instance_decl_expr, local_env);
 
-      log("checking the instance fn %s gave scheme %s. we expected %s.",
-          instance_decl_id.str().c_str(),
-          local_env.map[instance_decl_id.name]->normalize()->str().c_str(),
-          expected_scheme->normalize()->str().c_str());
+      debug_above(
+          3,
+          log("checking the instance fn %s :: %s. we expected %s.",
+              instance_decl_id.str().c_str(),
+              local_env.map[instance_decl_id.name]->normalize()->str().c_str(),
+              expected_scheme->normalize()->str().c_str()));
 
       if (!scheme_equality(local_env.map[instance_decl_id.name],
                            expected_scheme->normalize())) {
@@ -297,12 +300,20 @@ void check_instance_for_type_class_overloads(
   // find all ftvs
   // freshen them all
   const types::Ftvs &ftvs = instance->class_predicate->get_ftvs();
+#if 0
   for (auto &ftv : ftvs) {
     assert(in(ftv, type_class->type_var_ids));
   }
+#endif
   int i = 0;
-  assert(instance->class_predicate->params.size() ==
-         type_class->type_var_ids.size());
+  if (instance->class_predicate->params.size() !=
+      type_class->type_var_ids.size()) {
+    throw user_error(instance->get_location(),
+                     "the number of params on %s does not equal "
+                     "the number of type variables on %s",
+                     instance->str().c_str(), type_class->str().c_str());
+  }
+
   for (auto &type_var_id : type_class->type_var_ids) {
     subst[type_var_id.name] = instance->class_predicate->params[i++];
   }
@@ -645,6 +656,7 @@ void specialize_core(const types::TypeEnv &type_env,
                      DefnId defn_id,
                      /* output */ translation_map_t &translation_map,
                      /* output */ NeededDefns &needed_defns) {
+  debug_above(2, log("specialize_core %s", defn_id.str().c_str()));
   if (starts_with(defn_id.id.name, "__builtin_")) {
     return;
   }
@@ -661,7 +673,8 @@ void specialize_core(const types::TypeEnv &type_env,
    * inner specialization. */
   assert(defn_id.scheme->btvs() == 0);
 
-  const auto type = defn_id.scheme->instantiate({});
+  types::Ref type = defn_id.scheme->type;
+  assert(type->get_ftvs().empty());
   auto translation = get(translation_map, defn_id.id.name, type,
                          Translation::ref{});
   if (translation != nullptr) {

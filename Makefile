@@ -14,6 +14,9 @@ runtimedir = $(DESTDIR)/$(prefix)/share/$(PN)/runtime
 
 test_destdir ?= $(HOME)/var/zion-test
 
+.PHONY: zion
+zion: clean $(BUILD_DIR)/Makefile install
+
 .PHONY: $(BUILT_BINARY)
 $(BUILT_BINARY): $(BUILD_DIR)/Makefile
 	@(cd $(BUILD_DIR) && make -j8 $(PN))
@@ -25,7 +28,7 @@ $(BUILD_DIR)/Makefile: $(LLVM_DIR)/LLVMConfig.cmake CMakeLists.txt
 		(cd $(BUILD_DIR) && cmake $(SRCDIR) -G 'Unix Makefiles') \
 	else \
 		echo "Debug mode..."; \
-		(cd $(BUILD_DIR) && cmake $(SRCDIR) -DDEBUG=1 -G 'Unix Makefiles') \
+		(cd $(BUILD_DIR) && cmake $(SRCDIR) -DDEBUG=ON -G 'Unix Makefiles') \
 	fi
 
 ZION_LIBS=$(shell cd lib && find *.zion)
