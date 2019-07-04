@@ -33,7 +33,7 @@ bool debug_all_translated_defns = getenv("SHOW_DEFN_TYPES") != nullptr;
 
 types::Ref program_main_type = type_arrows(
     {type_unit(INTERNAL_LOC()), type_unit(INTERNAL_LOC())});
-types::Scheme::Ref program_main_scheme = scheme({}, {}, program_main_type);
+types::Scheme::Ref program_main_scheme = program_main_type->generalize({});
 
 int run_program(std::string executable, std::vector<const char *> args) {
   pid_t pid = fork();
@@ -189,7 +189,8 @@ void check_decls(std::string entry_point_name,
       /* make sure that the "main" function has the correct signature */
       check(false /*check_constraint_coverage*/, decl->id,
             (decl->id.name == entry_point_name)
-                ? new As(decl->value, program_main_scheme, false /*force_cast*/)
+                ? new As(decl->value, program_main_scheme->type,
+                         false /*force_cast*/)
                 : decl->value,
             env);
     } catch (user_error &e) {
@@ -238,10 +239,9 @@ void check_instance_for_type_class_overload(
 
       Env local_env{env};
       Identifier instance_decl_id = make_instance_decl_id(instance, decl->id);
-      types::Scheme::Ref expected_scheme = type->rebind(subst)->generalize(
-          class_predicates);
+      types::Ref expected_type = type->rebind(subst);
 
-      Expr *instance_decl_expr = new As(decl->value, expected_scheme,
+      Expr *instance_decl_expr = new As(decl->value, expected_type,
                                         false /*force_cast*/);
       check(false /*check_constraint_coverage*/, instance_decl_id,
             instance_decl_expr, local_env);
@@ -251,10 +251,12 @@ void check_instance_for_type_class_overload(
           log("checking the instance fn %s :: %s. we expected %s.",
               instance_decl_id.str().c_str(),
               local_env.map[instance_decl_id.name]->normalize()->str().c_str(),
-              expected_scheme->normalize()->str().c_str()));
+              expected_type->str().c_str()));
 
+      types::SchemeRef expected_scheme = expected_type->generalize(
+          class_predicates);
       if (!scheme_equality(local_env.map[instance_decl_id.name],
-                           expected_scheme->normalize())) {
+                           expected_scheme)) {
         auto error = user_error(instance_decl_id.location,
                                 "instance component %s appears to be more "
                                 "constrained than the type class",
@@ -265,7 +267,7 @@ void check_instance_for_type_class_overload(
             local_env.map[instance_decl_id.name]->normalize()->str().c_str());
         error.add_info(type->get_location(),
                        "type class component declaration has scheme %s",
-                       expected_scheme->normalize()->str().c_str());
+                       expected_type->str().c_str());
         throw error;
       }
 
@@ -352,6 +354,9 @@ std::vector<const Decl *> check_instances(
 
   for (const Instance *instance : instances) {
     try {
+      debug_above(4, log("Checking whether we have a type class for %s",
+                         instance->class_predicate->str().c_str()));
+
       const TypeClass *type_class = get(
           type_class_map, instance->class_predicate->classname.name,
           static_cast<const TypeClass *>(nullptr));
@@ -725,8 +730,8 @@ void specialize_core(const types::TypeEnv &type_env,
     const std::string final_name = defn_id.id.name;
 
     /* wrap this expr in it's asserted type to ensure that it monomorphizes */
-    auto as_defn = new As(to_check, defn_id.scheme, false);
-    auto defn_to_check = Identifier{defn_id.repr_public(), defn_id.id.location};
+    const As *as_defn = new As(to_check, defn_id.scheme->type, false);
+    Identifier defn_to_check{defn_id.repr_public(), defn_id.id.location};
     check(true /*check_constraint_coverage*/, defn_to_check, as_defn, env);
     assert(env.tracked_types == tracked_types);
 

@@ -179,18 +179,19 @@ types::Map solver(bool check_constraint_coverage,
     Unification unification = unify(iter->a, iter->b);
     if (unification.result) {
       if (unification.bindings.size() != 0) {
-        // TODO: reexamine whether it is really necessary to rebind_env with the
-        // composed bindings since we have already rebound the whole env with
-        // the prior bindings.
+        env.rebind_env(unification.bindings);
+
+        /* save the bindings */
         types::Map new_bindings = compose(unification.bindings, bindings);
-        env.rebind_env(new_bindings);
         std::swap(bindings, new_bindings);
       }
       ++iter;
-      rebind_constraints(iter, constraints.end(), bindings);
+
+      rebind_constraints(iter, constraints.end(), unification.bindings);
 
       /* rebind the class predicates */
-      instance_requirements = types::rebind(instance_requirements, bindings);
+      instance_requirements = types::rebind(instance_requirements,
+                                            unification.bindings);
       continue;
     } else {
       auto error = user_error(unification.error_location, "%s",

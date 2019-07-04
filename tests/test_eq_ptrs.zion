@@ -1,0 +1,14 @@
+# test: fail
+# expect: could not find a definition for
+# expect: std.==
+
+data NonComparable {
+    Monkey
+    Turnstile
+}
+
+fn main() {
+    var a = Monkey
+    var b = Turnstile
+    assert(a == b)
+}

@@ -15,7 +15,9 @@ runtimedir = $(DESTDIR)/$(prefix)/share/$(PN)/runtime
 test_destdir ?= $(HOME)/var/zion-test
 
 .PHONY: zion
-zion: clean $(BUILD_DIR)/Makefile install
+zion:
+	make clean
+	make install
 
 .PHONY: $(BUILT_BINARY)
 $(BUILT_BINARY): $(BUILD_DIR)/Makefile
@@ -50,7 +52,7 @@ install: $(BUILT_BINARY) $(addprefix $(SRCDIR)/lib/,$(ZION_LIBS)) $(SRCDIR)/src/
 
 .PHONY: clean
 clean:
-	(cd $(BUILD_DIR)/.. && rm -rf $(notdir $(BUILD_DIR))) 2>/dev/null
+	((cd $(BUILD_DIR)/.. && rm -rf $(notdir $(BUILD_DIR))) 2>/dev/null ||:)
 
 @PHONY: install-test
 install-test:

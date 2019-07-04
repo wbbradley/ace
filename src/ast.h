@@ -212,14 +212,14 @@ struct Block : public Expr {
 };
 
 struct As : public Expr {
-  As(const Expr *expr, types::Scheme::Ref scheme, bool force_cast)
-      : expr(expr), scheme(scheme), force_cast(force_cast) {
+  As(const Expr *expr, types::Ref type, bool force_cast)
+      : expr(expr), type(type), force_cast(force_cast) {
   }
   Location get_location() const override;
   std::ostream &render(std::ostream &os, int parent_precedence) const override;
 
   const Expr *expr;
-  types::Scheme::Ref scheme;
+  types::Ref type;
   bool force_cast;
 };
 

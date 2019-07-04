@@ -16,9 +16,7 @@ DefnId DefnId::unitize() const {
   if (scheme->type->get_ftvs().size() == 0) {
     return *this;
   }
-  assert(false);
-  auto defn_id = DefnId{
-      id, types::unitize(scheme->instantiate(INTERNAL_LOC()))->generalize({})};
+  auto defn_id = DefnId{id, types::unitize(scheme->type)->generalize({})};
 
   if (scheme->btvs() != 0) {
     throw user_error(
