@@ -1,11 +1,12 @@
 # test: pass, noprelude
+# expect: 1000
 
 class Getter a {
     fn getter() a
 }
 
 instance Getter Int {
-    fn getter() => 0
+    fn getter() => 1000
 }
 
 fn use_getter() => getter()

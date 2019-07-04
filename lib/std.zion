@@ -43,7 +43,7 @@ instance Show Float {
     }
 }
 
-instance Show Ref a {
+instance Show (Ref a) {
     fn str(a) => str(!a)
 }
 
@@ -51,7 +51,7 @@ instance Show String {
     str = id
 }
 
-instance Show * Char {
+instance Show (* Char) {
     fn str(a) => String(a, __builtin_ffi_1("zion_strlen", a))
 }
 
@@ -176,12 +176,12 @@ class Eq a {
     }*/
 }
 
-instance Eq *a {
+instance Eq (*a) {
     fn ==(a, b) => __builtin_ptr_eq(a, b)
     fn !=(a, b) => __builtin_ptr_ne(a, b)
 }
 
-instance Eq Ref a {
+instance Eq (Ref a) {
     fn ==(a, b) => !a == !b
     fn !=(a, b) => !a != !b
 }
@@ -196,7 +196,7 @@ instance Eq Float {
     fn !=(a, b) => __builtin_float_ne(a, b)
 }
 
-instance Eq Maybe a {
+instance Eq (Maybe a) {
     fn ==(a, b) => match (a, b) {
         (Nothing, Nothing) => True
         (Just(a), Just(b)) => a == b
@@ -386,7 +386,7 @@ data Maybe t {
     Nothing
 }
 
-instance Show Maybe a {
+instance Show (Maybe a) {
     fn str(ma) {
         match ma {
             Just(a) {

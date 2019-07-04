@@ -13,6 +13,10 @@ std::string DefnId::str() const {
 }
 
 DefnId DefnId::unitize() const {
+  if (scheme->type->get_ftvs().size() == 0) {
+    return *this;
+  }
+  assert(false);
   auto defn_id = DefnId{
       id, types::unitize(scheme->instantiate(INTERNAL_LOC()))->generalize({})};
 
@@ -22,7 +26,7 @@ DefnId DefnId::unitize() const {
         "(%s) attempt to unitize a scheme %s with class constraints",
         defn_id.str().c_str(), scheme->str().c_str());
   }
-  return std::move(defn_id);
+  return defn_id;
 }
 
 std::string DefnId::repr() const {
