@@ -208,13 +208,15 @@ const Expr *parse_let(ParseState &ps, Identifier var_id, bool is_let) {
   if (ps.token.is_ident(K(as))) {
     /* allow type specifications in decls to help with inference */
     ps.advance();
-    initializer = new As(initializer, scheme({}, {}, parse_type(ps)),
-                         false /*force_cast*/);
+    initializer = new As(
+        initializer,
+        scheme({}, {}, parse_type(ps, true /*allow_top_level_application*/)),
+        false /*force_cast*/);
   }
 
   if (!is_let) {
-    initializer = new Application(
-        new Var(ps.id_mapped(Identifier{"Ref", location})), initializer);
+    auto ref_id = ps.id_mapped(Identifier{"Ref", location});
+    initializer = new Application(new Var(ref_id), initializer);
   }
 
   return new Let(var_id, initializer,
@@ -358,7 +360,7 @@ const Expr *parse_new_expr(ParseState &ps) {
   return new As(
       new Application(new Var(ps.id_mapped({"new", ps.prior_token.location})),
                       unit_expr(ps.token.location)),
-      scheme({}, {}, parse_type(ps)), false /*force_cast*/);
+      scheme({}, {}, parse_type(ps, true /*allow_top_level_application*/)), false /*force_cast*/);
 }
 
 const Expr *parse_static_print(ParseState &ps) {
@@ -629,9 +631,9 @@ const Expr *parse_array_literal(ParseState &ps) {
                  new As(new Application(new Var(ps.id_mapped(
                                             {"new", ps.prior_token.location})),
                                         unit_expr(ps.token.location)),
-                        scheme({"a"}, {},
+                        scheme({"tree"}, {},
                                type_vector_type(type_variable(
-                                   Identifier("a", ps.token.location)))),
+                                   Identifier("tree", ps.token.location)))),
                         false /*force_cast*/),
                  new Block(stmts));
 }
@@ -796,7 +798,10 @@ const Expr *parse_cast_expr(ParseState &ps) {
       force_cast = true;
       ps.advance();
     }
-    expr = new As(expr, scheme({}, {}, parse_type(ps)), force_cast);
+    expr = new As(
+        expr,
+        parse_type(ps, true /*allow_top_level_application*/)->generalize({}),
+        force_cast);
   }
   return expr;
 }
@@ -805,7 +810,7 @@ const Expr *parse_sizeof(ParseState &ps) {
   auto location = ps.token.location;
   ps.advance();
   chomp_token(tk_lparen);
-  auto type = parse_type(ps);
+  auto type = parse_type(ps, true /*allow_top_level_application*/);
   chomp_token(tk_rparen);
   return new Sizeof(location, type);
 }
@@ -1441,7 +1446,7 @@ std::pair<Identifier, types::Ref> parse_lambda_param_core(ParseState &ps) {
   auto param_token = ps.token_and_advance();
   types::Ref type;
   if (token_begins_type(ps.token)) {
-    type = parse_type(ps);
+    type = parse_type(ps, true /*allow_top_level_application*/);
   }
 
   return {iid(param_token), type};
@@ -1485,7 +1490,7 @@ const Expr *parse_lambda(ParseState &ps) {
 
     types::Ref return_type;
     if (token_begins_type(ps.token) && !ps.line_broke()) {
-      return_type = parse_type(ps);
+      return_type = parse_type(ps, true /*allow_top_level_application*/);
     }
     return new Lambda(param.first, param.second, return_type,
                       parse_block(ps, true /*expression_means_return*/));
@@ -1502,7 +1507,7 @@ types::Ref parse_function_type(ParseState &ps) {
       ps.advance();
       break;
     }
-    params.push_back(parse_type(ps));
+    params.push_back(parse_type(ps, true /*allow_top_level_application*/));
     if (ps.token.tk == tk_comma) {
       ps.advance();
     }
@@ -1513,7 +1518,7 @@ types::Ref parse_function_type(ParseState &ps) {
   }
 
   if (token_begins_type(ps.token) && !ps.line_broke()) {
-    params.push_back(parse_type(ps));
+    params.push_back(parse_type(ps, true /*allow_top_level_application*/));
   } else {
     params.push_back(type_unit(ps.prior_token.location));
   }
@@ -1534,7 +1539,7 @@ types::Ref parse_tuple_type(ParseState &ps) {
       break;
     }
 
-    dims.push_back(parse_type(ps));
+    dims.push_back(parse_type(ps, true /*allow_top_level_application*/));
     if (ps.token.tk == tk_comma) {
       ps.advance();
       is_tuple = true;
@@ -1555,10 +1560,10 @@ types::Ref parse_tuple_type(ParseState &ps) {
 types::Ref parse_square_type(ParseState &ps) {
   auto location = ps.token.location;
   chomp_token(tk_lsquare);
-  auto lhs = parse_type(ps);
+  auto lhs = parse_type(ps, true /*allow_top_level_application*/);
   if (ps.token.tk == tk_colon) {
     ps.advance();
-    auto rhs = parse_type(ps);
+    auto rhs = parse_type(ps, true /*allow_top_level_application*/);
     chomp_token(tk_rsquare);
     return type_map(lhs, rhs);
   } else {
@@ -1575,8 +1580,8 @@ types::Ref parse_named_type(ParseState &ps) {
   }
 }
 
-types::Ref parse_type(ParseState &ps) {
-  /* look for type application */
+types::Ref parse_type(ParseState &ps, bool allow_top_level_application) {
+  /* look for type application if allow_top_level_application */
   std::vector<types::Ref> types;
   if (ps.line_broke()) {
     throw user_error(
@@ -1584,7 +1589,8 @@ types::Ref parse_type(ParseState &ps) {
         "encountered a line break where a type annotation was expected");
   }
 
-  while (token_begins_type(ps.token) && !ps.line_broke()) {
+  while (token_begins_type(ps.token) && !ps.line_broke() &&
+         (allow_top_level_application || types.size() < 1)) {
     if (ps.token.tk == tk_lparen) {
       types.push_back(parse_tuple_type(ps));
     } else if (ps.token.tk == tk_lsquare) {
@@ -1669,7 +1675,7 @@ const Expr *create_ctor(Location location,
   }
 
   const Expr *expr = new As(new Tuple(location, dims),
-                            scheme({}, {}, type_decl.get_type()),
+                            type_decl.get_type()->generalize({}),
                             true /*force_cast*/);
 
   assert(dims.size() == params.size() + 1);
@@ -1710,7 +1716,7 @@ DataTypeDecl parse_struct_decl(ParseState &ps, types::Map &data_ctors) {
     }
 
     member_ids.push_back(iid(ps.token_and_advance()));
-    dims.push_back(parse_type(ps));
+    dims.push_back(parse_type(ps, true /*allow_top_level_application*/));
   }
 
   for (int i = 1 /*skip the ctor_id*/; i < dims.size(); ++i) {
@@ -1761,7 +1767,7 @@ DataTypeDecl parse_newtype_decl(ParseState &ps,
   }
 
   chomp_token(tk_identifier);
-  types::Ref rhs_type = parse_type(ps);
+  types::Ref rhs_type = parse_type(ps, true /*allow_top_level_application*/);
 
   const Decl *decl;
   std::vector<types::Ref> ctor_parts;
@@ -1841,7 +1847,7 @@ DataTypeDecl parse_data_type_decl(ParseState &ps,
       /* this is a data ctor */
       while (true) {
         /* parse the types of the dimensions (unnamed for now) */
-        data_ctor_parts->param_types.push_back(parse_type(ps));
+        data_ctor_parts->param_types.push_back(parse_type(ps, true /*allow_top_level_application*/));
         /* keep track of whether any of the values in this data type require
          * extra storage. NB: Bool only being 1 word in size relies on this. */
         if (ps.token.tk == tk_comma) {
@@ -1913,28 +1919,8 @@ types::ClassPredicateRef parse_class_predicate(ParseState &ps) {
   types::Refs type_parameters;
 
   while (!ps.line_broke() && ps.token.tk != tk_lcurly) {
-    if (ps.token.tk == tk_identifier) {
-      if (islower(ps.token.text[0])) {
-        type_parameters.push_back(
-            type_variable(Identifier::from_token(ps.token_and_advance())));
-      } else {
-        // TODO: have a flag that allows or doesn't allow non-variable types
-        if (true) {
-          type_parameters.push_back(
-              type_id(Identifier::from_token(ps.token_and_advance())));
-        } else {
-          throw user_error(ps.token.location,
-                           "illegal type reference (" C_TYPE "%s" C_RESET
-                           ") in class predicate",
-                           ps.token.text.c_str());
-        }
-      }
-    } else {
-      assert(ps.token.tk == tk_lparen);
-      ps.advance();
-      type_parameters.push_back(parse_type(ps));
-      chomp_token(tk_rparen);
-    }
+    type_parameters.push_back(
+        parse_type(ps, false /*allow_top_level_application*/));
   }
   return std::make_shared<types::ClassPredicate>(classname, type_parameters);
 }

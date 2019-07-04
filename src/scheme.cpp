@@ -10,10 +10,6 @@ Scheme::Scheme(const std::vector<std::string> &vars,
     : vars(vars), predicates(predicates), type(type) {
 #ifdef ZION_DEBUG
   if (vars.size() == 0) {
-    if (type->get_ftvs().size() != 0) {
-      log("unexpected lack of vars in scheme %s", str().c_str());
-      dbg();
-    }
     if (types::get_ftvs(predicates).size() != 0) {
       log("unexpected lack of vars in scheme %s", str().c_str());
       dbg();
@@ -23,12 +19,18 @@ Scheme::Scheme(const std::vector<std::string> &vars,
 }
 
 types::Ref Scheme::instantiate(Location location) const {
-  assert(false);
+  if (!type->get_ftvs().empty()) {
+    log("trying to instantiate %s", str().c_str());
+    assert(false);
+  }
+  return type;
+#if 0
   types::Map subst;
   for (auto var : vars) {
     subst[var] = type_variable(gensym(location));
   };
   return type->rebind(subst);
+#endif
 }
 
 static Map remove_bindings(const Map &env,

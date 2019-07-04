@@ -48,8 +48,10 @@ types::Ref infer_core(const Expr *expr,
      * and the inference constraints */
     types::Scheme::Ref scheme = env.lookup_env(var->id)->freshen();
     assert(scheme != nullptr);
-    log_location(var->get_location(), "found var ref %s with scheme %s",
-                 var->id.str().c_str(), scheme->normalize()->str().c_str());
+    debug_above(2, log_location(var->get_location(),
+                                "found var ref %s with scheme %s",
+                                var->id.str().c_str(),
+                                scheme->normalize()->str().c_str()));
 
     /* ad the related class predicates to this scheme into the mix */
     set_concat(instance_requirements, scheme->predicates);
