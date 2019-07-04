@@ -269,8 +269,7 @@ const Expr *translate_next(const DefnId &for_defn_id,
   }
 
   auto as_tuple_type = type_tuple(tuple_dims);
-  auto scrutinee_as_tuple = new As(scrutinee,
-                                   as_tuple_type->generalize({})->normalize(),
+  auto scrutinee_as_tuple = new As(scrutinee, as_tuple_type,
                                    true /*force_cast*/);
   typing[scrutinee_as_tuple] = as_tuple_type;
 
@@ -333,8 +332,7 @@ const Expr *CtorPredicate::translate(
     } else if (params.size() == 1) {
       auto scrutinee = new Var(scrutinee_id);
       typing[scrutinee] = scrutinee_type;
-      auto casted_scrutinee = new As(scrutinee,
-                                     resolved_scrutinee_type->generalize({}),
+      auto casted_scrutinee = new As(scrutinee, resolved_scrutinee_type,
                                      true /*force_cast*/);
       typing[casted_scrutinee] = resolved_scrutinee_type;
 
@@ -379,8 +377,7 @@ const Expr *CtorPredicate::translate(
     typing[scrutinee] = scrutinee_type;
 
     if (just_compare_ints) {
-      auto casted_scrutinee = new As(scrutinee,
-                                     resolved_scrutinee_type->generalize({}),
+      auto casted_scrutinee = new As(scrutinee, resolved_scrutinee_type,
                                      true /*force_cast*/);
       typing[casted_scrutinee] = resolved_scrutinee_type;
 

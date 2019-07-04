@@ -208,10 +208,9 @@ const Expr *parse_let(ParseState &ps, Identifier var_id, bool is_let) {
   if (ps.token.is_ident(K(as))) {
     /* allow type specifications in decls to help with inference */
     ps.advance();
-    initializer = new As(
-        initializer,
-        scheme({}, {}, parse_type(ps, true /*allow_top_level_application*/)),
-        false /*force_cast*/);
+    initializer = new As(initializer,
+                         parse_type(ps, true /*allow_top_level_application*/),
+                         false /*force_cast*/);
   }
 
   if (!is_let) {
@@ -360,7 +359,8 @@ const Expr *parse_new_expr(ParseState &ps) {
   return new As(
       new Application(new Var(ps.id_mapped({"new", ps.prior_token.location})),
                       unit_expr(ps.token.location)),
-      scheme({}, {}, parse_type(ps, true /*allow_top_level_application*/)), false /*force_cast*/);
+      parse_type(ps, true /*allow_top_level_application*/),
+      false /*force_cast*/);
 }
 
 const Expr *parse_static_print(ParseState &ps) {
@@ -401,10 +401,8 @@ const Expr *parse_assert(ParseState &ps) {
                                     ps.token.location, tk_integer,
                                     std::to_string(assert_message.size())}),
                             }),
-                        type_id(make_iid(INT_TYPE))->generalize({}),
-                        false /*force_cast*/),
-                 type_unit(INTERNAL_LOC())->generalize({}),
-                 true /*force_cast*/),
+                        type_id(make_iid(INT_TYPE)), false /*force_cast*/),
+                 type_unit(INTERNAL_LOC()), true /*force_cast*/),
           new Builtin(
               new Var(make_iid("__builtin_ffi_1")),
               {new Literal(Token{assert_token.location, tk_string, "\"exit\""}),
@@ -529,10 +527,7 @@ const Expr *parse_base_expr(ParseState &ps) {
   } else if (ps.token.is_ident(K(null))) {
     return new As(
         new Literal(Token{ps.token_and_advance().location, tk_integer, "0"}),
-        scheme(
-            {"a"}, {},
-            type_ptr(type_variable(Identifier{"a", ps.prior_token.location}))),
-        true /*force_cast*/);
+        type_ptr(type_variable(ps.prior_token.location)), true /*force_cast*/);
   } else if (ps.token.tk == tk_identifier) {
     return parse_var_ref(ps);
   } else {
@@ -631,9 +626,7 @@ const Expr *parse_array_literal(ParseState &ps) {
                  new As(new Application(new Var(ps.id_mapped(
                                             {"new", ps.prior_token.location})),
                                         unit_expr(ps.token.location)),
-                        scheme({"tree"}, {},
-                               type_vector_type(type_variable(
-                                   Identifier("tree", ps.token.location)))),
+                        type_vector_type(type_variable(ps.token.location)),
                         false /*force_cast*/),
                  new Block(stmts));
 }
@@ -798,10 +791,8 @@ const Expr *parse_cast_expr(ParseState &ps) {
       force_cast = true;
       ps.advance();
     }
-    expr = new As(
-        expr,
-        parse_type(ps, true /*allow_top_level_application*/)->generalize({}),
-        force_cast);
+    expr = new As(expr, parse_type(ps, true /*allow_top_level_application*/),
+                  force_cast);
   }
   return expr;
 }
@@ -1623,7 +1614,7 @@ types::Ref parse_type(ParseState &ps, bool allow_top_level_application) {
 TypeDecl parse_type_decl(ParseState &ps) {
   expect_token(tk_identifier);
 
-  auto class_id = iid(ps.token_and_advance());
+  auto class_id = ps.id_mapped(iid(ps.token_and_advance()));
   if (!isupper(class_id.name[0])) {
     throw user_error(
         class_id.location,
@@ -1674,8 +1665,7 @@ const Expr *create_ctor(Location location,
     dims.push_back(new Var(params.back()));
   }
 
-  const Expr *expr = new As(new Tuple(location, dims),
-                            type_decl.get_type()->generalize({}),
+  const Expr *expr = new As(new Tuple(location, dims), type_decl.get_type(),
                             true /*force_cast*/);
 
   assert(dims.size() == params.size() + 1);
@@ -1728,7 +1718,7 @@ DataTypeDecl parse_struct_decl(ParseState &ps, types::Map &data_ctors) {
             dims[i],
             new ReturnStatement(new TupleDeref(
                 new As(new Var(Identifier{"obj", member_ids[i].location}),
-                       scheme({}, {}, type_tuple(dims)), true /*force_cast*/),
+                       type_tuple(dims), true /*force_cast*/),
                 i, dims.size())))));
   }
 
@@ -1785,8 +1775,7 @@ DataTypeDecl parse_newtype_decl(ParseState &ps,
 
     /* the inner part of the newtype ctor */
     const Expr *body = new As(new Tuple(tuple_type->get_location(), dims),
-                              type_decl.get_type()->generalize({}),
-                              true /*force_cast*/);
+                              type_decl.get_type(), true /*force_cast*/);
     int i = tuple_type->dimensions.size();
     for (auto type_iter = tuple_type->dimensions.rbegin();
          type_iter != tuple_type->dimensions.rend(); ++type_iter) {
@@ -1799,12 +1788,11 @@ DataTypeDecl parse_newtype_decl(ParseState &ps,
     ctor_parts.push_back(rhs_type);
     Identifier param_iid = Identifier{bitter::fresh(),
                                       rhs_type->get_location()};
-    decl = new Decl(
-        type_decl.id,
-        new Lambda(param_iid, rhs_type, type_decl.get_type(),
-                   new ReturnStatement(new As(
-                       new Var(param_iid), type_decl.get_type()->generalize({}),
-                       true /*force_cast*/))));
+    decl = new Decl(type_decl.id,
+                    new Lambda(param_iid, rhs_type, type_decl.get_type(),
+                               new ReturnStatement(new As(
+                                   new Var(param_iid), type_decl.get_type(),
+                                   true /*force_cast*/))));
   }
   data_ctors[type_decl.id.name] = create_ctor_type(type_decl.id.location,
                                                    type_decl, ctor_parts);
@@ -1847,7 +1835,8 @@ DataTypeDecl parse_data_type_decl(ParseState &ps,
       /* this is a data ctor */
       while (true) {
         /* parse the types of the dimensions (unnamed for now) */
-        data_ctor_parts->param_types.push_back(parse_type(ps, true /*allow_top_level_application*/));
+        data_ctor_parts->param_types.push_back(
+            parse_type(ps, true /*allow_top_level_application*/));
         /* keep track of whether any of the values in this data type require
          * extra storage. NB: Bool only being 1 word in size relies on this. */
         if (ps.token.tk == tk_comma) {
@@ -1883,10 +1872,9 @@ DataTypeDecl parse_data_type_decl(ParseState &ps,
                                   ctor_id.str().c_str()));
       data_ctors[ctor_id.name] = type_decl.get_type();
       decls.push_back(new Decl(
-          ctor_id,
-          new As(new Literal(
-                     Token{ctor_id.location, tk_integer, std::to_string(i)}),
-                 type_decl.get_type()->generalize({}), true /*force_cast*/)));
+          ctor_id, new As(new Literal(Token{ctor_id.location, tk_integer,
+                                            std::to_string(i)}),
+                          type_decl.get_type(), true /*force_cast*/)));
       ctor_id_map[ctor_id.name] = i++;
     }
   } else {
@@ -1915,7 +1903,8 @@ types::ClassPredicateRef parse_class_predicate(ParseState &ps) {
                      "type class requirements need to be upper-case "
                      "because type classes need to be uppercase");
   }
-  Identifier classname = Identifier::from_token(ps.token_and_advance());
+  Identifier classname = ps.id_mapped(
+      Identifier::from_token(ps.token_and_advance()));
   types::Refs type_parameters;
 
   while (!ps.line_broke() && ps.token.tk != tk_lcurly) {

@@ -438,6 +438,15 @@ instance HasLength String {
     }
 }
 
+class HasCapacity a {
+    fn cap(a) Int
+}
+
+instance HasCapacity [a] {
+    fn cap(a) {
+        return !a.capacity
+    }
+}
 fn alloc(count Int) *a {
     return __builtin_calloc(sizeof(a) * count)
 }

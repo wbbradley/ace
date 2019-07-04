@@ -48,7 +48,7 @@ types::Ref infer_core(const Expr *expr,
      * and the inference constraints */
     types::Scheme::Ref scheme = env.lookup_env(var->id)->freshen();
     assert(scheme != nullptr);
-    debug_above(2, log_location(var->get_location(),
+    debug_above(7, log_location(var->get_location(),
                                 "found var ref %s with scheme %s",
                                 var->id.str().c_str(),
                                 scheme->normalize()->str().c_str()));
@@ -186,13 +186,12 @@ types::Ref infer_core(const Expr *expr,
     return ts.back();
   } else if (auto as = dcast<const As *>(expr)) {
     auto t1 = infer(as->expr, env, constraints, instance_requirements);
-    auto as_type = as->scheme->type;
-    types::Ref t2 = !as->force_cast ? as_type
+    types::Ref t2 = !as->force_cast ? as->type
                                     : type_variable(as->get_location());
     append(constraints, t1, t2,
            make_context(as->get_location(), "we can get type %s from %s",
-                        as->scheme->str().c_str(), as->expr->str().c_str()));
-    return as_type;
+                        as->type->str().c_str(), as->type->str().c_str()));
+    return as->type;
   } else if (auto sizeof_ = dcast<const Sizeof *>(expr)) {
     return type_id(Identifier{INT_TYPE, sizeof_->get_location()});
   } else if (auto match = dcast<const Match *>(expr)) {

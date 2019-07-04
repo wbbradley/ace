@@ -47,6 +47,9 @@ Scheme::Ref Scheme::rebind(const types::Map &bindings) const {
    * within the not-yet-normalized scheme. This is because the map containing
    * the schemes is a working set of types that are waiting to be bound. In some
    * cases the variability of the inner types can be resolved. */
+  if (bindings.size() == 0) {
+    return shared_from_this();
+  }
   return scheme(vars, predicates,
                 type->rebind(remove_bindings(bindings, vars)));
 }
