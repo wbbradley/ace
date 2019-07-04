@@ -27,7 +27,7 @@ message(STATUS "LLVM installation prefix is ${LLVM_INSTALL_PREFIX}")
 include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 
-option(DEBUG "Build a Debug build" ON)
+option(DEBUG "Build a Debug build" OFF)
 if(DEBUG)
 	message("Compiling in Debug mode...")
 	add_definitions(-DZION_DEBUG)

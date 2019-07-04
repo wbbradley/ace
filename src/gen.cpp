@@ -1227,12 +1227,11 @@ resolution_status_t gen(std::string name,
       auto expr_value = gen(builder, llvm_module, break_to_block,
                             continue_to_block, as->expr, typing, type_env,
                             gen_env_globals, gen_env_locals, globals);
-      auto cast_type = get_llvm_type(builder, type_env,
-                                     as->scheme->instantiate(INTERNAL_LOC()));
-      debug_above(
-          6, log("casting %s (which is %s) to type %s (which is %s)",
-                 as->expr->str().c_str(), llvm_print(expr_value).c_str(),
-                 as->scheme->str().c_str(), llvm_print(cast_type).c_str()));
+      auto cast_type = get_llvm_type(builder, type_env, as->type);
+      debug_above(6,
+                  log("casting %s (which is %s) to type %s (which is %s)",
+                      as->expr->str().c_str(), llvm_print(expr_value).c_str(),
+                      as->type->str().c_str(), llvm_print(cast_type).c_str()));
       if (cast_type == expr_value->getType()) {
         /* slight cleanup to avoid extraneous bitcast */
         publish(expr_value);

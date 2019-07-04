@@ -242,7 +242,7 @@ const Expr *texpr(const DefnId &for_defn_id,
                         as->force_cast ? tenv.get_type(as->expr) : type,
                         type_env, tenv, typing, needed_defns, returns);
       if (as->force_cast) {
-        auto new_as = new As(expr, scheme({}, {}, type), true /*force_cast*/);
+        auto new_as = new As(expr, type, true /*force_cast*/);
         typing[new_as] = type;
         return new_as;
       } else {

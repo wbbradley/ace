@@ -165,7 +165,7 @@ const Expr *prefix(const std::set<std::string> &bindings,
     return new Block(prefix(bindings, pre, block->statements));
   } else if (auto as = dcast<const As *>(value)) {
     return new As(prefix(bindings, pre, as->expr),
-                  prefix(bindings, pre, as->scheme), as->force_cast);
+                  prefix(bindings, pre, as->type), as->force_cast);
   } else if (auto application = dcast<const Application *>(value)) {
     return new Application(prefix(bindings, pre, application->a),
                            prefix(bindings, pre, application->b));

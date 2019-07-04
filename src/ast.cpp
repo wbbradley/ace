@@ -51,7 +51,7 @@ std::ostream &Var::render(std::ostream &os, int parent_precedence) const {
 }
 
 Location As::get_location() const {
-  return scheme->get_location();
+  return type->get_location();
 }
 
 std::ostream &As::render(std::ostream &os, int parent_precedence) const {
@@ -62,7 +62,7 @@ std::ostream &As::render(std::ostream &os, int parent_precedence) const {
   } else {
     os << C_TYPE " as " C_RESET;
   }
-  os << scheme->str();
+  os << type->str();
   os << ")";
   return os;
 }
