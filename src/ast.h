@@ -42,7 +42,7 @@ struct Var : public Expr {
   Location get_location() const override;
   std::ostream &render(std::ostream &os, int parent_precedence) const override;
 
-  Identifier const id;
+  Identifier id;
 };
 
 struct PatternBlock {
@@ -127,9 +127,9 @@ struct TuplePredicate : public Predicate {
                         translate_continuation_t &failed) const override;
   Location get_location() const override;
 
-  Location const location;
-  std::vector<const Predicate *> const params;
-  maybe<Identifier> const name_assignment;
+  Location location;
+  std::vector<const Predicate *> params;
+  maybe<Identifier> name_assignment;
 };
 
 struct IrrefutablePredicate : public Predicate {
@@ -160,8 +160,8 @@ struct IrrefutablePredicate : public Predicate {
                         translate_continuation_t &failed) const override;
   Location get_location() const override;
 
-  Location const location;
-  maybe<Identifier> const name_assignment;
+  Location location;
+  maybe<Identifier> name_assignment;
 };
 
 struct CtorPredicate : public Predicate {
@@ -196,10 +196,10 @@ struct CtorPredicate : public Predicate {
                         translate_continuation_t &failed) const override;
   Location get_location() const override;
 
-  Location const location;
-  std::vector<const Predicate *> const params;
-  Identifier const ctor_name;
-  maybe<Identifier> const name_assignment;
+  Location location;
+  std::vector<const Predicate *> params;
+  Identifier ctor_name;
+  maybe<Identifier> name_assignment;
 };
 
 struct Block : public Expr {
@@ -229,8 +229,8 @@ struct Sizeof : public Expr {
   Location get_location() const override;
   std::ostream &render(std::ostream &os, int parent_precedence) const override;
 
-  Location const location;
-  types::Ref const type;
+  Location location;
+  types::Ref type;
 };
 
 struct Application : public Expr {
@@ -337,7 +337,7 @@ struct Literal : public Expr, public Predicate {
                         translate_continuation_t &failed) const override;
   Location get_location() const override;
 
-  Token const token;
+  Token token;
 };
 
 struct Conditional : public Expr {
@@ -394,7 +394,7 @@ struct Decl {
   std::string str() const;
   Location get_location() const;
 
-  Identifier const id;
+  Identifier id;
   const Expr *const value;
 };
 
@@ -402,8 +402,8 @@ struct TypeDecl {
   TypeDecl(Identifier id, const Identifiers &params) : id(id), params(params) {
   }
 
-  Identifier const id;
-  Identifiers const params;
+  Identifier id;
+  Identifiers params;
 
   types::Ref get_type() const;
   int kind() const {
@@ -420,10 +420,10 @@ struct TypeClass {
   Location get_location() const;
   std::string str() const;
 
-  Identifier const id;
-  Identifiers const type_var_ids;
-  types::ClassPredicates const class_predicates;
-  types::Map const overloads;
+  Identifier id;
+  Identifiers type_var_ids;
+  types::ClassPredicates class_predicates;
+  types::Map overloads;
 };
 
 struct Instance {
@@ -441,7 +441,7 @@ struct Instance {
 struct Module {
   Module(std::string name,
          const std::vector<const Decl *> &decls,
-         const std::vector<const TypeDecl> &type_decls,
+         const std::vector<TypeDecl> &type_decls,
          const std::vector<const TypeClass *> &type_classes,
          const std::vector<const Instance *> &instances,
          const CtorIdMap &ctor_id_map,
@@ -454,12 +454,12 @@ struct Module {
   }
 
   std::string const name;
-  std::vector<const Decl *> const decls;
-  std::vector<const TypeDecl> const type_decls;
-  std::vector<const TypeClass *> const type_classes;
-  std::vector<const Instance *> const instances;
-  CtorIdMap const ctor_id_map;
-  DataCtorsMap const data_ctors_map;
+  std::vector<const Decl *> decls;
+  std::vector<TypeDecl> type_decls;
+  std::vector<const TypeClass *> type_classes;
+  std::vector<const Instance *> instances;
+  CtorIdMap ctor_id_map;
+  DataCtorsMap data_ctors_map;
   types::TypeEnv const type_env;
 };
 
@@ -472,9 +472,9 @@ struct Program {
         expr(expr) {
   }
 
-  std::vector<const Decl *> const decls;
-  std::vector<const TypeClass *> const type_classes;
-  std::vector<const Instance *> const instances;
+  std::vector<const Decl *> decls;
+  std::vector<const TypeClass *> type_classes;
+  std::vector<const Instance *> instances;
   const Expr *const expr;
 };
 } // namespace bitter
