@@ -201,7 +201,7 @@ struct GlobalParserState {
 
 std::set<std::string> get_top_level_decls(
     const std::vector<const Decl *> &decls,
-    const std::vector<const TypeDecl> &type_decls,
+    const std::vector<TypeDecl> &type_decls,
     const std::vector<const TypeClass *> &type_classes) {
   std::map<std::string, Location> module_decls;
   for (const Decl *decl : decls) {

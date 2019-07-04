@@ -48,7 +48,7 @@ std::string resolve_module_filename(Location location,
                                     std::string extension);
 std::set<std::string> get_top_level_decls(
     const std::vector<const bitter::Decl *> &decls,
-    const std::vector<const bitter::TypeDecl> &type_decls,
+    const std::vector<bitter::TypeDecl> &type_decls,
     const std::vector<const bitter::TypeClass *> &type_classes);
 }; // namespace compiler
 
