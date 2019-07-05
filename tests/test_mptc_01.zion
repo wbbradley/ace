@@ -1,0 +1,29 @@
+# test: pass
+
+class MutatingQueue c e {
+    fn push(c, e) ()
+    fn peek(c) e
+    fn pop(c) e
+}
+
+instance MutatingQueue [a] a {
+    push = append
+    fn peek(xs) => xs[len(xs)-1]
+    fn pop(xs) {
+        back := peek(xs)
+        resize(xs, len(xs)-1)
+        return back
+    }
+}
+
+fn main() {
+    h := []
+    push(h, 2)
+    push(h, 3)
+    push(h, 4)
+    assert(pop(h) == 4)
+    assert(pop(h) == 3)
+    assert(pop(h) == 2)
+    __builtin_pass_test
+}
+

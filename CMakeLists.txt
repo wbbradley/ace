@@ -44,6 +44,7 @@ add_executable(zion
 	src/class_predicate.cpp
 	src/compiler.cpp
 	src/context.cpp
+	src/constraint.cpp
 	src/dbg.cpp
 	src/defn_id.cpp
 	src/disk.cpp

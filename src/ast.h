@@ -2,6 +2,7 @@
 #include <iostream>
 #include <vector>
 
+#include "constraint.h"
 #include "env.h"
 #include "identifier.h"
 #include "infer.h"

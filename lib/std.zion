@@ -17,6 +17,10 @@ class HasDefault a {
     fn new() a
 }
 
+instance HasDefault Int {
+    fn new() => 0
+}
+
 newtype String = String(*Char, Int)
 
 class Show a {
@@ -413,6 +417,16 @@ struct Vector a {
     array Ref (*a)
     size Ref Int
     capacity Ref Int
+}
+
+fn resize(xs [a], new_len Int) () {
+    assert(not (new_len < 0))
+    while !xs.size < new_len {
+        append(xs, new a)
+    }
+    if new_len < !xs.size {
+        xs.size = new_len
+    }
 }
 
 instance Show Char {
