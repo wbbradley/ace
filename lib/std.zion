@@ -375,6 +375,16 @@ instance Num Float {
     fn abs(a) => __builtin_abs_float(a)
 }
 
+class ConvertibleToInt a {
+    fn int(a) Int
+}
+
+instance ConvertibleToInt Float {
+    fn int(a) Int {
+        return __builtin_float_to_int(a)
+    }
+}
+
 class Modular a {
     fn %(a, a) a
 }
@@ -461,6 +471,7 @@ instance HasCapacity [a] {
         return !a.capacity
     }
 }
+
 fn alloc(count Int) *a {
     return __builtin_calloc(sizeof(a) * count)
 }

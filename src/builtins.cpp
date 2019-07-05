@@ -89,6 +89,8 @@ const types::Scheme::Map &get_builtins() {
     (*map)["__builtin_abs_float"] = scheme({}, {}, type_arrows({Float, Float}));
     (*map)["__builtin_int_to_float"] = scheme({}, {},
                                               type_arrows({Int, Float}));
+    (*map)["__builtin_float_to_int"] = scheme({}, {},
+                                              type_arrows({Float, Int}));
     (*map)["__builtin_negate_float"] = scheme({}, {},
                                               type_arrows({Float, Float}));
     (*map)["__builtin_ptr_add"] = scheme({"a"}, {},

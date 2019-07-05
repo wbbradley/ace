@@ -322,6 +322,9 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
   } else if (name == "__builtin_int_to_float") {
     /* scheme({}, {}, type_arrows({Int, Float})) */
     return builder.CreateSIToFP(params[0], builder.getDoubleTy());
+  } else if (name == "__builtin_float_to_int") {
+    /* scheme({}, {}, type_arrows({Float, Int})) */
+    return builder.CreateFPToSI(params[0], builder.getInt64Ty());
   } else if (name == "__builtin_negate_float") {
     /* scheme({}, {}, type_arrows({Float, Float})) */
     return builder.CreateFNeg(params[0]);
@@ -658,7 +661,6 @@ void gen_lambda(std::string name,
   if (name == "") {
     name = string_format("__anonymous{%s}",
                          lambda->get_location().repr().c_str());
-    ;
   }
 
   INDENT(2, string_format("gen_lambda(%s, ..., %s, %s, ...)", name.c_str(),
