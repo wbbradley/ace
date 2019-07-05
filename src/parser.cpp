@@ -500,9 +500,7 @@ const Expr *parse_var_ref(ParseState &ps) {
     int value = get_host_int(location, ps.token_and_advance().text);
     chomp_token(tk_rparen);
     return new Literal(Token{location, tk_integer, std::to_string(value)});
-  }
-
-  if (ps.token.is_ident(K(if))) {
+  } else if (ps.token.is_ident(K(if))) {
     throw user_error(ps.token.location,
                      "if statements cannot be used as expressions. use the "
                      "ternary operator ?:");

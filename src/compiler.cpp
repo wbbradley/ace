@@ -87,7 +87,7 @@ std::string resolve_module_filename(Location location,
   }
 
   std::string leaf_name;
-  if (name.find(extension) == name.size() - extension.size()) {
+  if (ends_with(leaf_name, extension)) {
     leaf_name = name;
   } else {
     leaf_name = name + extension;

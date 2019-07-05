@@ -660,16 +660,7 @@ instance Iterable Range {
     }
 }
 
-fn sqrt(x Float) Float => __builtin_ffi_1("sqrt", x)
 fn compose(f, g) => fn (x) => f(g(x))
-
-fn sum(xs) {
-    var s = from_int(0)
-    for x in xs {
-        s += x
-    }
-    return !s
-}
 
 fn map(f fn (a) b, iterable) Iterator b {
     iterator := iter(iterable)

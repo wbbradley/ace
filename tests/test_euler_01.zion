@@ -1,0 +1,19 @@
+# test: pass
+# expect: 233168
+
+fn main() {
+    var total = 0
+    for i in [0..999] {
+        if i % 3 == 0 {
+            total += i
+            continue
+        }
+
+        if i % 5 == 0 {
+            total += i
+            continue
+        }
+    }
+
+    print(total)
+}
