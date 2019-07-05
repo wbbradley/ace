@@ -1,0 +1,34 @@
+# test: pass
+# expect: 4613732
+
+get math {even}
+
+struct FibonacciIterator {
+    index Ref Int
+    prior Ref Int
+    cur Ref Int
+}
+
+fn fibonacci_sequence() {
+    fs := FibonacciIterator(Ref(0), Ref(1), Ref(1))
+    return Iterator(fn () {
+        fs.index += 1
+        if !fs.index > 2 {
+            next := !fs.prior + !fs.cur
+            fs.prior = !fs.cur
+            fs.cur = next
+        }
+        return Just(!fs.cur)
+    })
+}
+
+fn main() {
+    var total = 0
+    for n in filter(even, fibonacci_sequence()) {
+        if n > 4000000 {
+            break
+        }
+        total += n
+    }
+    print(total)
+}

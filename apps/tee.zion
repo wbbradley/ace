@@ -1,6 +1,4 @@
 # A basic implementation of tee
-module tee
-
 get sys
 
 get argparse {parse, Parser, Some, Option}

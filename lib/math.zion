@@ -1,0 +1,12 @@
+fn even(x Int) Bool => x % 2 == 0
+fn odd(x Int) Bool => x % 2 == 1
+fn sqrt(x Float) Float => __builtin_ffi_1("sqrt", x)
+
+fn sum(xs) {
+    var s = from_int(0)
+    for x in xs {
+        s += x
+    }
+    return !s
+}
+
