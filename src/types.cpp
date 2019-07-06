@@ -432,6 +432,118 @@ Location TypeTuple::get_location() const {
   return location;
 }
 
+TypeParams::TypeParams(Location location, const Refs &dimensions)
+    : location(location), dimensions(dimensions) {
+#ifdef ZION_DEBUG
+  for (auto dimension : dimensions) {
+    assert(dimension != nullptr);
+  }
+#endif
+}
+
+std::ostream &TypeParams::emit(std::ostream &os,
+                               const Map &bindings,
+                               int parent_precedence) const {
+  os << "(";
+  join_dimensions(os, dimensions, {}, bindings);
+  if (dimensions.size() != 0) {
+    os << ",";
+  }
+  return os << ")";
+}
+
+void TypeParams::compute_ftvs() const {
+  for (auto &dimension : dimensions) {
+    set_concat(ftvs_, dimension->get_ftvs());
+  }
+}
+
+Ref TypeParams::eval(const TypeEnv &type_env) const {
+  if (type_env.size() == 0) {
+    return shared_from_this();
+  }
+
+  bool anything_affected = false;
+  Refs type_dimensions;
+  for (auto dimension : dimensions) {
+    auto new_dim = dimension->eval(type_env);
+    if (new_dim != dimension) {
+      anything_affected = true;
+    }
+    type_dimensions.push_back(new_dim);
+  }
+
+  if (anything_affected) {
+    return ::type_params(type_dimensions);
+  } else {
+    return shared_from_this();
+  }
+}
+
+Ref TypeParams::rebind(const Map &bindings) const {
+  if (bindings.size() == 0) {
+    return shared_from_this();
+  }
+
+  bool anything_was_rebound = false;
+  Refs type_dimensions;
+  for (auto dimension : dimensions) {
+    auto new_dim = dimension->rebind(bindings);
+    if (new_dim != dimension) {
+      anything_was_rebound = true;
+    }
+    type_dimensions.push_back(new_dim);
+  }
+
+  if (anything_was_rebound) {
+    return ::type_params(type_dimensions);
+  } else {
+    return shared_from_this();
+  }
+}
+
+Ref TypeParams::remap_vars(
+    const std::map<std::string, std::string> &map) const {
+  bool anything_was_rebound = false;
+  Refs type_dimensions;
+  for (auto dimension : dimensions) {
+    auto new_dim = dimension->remap_vars(map);
+    if (new_dim != dimension) {
+      anything_was_rebound = true;
+    }
+    type_dimensions.push_back(new_dim);
+  }
+
+  if (anything_was_rebound) {
+    return ::type_params(type_dimensions);
+  } else {
+    return shared_from_this();
+  }
+}
+
+Ref TypeParams::prefix_ids(const std::set<std::string> &bindings,
+                           const std::string &pre) const {
+  bool anything_was_rebound = false;
+  Refs type_dimensions;
+  for (auto dimension : dimensions) {
+    auto new_dim = dimension->prefix_ids(bindings, pre);
+    if (new_dim != dimension) {
+      anything_was_rebound = true;
+    }
+    type_dimensions.push_back(new_dim);
+  }
+
+  if (anything_was_rebound) {
+    return ::type_params(type_dimensions);
+  } else {
+    return shared_from_this();
+  }
+}
+
+Location TypeParams::get_location() const {
+  return location;
+}
+
 TypeLambda::TypeLambda(Identifier binding, Ref body)
     : binding(binding), body(body) {
   assert(islower(binding.name[0]));
@@ -647,6 +759,16 @@ types::Ref type_map(types::Ref a, types::Ref b) {
       type_operator(type_id(Identifier{"Map", a->get_location()}), a), b);
 }
 
+types::Ref type_params(const types::Refs &params) {
+#ifdef ZION_DEBUG
+  for (auto &param : params) {
+    assert(!dyncast<const types::TypeParams>(param));
+  }
+#endif
+  assert(params.size() > 0);
+  return std::make_shared<types::TypeParams>(params[0]->get_location(), params);
+}
+
 types::TypeTuple::Ref type_tuple(types::Refs dimensions) {
   assert(dimensions.size() != 0);
   return type_tuple(dimensions[0]->get_location(), dimensions);
@@ -661,18 +783,19 @@ types::Ref type_arrow(types::Ref a, types::Ref b) {
 }
 
 types::Ref type_arrow(Location location, types::Ref a, types::Ref b) {
+  assert(dyncast<const types::TypeParams>(a));
   return type_operator(
       type_operator(type_id(Identifier{ARROW_TYPE_OPERATOR, location}), a), b);
 }
 
-types::Ref type_arrows(types::Refs types, int offset) {
-  assert(int(types.size()) - offset > 0);
-  if (types.size() - offset == 1) {
-    return types[offset];
-  } else {
-    return type_arrow(types[offset]->get_location(), types[offset],
-                      type_arrows(types, offset + 1));
+types::Ref type_arrows(types::Refs types) {
+  assert(types.size() >= 1);
+  if (types.size() == 1) {
+    return types[0];
   }
+  auto return_type = types.back();
+  types.resize(types.size() - 1);
+  return type_arrow(type_params(types), return_type);
 }
 
 types::Ref type_ptr(types::Ref raw) {

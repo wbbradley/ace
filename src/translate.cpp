@@ -108,7 +108,9 @@ const Expr *texpr(const DefnId &for_defn_id,
       }
     } else if (auto lambda = dcast<const Lambda *>(expr)) {
       auto new_bound_vars = bound_vars;
-      new_bound_vars.insert(lambda->var.name);
+      for (auto &var : lambda->vars) {
+        new_bound_vars.insert(var.name);
+      }
       bool lambda_returns = false;
       auto new_body = texpr(for_defn_id, lambda->body, new_bound_vars,
                             tenv.get_type(lambda->body), type_env, tenv, typing,
@@ -124,12 +126,16 @@ const Expr *texpr(const DefnId &for_defn_id,
                        lambda_terms.back()->str().c_str());
         throw error;
       }
-      auto new_lambda = new Lambda(lambda->var, nullptr, nullptr, new_body);
+      auto new_lambda = new Lambda(lambda->vars, {}, nullptr, new_body);
       typing[new_lambda] = type;
       return new_lambda;
     } else if (auto application = dcast<const Application *>(expr)) {
       types::Ref operator_type = tenv.get_type(application->a);
-      types::Ref operand_type = tenv.get_type(application->b);
+      types::Refs operand_types;
+      for (auto &param : application->params) {
+        operand_types.push_back(tenv.get_type(param));
+      }
+      types::Ref operand_type = type_params(operand_types);
 
       /* if we have unresolved types below us in the tree, we need to
        * propagate our known types down into them */
@@ -141,13 +147,20 @@ const Expr *texpr(const DefnId &for_defn_id,
       Unification unification = unify(operator_type, resolution_type);
       assert(unification.result);
       operator_type = operator_type->rebind(unification.bindings);
-      operand_type = operand_type->rebind(unification.bindings);
 
       auto a = texpr(for_defn_id, application->a, bound_vars, operator_type,
                      type_env, tenv, typing, needed_defns, returns);
-      auto b = texpr(for_defn_id, application->b, bound_vars, operand_type,
-                     type_env, tenv, typing, needed_defns, returns);
-      auto new_app = new Application(a, b);
+      std::vector<const Expr *> new_params;
+      assert(operand_types.size() == application->params.size());
+      for (int i = 0; i < application->params.size(); ++i) {
+        /* translate all the parameters */
+        auto &param = application->params[i];
+        new_params.push_back(
+            texpr(for_defn_id, param, bound_vars,
+                  operand_types[i]->rebind(unification.bindings), type_env,
+                  tenv, typing, needed_defns, returns));
+      }
+      auto new_app = new Application(a, {new_params});
       typing[new_app] = type;
       return new_app;
     } else if (auto let = dcast<const Let *>(expr)) {

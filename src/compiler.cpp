@@ -304,7 +304,7 @@ Compilation::ref parse_program(
         program_name,
         new Program(program_decls, program_type_classes, program_instances,
                     new Application(new Var(make_iid("main")),
-                                    new Tuple(INTERNAL_LOC(), {}))),
+                                    {unit_expr(INTERNAL_LOC())})),
         gps.comments, gps.link_ins, ctor_id_map, data_ctors_map, type_env);
   } catch (user_error &e) {
     print_exception(e);

@@ -82,6 +82,9 @@ Location Application::get_location() const {
 std::ostream &Application::render(std::ostream &os,
                                   int parent_precedence) const {
   const int precedence = 5;
+  return os << "TODO: fix Application::render";
+
+#if 0
   if (auto inner_app = dcast<const Application *>(a)) {
     if (auto oper = dcast<const Var *>(inner_app->a)) {
       if (strspn(oper->id.name.c_str(), MATHY_SYMBOLS) ==
@@ -103,6 +106,7 @@ std::ostream &Application::render(std::ostream &os,
   os << " ";
   b->render(os, precedence + 1);
   return os;
+#endif
 }
 
 Location Continue::get_location() const {
@@ -183,18 +187,21 @@ std::ostream &Block::render(std::ostream &os, int parent_precedence) const {
 }
 
 Location Lambda::get_location() const {
-  return var.location;
+  assert(vars.size() != 0);
+  return vars[0].location;
 }
 
 std::ostream &Lambda::render(std::ostream &os, int parent_precedence) const {
   const int precedence = 7;
-  os << "(λ" << var.name;
+  os << "(λ" << join_with(vars,",", [](const Identifier &id) { return id.name; });
+#if 0
   if (param_type != nullptr) {
     os << c_good(" :: ");
     os << C_TYPE;
     param_type->emit(os, {}, 0);
     os << C_RESET;
   }
+#endif
   os << " . ";
   body->render(os, 0);
   os << ")";

@@ -72,16 +72,6 @@ std::vector<std::pair<int, Identifier>> extract_ids(
   return refs;
 }
 
-void unfold_application_exprs(const Expr *e, std::vector<const Expr *> &exprs) {
-  auto app = dcast<const Application *>(e);
-  if (app != nullptr) {
-    unfold_application_exprs(app->a, exprs);
-    exprs.push_back(app->b);
-  } else {
-    exprs.push_back(e);
-  }
-}
-
 const Predicate *convert_tuple_into_predicate(const Tuple *tuple) {
   std::vector<const Predicate *> params;
   for (auto dim : tuple->dims) {
@@ -110,7 +100,9 @@ const Predicate *convert_expr_to_predicate(const Expr *expr) {
 const Predicate *unfold_application_into_predicate(
     const Application *application) {
   std::vector<const Expr *> exprs;
-  unfold_application_exprs(application, exprs);
+  exprs.push_back(application->a);
+  std::copy(application->params.begin(), application->params.end(),
+            std::back_inserter(exprs));
   if (exprs.size() >= 1) {
     if (const Var *var = dcast<const Var *>(exprs[0])) {
       /* this may be a data constructor, treat it as such */
@@ -202,7 +194,7 @@ const Expr *parse_let(ParseState &ps, Identifier var_id, bool is_let) {
   } else {
     initializer = new Application(
         new Var(ps.id_mapped(Identifier{"new", location})),
-        unit_expr(INTERNAL_LOC()));
+        {unit_expr(INTERNAL_LOC())});
   }
 
   if (ps.token.is_ident(K(as))) {
@@ -215,7 +207,7 @@ const Expr *parse_let(ParseState &ps, Identifier var_id, bool is_let) {
 
   if (!is_let) {
     auto ref_id = ps.id_mapped(Identifier{"Ref", location});
-    initializer = new Application(new Var(ref_id), initializer);
+    initializer = new Application(new Var(ref_id), {initializer});
   }
 
   return new Let(var_id, initializer,
@@ -299,7 +291,7 @@ const Expr *parse_with_block(ParseState &ps) {
 
 const Expr *wrap_with_iter(ParseState &ps, const Expr *expr) {
   return new Application(
-      new Var(ps.id_mapped(Identifier{"iter", expr->get_location()})), expr);
+      new Var(ps.id_mapped(Identifier{"iter", expr->get_location()})), {expr});
 }
 
 const Expr *parse_for_block(ParseState &ps) {
@@ -321,12 +313,12 @@ const Expr *parse_for_block(ParseState &ps) {
         iterator_id,
         new Application(
             new Var(ps.id_mapped(Identifier{"iter", in_token.location})),
-            iterable),
+            {iterable}),
         new While(
             new Var(ps.id_mapped(Identifier{"True", in_token.location})),
             new Match(
                 new Application(new Var(iterator_id),
-                                unit_expr(iterator_id.location)),
+                                {unit_expr(iterator_id.location)}),
                 {new PatternBlock(
                      new CtorPredicate(
                          iterator_id.location,
@@ -358,7 +350,7 @@ const Expr *parse_new_expr(ParseState &ps) {
   ps.advance();
   return new As(
       new Application(new Var(ps.id_mapped({"new", ps.prior_token.location})),
-                      unit_expr(ps.token.location)),
+                      {unit_expr(ps.token.location)}),
       parse_type(ps, true /*allow_top_level_application*/),
       false /*force_cast*/);
 }
@@ -559,32 +551,27 @@ const Expr *parse_array_literal(ParseState &ps) {
                                         ps.token.location);
 
       auto range_body = new Application(
-          new Application(
-              new Application(
-                  new Var(ps.id_mapped(Identifier{"Range", location})),
-                  new Var(range_min)),
-              new Application(new Application(new Var(Identifier(
-                                                  "std.-", ps.token.location)),
-                                              new Var(range_next)),
-                              new Var(range_min))),
-          new Var(range_max));
+          new Var(ps.id_mapped(Identifier{"Range", location})),
+          {new Var(range_min),
+           new Application(new Var(Identifier("std.-", ps.token.location)),
+                           {new Var(range_next), new Var(range_min)}),
+           new Var(range_max)});
 
       auto let_range_max = new Let(
           range_max,
           (ps.token.tk != tk_rsquare)
               ? parse_expr(ps)
               : new Application(new Var(ps.id_mapped(make_iid("max_bound"))),
-                                unit_expr(location)),
+                                {unit_expr(location)}),
           range_body);
 
       auto let_range_next = new Let(
           range_next,
-          (i == 2) ? exprs[1]
-                   : new Application(
-                         new Application(
-                             new Var(make_iid("std.+")),
-                             new Literal(Token{location, tk_integer, "1"})),
-                         new Var(range_min)),
+          (i == 2)
+              ? exprs[1]
+              : new Application(new Var(make_iid("std.+")),
+                                {new Literal(Token{location, tk_integer, "1"}),
+                                 new Var(range_min)}),
           let_range_max);
 
       auto let_range_min = new Let(range_min, exprs[0], let_range_next);
@@ -609,10 +596,8 @@ const Expr *parse_array_literal(ParseState &ps) {
   std::vector<const Expr *> stmts;
   for (auto expr : exprs) {
     stmts.push_back(new Application(
-        new Application(
-            new Var(ps.id_mapped(Identifier{"append", ps.token.location})),
-            array_var),
-        expr));
+        new Var(ps.id_mapped(Identifier{"append", ps.token.location})),
+        {array_var, expr}));
   }
 
   const auto array_size_to_reserve = string_format("%d", exprs.size());
@@ -623,7 +608,7 @@ const Expr *parse_array_literal(ParseState &ps) {
   return new Let(array_var->id,
                  new As(new Application(new Var(ps.id_mapped(
                                             {"new", ps.prior_token.location})),
-                                        unit_expr(ps.token.location)),
+                                        {unit_expr(ps.token.location)}),
                         type_vector_type(type_variable(ps.token.location)),
                         false /*force_cast*/),
                  new Block(stmts));
@@ -641,10 +626,9 @@ const Expr *parse_literal(ParseState &ps) {
     if (ps.sugar_literals) {
       int string_len = unescape_json_quotes(token.text).size();
       return new Application(
-          new Application(new Var(Identifier{"std.String", token.location}),
-                          new Literal(token)),
-          new Literal(
-              Token{token.location, tk_integer, std::to_string(string_len)}));
+          new Var(Identifier{"std.String", token.location}),
+          {new Literal(token), new Literal(Token{token.location, tk_integer,
+                                                 std::to_string(string_len)})});
     } else {
       return new Literal(token);
     }
@@ -697,16 +681,18 @@ const Expr *parse_postfix_expr(ParseState &ps) {
       ps.advance();
       if (ps.token.tk == tk_rparen) {
         ps.advance();
-        expr = new Application(expr, unit_expr(ps.token.location));
+        expr = new Application(expr, {unit_expr(ps.token.location)});
       } else {
+        std::vector<const Expr *> params;
         while (ps.token.tk != tk_rparen) {
-          expr = new Application(expr, parse_expr(ps));
+          params.push_back(parse_expr(ps));
           if (ps.token.tk == tk_comma) {
             ps.advance();
           } else {
             expect_token(tk_rparen);
           }
         }
+        expr = new Application(expr, {params});
         ps.advance();
       }
       break;
@@ -721,7 +707,7 @@ const Expr *parse_postfix_expr(ParseState &ps) {
       }
       auto iid = Identifier{"__get_" + ps.token_and_advance().text,
                             ps.prior_token.location};
-      expr = new Application(new Var(iid), expr);
+      expr = new Application(new Var(iid), {expr});
       break;
     }
     case tk_lsquare: {
@@ -741,33 +727,23 @@ const Expr *parse_postfix_expr(ParseState &ps) {
           /* set up an array index assignment */
           auto location = ps.token_and_advance().location;
           auto rhs = parse_expr(ps);
-          expr = new Application(
-              new Application(
-                  new Application(new Var({"std.set_indexed_item", location}),
-                                  expr),
-                  start),
-              rhs);
+          expr = new Application(new Var({"std.set_indexed_item", location}),
+                                 {expr, start, rhs});
         } else {
           expr = new Application(
-              new Application(
-                  new Var(Identifier{is_slice ? "__getslice2__"
-                                              : "std.get_indexed_item",
-                                     ps.token.location}),
-                  expr),
-              start);
+              new Var(Identifier{is_slice ? "__getslice2__"
+                                          : "std.get_indexed_item",
+                                 ps.token.location}),
+              {expr, start});
         }
       } else {
         const Expr *stop = parse_expr(ps);
         chomp_token(tk_rsquare);
 
         assert(is_slice);
-        expr = new Application(
-            new Application(
-                new Application(new Var(ps.id_mapped(Identifier{
-                                    "__getslice3__", ps.token.location})),
-                                expr),
-                start),
-            stop);
+        expr = new Application(new Var(ps.id_mapped(Identifier{
+                                   "__getslice3__", ps.token.location})),
+                               {expr, start, stop});
       }
       break;
     }
@@ -831,14 +807,15 @@ const Expr *parse_prefix_expr(ParseState &ps) {
   if (prefix.valid) {
     if (prefix.t.text == "-") {
       return new Application(
-          new Var(ps.id_mapped(Identifier{"negate", prefix.t.location})), rhs);
+          new Var(ps.id_mapped(Identifier{"negate", prefix.t.location})),
+          {rhs});
     } else if (prefix.t.text == "!") {
       return new Application(
-          new Var(Identifier{"std.load_value", prefix.t.location}), rhs);
+          new Var(Identifier{"std.load_value", prefix.t.location}), {rhs});
     } else {
       return new Application(
           new Var(ps.id_mapped(Identifier{prefix.t.text, prefix.t.location})),
-          rhs);
+          {rhs});
     }
   } else {
     return rhs;
@@ -854,8 +831,7 @@ const Expr *parse_times_expr(ParseState &ps) {
     Identifier op = ps.id_mapped({ps.token.text, ps.token.location});
     ps.advance();
 
-    expr = new Application(new Application(new Var(op), expr),
-                           parse_prefix_expr(ps));
+    expr = new Application(new Var(op), {expr, parse_prefix_expr(ps)});
   }
 
   return expr;
@@ -870,8 +846,7 @@ const Expr *parse_plus_expr(ParseState &ps) {
     Identifier op = ps.id_mapped({ps.token.text, ps.token.location});
     ps.advance();
 
-    expr = new Application(new Application(new Var(op), expr),
-                           parse_times_expr(ps));
+    expr = new Application(new Var(op), {expr, parse_times_expr(ps)});
   }
 
   return expr;
@@ -885,8 +860,7 @@ const Expr *parse_shift_expr(ParseState &ps) {
     Identifier op = ps.id_mapped({ps.token.text, ps.token.location});
     ps.advance();
 
-    expr = new Application(new Application(new Var(op), expr),
-                           parse_plus_expr(ps));
+    expr = new Application(new Var(op), {expr, parse_plus_expr(ps)});
   }
 
   return expr;
@@ -903,8 +877,7 @@ const Expr *parse_binary_eq_expr(ParseState &ps) {
   Identifier op = ps.id_mapped({ps.token.text, ps.token.location});
   ps.advance();
 
-  return new Application(new Application(new Var(op), lhs),
-                         parse_shift_expr(ps));
+  return new Application(new Var(op), {lhs, parse_shift_expr(ps)});
 }
 
 const Expr *parse_ineq_expr(ParseState &ps) {
@@ -918,8 +891,7 @@ const Expr *parse_ineq_expr(ParseState &ps) {
   Identifier op = ps.id_mapped({ps.token.text, ps.token.location});
   ps.advance();
 
-  return new Application(new Application(new Var(op), lhs),
-                         parse_shift_expr(ps));
+  return new Application(new Var(op), {lhs, parse_shift_expr(ps)});
 }
 
 const Expr *parse_eq_expr(ParseState &ps) {
@@ -942,8 +914,7 @@ const Expr *parse_eq_expr(ParseState &ps) {
       {not_in ? "not-in" : ps.token.text, ps.token.location});
   ps.advance();
 
-  return new Application(new Application(new Var(op), lhs),
-                         parse_ineq_expr(ps));
+  return new Application(new Var(op), {lhs, parse_ineq_expr(ps)});
 }
 
 const Expr *parse_bitwise_and(ParseState &ps) {
@@ -953,8 +924,7 @@ const Expr *parse_bitwise_and(ParseState &ps) {
     Identifier op = ps.id_mapped({ps.token.text, ps.token.location});
     ps.advance();
 
-    expr = new Application(new Application(new Var(op), expr),
-                           parse_eq_expr(ps));
+    expr = new Application(new Var(op), {expr, parse_eq_expr(ps)});
   }
 
   return expr;
@@ -967,8 +937,7 @@ const Expr *parse_bitwise_xor(ParseState &ps) {
     Identifier op = ps.id_mapped({ps.token.text, ps.token.location});
     ps.advance();
 
-    expr = new Application(new Application(new Var(op), expr),
-                           parse_bitwise_and(ps));
+    expr = new Application(new Var(op), {expr, parse_bitwise_and(ps)});
   }
   return expr;
 }
@@ -980,8 +949,7 @@ const Expr *parse_bitwise_or(ParseState &ps) {
     Identifier op = ps.id_mapped({ps.token.text, ps.token.location});
     ps.advance();
 
-    expr = new Application(new Application(new Var(op), expr),
-                           parse_bitwise_xor(ps));
+    expr = new Application(new Var(op), {expr, parse_bitwise_xor(ps)});
   }
 
   return expr;
@@ -1099,9 +1067,8 @@ const Expr *parse_assignment(ParseState &ps) {
   case tk_assign:
     ps.advance();
     return new Application(
-        new Application(
-            new Var(Identifier{"std.store_value", ps.token.location}), lhs),
-        parse_expr(ps));
+        new Var(Identifier{"std.store_value", ps.token.location}),
+        {lhs, parse_expr(ps)});
   case tk_divide_by_eq:
   case tk_minus_eq:
   case tk_mod_eq:
@@ -1112,17 +1079,15 @@ const Expr *parse_assignment(ParseState &ps) {
     const Expr *rhs = parse_expr(ps);
     Identifier copy_value = Identifier{fresh(), lhs->get_location()};
     return new Application(
-        new Application(
-            new Var(Identifier{"std.store_value", op_token.location}), lhs),
-        new Let(
-            copy_value,
-            new Application(
-                new Var(Identifier{"std.load_value", op_token.location}), lhs),
-            new Application(new Application(new Var(ps.id_mapped(
-                                                {op_token.text.substr(0, 1),
-                                                 op_token.location})),
-                                            new Var(copy_value)),
-                            rhs)));
+        new Var(Identifier{"std.store_value", op_token.location}),
+        {lhs, new Let(copy_value,
+                      new Application(new Var(Identifier{"std.load_value",
+                                                         op_token.location}),
+                                      {lhs}),
+                      new Application(
+                          new Var(ps.id_mapped(
+                              {op_token.text.substr(0, 1), op_token.location})),
+                          {new Var(copy_value), rhs}))});
   }
   case tk_becomes:
     if (const Var *var = dcast<const Var *>(lhs)) {
@@ -1469,23 +1434,34 @@ const Expr *parse_lambda(ParseState &ps) {
     throw user_error(ps.token.location, "not yet impl");
   }
 
-  auto param = parse_lambda_param(ps);
+  std::vector<Identifier> param_ids;
+  types::Refs param_types;
+  chomp_token(tk_lparen);
 
-  if (ps.token.tk == tk_comma) {
-    return new Lambda(param.first, param.second, nullptr,
-                      new ReturnStatement(parse_lambda(ps)));
-  } else if (ps.token.tk == tk_rparen) {
-    ps.advance();
-
-    types::Ref return_type;
-    if (token_begins_type(ps.token) && !ps.line_broke()) {
-      return_type = parse_type(ps, true /*allow_top_level_application*/);
+  while (!maybe_chomp_token(tk_rparen)) {
+    if (param_ids.size() != 0 && ps.token.tk != tk_rparen) {
+      /* chomp any delimiting commas */
+      chomp_token(tk_comma);
     }
-    return new Lambda(param.first, param.second, return_type,
-                      parse_block(ps, true /*expression_means_return*/));
-  } else {
-    throw user_error(ps.token.location, "unexpected token");
+
+    auto id_type_pair = parse_lambda_param_core(ps);
+    param_ids.push_back(id_type_pair.first);
+    param_types.push_back(id_type_pair.second);
   }
+
+  assert(param_ids.size() == param_types.size());
+  if (param_ids.size() == 0) {
+    param_types.push_back(type_unit(ps.token.location));
+    param_ids.push_back(Identifier{"_", ps.token.location});
+  }
+
+  types::Ref return_type;
+  if (token_begins_type(ps.token) && !ps.line_broke()) {
+    return_type = parse_type(ps, true /*allow_top_level_application*/);
+  }
+
+  return new Lambda(param_ids, param_types, return_type,
+                    parse_block(ps, true /*expression_means_return*/));
 }
 
 types::Ref parse_function_type(ParseState &ps) {
@@ -1667,11 +1643,8 @@ const Expr *create_ctor(Location location,
                             true /*force_cast*/);
 
   assert(dims.size() == params.size() + 1);
-  for (int i = params.size() - 1; i >= 0; --i) {
-    /* (λx y z . return! (ctor_id, x, y, z) as! type_decl) */
-    expr = new Lambda(params[i], param_types[i], nullptr,
-                      new ReturnStatement(expr));
-  }
+  /* (λx y z . return! (ctor_id, x, y, z) as! type_decl) */
+  expr = new Lambda(params, param_types, nullptr, new ReturnStatement(expr));
 
   return expr;
 }
@@ -1707,12 +1680,13 @@ DataTypeDecl parse_struct_decl(ParseState &ps, types::Map &data_ctors) {
     dims.push_back(parse_type(ps, true /*allow_top_level_application*/));
   }
 
+  /* create accessor functions */
   for (int i = 1 /*skip the ctor_id*/; i < dims.size(); ++i) {
     decls.push_back(new Decl(
         /* accessor function names look like __.x */
         make_accessor_id(member_ids[i]),
         new Lambda(
-            Identifier{"obj", member_ids[i].location}, type_decl.get_type(),
+            {Identifier{"obj", member_ids[i].location}}, {type_decl.get_type()},
             dims[i],
             new ReturnStatement(new TupleDeref(
                 new As(new Var(Identifier{"obj", member_ids[i].location}),
@@ -1771,23 +1745,19 @@ DataTypeDecl parse_newtype_decl(ParseState &ps,
       dims.push_back(new Var(dim_names.back()));
     }
 
-    /* the inner part of the newtype ctor */
-    const Expr *body = new As(new Tuple(tuple_type->get_location(), dims),
-                              type_decl.get_type(), true /*force_cast*/);
-    int i = tuple_type->dimensions.size();
-    for (auto type_iter = tuple_type->dimensions.rbegin();
-         type_iter != tuple_type->dimensions.rend(); ++type_iter) {
-      body = new Lambda(dim_names[--i], *type_iter,
-                        type_variable(INTERNAL_LOC()),
-                        new ReturnStatement(body));
-    }
-    decl = new Decl(type_decl.id, body);
+    decl = new Decl(
+        type_decl.id,
+        new Lambda(dim_names, tuple_type->dimensions,
+                   type_variable(INTERNAL_LOC()),
+                   new ReturnStatement(
+                       new As(new Tuple(tuple_type->get_location(), dims),
+                              type_decl.get_type(), true /*force_cast*/))));
   } else {
     ctor_parts.push_back(rhs_type);
     Identifier param_iid = Identifier{bitter::fresh(),
                                       rhs_type->get_location()};
     decl = new Decl(type_decl.id,
-                    new Lambda(param_iid, rhs_type, type_decl.get_type(),
+                    new Lambda({param_iid}, {rhs_type}, type_decl.get_type(),
                                new ReturnStatement(new As(
                                    new Var(param_iid), type_decl.get_type(),
                                    true /*force_cast*/))));

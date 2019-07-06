@@ -46,6 +46,7 @@ inline Identifier iid(const Token &token) {
 #define expect_token(_tk)                                                      \
   do {                                                                         \
     if (ps.token.tk != _tk) {                                                  \
+      dbg();                                                                   \
       ps.error("expected '%s', got '%s' " c_id("%s"), tkstr(_tk),              \
                tkstr(ps.token.tk),                                             \
                ps.token.tk == tk_identifier ? ps.token.text.c_str() : "");     \
@@ -62,6 +63,8 @@ inline Identifier iid(const Token &token) {
     }                                                                          \
   } while (0)
 
+#define maybe_chomp_token(_tk)                                                 \
+  ((ps.token.tk == (_tk)) ? (ps.advance(), true) : (false))
 #define chomp_token(_tk)                                                       \
   do {                                                                         \
     expect_token(_tk);                                                         \
