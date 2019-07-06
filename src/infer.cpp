@@ -36,17 +36,25 @@ types::Ref infer_core(const Expr *expr,
     set_concat(instance_requirements, scheme->predicates);
     return scheme->type;
   } else if (auto lambda = dcast<const Lambda *>(expr)) {
-    auto tv = lambda->param_type != nullptr
-                  ? lambda->param_type
-                  : type_variable(lambda->var.location);
-    auto return_type = type_variable(lambda->var.location);
+    types::Refs tvs;
+    int i = 0;
+    assert(lambda->param_types.size() == lambda->vars.size());
+    for (auto &param_type : lambda->param_types) {
+      tvs.push_back(param_type != nullptr
+                        ? param_type
+                        : type_variable(lambda->vars[i++].location));
+    }
+    auto return_type = type_variable(lambda->get_location());
     Env local_env = Env{env};
     local_env.return_type = return_type;
     /* lambdas are monomorphic at the time of initialization/definition/capture.
      * so, we do not include the var |tv| in the scheme. this way, when the
      * scheme freshens, it will not erase the reference to this variable. */
-    local_env.extend(lambda->var, scheme({}, {}, tv),
-                     true /*allow_subscoping*/);
+    i = 0;
+    for (auto &var : lambda->vars) {
+      local_env.extend(var, scheme({}, {}, tvs[i++]),
+                       true /*allow_subscoping*/);
+    }
     auto body_type = infer(lambda->body, local_env, constraints,
                            instance_requirements);
     append_to_constraints(constraints, body_type,
@@ -60,18 +68,24 @@ types::Ref infer_core(const Expr *expr,
                        "return type does not match type annotation :: %s",
                        lambda->return_type->str().c_str()));
     }
-    return type_arrow(lambda->get_location(), tv, return_type);
+    return type_arrow(type_params(tvs), return_type);
   } else if (auto application = dcast<const Application *>(expr)) {
     auto t1 = infer(application->a, env, constraints, instance_requirements);
-    auto t2 = infer(application->b, env, constraints, instance_requirements);
+    std::vector<types::Ref> param_types;
+    param_types.reserve(application->params.size());
+    for (auto &param : application->params) {
+      param_types.push_back(
+          infer(param, env, constraints, instance_requirements));
+    }
+    auto t2 = type_params(param_types);
     auto tv = type_variable(expr->get_location());
     append_to_constraints(
         constraints, t1, type_arrow(application->get_location(), t2, tv),
         make_context(application->get_location(),
-                     "(%s :: %s) applied to (%s :: %s) results in type %s",
+                     "(%s :: %s) applied to ((%s) :: %s) results in type %s",
                      application->a->str().c_str(), t1->str().c_str(),
-                     application->b->str().c_str(), t2->str().c_str(),
-                     tv->str().c_str()));
+                     join_str(application->params, ", ").c_str(),
+                     t2->str().c_str(), tv->str().c_str()));
     return tv;
   } else if (auto let = dcast<const Let *>(expr)) {
     Env local_env{env.map, nullptr /*return_type*/, env.tracked_types,

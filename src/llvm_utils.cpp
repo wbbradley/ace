@@ -575,9 +575,17 @@ llvm::Value *llvm_last_param(llvm::Function *llvm_function) {
 llvm::FunctionType *get_llvm_arrow_function_type(llvm::IRBuilder<> &builder,
                                                  const types::TypeEnv &type_env,
                                                  const types::Refs &terms) {
-  assert(terms.size() > 1);
-  llvm::Type *param_types[] = {get_llvm_type(builder, type_env, terms[0]),
-                               builder.getInt8Ty()->getPointerTo()};
+  assert(terms.size() == 2);
+  auto type_params = safe_dyncast<const types::TypeParams>(terms[0]);
+
+  std::vector<llvm::Type *> llvm_param_types;
+  for (auto &type_param : type_params->dimensions) {
+    llvm_param_types.push_back(get_llvm_type(builder, type_env, type_param));
+  }
+
+  /* push the closure */
+  llvm_param_types.push_back(builder.getInt8Ty()->getPointerTo());
+
   llvm::Type *return_type = (terms.size() == 2)
                                 ? get_llvm_type(builder, type_env, terms[1])
                                 : get_llvm_closure_type(
@@ -586,7 +594,7 @@ llvm::FunctionType *get_llvm_arrow_function_type(llvm::IRBuilder<> &builder,
 
   /* get the llvm function type for the data ctor */
   return llvm::FunctionType::get(return_type,
-                                 llvm::ArrayRef<llvm::Type *>(param_types),
+                                 llvm::ArrayRef<llvm::Type *>(llvm_param_types),
                                  false /*isVarArg*/);
 }
 

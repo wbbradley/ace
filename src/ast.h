@@ -235,27 +235,30 @@ struct Sizeof : public Expr {
 };
 
 struct Application : public Expr {
-  Application(const Expr *a, const Expr *b) : a(a), b(b) {
+  Application(const Expr *a, const std::vector<const Expr *> &params)
+      : a(a), params(params) {
   }
   Location get_location() const override;
   std::ostream &render(std::ostream &os, int parent_precedence) const override;
+
   const Expr *a;
-  const Expr *b;
+  std::vector<const Expr *> params;
 };
 
 struct Lambda : public Expr {
-  Lambda(Identifier var,
-         types::Ref param_type,
+  Lambda(Identifiers vars,
+         types::Refs param_types,
          types::Ref return_type,
          const Expr *body)
-      : var(var), param_type(param_type), return_type(return_type), body(body) {
+      : vars(vars), param_types(param_types), return_type(return_type),
+        body(body) {
   }
   Location get_location() const override;
   std::ostream &render(std::ostream &os, int parent_precedence) const override;
 
-  Identifier var;
+  Identifiers vars;
   const Expr *body;
-  types::Ref param_type;
+  types::Refs param_types;
   types::Ref return_type;
 };
 

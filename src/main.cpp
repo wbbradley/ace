@@ -545,14 +545,26 @@ struct phase_2_t {
   }
 };
 
+static int get_builtin_arity(const types::Refs &terms) {
+  assert(terms.size() > 0 && terms.size() < 3);
+  if (terms.size() == 1) {
+    return 0;
+  } else {
+    types::TypeParams::Ref type_params = safe_dyncast<const types::TypeParams>(
+        terms[0]);
+    return type_params->dimensions.size();
+  }
+}
+
 std::map<std::string, int> get_builtin_arities() {
   const types::Scheme::Map &map = get_builtins();
   std::map<std::string, int> builtin_arities;
   for (auto pair : map) {
     types::Refs terms;
     unfold_binops_rassoc(ARROW_TYPE_OPERATOR, pair.second->type, terms);
-    builtin_arities[pair.first] = terms.size() - 1;
+    builtin_arities[pair.first] = get_builtin_arity(terms);
   }
+
   debug_above(
       7,
       log("builtin_arities are %s",

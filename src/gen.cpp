@@ -58,12 +58,16 @@ struct FreeVars {
   }
 };
 
-types::Ref get_nth_type_in_arrow(types::Ref arrow_type, int n) {
+#ifdef ZION_DEBUG
+static types::Ref get_nth_type_in_lambda_type(types::Ref arrow_type, int n) {
   types::Refs terms;
   unfold_binops_rassoc(ARROW_TYPE_OPERATOR, arrow_type, terms);
-  assert(n < terms.size());
-  return terms[n];
+  assert(terms.size() == 2);
+  auto type_params = safe_dyncast<const types::TypeParams>(terms[0]);
+  assert(type_params->dimensions.size() > n);
+  return type_params->dimensions[n];
 }
+#endif
 
 void get_free_vars(const bitter::Expr *expr,
                    const TrackedTypes &typing,
@@ -79,20 +83,41 @@ void get_free_vars(const bitter::Expr *expr,
     }
   } else if (auto lambda = dcast<const bitter::Lambda *>(expr)) {
     debug_above(5, log("checking lambda %s", lambda->str().c_str()));
+
+#ifdef ZION_DEBUG
     auto lambda_type = typing.at(lambda);
-    bool already_has_lambda_var = free_vars.contains(
-        lambda->var, get_nth_type_in_arrow(lambda_type, 0));
+    std::vector<bool> already_has_lambda_vars;
+    int i = 0;
+    for (auto &var : lambda->vars) {
+      already_has_lambda_vars.push_back(free_vars.contains(
+          var, get_nth_type_in_lambda_type(lambda_type, i++)));
+    }
+#endif
+
+    /* bind the params so that they do not appear as free variables from lower
+     * scoping */
     auto new_globals = globals;
-    new_globals.insert(lambda->var.name);
+    for (auto &var : lambda->vars) {
+      new_globals.insert(var.name);
+    }
     get_free_vars(lambda->body, typing, new_globals, {}, free_vars);
+
+#ifdef ZION_DEBUG
     /* we should never be adding a bound variable name to the closure if it is
      * being overwritten at a lower scope prior to capture */
-    assert_implies(!already_has_lambda_var,
-                   !free_vars.contains(lambda->var,
-                                       get_nth_type_in_arrow(lambda_type, 0)));
+    i = 0;
+    for (auto &var : lambda->vars) {
+      assert_implies(!already_has_lambda_vars[i],
+                     !free_vars.contains(
+                         var, get_nth_type_in_lambda_type(lambda_type, i)));
+      ++i;
+    }
+#endif
   } else if (auto application = dcast<const bitter::Application *>(expr)) {
     get_free_vars(application->a, typing, globals, locals, free_vars);
-    get_free_vars(application->b, typing, globals, locals, free_vars);
+    for (auto &param : application->params) {
+      get_free_vars(param, typing, globals, locals, free_vars);
+    }
   } else if (auto let = dcast<const bitter::Let *>(expr)) {
     // TODO: allow let-rec
     get_free_vars(let->value, typing, globals, locals, free_vars);
@@ -783,8 +808,13 @@ void gen_lambda(std::string name,
       /* inject the closure itself so that it can self refer */
       // set_env_var(new_env, name, type, opaque_closure);
     }
-    set_env_var(new_env_locals, lambda->var.name, type_terms[0],
-                &*llvm_function->args().begin());
+
+    assert(type_terms.size() == lambda->vars.size());
+    auto args_iter = llvm_function->args().begin();
+    for (int i = 0; i < type_terms.size(); ++i) {
+      set_env_var(new_env_locals, lambda->vars[i].name, type_terms[i],
+                  &*args_iter++);
+    }
 
     if (closure != nullptr) {
       assert(free_vars.typed_ids.size() != 0);
@@ -977,29 +1007,28 @@ resolution_status_t gen(std::string name,
                  gen_env_globals, gen_env_locals, globals, publisher);
       return rs_cache_resolution;
     } else if (auto application = dcast<const bitter::Application *>(expr)) {
-      debug_above(4, log("applying (%s :: %s) (%s :: %s)...",
+      debug_above(4, log("applying (%s :: %s) ((%s) :: ...TODO...)...",
                          application->a->str().c_str(),
                          typing.at(application->a)->str().c_str(),
-                         application->b->str().c_str(),
-                         typing.at(application->b)->str().c_str()));
+                         join_str(application->params, ", ").c_str()));
 
       llvm::Value *closure = gen(builder, llvm_module, break_to_block,
                                  continue_to_block, application->a, typing,
                                  type_env, gen_env_globals, gen_env_locals,
                                  globals);
 
-      llvm::Value *lambda_arg = gen(builder, llvm_module, break_to_block,
-                                    continue_to_block, application->b, typing,
-                                    type_env, gen_env_globals, gen_env_locals,
-                                    globals);
+      std::vector<llvm::Value *> args;
+      for (auto &param : application->params) {
+        args.push_back(gen(builder, llvm_module, break_to_block,
+                           continue_to_block, param, typing, type_env,
+                           gen_env_globals, gen_env_locals, globals));
+      }
 
       llvm::Value *llvm_function_to_call = nullptr;
       destructure_closure(builder, closure, &llvm_function_to_call, nullptr);
 
-      llvm::Value *args[] = {
-          lambda_arg,
-          builder.CreateBitCast(closure, builder.getInt8Ty()->getPointerTo(),
-                                "closure_cast")};
+      args.push_back(builder.CreateBitCast(
+          closure, builder.getInt8Ty()->getPointerTo(), "closure_cast"));
 
       debug_above(4, log("calling builder.CreateCall(%s, {%s, %s})",
                          llvm_print(llvm_function_to_call->getType()).c_str(),
