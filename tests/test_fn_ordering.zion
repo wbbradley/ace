@@ -1,12 +1,12 @@
-# test: pass
-# expect: 3
-
-fn h(x) {
-    return 3
-}
+# test: skip
+# expect: Int
 
 fn g() {
     return h(1)
+}
+
+fn h(x) Int {
+    return 3
 }
 
 fn main() {

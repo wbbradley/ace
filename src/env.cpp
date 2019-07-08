@@ -8,13 +8,13 @@
 #include "types.h"
 #include "user_error.h"
 
-Env::Env(const types::Scheme::Map &map,
+Env::Env(const SchemeResolver &scheme_resolver,
          const std::shared_ptr<const types::Type> &return_type,
          std::shared_ptr<TrackedTypes> tracked_types,
          const CtorIdMap &ctor_id_map,
          const DataCtorsMap &data_ctors_map)
-    : TranslationEnv(tracked_types, ctor_id_map, data_ctors_map), map(map),
-      return_type(return_type) {
+    : TranslationEnv(tracked_types, ctor_id_map, data_ctors_map),
+      scheme_resolver(scheme_resolver), return_type(return_type) {
 }
 
 std::vector<std::pair<std::string, types::Refs>> Env::get_ctors(
@@ -22,33 +22,27 @@ std::vector<std::pair<std::string, types::Refs>> Env::get_ctors(
   return {};
 }
 
-types::Scheme::Ref Env::maybe_lookup_env(Identifier id) const {
-  return get(map, id.name, types::Scheme::Ref{});
-}
-
 types::Scheme::Ref Env::lookup_env(Identifier id) const {
-  auto type = maybe_lookup_env(id);
-  if (type != nullptr) {
-    return type;
-  }
+  return scheme_resolver.resolve(id.name);
+  /*
   auto error = user_error(id.location, "unbound variable " C_ID "%s" C_RESET,
                           id.name.c_str());
-  /*
+#if 0
   for (auto pair : map) {
     error.add_info(pair.second->get_location(), "env includes %s :: %s",
                    pair.first.c_str(), pair.second->str().c_str());
   }
-  */
+#endif
+
   throw error;
+  */
 }
 
 void Env::rebind_env(const types::Map &bindings) {
   if (bindings.size() == 0) {
     return;
   }
-  for (auto pair : map) {
-    map[pair.first] = pair.second->rebind(bindings);
-  }
+  scheme_resolver.rebind(bindings);
 
   assert(tracked_types != nullptr);
   TrackedTypes temp_tracked_types;

@@ -410,6 +410,11 @@ std::string Decl::str() const {
   return ss.str();
 }
 
+types::SchemeRef Decl::get_early_scheme() const {
+  // TODO: make this a little smarter
+  return type_variable(INTERNAL_LOC())->generalize({});
+}
+
 Location Decl::get_location() const {
   return id.location;
 }

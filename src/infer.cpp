@@ -87,7 +87,7 @@ types::Ref infer_core(const Expr *expr,
                      t2->str().c_str(), tv->str().c_str()));
     return tv;
   } else if (auto let = dcast<const Let *>(expr)) {
-    Env local_env{env.map, nullptr /*return_type*/, env.tracked_types,
+    Env local_env{env.scheme_resolver, nullptr /*return_type*/, env.tracked_types,
                   env.ctor_id_map, env.data_ctors_map};
 
     auto t1 = infer(let->value, local_env, constraints, instance_requirements);
