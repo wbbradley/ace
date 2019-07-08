@@ -3,9 +3,13 @@
 #include <unordered_set>
 
 #include "ast.h"
+#include "dbg.h"
 #include "builtins.h"
+#include "ptr.h"
 #include "unification.h"
 #include "user_error.h"
+
+namespace zion {
 
 using namespace bitter;
 
@@ -37,14 +41,14 @@ struct TTC {
   const TrackedTypes &typing;
 };
 
-const Expr *texpr(const DefnId &for_defn_id,
+const Expr *texpr(const types::DefnId &for_defn_id,
                   const bitter::Expr *expr,
                   const std::unordered_set<std::string> &bound_vars,
                   types::Ref type,
                   const types::TypeEnv &type_env,
                   const TranslationEnv &tenv,
                   TrackedTypes &typing,
-                  NeededDefns &needed_defns,
+                  types::NeededDefns &needed_defns,
                   bool &returns) {
   TTC ttc(string_format("texpr(%s, %s, ..., %s, ...)",
                         for_defn_id.str().c_str(), expr->str().c_str(),
@@ -94,7 +98,8 @@ const Expr *texpr(const DefnId &for_defn_id,
       return unit_ret;
     } else if (auto var = dcast<const Var *>(expr)) {
       if (!in(var->id.name, bound_vars)) {
-        auto defn_id = DefnId{var->id, type->generalize({})->normalize()};
+        auto defn_id = types::DefnId{var->id,
+                                     type->generalize({})->normalize()};
         debug_above(6, log(c_id("%s") " depends on " c_id("%s"),
                            for_defn_id.str().c_str(), defn_id.str().c_str()));
         insert_needed_defn(needed_defns, defn_id, var->get_location(),
@@ -143,7 +148,7 @@ const Expr *texpr(const DefnId &for_defn_id,
       assert(terms.size() > 1);
 
       types::Ref resolution_type = type_arrow(operand_type, type);
-      Unification unification = unify(operator_type, resolution_type);
+      types::Unification unification = unify(operator_type, resolution_type);
       assert(unification.result);
       operator_type = operator_type->rebind(unification.bindings);
 
@@ -305,12 +310,12 @@ const Expr *texpr(const DefnId &for_defn_id,
 }
 
 Translation::ref translate_expr(
-    const DefnId &for_defn_id,
+    const types::DefnId &for_defn_id,
     const bitter::Expr *expr,
     const std::unordered_set<std::string> &bound_vars,
     const types::TypeEnv &type_env,
     const TranslationEnv &tenv,
-    NeededDefns &needed_defns,
+    types::NeededDefns &needed_defns,
     bool &returns) {
   TrackedTypes typing;
   const Expr *translated_expr = texpr(for_defn_id, expr, bound_vars,
@@ -435,3 +440,5 @@ int TranslationEnv::get_ctor_id(std::string ctor_name) const {
     return iter->second;
   }
 }
+
+} // namespace zion

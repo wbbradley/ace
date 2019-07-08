@@ -11,9 +11,11 @@
 #include "types.h"
 #include "zion.h"
 
+namespace zion {
+
 ParseState::ParseState(std::string filename,
                        std::string module_name,
-                       zion_lexer_t &lexer,
+                       Lexer &lexer,
                        std::vector<Token> &comments,
                        std::set<LinkIn> &link_ins,
                        const std::map<std::string, int> &builtin_arities)
@@ -83,3 +85,5 @@ void ParseState::add_term_map(Location location,
   }
   term_map[key] = value;
 }
+
+} // namespace zion

@@ -17,6 +17,8 @@
 #include "utils.h"
 #include "zion.h"
 
+namespace zion {
+
 using namespace bitter;
 
 std::string strip_zion_extension(std::string module_name) {
@@ -167,14 +169,14 @@ struct GlobalParserState {
     if (ifs.good()) {
       debug_above(11, log(log_info, "parsing module " c_id("%s"),
                           module_filename.c_str()));
-      zion_lexer_t lexer({module_filename}, ifs);
+      Lexer lexer({module_filename}, ifs);
 
       ParseState ps(module_filename, "", lexer, comments, link_ins,
                     builtin_arities);
 
       std::set<Identifier> dependencies;
-      const Module *module = ::parse_module(ps, {modules_map_by_name["std"]},
-                                            dependencies);
+      const Module *module = parse_module(ps, {modules_map_by_name["std"]},
+                                          dependencies);
 
       modules.push_back(module);
       modules_map_by_name[ps.module_name] = module;
@@ -313,3 +315,4 @@ Compilation::ref parse_program(
 }
 
 } // namespace compiler
+} // namespace zion

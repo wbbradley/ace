@@ -5,6 +5,8 @@
 #include "ast.h"
 #include "identifier.h"
 
+namespace zion {
+
 std::string prefix(const std::set<std::string> &bindings,
                    std::string pre,
                    std::string name);
@@ -70,7 +72,7 @@ std::vector<T> prefix(const std::set<std::string> &bindings,
                       const std::vector<T> &things) {
   std::vector<T> new_things;
   for (T pb : things) {
-    new_things.push_back(::prefix(bindings, pre, pb));
+    new_things.push_back(prefix(bindings, pre, pb));
   }
   return new_things;
 }
@@ -120,3 +122,5 @@ std::unordered_map<std::string, T> prefix(
   }
   return new_map;
 }
+
+} // namespace zion

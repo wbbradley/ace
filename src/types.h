@@ -210,7 +210,7 @@ bool is_unit(Ref type);
 }; // namespace types
 
 typedef std::map<std::string, types::Map> DataCtorsMap;
-typedef std::unordered_map<const bitter::Expr *, types::Ref> TrackedTypes;
+typedef std::unordered_map<const zion::bitter::Expr *, types::Ref> TrackedTypes;
 typedef std::unordered_map<std::string, int> CtorIdMap;
 
 std::string gensym_name();

@@ -8,15 +8,17 @@
 #define debug_lexer(x)
 #endif
 
+namespace zion {
+
 struct token_pair {
   token_kind tk;
   std::string text;
 };
 
-class zion_lexer_t {
+class Lexer {
 public:
-  zion_lexer_t(std::string filename, std::istream &sock_is);
-  ~zion_lexer_t();
+  Lexer(std::string filename, std::istream &sock_is);
+  ~Lexer();
 
   bool get_token(Token &token, bool &newline, std::vector<Token> *comments);
   bool _get_tokens();
@@ -32,5 +34,7 @@ private:
   std::string m_filename;
   std::istream &m_is;
   int m_line = 1, m_col = 1;
-  ZionTokenQueue m_token_queue;
+  TokenQueue m_token_queue;
 };
+
+} // namespace zion

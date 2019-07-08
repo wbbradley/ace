@@ -3,6 +3,8 @@
 #include "types.h"
 #include "zion.h"
 
+namespace zion {
+
 llvm::Constant *llvm_create_struct_instance(
     std::string var_name,
     llvm::Module *llvm_module,
@@ -143,3 +145,5 @@ void destructure_closure(llvm::IRBuilder<> &builder,
                          llvm::Value *closure,
                          llvm::Value **llvm_function,
                          llvm::Value **llvm_closure_env);
+
+} // namespace zion

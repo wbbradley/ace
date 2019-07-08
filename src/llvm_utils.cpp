@@ -8,7 +8,7 @@
 #include "logger.h"
 #include "utils.h"
 
-const char *GC_STRATEGY = "zion";
+namespace zion {
 
 llvm::Value *llvm_create_global_string(llvm::IRBuilder<> &builder,
                                        std::string value) {
@@ -793,3 +793,5 @@ void destructure_closure(llvm::IRBuilder<> &builder,
   }
   dbg_when(llvm_print(*llvm_function).find("badref") != std::string::npos);
 }
+
+} // namespace zion

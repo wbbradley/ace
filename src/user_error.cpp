@@ -7,14 +7,18 @@
 #include "dbg.h"
 #include "logger.h"
 
-static bool errors_occurred = false;
+namespace zion {
+
+namespace {
+bool errors_occurred_ = false;
+}
 
 bool user_error::errors_occurred() {
-  return ::errors_occurred;
+  return errors_occurred_;
 }
 
 void user_error::reset_errors_occurred() {
-  ::errors_occurred = false;
+  errors_occurred_ = false;
 }
 
 void print_exception(const user_error &e, int level) {
@@ -31,7 +35,7 @@ user_error::user_error(log_level_t log_level, Location location)
     : log_level(log_level), location(location),
       extra_info(
           std::make_shared<std::vector<std::pair<Location, std::string>>>()) {
-  ::errors_occurred = true;
+  errors_occurred_ = true;
 }
 
 user_error::user_error(log_level_t log_level,
@@ -101,3 +105,5 @@ void user_error::add_info(Location location, const char *format...) {
   va_end(args);
   extra_info->push_back({location, info});
 }
+
+} // namespace zion

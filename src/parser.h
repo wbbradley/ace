@@ -6,12 +6,14 @@
 #include "lexer.h"
 #include "parse_state.h"
 
+namespace zion {
+
 std::map<std::string, int> get_builtin_arities();
 
 template <typename T, typename... Args>
 std::shared_ptr<T> parse_text(std::istream &is,
                               std::string filename = "repl.zion") {
-  zion_lexer_t lexer(filename, is);
+  Lexer lexer(filename, is);
   std::vector<Token> comments;
   std::set<LinkIn> link_ins;
 
@@ -97,3 +99,5 @@ const bitter::Predicate *parse_predicate(ParseState &ps,
 const bitter::Predicate *unfold_application_into_predicate(
     const bitter::Application *application);
 const bitter::Predicate *convert_expr_to_predicate(const bitter::Expr *expr);
+
+} // namespace zion

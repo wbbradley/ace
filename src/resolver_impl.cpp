@@ -6,6 +6,8 @@
 #include "llvm_utils.h"
 #include "user_error.h"
 
+namespace zion {
+
 namespace gen {
 
 StrictResolver::StrictResolver(llvm::Value *llvm_value)
@@ -99,3 +101,5 @@ Location LazyResolver::get_location() const {
 }
 
 } // namespace gen
+
+} // namespace zion

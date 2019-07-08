@@ -3,6 +3,8 @@
 
 #include "token.h"
 
+namespace zion {
+
 enum LinkInType {
   lit_pkgconfig,
 };
@@ -18,3 +20,5 @@ struct LinkIn {
   Token name;
   bool operator<(const LinkIn &) const;
 };
+
+} // namespace zion

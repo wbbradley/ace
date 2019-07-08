@@ -3,6 +3,8 @@
 #include "class_predicate.h"
 #include "ptr.h"
 
+namespace zion {
+
 using namespace bitter;
 
 std::string prefix(const std::set<std::string> &bindings,
@@ -185,8 +187,8 @@ const Expr *prefix(const std::set<std::string> &bindings,
         prefix(without(bindings, lambda->vars), pre, lambda->body));
   } else if (auto let = dcast<const Let *>(value)) {
     return new Let(let->var,
-                   prefix(without(bindings, let->var.name), pre, let->value),
-                   prefix(without(bindings, let->var.name), pre, let->body));
+                   prefix(::without(bindings, let->var.name), pre, let->value),
+                   prefix(::without(bindings, let->var.name), pre, let->body));
   } else if (auto conditional = dcast<const Conditional *>(value)) {
     return new Conditional(prefix(bindings, pre, conditional->cond),
                            prefix(bindings, pre, conditional->truthy),
@@ -273,3 +275,5 @@ types::Scheme::Ref prefix(const std::set<std::string> &bindings,
                   // prefix(bindings, pre, scheme->predicates, false),
                   prefix(bindings, pre, scheme->type));
 }
+
+} // namespace zion

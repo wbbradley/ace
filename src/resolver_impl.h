@@ -5,6 +5,8 @@
 #include "llvm_utils.h"
 #include "resolver.h"
 
+namespace zion {
+
 namespace gen {
 
 struct StrictResolver final : public Resolver {
@@ -45,3 +47,5 @@ private:
 };
 
 } // namespace gen
+
+} // namespace zion

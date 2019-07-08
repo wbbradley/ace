@@ -7,6 +7,8 @@
 #include "types.h"
 #include "user_error.h"
 
+namespace zion {
+
 namespace gen {
 
 Resolver::~Resolver() {
@@ -42,3 +44,5 @@ void Publishable::publish(llvm::Value *llvm_value_) const {
 }
 
 } // namespace gen
+
+} // namespace zion

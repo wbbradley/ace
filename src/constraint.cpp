@@ -5,6 +5,8 @@
 const bool dbg_show_constraints = std::getenv("ZION_SHOW_CONSTRAINTS") !=
                                   nullptr;
 
+namespace types {
+
 Constraint::Constraint(types::Ref a, types::Ref b, Context &&context)
     : a(a), b(b), context(std::move(context)) {
 }
@@ -44,3 +46,18 @@ void append_to_constraints(Constraints &constraints,
   assert(b != nullptr);
   constraints.push_back({a, b, std::move(context)});
 }
+
+void rebind_constraints(Constraints::iterator iter,
+                        const Constraints::iterator &end,
+                        const Map &bindings) {
+  if (bindings.size() == 0) {
+    /* nothing to rebind, bail */
+    return;
+  }
+
+  while (iter != end) {
+    (*iter++).rebind(bindings);
+  }
+}
+
+} // namespace types

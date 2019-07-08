@@ -1,7 +1,7 @@
 #pragma once
+#include <functional>
 #include <memory>
 #include <string>
-#include <functional>
 
 #include "identifier.h"
 #include "scheme_resolver.h"
@@ -12,16 +12,18 @@ namespace bitter {
 struct Expr;
 }
 
+namespace zion {
+
 struct Env : public TranslationEnv {
   using ref = const Env &;
 
-  Env(const SchemeResolver &scheme_resolver,
+  Env(SchemeResolver &scheme_resolver,
       const std::shared_ptr<const types::Type> &return_type,
       std::shared_ptr<TrackedTypes> tracked_types,
       const CtorIdMap &ctor_id_map,
       const DataCtorsMap &data_ctors_map);
 
-  const SchemeResolver scheme_resolver;
+  SchemeResolver &scheme_resolver;
 
   std::shared_ptr<const types::Type> return_type;
 
@@ -37,5 +39,7 @@ struct Env : public TranslationEnv {
       types::Ref type) const;
   std::string str() const;
 };
+
+} // namespace zion
 
 std::string str(const types::Scheme::Map &m);

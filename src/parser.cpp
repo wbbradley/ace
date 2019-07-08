@@ -16,6 +16,8 @@
 #include "parse_state.h"
 #include "token.h"
 
+namespace zion {
+
 using namespace bitter;
 
 class RawParseMode {
@@ -2086,3 +2088,5 @@ const Module *parse_module(ParseState &ps,
   return new Module(ps.module_name, decls, type_decls, type_classes, instances,
                     ps.ctor_id_map, ps.data_ctors_map, ps.type_env);
 }
+
+} // namespace zion

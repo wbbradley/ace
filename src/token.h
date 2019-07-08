@@ -5,6 +5,8 @@
 #include "location.h"
 #include "stackstring.h"
 
+namespace zion {
+
 typedef stackstring_t<(1024 * 4) - sizeof(char) - sizeof(size_t)> zion_string_t;
 
 enum token_kind {
@@ -136,3 +138,5 @@ struct Token {
 
 const char *tkstr(token_kind tk);
 int64_t parse_int_value(Token token);
+
+} // namespace zion

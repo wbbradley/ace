@@ -13,6 +13,7 @@
 
 struct TranslationEnv;
 
+namespace zion {
 namespace bitter {
 
 std::string fresh();
@@ -76,14 +77,14 @@ struct Predicate {
                                           const TranslationEnv &env) const = 0;
   virtual types::Ref tracking_infer(
       Env &env,
-      Constraints &constraints,
+      types::Constraints &constraints,
       types::ClassPredicates &instance_requirements) const = 0;
   virtual Location get_location() const = 0;
   virtual Identifier instantiate_name_assignment() const = 0;
   virtual void get_bound_vars(
       std::unordered_set<std::string> &bound_vars) const = 0;
   virtual const Expr *translate(
-      const DefnId &defn_id,
+      const types::DefnId &defn_id,
       const Identifier &scrutinee_id,
       const types::Ref &scrutinee_type,
       bool do_checks,
@@ -91,7 +92,7 @@ struct Predicate {
       const types::TypeEnv &type_env,
       const TranslationEnv &tenv,
       TrackedTypes &typing,
-      NeededDefns &needed_defns,
+      types::NeededDefns &needed_defns,
       bool &returns,
       translate_continuation_t &matched,
       translate_continuation_t &failed) const = 0;
@@ -109,12 +110,12 @@ struct TuplePredicate : public Predicate {
                                   const TranslationEnv &env) const override;
   types::Ref tracking_infer(
       Env &env,
-      Constraints &constraints,
+      types::Constraints &constraints,
       types::ClassPredicates &instance_requirements) const override;
   Identifier instantiate_name_assignment() const override;
   void get_bound_vars(
       std::unordered_set<std::string> &bound_vars) const override;
-  const Expr *translate(const DefnId &defn_id,
+  const Expr *translate(const types::DefnId &defn_id,
                         const Identifier &scrutinee_id,
                         const types::Ref &scrutinee_type,
                         bool do_checks,
@@ -122,7 +123,7 @@ struct TuplePredicate : public Predicate {
                         const types::TypeEnv &type_env,
                         const TranslationEnv &tenv,
                         TrackedTypes &typing,
-                        NeededDefns &needed_defns,
+                        types::NeededDefns &needed_defns,
                         bool &returns,
                         translate_continuation_t &matched,
                         translate_continuation_t &failed) const override;
@@ -142,12 +143,12 @@ struct IrrefutablePredicate : public Predicate {
                                   const TranslationEnv &env) const override;
   types::Ref tracking_infer(
       Env &env,
-      Constraints &constraints,
+      types::Constraints &constraints,
       types::ClassPredicates &instance_requirements) const override;
   Identifier instantiate_name_assignment() const override;
   void get_bound_vars(
       std::unordered_set<std::string> &bound_vars) const override;
-  const Expr *translate(const DefnId &defn_id,
+  const Expr *translate(const types::DefnId &defn_id,
                         const Identifier &scrutinee_id,
                         const types::Ref &scrutinee_type,
                         bool do_checks,
@@ -155,7 +156,7 @@ struct IrrefutablePredicate : public Predicate {
                         const types::TypeEnv &type_env,
                         const TranslationEnv &tenv,
                         TrackedTypes &typing,
-                        NeededDefns &needed_defns,
+                        types::NeededDefns &needed_defns,
                         bool &returns,
                         translate_continuation_t &matched,
                         translate_continuation_t &failed) const override;
@@ -178,12 +179,12 @@ struct CtorPredicate : public Predicate {
                                   const TranslationEnv &env) const override;
   types::Ref tracking_infer(
       Env &env,
-      Constraints &constraints,
+      types::Constraints &constraints,
       types::ClassPredicates &instance_requirements) const override;
   Identifier instantiate_name_assignment() const override;
   void get_bound_vars(
       std::unordered_set<std::string> &bound_vars) const override;
-  const Expr *translate(const DefnId &defn_id,
+  const Expr *translate(const types::DefnId &defn_id,
                         const Identifier &scrutinee_id,
                         const types::Ref &scrutinee_type,
                         bool do_checks,
@@ -191,7 +192,7 @@ struct CtorPredicate : public Predicate {
                         const types::TypeEnv &type_env,
                         const TranslationEnv &tenv,
                         TrackedTypes &typing,
-                        NeededDefns &needed_defns,
+                        types::NeededDefns &needed_defns,
                         bool &returns,
                         translate_continuation_t &matched,
                         translate_continuation_t &failed) const override;
@@ -322,13 +323,13 @@ struct Literal : public Expr, public Predicate {
                                   const TranslationEnv &env) const override;
   types::Ref tracking_infer(
       Env &env,
-      Constraints &constraints,
+      types::Constraints &constraints,
       types::ClassPredicates &instance_requirements) const override;
   types::Ref non_tracking_infer() const;
   Identifier instantiate_name_assignment() const override;
   void get_bound_vars(
       std::unordered_set<std::string> &bound_vars) const override;
-  const Expr *translate(const DefnId &defn_id,
+  const Expr *translate(const types::DefnId &defn_id,
                         const Identifier &scrutinee_id,
                         const types::Ref &scrutinee_type,
                         bool do_checks,
@@ -336,7 +337,7 @@ struct Literal : public Expr, public Predicate {
                         const types::TypeEnv &type_env,
                         const TranslationEnv &tenv,
                         TrackedTypes &typing,
-                        NeededDefns &needed_defns,
+                        types::NeededDefns &needed_defns,
                         bool &returns,
                         translate_continuation_t &matched,
                         translate_continuation_t &failed) const override;
@@ -486,6 +487,8 @@ struct Program {
 } // namespace bitter
 
 bitter::Expr *unit_expr(Location location);
-std::ostream &operator<<(std::ostream &os, bitter::Program *program);
-std::ostream &operator<<(std::ostream &os, bitter::Decl *decl);
-std::ostream &operator<<(std::ostream &os, bitter::Expr *expr);
+} // namespace zion
+
+std::ostream &operator<<(std::ostream &os, zion::bitter::Program *program);
+std::ostream &operator<<(std::ostream &os, zion::bitter::Decl *decl);
+std::ostream &operator<<(std::ostream &os, zion::bitter::Expr *expr);

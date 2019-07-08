@@ -10,13 +10,14 @@
 #include "types.h"
 #include "user_error.h"
 
+namespace zion {
 struct ParseState {
   typedef log_level_t parse_error_level_t;
   parse_error_level_t pel_error = log_error;
 
   ParseState(std::string filename,
              std::string module_name,
-             zion_lexer_t &lexer,
+             Lexer &lexer,
              std::vector<Token> &comments,
              std::set<LinkIn> &link_ins,
              const std::map<std::string, int> &builtin_arities);
@@ -37,7 +38,7 @@ struct ParseState {
   Token prior_token;
   std::string filename;
   std::string module_name;
-  zion_lexer_t &lexer;
+  Lexer &lexer;
 
   /* top-level term remapping from "get" statements */
   std::unordered_map<std::string, std::string> term_map;
@@ -62,3 +63,5 @@ struct ParseState {
 private:
   bool newline = false;
 };
+
+} // namespace zion

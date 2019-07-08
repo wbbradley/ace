@@ -500,7 +500,7 @@ std::string join(int argc, const char *argv[]) {
 void check_command_line_text(Location location, std::string text) {
   for (auto ch : "`$%&()|") {
     if (text.find(ch) != std::string::npos) {
-      throw user_error(location,
+      throw zion::user_error(location,
                        "illegal command-line text found in link in statement");
     }
   }
@@ -511,7 +511,7 @@ std::string shell_get_line(std::string command) {
   check_command_line_text(INTERNAL_LOC(), command);
   FILE *fp = popen(command.c_str(), "r");
   if (fp == nullptr) {
-    throw user_error(INTERNAL_LOC(), "failed to invoke command %s",
+    throw zion::user_error(INTERNAL_LOC(), "failed to invoke command %s",
                      command.c_str());
   }
 
@@ -520,7 +520,7 @@ std::string shell_get_line(std::string command) {
   auto cb = getline(&linep, &linecap, fp);
 
   if (cb == -1) {
-    throw user_error(INTERNAL_LOC(), "failed to read output of command %s",
+    throw zion::user_error(INTERNAL_LOC(), "failed to read output of command %s",
                      command.c_str());
   }
 

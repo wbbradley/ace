@@ -11,7 +11,6 @@
 namespace types {
 struct Scheme;
 struct Type;
-} // namespace types
 
 struct DefnId {
   DefnId(Identifier const id, const types::SchemeRef &scheme)
@@ -50,3 +49,5 @@ void insert_needed_defn(NeededDefns &needed_defns,
                         const DefnId &defn_id,
                         Location location,
                         const DefnId &from_defn_id);
+
+} // namespace types

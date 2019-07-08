@@ -41,7 +41,7 @@ DepthGuard::DepthGuard(Location location, int &depth, int max_depth)
     : depth(depth) {
   ++depth;
   if (!__depth_level_override && (depth > max_depth)) {
-    throw user_error(location, "maximum recursion depth reached");
+    throw zion::user_error(location, "maximum recursion depth reached");
   }
 }
 

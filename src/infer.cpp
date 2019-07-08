@@ -2,15 +2,21 @@
 
 #include "ast.h"
 #include "builtins.h"
+#include "dbg.h"
 #include "env.h"
+#include "ptr.h"
 #include "unification.h"
 #include "user_error.h"
 
+namespace zion {
+
 using namespace bitter;
+
+namespace {
 
 types::Ref infer_core(const Expr *expr,
                       Env &env,
-                      Constraints &constraints,
+                      types::Constraints &constraints,
                       types::ClassPredicates &instance_requirements) {
   debug_above(8, log("infer(%s, ..., ...)", expr->str().c_str()));
   if (auto literal = dcast<const Literal *>(expr)) {
@@ -87,8 +93,8 @@ types::Ref infer_core(const Expr *expr,
                      t2->str().c_str(), tv->str().c_str()));
     return tv;
   } else if (auto let = dcast<const Let *>(expr)) {
-    Env local_env{env.scheme_resolver, nullptr /*return_type*/, env.tracked_types,
-                  env.ctor_id_map, env.data_ctors_map};
+    Env local_env{env.scheme_resolver, nullptr /*return_type*/,
+                  env.tracked_types, env.ctor_id_map, env.data_ctors_map};
 
     auto t1 = infer(let->value, local_env, constraints, instance_requirements);
     auto tv = type_variable(t1->get_location());
@@ -229,9 +235,11 @@ types::Ref infer_core(const Expr *expr,
                    expr->str().c_str());
 }
 
+} // namespace
+
 types::Ref infer(const Expr *expr,
                  Env &env,
-                 Constraints &constraints,
+                 types::Constraints &constraints,
                  types::ClassPredicates &instance_requirements) {
   return env.track(expr,
                    infer_core(expr, env, constraints, instance_requirements));
@@ -239,7 +247,7 @@ types::Ref infer(const Expr *expr,
 
 types::Ref Literal::tracking_infer(
     Env &env,
-    Constraints &constraints,
+    types::Constraints &constraints,
     types::ClassPredicates &instance_requirements) const {
   return env.track(this, non_tracking_infer());
 }
@@ -261,7 +269,7 @@ types::Ref Literal::non_tracking_infer() const {
 
 types::Ref TuplePredicate::tracking_infer(
     Env &env,
-    Constraints &constraints,
+    types::Constraints &constraints,
     types::ClassPredicates &instance_requirements) const {
   types::Refs types;
   for (auto param : params) {
@@ -273,7 +281,7 @@ types::Ref TuplePredicate::tracking_infer(
 
 types::Ref IrrefutablePredicate::tracking_infer(
     Env &env,
-    Constraints &constraints,
+    types::Constraints &constraints,
     types::ClassPredicates &instance_requirements) const {
   auto tv = type_variable(location);
   if (name_assignment.valid) {
@@ -285,7 +293,7 @@ types::Ref IrrefutablePredicate::tracking_infer(
 
 types::Ref CtorPredicate::tracking_infer(
     Env &env,
-    Constraints &constraints,
+    types::Constraints &constraints,
     types::ClassPredicates &instance_requirements) const {
   types::Ref ctor_type = env.get_fresh_data_ctor_type(ctor_name);
 
@@ -316,3 +324,5 @@ types::Ref CtorPredicate::tracking_infer(
                      ctor_terms.back()->str().c_str()));
   return ctor_terms.back();
 }
+
+} // namespace zion

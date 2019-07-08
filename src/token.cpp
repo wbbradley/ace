@@ -6,6 +6,8 @@
 #include "user_error.h"
 #include "zion_assert.h"
 
+namespace zion {
+
 bool is_restricted_var_name(std::string x) {
   static const std::string keywords[] = {
       "__unreachable__",
@@ -229,7 +231,10 @@ int64_t parse_int_value(Token token) {
     return value;
   }
   default:
-    throw user_error(token.location, "unable to read an integer value from %s",
-                     token.str().c_str());
+    throw zion::user_error(token.location,
+                           "unable to read an integer value from %s",
+                           token.str().c_str());
   }
 }
+
+} // namespace zion
