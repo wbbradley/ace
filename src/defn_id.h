@@ -36,8 +36,6 @@ public:
   Location get_location() const;
   std::string str() const;
   bool operator<(const DefnId &rhs) const;
-  std::shared_ptr<const types::Type> get_lambda_param_type() const;
-  std::shared_ptr<const types::Type> get_lambda_return_type() const;
 };
 
 struct DefnRef {

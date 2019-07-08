@@ -60,12 +60,7 @@ struct FreeVars {
 
 #ifdef ZION_DEBUG
 static types::Ref get_nth_type_in_lambda_type(types::Ref arrow_type, int n) {
-  types::Refs terms;
-  unfold_binops_rassoc(ARROW_TYPE_OPERATOR, arrow_type, terms);
-  assert(terms.size() == 2);
-  auto type_params = safe_dyncast<const types::TypeParams>(terms[0]);
-  assert(type_params->dimensions.size() > n);
-  return type_params->dimensions[n];
+  return unfold_arrows(arrow_type)[n];
 }
 #endif
 
@@ -695,12 +690,13 @@ void gen_lambda(std::string name,
   FreeVars free_vars;
   get_free_vars(lambda, typing, globals, {}, free_vars);
 
-  types::Refs type_terms;
-  unfold_binops_rassoc(ARROW_TYPE_OPERATOR, type, type_terms);
+  types::Refs type_terms = unfold_arrows(type);
 
   llvm::FunctionType *llvm_function_type = get_llvm_arrow_function_type(
       builder, type_env, type_terms);
 
+  debug_above(4, log("created function type %s",
+                     llvm_print(llvm_function_type).c_str()));
   llvm::Type *llvm_return_type = llvm_function_type->getReturnType();
   llvm::ArrayRef<llvm::Type *> llvm_param_types = llvm_function_type->params();
 
@@ -809,9 +805,9 @@ void gen_lambda(std::string name,
       // set_env_var(new_env, name, type, opaque_closure);
     }
 
-    assert(type_terms.size() == lambda->vars.size());
+    assert(type_terms.size() - 1 == lambda->vars.size());
     auto args_iter = llvm_function->args().begin();
-    for (int i = 0; i < type_terms.size(); ++i) {
+    for (int i = 0; i < type_terms.size() - 1; ++i) {
       set_env_var(new_env_locals, lambda->vars[i].name, type_terms[i],
                   &*args_iter++);
     }
@@ -1007,7 +1003,7 @@ resolution_status_t gen(std::string name,
                  gen_env_globals, gen_env_locals, globals, publisher);
       return rs_cache_resolution;
     } else if (auto application = dcast<const bitter::Application *>(expr)) {
-      debug_above(4, log("applying (%s :: %s) ((%s) :: ...TODO...)...",
+      debug_above(4, log("applying (%s :: %s) (%s :: ...TODO...)...",
                          application->a->str().c_str(),
                          typing.at(application->a)->str().c_str(),
                          join_str(application->params, ", ").c_str()));

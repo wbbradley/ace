@@ -269,7 +269,12 @@ std::ostream &TypeOperator::emit(std::ostream &os,
         if (strspn(inner_op->id.name.c_str(), MATHY_SYMBOLS) ==
             inner_op->id.name.size()) {
           op->operand->emit(os, {}, get_precedence());
-          os << " " << inner_op->id.name << " ";
+          if (inner_op->id.name == ARROW_TYPE_OPERATOR) {
+            /* this is a hack */
+            os << " ";
+          } else {
+            os << " " << inner_op->id.name << " ";
+          }
           return operand->emit(os, bindings, get_precedence());
         }
       }
@@ -444,11 +449,8 @@ TypeParams::TypeParams(Location location, const Refs &dimensions)
 std::ostream &TypeParams::emit(std::ostream &os,
                                const Map &bindings,
                                int parent_precedence) const {
-  os << "(";
+  os << "fn (";
   join_dimensions(os, dimensions, {}, bindings);
-  if (dimensions.size() != 0) {
-    os << ",";
-  }
   return os << ")";
 }
 
@@ -798,6 +800,24 @@ types::Ref type_arrows(types::Refs types) {
   return type_arrow(type_params(types), return_type);
 }
 
+types::Refs unfold_arrows(types::Ref type) {
+  auto op = dyncast<const types::TypeOperator>(type);
+  if (op != nullptr) {
+    auto nested_op = dyncast<const types::TypeOperator>(op->oper);
+    if (nested_op != nullptr) {
+      if (is_type_id(nested_op->oper, ARROW_TYPE_OPERATOR)) {
+        auto type_params = safe_dyncast<const types::TypeParams>(
+            nested_op->operand);
+
+        types::Refs terms = type_params->dimensions;
+        terms.push_back(op->operand);
+        return terms;
+      }
+    }
+  }
+  return {type};
+}
+
 types::Ref type_ptr(types::Ref raw) {
   return type_operator(
       type_id(Identifier{PTR_TYPE_OPERATOR, raw->get_location()}), raw);
@@ -814,7 +834,8 @@ types::Ref type_tuple_accessor(int i,
   for (int j = 0; j < max; ++j) {
     dims.push_back(type_variable(make_iid(vars[j])));
   }
-  return type_arrows({type_tuple(dims), type_variable(make_iid(vars[i]))});
+  return type_arrow(type_params({type_tuple(dims)}),
+                    type_variable(make_iid(vars[i])));
 }
 
 std::ostream &operator<<(std::ostream &os, const types::Ref &type) {

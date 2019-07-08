@@ -45,18 +45,6 @@ bool DefnId::operator<(const DefnId &rhs) const {
   return repr() < rhs.repr();
 }
 
-types::Ref DefnId::get_lambda_param_type() const {
-  auto lambda_type = safe_dyncast<const types::TypeOperator>(
-      scheme->instantiate(INTERNAL_LOC()));
-  return lambda_type->oper;
-}
-
-types::Ref DefnId::get_lambda_return_type() const {
-  auto lambda_type = safe_dyncast<const types::TypeOperator>(
-      scheme->instantiate(INTERNAL_LOC()));
-  return lambda_type->operand;
-}
-
 std::ostream &operator<<(std::ostream &os, const DefnId &defn_id) {
   return os << defn_id.str();
 }
@@ -65,5 +53,7 @@ void insert_needed_defn(NeededDefns &needed_defns,
                         const DefnId &defn_id,
                         Location location,
                         const DefnId &for_defn_id) {
+  debug_above(1, log_location(location, "adding a needed defn for %s",
+                              for_defn_id.str().c_str()));
   needed_defns[defn_id.unitize()].push_back({location, for_defn_id.unitize()});
 }

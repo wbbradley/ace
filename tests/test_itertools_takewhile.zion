@@ -2,6 +2,7 @@
 # expect: 15
 
 get itertools {takewhile}
+get math {sum}
 
 fn main() {
     print(sum(takewhile(fn (x) => x < 6, [0..])))

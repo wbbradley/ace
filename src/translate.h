@@ -31,10 +31,9 @@ struct TranslationEnv {
   const DataCtorsMap &data_ctors_map;
 
   types::Ref get_type(const bitter::Expr *e) const;
-  std::map<std::string, types::Refs> get_data_ctors_terms(
-      types::Ref type) const;
-  types::Refs get_data_ctor_terms(types::Ref type, Identifier ctor_id) const;
-  types::Refs get_fresh_data_ctor_terms(Identifier ctor_id) const;
+  std::map<std::string, types::Ref> get_data_ctors_types(types::Ref type) const;
+  types::Ref get_data_ctor_type(types::Ref type, Identifier ctor_id) const;
+  types::Ref get_fresh_data_ctor_type(Identifier ctor_id) const;
   int get_ctor_id(std::string ctor_name) const;
 };
 

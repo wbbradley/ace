@@ -82,31 +82,32 @@ Location Application::get_location() const {
 std::ostream &Application::render(std::ostream &os,
                                   int parent_precedence) const {
   const int precedence = 5;
-  return os << "TODO: fix Application::render";
 
-#if 0
-  if (auto inner_app = dcast<const Application *>(a)) {
-    if (auto oper = dcast<const Var *>(inner_app->a)) {
+  if (params.size() == 2)
+    if (auto oper = dcast<const Var *>(a)) {
       if (strspn(oper->id.name.c_str(), MATHY_SYMBOLS) ==
           oper->id.name.size()) {
         os << "(";
-        inner_app->b->render(os, precedence + 1);
+        params[0]->render(os, precedence + 1);
         os << " ";
         oper->render(os, precedence);
         os << " ";
-        b->render(os, precedence + 1);
+        params[1]->render(os, precedence + 1);
         os << ")";
         return os;
       }
     }
-  }
 
   Parens parens(os, parent_precedence, precedence);
-  a->render(os, precedence);
-  os << " ";
-  b->render(os, precedence + 1);
-  return os;
-#endif
+  a->render(os, 10);
+  os << "(";
+  const char *delim = "";
+  for (auto &param : params) {
+    os << delim;
+    param->render(os, 0);
+    delim = ", ";
+  }
+  return os << ")";
 }
 
 Location Continue::get_location() const {
@@ -193,7 +194,8 @@ Location Lambda::get_location() const {
 
 std::ostream &Lambda::render(std::ostream &os, int parent_precedence) const {
   const int precedence = 7;
-  os << "(λ" << join_with(vars,",", [](const Identifier &id) { return id.name; });
+  os << "(λ"
+     << join_with(vars, ",", [](const Identifier &id) { return id.name; });
 #if 0
   if (param_type != nullptr) {
     os << c_good(" :: ");

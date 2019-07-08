@@ -115,9 +115,9 @@ const Expr *texpr(const DefnId &for_defn_id,
       auto new_body = texpr(for_defn_id, lambda->body, new_bound_vars,
                             tenv.get_type(lambda->body), type_env, tenv, typing,
                             needed_defns, lambda_returns);
-      types::Refs lambda_terms;
-      unfold_binops_rassoc(ARROW_TYPE_OPERATOR, type, lambda_terms);
+      types::Refs lambda_terms = unfold_arrows(type);
       assert(lambda_terms.size() >= 2);
+
       if (!lambda_returns &&
           !unify(lambda_terms.back(), type_unit(INTERNAL_LOC())).result) {
         auto error = user_error(lambda->get_location(),
@@ -139,11 +139,10 @@ const Expr *texpr(const DefnId &for_defn_id,
 
       /* if we have unresolved types below us in the tree, we need to
        * propagate our known types down into them */
-      types::Refs terms;
-      unfold_binops_rassoc(ARROW_TYPE_OPERATOR, operator_type, terms);
+      types::Refs terms = unfold_arrows(operator_type);
       assert(terms.size() > 1);
 
-      types::Ref resolution_type = type_arrows({operand_type, type});
+      types::Ref resolution_type = type_arrow(operand_type, type);
       Unification unification = unify(operator_type, resolution_type);
       assert(unification.result);
       operator_type = operator_type->rebind(unification.bindings);
@@ -345,17 +344,8 @@ types::Ref TranslationEnv::get_type(const bitter::Expr *e) const {
   return t;
 }
 
-types::Refs TranslationEnv::get_data_ctor_terms(types::Ref type,
-                                                Identifier ctor_id) const {
-  // TODO: destructure the inbound type operator to find the id and the params.
-  // look up the type to find the ctors, then look up the ctor from the inbound
-  // ctor_id, and apply the params to the ctor's lambda to get the ctor_type.
-  // unfold / destructure the terms of the ctor_type and return that list of
-  // terms.
-
-  // types::Refs ctor_terms;
-  // unfold_binops_rassoc(ARROW_TYPE_OPERATOR, ctor_type, ctor_terms);
-
+types::Ref TranslationEnv::get_data_ctor_type(types::Ref type,
+                                              Identifier ctor_id) const {
   types::Refs type_terms;
   unfold_ops_lassoc(type, type_terms);
   assert(type_terms.size() != 0);
@@ -381,12 +371,10 @@ types::Refs TranslationEnv::get_data_ctor_terms(types::Ref type,
   }
   debug_above(7, log("resolved ctor_type as %s", ctor_type->str().c_str()));
 
-  types::Refs ctor_terms;
-  unfold_binops_rassoc(ARROW_TYPE_OPERATOR, ctor_type, ctor_terms);
-  return ctor_terms;
+  return ctor_type;
 }
 
-std::map<std::string, types::Refs> TranslationEnv::get_data_ctors_terms(
+std::map<std::string, types::Ref> TranslationEnv::get_data_ctors_types(
     types::Ref type) const {
   types::Refs type_terms;
   unfold_ops_lassoc(type, type_terms);
@@ -400,7 +388,7 @@ std::map<std::string, types::Refs> TranslationEnv::get_data_ctors_terms(
   assert(data_ctors_map.count(id->id.name) != 0);
   auto &data_ctors = data_ctors_map.at(id->id.name);
 
-  std::map<std::string, types::Refs> data_ctors_terms;
+  std::map<std::string, types::Ref> data_ctors_types;
 
   for (auto pair : data_ctors) {
     auto ctor_type = pair.second;
@@ -412,16 +400,12 @@ std::map<std::string, types::Refs> TranslationEnv::get_data_ctors_terms(
     }
     debug_above(7, log("resolved ctor_type as %s", ctor_type->str().c_str()));
 
-    types::Refs ctor_terms;
-    unfold_binops_rassoc(ARROW_TYPE_OPERATOR, ctor_type, ctor_terms);
-
-    data_ctors_terms[pair.first] = ctor_terms;
+    data_ctors_types[pair.first] = ctor_type;
   }
-  return data_ctors_terms;
+  return data_ctors_types;
 }
 
-types::Refs TranslationEnv::get_fresh_data_ctor_terms(
-    Identifier ctor_id) const {
+types::Ref TranslationEnv::get_fresh_data_ctor_type(Identifier ctor_id) const {
   // FUTURE: build an index to make this faster
   for (auto type_ctors : data_ctors_map) {
     for (auto ctors : type_ctors.second) {
@@ -431,12 +415,9 @@ types::Refs TranslationEnv::get_fresh_data_ctor_terms(
           if (auto type_lambda = dyncast<const types::TypeLambda>(ctor_type)) {
             ctor_type = type_lambda->apply(type_variable(INTERNAL_LOC()));
           } else {
-            break;
+            return ctor_type;
           }
         }
-        types::Refs terms;
-        unfold_binops_rassoc(ARROW_TYPE_OPERATOR, ctor_type, terms);
-        return terms;
       }
     }
   }

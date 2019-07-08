@@ -1,0 +1,4 @@
+fn add(x, y) => __builtin_add_int(x, y)
+fn main() {
+    static_print(add(1))
+}

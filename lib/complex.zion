@@ -1,3 +1,5 @@
+get math {sqrt}
+
 struct Complex {
    real Float
    imag Float
