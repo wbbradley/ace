@@ -398,6 +398,7 @@ struct Decl {
   }
   std::string str() const;
   Location get_location() const;
+  types::SchemeRef get_early_scheme() const;
 
   Identifier id;
   const Expr *const value;

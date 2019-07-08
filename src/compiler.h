@@ -3,7 +3,6 @@
 #include <vector>
 
 #include "ast_decls.h"
-#include "infer.h"
 #include "location.h"
 #include "parse_state.h"
 #include "zion.h"
