@@ -184,7 +184,7 @@ const Expr *Literal::translate(
 
   auto Bool = type_id(make_iid(BOOL_TYPE));
   Var *literal_cmp = new Var(make_iid("std.=="));
-  types::Ref cmp_type = type_arrows({type_params({type, type}), Bool});
+  types::Ref cmp_type = type_arrow(type_params({type, type}), Bool);
 
   typing[literal_cmp] = cmp_type;
   insert_needed_defn(needed_defns,
@@ -310,7 +310,9 @@ const Expr *CtorPredicate::translate(
     translate_continuation_t &failed) const {
   static auto Int = type_int(INTERNAL_LOC());
   static auto Bool = type_bool(INTERNAL_LOC());
-  types::Refs ctor_terms = tenv.get_data_ctor_terms(scrutinee_type, ctor_name);
+  types::Ref ctor_type = tenv.get_data_ctor_type(scrutinee_type, ctor_name);
+  types::Refs ctor_terms = unfold_arrows(ctor_type);
+
   assert(ctor_terms.size() >= 1);
   ctor_terms = vec_slice(ctor_terms, 0, ctor_terms.size() - 1);
 

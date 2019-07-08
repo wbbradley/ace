@@ -229,6 +229,7 @@ types::Ref type_map(types::Ref a, types::Ref b);
 types::Ref type_arrow(Location location, types::Ref a, types::Ref b);
 types::Ref type_arrow(types::Ref a, types::Ref b);
 types::Ref type_arrows(types::Refs types);
+types::Refs unfold_arrows(types::Ref type);
 types::Ref type_id(Identifier var);
 types::Ref type_variable(const Identifier &id);
 types::Ref type_variable(Location location);

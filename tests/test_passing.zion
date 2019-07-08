@@ -1,0 +1,16 @@
+# test: pass
+# expect: 3
+
+fn g() {
+    return h(1)
+}
+
+fn h(x) Int {
+    return 3
+}
+
+fn main() {
+    x := g()
+    static_print(x)
+}
+

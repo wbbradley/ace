@@ -27,7 +27,7 @@ types::Ref infer_core(const Expr *expr,
      * and the inference constraints */
     types::Scheme::Ref scheme = env.lookup_env(var->id)->freshen();
     assert(scheme != nullptr);
-    debug_above(7, log_location(var->get_location(),
+    debug_above(4, log_location(var->get_location(),
                                 "found var ref %s with scheme %s",
                                 var->id.str().c_str(),
                                 scheme->normalize()->str().c_str()));
@@ -40,15 +40,14 @@ types::Ref infer_core(const Expr *expr,
     int i = 0;
     assert(lambda->param_types.size() == lambda->vars.size());
     for (auto &param_type : lambda->param_types) {
-      tvs.push_back(param_type != nullptr
-                        ? param_type
-                        : type_variable(lambda->vars[i++].location));
+      assert(param_type != nullptr);
+      tvs.push_back(param_type);
     }
     auto return_type = type_variable(lambda->get_location());
     Env local_env = Env{env};
     local_env.return_type = return_type;
     /* lambdas are monomorphic at the time of initialization/definition/capture.
-     * so, we do not include the var |tv| in the scheme. this way, when the
+     * so, we do not include the vars |tvs| in the scheme. this way, when the
      * scheme freshens, it will not erase the reference to this variable. */
     i = 0;
     for (auto &var : lambda->vars) {
@@ -288,31 +287,32 @@ types::Ref CtorPredicate::tracking_infer(
     Env &env,
     Constraints &constraints,
     types::ClassPredicates &instance_requirements) const {
-  types::Refs ctor_params = env.get_fresh_data_ctor_terms(ctor_name);
+  types::Ref ctor_type = env.get_fresh_data_ctor_type(ctor_name);
 
-  debug_above(8, log("got fresh ctor params %s :: %s", ctor_name.str().c_str(),
-                     ::join_str(ctor_params, " -> ").c_str()));
+  debug_above(5, log_location(ctor_type->get_location(), "got ctor_type = %s",
+                              ctor_type->str().c_str()));
 
-  if (ctor_params.size() - 1 != params.size()) {
-    throw user_error(
-        get_location(),
-        "incorrect number of sub-patterns given to %s (%d vs. %d) %s %s",
-        ctor_name.str().c_str(), ctor_params.size() - 1, params.size(),
-        ctor_params.back()->str().c_str(),
-        ::join_str(ctor_params, ", ").c_str());
+  types::Refs ctor_terms = unfold_arrows(ctor_type);
+
+  assert(ctor_terms.size() >= 1);
+  if (ctor_terms.size() - 1 != params.size()) {
+    throw user_error(get_location(),
+                     "incorrect number of sub-patterns given to %s (%d vs. %d)",
+                     ctor_name.str().c_str(), ctor_terms.size() - 1,
+                     params.size());
   }
 
   types::Ref result_type;
   for (int i = 0; i < params.size(); ++i) {
     auto tp = params[i]->tracking_infer(env, constraints,
                                         instance_requirements);
-    append_to_constraints(constraints, tp, ctor_params[i],
+    append_to_constraints(constraints, tp, ctor_terms[i],
                           make_context(params[i]->get_location(),
                                        "checking subpattern %s",
                                        params[i]->str().c_str()));
   }
 
   debug_above(8, log("CtorPredicate::infer(...) -> %s",
-                     ctor_params.back()->str().c_str()));
-  return ctor_params.back();
+                     ctor_terms.back()->str().c_str()));
+  return ctor_terms.back();
 }

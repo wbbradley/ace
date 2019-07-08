@@ -463,7 +463,9 @@ const Expr *parse_var_ref(ParseState &ps) {
                              escape_json_quotes(token.location.filename)});
   } else if (in(ps.token.text, ps.builtin_arities)) {
     RawParseMode rpm(ps);
-    int arity = get(ps.builtin_arities, ps.token.text, -1);
+    const int builtin_arity = get(ps.builtin_arities, ps.token.text, -1);
+
+    int arity = builtin_arity;
     assert(arity >= 0);
     auto builtin_token = ps.token_and_advance();
     std::vector<const Expr *> exprs;
@@ -474,10 +476,14 @@ const Expr *parse_var_ref(ParseState &ps) {
         --arity;
         if (arity > 0) {
           chomp_token(tk_comma);
-          continue;
-        } else {
-          chomp_token(tk_rparen);
+        } else if (ps.token.tk == tk_rparen) {
+          ps.advance();
           break;
+        } else {
+          throw user_error(ps.token.location,
+                           "builtin %s only takes %d parameter%s",
+                           builtin_token.str().c_str(), builtin_arity,
+                           (builtin_arity == 1 ? "" : "s"));
         }
       }
     }
@@ -1398,12 +1404,10 @@ const Match *parse_match(ParseState &ps) {
 
 std::pair<Identifier, types::Ref> parse_lambda_param_core(ParseState &ps) {
   auto param_token = ps.token_and_advance();
-  types::Ref type;
-  if (token_begins_type(ps.token)) {
-    type = parse_type(ps, true /*allow_top_level_application*/);
-  }
-
-  return {iid(param_token), type};
+  return {iid(param_token),
+          (token_begins_type(ps.token))
+              ? parse_type(ps, true /*allow_top_level_application*/)
+              : type_variable(param_token.location)};
 }
 
 std::pair<Identifier, types::Ref> parse_lambda_param(ParseState &ps) {
@@ -1642,9 +1646,12 @@ const Expr *create_ctor(Location location,
   const Expr *expr = new As(new Tuple(location, dims), type_decl.get_type(),
                             true /*force_cast*/);
 
-  assert(dims.size() == params.size() + 1);
-  /* (λx y z . return! (ctor_id, x, y, z) as! type_decl) */
-  expr = new Lambda(params, param_types, nullptr, new ReturnStatement(expr));
+  if (params.size() > 0) {
+    /* this ctor takes parameters, so it needs a lambda */
+    assert(dims.size() == params.size() + 1);
+    /* (λx y z . return! (ctor_id, x, y, z) as! type_decl) */
+    expr = new Lambda(params, param_types, nullptr, new ReturnStatement(expr));
+  }
 
   return expr;
 }

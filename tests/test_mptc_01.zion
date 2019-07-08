@@ -6,10 +6,10 @@ class MutatingQueue c e {
     fn pop(c) e
 }
 
-instance MutatingQueue [a] a {
+instance MutatingQueue [Int] Int {
     push = append
     fn peek(xs) => xs[len(xs)-1]
-    fn pop(xs) {
+    fn pop(xs [a]) a {
         back := peek(xs)
         resize(xs, len(xs)-1)
         return back
@@ -21,6 +21,7 @@ fn main() {
     push(h, 2)
     push(h, 3)
     push(h, 4)
+    static_print(h)
     assert(pop(h) == 4)
     assert(pop(h) == 3)
     assert(pop(h) == 2)

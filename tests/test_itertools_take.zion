@@ -2,6 +2,7 @@
 # expect: 10
 
 get itertools {take}
+get math {sum}
 
 fn main() {
     print(sum(take(5, [0..])))

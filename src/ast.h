@@ -252,6 +252,7 @@ struct Lambda : public Expr {
          const Expr *body)
       : vars(vars), param_types(param_types), return_type(return_type),
         body(body) {
+    assert(vars.size() != 0);
   }
   Location get_location() const override;
   std::ostream &render(std::ostream &os, int parent_precedence) const override;

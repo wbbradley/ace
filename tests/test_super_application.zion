@@ -9,6 +9,6 @@ fn partial_add(x) {
 }
 
 fn main() {
-    print(partial_add(10, 4))
+    print(partial_add(10)(4))
     print(partial_add(9)(8))
 }

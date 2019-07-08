@@ -399,12 +399,12 @@ Pattern::ref from_type(Location location,
     return all_of(location, {}, tenv, type);
   } else {
     // TODO: support Char values here...
-    auto ctors_terms = tenv.get_data_ctors_terms(type);
+    auto ctors_types = tenv.get_data_ctors_types(type);
     std::vector<CtorPatternValue> cpvs;
 
-    for (auto pair : ctors_terms) {
+    for (auto pair : ctors_types) {
       auto &ctor_name = pair.first;
-      auto &ctor_terms = pair.second;
+      auto ctor_terms = unfold_arrows(pair.second);
 
       std::vector<Pattern::ref> args;
       args.reserve(ctor_terms.size() - 1);
@@ -712,10 +712,12 @@ Pattern::ref TuplePredicate::get_pattern(Ref type,
 }
 Pattern::ref CtorPredicate::get_pattern(Ref type,
                                         const TranslationEnv &tenv) const {
-  auto ctor_terms = tenv.get_data_ctor_terms(type, ctor_name);
+  auto ctor_terms = unfold_arrows(tenv.get_data_ctor_type(type, ctor_name));
 
   std::vector<Pattern::ref> args;
   if (ctor_terms.size() - 1 != params.size()) {
+    log("params = %s", join_str(params).c_str());
+    log("ctor_terms = %s", join_str(ctor_terms).c_str());
     throw user_error(location,
                      "%s has an incorrect number of sub-patterns. there are "
                      "%d, there should be %d",

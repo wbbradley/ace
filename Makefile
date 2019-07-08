@@ -39,16 +39,17 @@ ZION_LIBS=$(shell cd lib && find *.zion)
 install: $(BUILT_BINARY) $(addprefix $(SRCDIR)/lib/,$(ZION_LIBS)) $(SRCDIR)/src/zion_rt.c $(SRCDIR)/$(PN).1
 	-@echo "Making sure that various installation dirs exist..." 
 	@mkdir -p $(bindir)
+	-@rm -rf $(stdlibdir)
 	@mkdir -p $(stdlibdir)
+	-@rm -rf $(man1dir)
 	@mkdir -p $(man1dir)
+	-@rm -rf $(runtimedir)
 	@mkdir -p $(runtimedir)
 	-@echo "Copying compiler binary from $(BUILT_BINARY) to $(bindir)..."
 	@cp $(BUILT_BINARY) $(bindir)
 	@cp $(addprefix $(SRCDIR)/lib/,$(ZION_LIBS)) $(stdlibdir)
 	@cp $(SRCDIR)/$(PN).1 $(man1dir)
 	@cp $(SRCDIR)/src/zion_rt.c $(runtimedir)
-	@# Crude reporting of what files got installed
-	@find $(installdir) -type f 2>/dev/null | grep -E '\bzion\b'
 
 .PHONY: clean
 clean:

@@ -1,9 +1,11 @@
 # test: pass
 # expect: 7
 
+get math {sum}
+
 fn compose(f, g) => fn (x) => f(g(x))
 
 fn main() {
-    f := compose(sum, filter(fn (x) => (x > 2)))
+    f := compose(sum, fn (x) => filter(fn (x) => (x > 2), x))
     print(f([1, 2, 3, 4]))
 }

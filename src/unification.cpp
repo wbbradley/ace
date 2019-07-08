@@ -63,6 +63,18 @@ bool type_equality(types::Ref a, types::Ref b) {
     } else {
       return false;
     }
+  } else if (auto tpa_a = dyncast<const TypeParams>(a)) {
+    if (auto tpa_b = dyncast<const TypeParams>(b)) {
+      if (tpa_a->dimensions.size() != tpa_b->dimensions.size()) {
+        return false;
+      }
+      for (int i = 0; i < tpa_a->dimensions.size(); ++i) {
+        if (!type_equality(tpa_a->dimensions[i], tpa_b->dimensions[i])) {
+          return false;
+        }
+      }
+      return true;
+    }
   } else if (auto tup_a = dyncast<const TypeTuple>(a)) {
     if (auto tup_b = dyncast<const TypeTuple>(b)) {
       if (tup_a->dimensions.size() != tup_b->dimensions.size()) {
@@ -107,6 +119,8 @@ Unification bind(std::string a, Ref type) {
 }
 
 Unification unify(Ref a, Ref b) {
+  assert(a != nullptr);
+  assert(b != nullptr);
   debug_above(8, log("unify(%s, %s)", a->str().c_str(), b->str().c_str()));
   if (type_equality(a, b)) {
     return Unification{true, INTERNAL_LOC(), "", {}};
@@ -120,6 +134,10 @@ Unification unify(Ref a, Ref b) {
     if (auto to_b = dyncast<const TypeOperator>(b)) {
       return unify_many({to_a->oper, to_a->operand},
                         {to_b->oper, to_b->operand});
+    }
+  } else if (auto tpa_a = dyncast<const TypeParams>(a)) {
+    if (auto tpa_b = dyncast<const TypeParams>(b)) {
+      return unify_many(tpa_a->dimensions, tpa_b->dimensions);
     }
   } else if (auto tup_a = dyncast<const TypeTuple>(a)) {
     if (auto tup_b = dyncast<const TypeTuple>(b)) {
@@ -169,6 +187,8 @@ types::Map solver(bool check_constraint_coverage,
                   Constraints &constraints,
                   Env &env,
                   types::ClassPredicates &instance_requirements) {
+  debug_above(2, log("solver(%s, ... %d constraints)", context.message.c_str(),
+                     constraints.size()));
   if (check_constraint_coverage) {
     check_constraints_cover_tracked_types(context, *env.tracked_types,
                                           constraints);
@@ -278,7 +298,8 @@ Unification unify_many(const types::Refs &as, const types::Refs &bs) {
     return Unification{true, INTERNAL_LOC(), "", {}};
   } else if (as.size() != bs.size()) {
     throw user_error(as[0]->get_location(), "unification mismatch %s != %s",
-                     join_str(as, " -> ").c_str(), join(bs, " -> ").c_str());
+                     join_str(as, " -> ").c_str(),
+                     join_str(bs, " -> ").c_str());
   }
 
   auto u1 = unify(as[0], bs[0]);

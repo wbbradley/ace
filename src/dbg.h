@@ -80,6 +80,7 @@ extern int __dbg_level;
   } else {                                                                     \
   }
 
+#define dbg_not(x) dbg_when(!(x))
 #define wat() panic("wat is this branch doing?")
 
 #ifdef ZION_DEBUG
