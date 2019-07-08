@@ -14,6 +14,8 @@
     assert(false);                                                             \
   } while (0)
 
+namespace zion {
+
 namespace gen {
 
 struct LoopGuard {
@@ -1310,3 +1312,5 @@ resolution_status_t gen(std::string name,
 }
 
 } // namespace gen
+
+} // namespace zion

@@ -8,18 +8,12 @@
 #include "dbg.h"
 #include "logger_decls.h"
 #include "user_error.h"
+#include "utils.h"
 #include "zion.h"
 
-template <typename T, typename U> bool all(const T &xs, U u) {
-  for (auto x : xs) {
-    if (x != u) {
-      return false;
-    }
-  }
-  return true;
-}
+namespace zion {
 
-zion_lexer_t::zion_lexer_t(std::string filename, std::istream &sock_is)
+Lexer::Lexer(std::string filename, std::istream &sock_is)
     : m_filename(filename), m_is(sock_is) {
 }
 
@@ -37,13 +31,13 @@ bool istchar(char ch) {
   return false;
 }
 
-bool zion_lexer_t::eof() {
+bool Lexer::eof() {
   return m_is.eof();
 }
 
-bool zion_lexer_t::get_token(Token &token,
-                             bool &newline,
-                             std::vector<Token> *comments) {
+bool Lexer::get_token(Token &token,
+                      bool &newline,
+                      std::vector<Token> *comments) {
   newline = false;
   do {
     for (int i = 0; i < 2 && m_token_queue.empty(); ++i) {
@@ -115,7 +109,7 @@ void advance_line_col(char ch, int &line, int &col) {
   }
 }
 
-bool zion_lexer_t::_get_tokens() {
+bool Lexer::_get_tokens() {
   /* _get_tokens should make sure there are tokens in the queue. */
   enum gt_state {
     gts_bang,
@@ -777,7 +771,7 @@ bool zion_lexer_t::_get_tokens() {
   return false;
 }
 
-bool zion_lexer_t::handle_nests(token_kind tk) {
+bool Lexer::handle_nests(token_kind tk) {
   bool was_empty = nested_tks.empty();
 
   switch (tk) {
@@ -801,7 +795,7 @@ bool zion_lexer_t::handle_nests(token_kind tk) {
   return !was_empty;
 }
 
-void zion_lexer_t::pop_nested(token_kind tk) {
+void Lexer::pop_nested(token_kind tk) {
   auto back_tk = nested_tks.size() > 0 ? nested_tks.back().second : tk_none;
   if (back_tk == tk) {
     nested_tks.pop_back();
@@ -814,5 +808,7 @@ void zion_lexer_t::pop_nested(token_kind tk) {
   }
 }
 
-zion_lexer_t::~zion_lexer_t() {
+Lexer::~Lexer() {
 }
+
+} // namespace zion

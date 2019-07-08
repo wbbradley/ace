@@ -1,13 +1,12 @@
 #pragma once
-#include <map>
 #include <memory>
+#include <string>
 #include <vector>
 
-#include "class_predicate.h"
-#include "env.h"
-#include "infer.h"
-#include "ptr.h"
+#include "location.h"
 #include "types.h"
+
+namespace types {
 
 /* Unification is basically just an Either result type. */
 struct Unification {
@@ -17,17 +16,11 @@ struct Unification {
   types::Map bindings;
 };
 
-types::Map solver(bool check_constraint_coverage,
-                  Context &&context,
-                  Constraints &constraints,
-                  Env &env,
-                  types::ClassPredicates &instance_requirements);
 Unification unify(types::Ref a, types::Ref b);
 Unification unify_many(const types::Refs &as, const types::Refs &b);
 types::Map compose(const types::Map &a, const types::Map &b);
 Unification compose(const Unification &a, const Unification &b);
 bool type_equality(types::Ref a, types::Ref b);
 bool scheme_equality(types::Scheme::Ref a, types::Scheme::Ref b);
-void rebind_constraints(Constraints::iterator iter,
-                        const Constraints::iterator &end,
-                        const types::Map &env);
+
+} // namespace types

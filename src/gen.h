@@ -8,6 +8,8 @@
 #include "unification.h"
 #include "user_error.h"
 
+namespace zion {
+
 namespace gen {
 
 typedef std::unordered_map<
@@ -41,3 +43,5 @@ resolution_status_t gen(std::string name,
                         const std::unordered_set<std::string> &globals,
                         Publisher *publisher);
 } // namespace gen
+
+} // namespace zion

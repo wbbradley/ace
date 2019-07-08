@@ -2,7 +2,9 @@
 
 #include "token.h"
 
-struct ZionTokenQueue {
+namespace zion {
+
+struct TokenQueue {
   std::list<Token> m_queue;
   token_kind m_last_tk = tk_none;
   void enqueue(const Location &location,
@@ -14,3 +16,5 @@ struct ZionTokenQueue {
   void set_last_tk(token_kind tk);
   Token pop();
 };
+
+} // namespace zion

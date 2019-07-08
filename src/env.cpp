@@ -8,7 +8,9 @@
 #include "types.h"
 #include "user_error.h"
 
-Env::Env(const SchemeResolver &scheme_resolver,
+namespace zion {
+
+Env::Env(SchemeResolver &scheme_resolver,
          const std::shared_ptr<const types::Type> &return_type,
          std::shared_ptr<TrackedTypes> tracked_types,
          const CtorIdMap &ctor_id_map,
@@ -23,7 +25,7 @@ std::vector<std::pair<std::string, types::Refs>> Env::get_ctors(
 }
 
 types::Scheme::Ref Env::lookup_env(Identifier id) const {
-  return scheme_resolver.resolve(id.name);
+  return scheme_resolver.resolve(id.location, id.name);
   /*
   auto error = user_error(id.location, "unbound variable " C_ID "%s" C_RESET,
                           id.name.c_str());
@@ -81,6 +83,8 @@ types::Ref Env::maybe_get_tracked_type(bitter::Expr *expr) const {
 void Env::extend(Identifier id,
                  const types::Scheme::Ref &scheme,
                  bool allow_subscoping) {
+  assert(false);
+#if 0
   if (!allow_subscoping && in(id.name, map)) {
     throw user_error(
         id.location,
@@ -90,6 +94,7 @@ void Env::extend(Identifier id,
   map[id.name] = scheme;
   debug_above(9, log("extending env with %s => %s", id.str().c_str(),
                      scheme->normalize()->str().c_str()));
+#endif
 }
 
 std::string str(const types::Scheme::Map &m) {
@@ -105,10 +110,12 @@ std::string str(const types::Scheme::Map &m) {
 
 std::string Env::str() const {
   std::stringstream ss;
-  ss << "{context: " << ::str(map);
+  ss << "{scheme_resolver: (" << scheme_resolver.str() << ")";
   if (return_type != nullptr) {
     ss << ", return_type: (" << return_type->str() << ")";
   }
   ss << "}";
   return ss.str();
 }
+
+} // namespace zion

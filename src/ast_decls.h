@@ -2,6 +2,7 @@
 #include <ostream>
 #include <vector>
 
+namespace zion {
 namespace bitter {
 struct Expr;
 struct Var;
@@ -24,6 +25,7 @@ struct Decl;
 struct Module;
 struct Program;
 } // namespace bitter
+} // namespace zion
 
-std::ostream &operator<<(std::ostream &os, bitter::Program *program);
-std::ostream &operator<<(std::ostream &os, bitter::Decl *decl);
+std::ostream &operator<<(std::ostream &os, zion::bitter::Program *program);
+std::ostream &operator<<(std::ostream &os, zion::bitter::Decl *decl);

@@ -5,6 +5,7 @@
 #include <sstream>
 
 #include "colors.h"
+#include "dbg.h"
 #include "types.h"
 #include "unification.h"
 #include "utils.h"

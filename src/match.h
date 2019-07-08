@@ -3,7 +3,9 @@
 
 #include "types.h"
 
+namespace zion {
 struct TranslationEnv;
+}
 
 namespace match {
 struct Pattern;
@@ -31,6 +33,6 @@ Pattern::ref difference(Pattern::ref lhs, Pattern::ref rhs);
 Pattern::ref pattern_union(Pattern::ref lhs, Pattern::ref rhs);
 Pattern::ref all_of(Location location,
                     maybe<Identifier> expr,
-                    const TranslationEnv &env,
+                    const zion::TranslationEnv &env,
                     types::Ref type);
 } // namespace match

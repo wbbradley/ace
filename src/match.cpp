@@ -7,6 +7,7 @@
 #include "ast.h"
 #include "builtins.h"
 #include "env.h"
+#include "ptr.h"
 #include "translate.h"
 #include "types.h"
 #include "unification.h"
@@ -54,12 +55,12 @@ struct CtorPatterns : std::enable_shared_from_this<CtorPatterns>, Pattern {
 
 struct AllOf : std::enable_shared_from_this<AllOf>, Pattern {
   maybe<Identifier> name;
-  const TranslationEnv &tenv;
+  const zion::TranslationEnv &tenv;
   types::Ref type;
 
   AllOf(Location location,
         maybe<Identifier> name,
-        const TranslationEnv &tenv,
+        const zion::TranslationEnv &tenv,
         types::Ref type)
       : Pattern(location), name(name), tenv(tenv), type(type) {
   }
@@ -146,7 +147,7 @@ std::shared_ptr<Scalars<double>> allFloats = std::make_shared<Scalars<double>>(
 
 Pattern::ref all_of(Location location,
                     maybe<Identifier> expr,
-                    const TranslationEnv &tenv,
+                    const zion::TranslationEnv &tenv,
                     types::Ref type) {
   return std::make_shared<match::AllOf>(location, expr, tenv, type);
 }
@@ -157,10 +158,11 @@ Pattern::ref reduce_all_datatype(Location location,
                                  const std::vector<CtorPatternValue> &cpvs) {
   for (auto cpv : cpvs) {
     if (cpv.type_name != type_name) {
-      auto error = user_error(location,
-                              "invalid typed ctor pattern found. expected %s "
-                              "but ctor_pattern indicates it is a %s",
-                              type_name.c_str(), cpv.type_name.c_str());
+      auto error = zion::user_error(
+          location,
+          "invalid typed ctor pattern found. expected %s "
+          "but ctor_pattern indicates it is a %s",
+          type_name.c_str(), cpv.type_name.c_str());
       error.add_info(location, "comparing %s and %s", cpv.type_name.c_str(),
                      type_name.c_str());
       throw error;
@@ -325,7 +327,7 @@ Pattern::ref intersect(Pattern::ref lhs, Pattern::ref rhs) {
                "intersect is not implemented yet (%s vs. %s)",
                lhs->str().c_str(), rhs->str().c_str());
 
-  throw user_error(INTERNAL_LOC(), "not implemented");
+  throw zion::user_error(INTERNAL_LOC(), "not implemented");
   return nullptr;
 }
 
@@ -375,12 +377,12 @@ Pattern::ref pattern_union(Pattern::ref lhs, Pattern::ref rhs) {
 
   log_location(log_error, lhs->location, "unhandled pattern_union (%s ∪ %s)",
                lhs->str().c_str(), rhs->str().c_str());
-  throw user_error(INTERNAL_LOC(), "not implemented");
+  throw zion::user_error(INTERNAL_LOC(), "not implemented");
   return nullptr;
 }
 
 Pattern::ref from_type(Location location,
-                       const TranslationEnv &tenv,
+                       const zion::TranslationEnv &tenv,
                        Ref type) {
   if (auto tuple_type = dyncast<const types::TypeTuple>(type)) {
     std::vector<Pattern::ref> args;
@@ -422,7 +424,7 @@ Pattern::ref from_type(Location location,
     } else if (cpvs.size() > 1) {
       return std::make_shared<CtorPatterns>(location, cpvs);
     } else {
-      throw user_error(INTERNAL_LOC(), "not implemented");
+      throw zion::user_error(INTERNAL_LOC(), "not implemented");
     }
   }
 
@@ -545,7 +547,7 @@ void difference(Pattern::ref lhs,
         return;
       }
 
-      auto error = user_error(
+      auto error = zion::user_error(
           lhs->location,
           "type mismatch when comparing ctors for pattern intersection");
       error.add_info(rhs->location, "comparing this type");
@@ -580,7 +582,7 @@ void difference(Pattern::ref lhs,
       }
       return;
     } else {
-      throw user_error(rhs->location, "type mismatch");
+      throw zion::user_error(rhs->location, "type mismatch");
     }
   }
 
@@ -631,7 +633,7 @@ void difference(Pattern::ref lhs,
 
   log_location(log_error, lhs->location, "unhandled difference - %s \\ %s",
                lhs->str().c_str(), rhs->str().c_str());
-  throw user_error(INTERNAL_LOC(), "not implemented");
+  throw zion::user_error(INTERNAL_LOC(), "not implemented");
 }
 
 Pattern::ref difference(Pattern::ref lhs, Pattern::ref rhs) {
@@ -681,16 +683,18 @@ std::string CtorPatternValue::str() const {
 
 } // namespace match
 
+namespace zion {
 namespace bitter {
 using namespace ::match;
 using namespace ::types;
 
-Pattern::ref TuplePredicate::get_pattern(Ref type,
-                                         const TranslationEnv &tenv) const {
+Pattern::ref TuplePredicate::get_pattern(
+    Ref type,
+    const zion::TranslationEnv &tenv) const {
   std::vector<Pattern::ref> args;
   if (auto tuple_type = dyncast<const TypeTuple>(type)) {
     if (tuple_type->dimensions.size() != params.size()) {
-      throw user_error(location,
+      throw zion::user_error(location,
                        "tuple predicate has an incorrect number of "
                        "sub-patterns. there are %d, there should be %d",
                        int(params.size()), int(tuple_type->dimensions.size()));
@@ -703,22 +707,23 @@ Pattern::ref TuplePredicate::get_pattern(Ref type,
     return std::make_shared<CtorPattern>(
         location, CtorPatternValue{tuple_type->repr(), "tuple", args});
   } else {
-    throw user_error(location,
+    throw zion::user_error(location,
                      "type mismatch on pattern. incoming type is %s. "
                      "it is not a %d-tuple.",
                      type->str().c_str(), (int)params.size());
     return nullptr;
   }
 }
-Pattern::ref CtorPredicate::get_pattern(Ref type,
-                                        const TranslationEnv &tenv) const {
+Pattern::ref CtorPredicate::get_pattern(
+    Ref type,
+    const zion::TranslationEnv &tenv) const {
   auto ctor_terms = unfold_arrows(tenv.get_data_ctor_type(type, ctor_name));
 
   std::vector<Pattern::ref> args;
   if (ctor_terms.size() - 1 != params.size()) {
     log("params = %s", join_str(params).c_str());
     log("ctor_terms = %s", join_str(ctor_terms).c_str());
-    throw user_error(location,
+    throw zion::user_error(location,
                      "%s has an incorrect number of sub-patterns. there are "
                      "%d, there should be %d",
                      ctor_name.name.c_str(), int(params.size()),
@@ -735,10 +740,11 @@ Pattern::ref CtorPredicate::get_pattern(Ref type,
 }
 Pattern::ref IrrefutablePredicate::get_pattern(
     Ref type,
-    const TranslationEnv &tenv) const {
+    const zion::TranslationEnv &tenv) const {
   return std::make_shared<AllOf>(location, name_assignment, tenv, type);
 }
-Pattern::ref Literal::get_pattern(Ref type, const TranslationEnv &tenv) const {
+Pattern::ref Literal::get_pattern(Ref type,
+                                  const zion::TranslationEnv &tenv) const {
   if (type_equality(type, type_int(INTERNAL_LOC()))) {
     if (token.tk == tk_integer) {
       int64_t value = parse_int_value(token);
@@ -750,9 +756,10 @@ Pattern::ref Literal::get_pattern(Ref type, const TranslationEnv &tenv) const {
     }
   }
 
-  throw user_error(token.location,
+  throw zion::user_error(token.location,
                    "invalid type for literal '%s'. should be a %s",
                    token.text.c_str(), type->str().c_str());
   return nullptr;
 }
 } // namespace bitter
+} // namespace zion

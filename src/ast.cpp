@@ -5,7 +5,7 @@
 #include "ptr.h"
 #include "zion.h"
 
-std::ostream &operator<<(std::ostream &os, bitter::Program *program) {
+std::ostream &operator<<(std::ostream &os, zion::bitter::Program *program) {
   os << "program";
   const char *delim = "\n";
   for (auto decl : program->decls) {
@@ -14,15 +14,16 @@ std::ostream &operator<<(std::ostream &os, bitter::Program *program) {
   return os << std::endl;
 }
 
-std::ostream &operator<<(std::ostream &os, bitter::Decl *decl) {
+std::ostream &operator<<(std::ostream &os, zion::bitter::Decl *decl) {
   os << decl->id.name << " = ";
   return decl->value->render(os, 0);
 }
 
-std::ostream &operator<<(std::ostream &os, bitter::Expr *expr) {
+std::ostream &operator<<(std::ostream &os, zion::bitter::Expr *expr) {
   return expr->render(os, 0);
 }
 
+namespace zion {
 namespace bitter {
 
 std::string Expr::str() const {
@@ -463,3 +464,5 @@ std::string fresh() {
 bitter::Expr *unit_expr(Location location) {
   return new bitter::Tuple(location, {});
 }
+
+} // namespace zion

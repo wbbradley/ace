@@ -3,6 +3,8 @@
 
 #include <iostream>
 
+namespace zion {
+
 const char *littostr(LinkInType lit) {
   switch (lit) {
   case lit_pkgconfig:
@@ -19,3 +21,5 @@ LinkIn::LinkIn(LinkInType lit, Token name) : lit(lit), name(name) {
 bool LinkIn::operator<(const LinkIn &rhs) const {
   return lit < rhs.lit || name < rhs.name;
 }
+
+} // namespace zion

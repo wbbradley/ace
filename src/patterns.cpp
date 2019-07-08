@@ -9,16 +9,18 @@
 #include "unification.h"
 #include "zion.h"
 
+namespace zion {
+
 using namespace bitter;
 
-const Expr *build_patterns(const DefnId &for_defn_id,
+const Expr *build_patterns(const types::DefnId &for_defn_id,
                            const pattern_blocks_t &pattern_blocks,
                            int index,
                            const std::unordered_set<std::string> &bound_vars_,
                            const types::TypeEnv &type_env,
                            const TranslationEnv &tenv,
                            TrackedTypes &typing,
-                           NeededDefns &needed_defns,
+                           types::NeededDefns &needed_defns,
                            bool &returns,
                            Identifier scrutinee_id,
                            types::Ref scrutinee_type,
@@ -55,7 +57,7 @@ const Expr *build_patterns(const DefnId &for_defn_id,
             [&for_defn_id, &pattern_block](
                 const std::unordered_set<std::string> &bound_vars,
                 const types::TypeEnv &type_env, const TranslationEnv &tenv,
-                TrackedTypes &typing, NeededDefns &needed_defns,
+                TrackedTypes &typing, types::NeededDefns &needed_defns,
                 bool &returns) -> const Expr * {
               return texpr(for_defn_id, pattern_block->result, bound_vars,
                            tenv.get_type(pattern_block->result), type_env, tenv,
@@ -65,7 +67,7 @@ const Expr *build_patterns(const DefnId &for_defn_id,
              &scrutinee_type, &expected_type](
                 const std::unordered_set<std::string> &bound_vars,
                 const types::TypeEnv &type_env, const TranslationEnv &tenv,
-                TrackedTypes &typing, NeededDefns &needed_defns,
+                TrackedTypes &typing, types::NeededDefns &needed_defns,
                 bool &returns) -> const Expr * {
               if (index + 1 < pattern_blocks.size()) {
                 return build_patterns(for_defn_id, pattern_blocks, index + 1,
@@ -121,13 +123,13 @@ void check_patterns(Location location,
 }
 
 const Expr *translate_match_expr(
-    const DefnId &for_defn_id,
+    const types::DefnId &for_defn_id,
     const bitter::Match *match,
     const std::unordered_set<std::string> &bound_vars,
     const types::TypeEnv &type_env,
     const TranslationEnv &tenv,
     TrackedTypes &typing,
-    NeededDefns &needed_defns,
+    types::NeededDefns &needed_defns,
     bool &returns) {
   auto expected_type = tenv.get_type(match);
 
@@ -163,7 +165,7 @@ void Literal::get_bound_vars(
 }
 
 const Expr *Literal::translate(
-    const DefnId &for_defn_id,
+    const types::DefnId &for_defn_id,
     const Identifier &scrutinee_id,
     const types::Ref &scrutinee_type,
     bool do_checks,
@@ -171,7 +173,7 @@ const Expr *Literal::translate(
     const types::TypeEnv &type_env,
     const TranslationEnv &tenv,
     TrackedTypes &typing,
-    NeededDefns &needed_defns,
+    types::NeededDefns &needed_defns,
     bool &returns,
     translate_continuation_t &matched,
     translate_continuation_t &failed) const {
@@ -188,7 +190,7 @@ const Expr *Literal::translate(
 
   typing[literal_cmp] = cmp_type;
   insert_needed_defn(needed_defns,
-                     DefnId{literal_cmp->id, cmp_type->generalize({})},
+                     types::DefnId{literal_cmp->id, cmp_type->generalize({})},
                      token.location, for_defn_id);
 
   bool truthy_returns = false;
@@ -216,7 +218,7 @@ const Expr *Literal::translate(
   return cond;
 }
 
-const Expr *translate_next(const DefnId &for_defn_id,
+const Expr *translate_next(const types::DefnId &for_defn_id,
                            const Identifier &scrutinee_id,
                            const types::Ref &scrutinee_type,
                            const types::Refs &param_types,
@@ -228,7 +230,7 @@ const Expr *translate_next(const DefnId &for_defn_id,
                            const types::TypeEnv &type_env,
                            const TranslationEnv &tenv,
                            TrackedTypes &typing,
-                           NeededDefns &needed_defns,
+                           types::NeededDefns &needed_defns,
                            bool &returns,
                            translate_continuation_t &matched,
                            translate_continuation_t &failed) {
@@ -242,7 +244,7 @@ const Expr *translate_next(const DefnId &for_defn_id,
                    do_checks](const std::unordered_set<std::string> &bound_vars,
                               const types::TypeEnv &type_env,
                               const TranslationEnv &tenv, TrackedTypes &typing,
-                              NeededDefns &needed_defns, bool &returns) {
+                              types::NeededDefns &needed_defns, bool &returns) {
     if (param_index + 1 < params.size()) {
       return translate_next(for_defn_id, scrutinee_id, scrutinee_type,
                             param_types, do_checks, bound_vars, params,
@@ -296,7 +298,7 @@ void CtorPredicate::get_bound_vars(
 }
 
 const Expr *CtorPredicate::translate(
-    const DefnId &for_defn_id,
+    const types::DefnId &for_defn_id,
     const Identifier &scrutinee_id,
     const types::Ref &scrutinee_type,
     bool do_checks,
@@ -304,7 +306,7 @@ const Expr *CtorPredicate::translate(
     const types::TypeEnv &type_env,
     const TranslationEnv &tenv,
     TrackedTypes &typing,
-    NeededDefns &needed_defns,
+    types::NeededDefns &needed_defns,
     bool &returns,
     translate_continuation_t &matched,
     translate_continuation_t &failed) const {
@@ -435,7 +437,7 @@ void TuplePredicate::get_bound_vars(
 }
 
 const Expr *TuplePredicate::translate(
-    const DefnId &for_defn_id,
+    const types::DefnId &for_defn_id,
     const Identifier &scrutinee_id,
     const types::Ref &scrutinee_type,
     bool do_checks,
@@ -443,7 +445,7 @@ const Expr *TuplePredicate::translate(
     const types::TypeEnv &type_env,
     const TranslationEnv &tenv,
     TrackedTypes &typing,
-    NeededDefns &needed_defns,
+    types::NeededDefns &needed_defns,
     bool &returns,
     translate_continuation_t &matched,
     translate_continuation_t &failed) const {
@@ -466,7 +468,7 @@ void IrrefutablePredicate::get_bound_vars(
 }
 
 const Expr *IrrefutablePredicate::translate(
-    const DefnId &for_defn_id,
+    const types::DefnId &for_defn_id,
     const Identifier &scrutinee_id,
     const types::Ref &scrutinee_type,
     bool do_checks,
@@ -474,7 +476,7 @@ const Expr *IrrefutablePredicate::translate(
     const types::TypeEnv &type_env,
     const TranslationEnv &tenv,
     TrackedTypes &typing,
-    NeededDefns &needed_defns,
+    types::NeededDefns &needed_defns,
     bool &returns,
     translate_continuation_t &matched,
     translate_continuation_t &) const {
@@ -486,3 +488,5 @@ const Expr *IrrefutablePredicate::translate(
                               scrutinee_type->str().c_str()));
   return matched(bound_vars, type_env, tenv, typing, needed_defns, returns);
 }
+
+} // namespace zion

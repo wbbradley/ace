@@ -13,13 +13,9 @@ struct Identifier {
   Identifier(const std::string &name, Location location);
   std::string const name;
   Location const location;
-  static Identifier from_token(Token token);
-  inline Token get_token() const {
-    return Token{location, tk_identifier, name};
-  }
-  std::string str() const {
-    return string_format(c_id("%s"), name.c_str());
-  }
+  static Identifier from_token(zion::Token token);
+  zion::Token get_token() const;
+  std::string str() const;
 
   bool operator<(const Identifier &rhs) const;
 };

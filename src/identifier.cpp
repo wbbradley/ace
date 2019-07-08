@@ -29,8 +29,16 @@ std::set<std::string> to_atom_set(const Identifiers &refs) {
   return set;
 }
 
-Identifier Identifier::from_token(Token token) {
-  assert(token.tk == tk_identifier);
+zion::Token Identifier::get_token() const {
+  return zion::Token{location, zion::tk_identifier, name};
+}
+
+std::string Identifier::str() const {
+  return string_format(c_id("%s"), name.c_str());
+}
+
+Identifier Identifier::from_token(zion::Token token) {
+  assert(token.tk == zion::tk_identifier);
   return {token.text, token.location};
 }
 

@@ -15,13 +15,18 @@
 #include "lexer.h"
 #include "logger.h"
 #include "logger_decls.h"
+#include "solver.h"
 #include "tests.h"
 #include "translate.h"
 #include "unification.h"
 
 #define IMPL_SUFFIX "-impl"
 
+namespace zion {
+
 using namespace bitter;
+
+namespace {
 
 bool get_help = false;
 bool fast_fail = true && (getenv("ZION_SHOW_ALL_ERRORS") == nullptr);
@@ -88,15 +93,16 @@ void check(bool check_constraint_coverage,
            Identifier id,
            const Expr *expr,
            Env &env) {
-  Constraints constraints;
+  types::Constraints constraints;
   types::ClassPredicates instance_requirements;
   debug_above(
       4, log("type checking %s = %s", id.str().c_str(), expr->str().c_str()));
   types::Ref ty = infer(expr, env, constraints, instance_requirements);
-  types::Map bindings = solver(check_constraint_coverage,
-                               make_context(id.location, "solving %s :: %s",
-                                            id.name.c_str(), ty->str().c_str()),
-                               constraints, env, instance_requirements);
+  types::Map bindings = zion::solver(
+      check_constraint_coverage,
+      make_context(id.location, "solving %s :: %s", id.name.c_str(),
+                   ty->str().c_str()),
+      constraints, env, instance_requirements);
 
   ty = ty->rebind(bindings);
   instance_requirements = types::rebind(instance_requirements, bindings);
@@ -119,7 +125,7 @@ std::vector<std::string> alphabet(int count) {
 
 void initialize_default_env(Env &env) {
   for (auto pair : get_builtins()) {
-    env.map[pair.first] = pair.second;
+    env.scheme_resolver.precache(pair.first, pair.second);
   }
 }
 
@@ -179,12 +185,6 @@ void check_decls(std::string entry_point_name,
                  const std::vector<const Decl *> &decls,
                  Env &env) {
   for (const Decl *decl : decls) {
-    /* seed each decl with a type variable to let inference resolve */
-    env.extend(decl->id, type_variable(INTERNAL_LOC())->generalize({}),
-               true /*allow_subscoping*/);
-  }
-
-  for (const Decl *decl : decls) {
     try {
       /* make sure that the "main" function has the correct signature */
       check(false /*check_constraint_coverage*/, decl->id,
@@ -221,7 +221,7 @@ void check_instance_for_type_class_overload(
     const types::Map &subst,
     std::set<std::string> &names_checked,
     std::vector<const Decl *> &instance_decls,
-    std::map<DefnId, const Decl *> &overrides_map,
+    std::map<types::DefnId, const Decl *> &overrides_map,
     Env &env,
     const types::ClassPredicates &class_predicates) {
   bool found = false;
@@ -274,7 +274,7 @@ void check_instance_for_type_class_overload(
       env.map[instance_decl_id.name] = expected_scheme;
 
       instance_decls.push_back(new Decl(instance_decl_id, instance_decl_expr));
-      auto defn_id = DefnId{decl->id, expected_scheme};
+      auto defn_id = types::DefnId{decl->id, expected_scheme};
       overrides_map[defn_id] = instance_decls.back();
     }
   }
@@ -291,7 +291,7 @@ void check_instance_for_type_class_overloads(
     const Instance *instance,
     const TypeClass *type_class,
     std::vector<const Decl *> &instance_decls,
-    std::map<DefnId, const Decl *> &overrides_map,
+    std::map<types::DefnId, const Decl *> &overrides_map,
     Env &env) {
   /* make a template for the types that the instance implementation should
    * conform to */
@@ -348,7 +348,7 @@ void check_instance_for_type_class_overloads(
 std::vector<const Decl *> check_instances(
     const std::vector<const Instance *> &instances,
     const std::map<std::string, const TypeClass *> &type_class_map,
-    std::map<DefnId, const Decl *> &overrides_map,
+    std::map<types::DefnId, const Decl *> &overrides_map,
     Env &env) {
   std::vector<const Decl *> instance_decls;
 
@@ -440,13 +440,13 @@ void check_instance_requirements(const std::vector<Instance *> &instances,
 #endif
 
 class defn_map_t {
-  std::map<DefnId, const Decl *> map;
+  std::map<types::DefnId, const Decl *> map;
   std::map<std::string, const Decl *> decl_map;
 
   friend struct phase_2_t;
 
 public:
-  const Decl *maybe_lookup(DefnId defn_id) const {
+  const Decl *maybe_lookup(types::DefnId defn_id) const {
     auto iter = map.find(defn_id);
     const Decl *decl = nullptr;
     if (iter != map.end()) {
@@ -480,7 +480,7 @@ public:
     return nullptr;
   }
 
-  const Decl *lookup(DefnId defn_id) const {
+  const Decl *lookup(types::DefnId defn_id) const {
     auto decl = maybe_lookup(defn_id);
     if (decl == nullptr) {
       auto error = user_error(defn_id.id.location,
@@ -499,7 +499,7 @@ public:
   }
 
   void populate(const std::map<std::string, const Decl *> &decl_map_,
-                const std::map<DefnId, const Decl *> &overrides_map,
+                const std::map<types::DefnId, const Decl *> &overrides_map,
                 const Env &env) {
     decl_map = decl_map_;
 
@@ -511,14 +511,14 @@ public:
       assert(decl_name == decl->id.name);
 
       types::Scheme::Ref scheme = env.lookup_env(decl->id)->normalize();
-      DefnId defn_id = DefnId{decl->id, scheme};
+      types::DefnId defn_id = types::DefnId{decl->id, scheme};
       assert(!in(defn_id, map));
       debug_above(8, log("populating defn_map with %s", defn_id.str().c_str()));
       map[defn_id] = decl;
     }
 
     for (auto pair : overrides_map) {
-      const DefnId &defn_id = pair.first;
+      const types::DefnId &defn_id = pair.first;
       debug_above(8, log("populating defn_map with override %s",
                          defn_id.str().c_str()));
       assert(!in(defn_id, map));
@@ -587,7 +587,7 @@ phase_2_t compile(std::string user_program_name_) {
   auto type_class_map = check_type_classes(program->type_classes, env);
 
   check_decls(compilation->program_name + ".main", program->decls, env);
-  std::map<DefnId, const Decl *> overrides_map;
+  std::map<types::DefnId, const Decl *> overrides_map;
 
   std::vector<const Decl *> instance_decls = check_instances(
       program->instances, type_class_map, overrides_map, env);
@@ -662,9 +662,9 @@ void specialize_core(const types::TypeEnv &type_env,
                      const types::Scheme::Map &typing,
                      const CtorIdMap &ctor_id_map,
                      const DataCtorsMap &data_ctors_map,
-                     DefnId defn_id,
+                     types::DefnId defn_id,
                      /* output */ translation_map_t &translation_map,
-                     /* output */ NeededDefns &needed_defns) {
+                     /* output */ types::NeededDefns &needed_defns) {
   debug_above(2, log("specialize_core %s", defn_id.str().c_str()));
   if (starts_with(defn_id.id.name, "__builtin_")) {
     return;
@@ -806,8 +806,8 @@ phase_3_t specialize(const phase_2_t &phase_2) {
       {make_iid(phase_2.compilation->program_name + ".main"),
        program_main_scheme});
 
-  NeededDefns needed_defns;
-  DefnId main_defn{program_main->id, program_main_scheme};
+  types::NeededDefns needed_defns;
+  types::DefnId main_defn{program_main->id, program_main_scheme};
   insert_needed_defn(needed_defns, main_defn, INTERNAL_LOC(), main_defn);
 
   translation_map_t translation_map;
@@ -1117,7 +1117,7 @@ int run_job(const Job &job) {
         INTERNAL_LOC(), job.args[0], ".zion");
     std::ifstream ifs;
     ifs.open(filename.c_str());
-    zion_lexer_t lexer({filename}, ifs);
+    Lexer lexer({filename}, ifs);
     Token token;
     bool newline = false;
     while (lexer.get_token(token, newline, nullptr)) {
@@ -1289,13 +1289,17 @@ int run_job(const Job &job) {
   }
 }
 
+} // namespace
+
+} // namespace zion
+
 int main(int argc, char *argv[]) {
   // signal(SIGINT, &handle_sigint);
   init_dbg();
   init_host();
   std::shared_ptr<logger> logger(std::make_shared<standard_logger>("", "."));
 
-  Job job;
+  zion::Job job;
   if (1 < argc) {
     int index = 1;
     job.cmd = argv[index++];
@@ -1311,10 +1315,11 @@ int main(int argc, char *argv[]) {
   }
 
   try {
-    return run_job(job);
+    return zion::run_job(job);
   } catch (user_error &e) {
-    print_exception(e);
+    zion::print_exception(e);
     /* and continue */
     return EXIT_FAILURE;
   }
 }
+

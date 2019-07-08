@@ -10,6 +10,7 @@
 #include "env.h"
 #include "parens.h"
 #include "prefix.h"
+#include "ptr.h"
 #include "types.h"
 #include "unification.h"
 #include "user_error.h"
@@ -148,7 +149,7 @@ TypeId::TypeId(Identifier id) : id(id) {
   }
   assert(id.name.size() > dot_index);
   if (islower(id.name[dot_index])) {
-    throw user_error(id.location,
+    throw zion::user_error(id.location,
                      "type identifiers must begin with an upper-case letter");
   }
 
@@ -185,7 +186,7 @@ Ref TypeId::remap_vars(const std::map<std::string, std::string> &map) const {
 Ref TypeId::prefix_ids(const std::set<std::string> &bindings,
                        const std::string &pre) const {
   if (in(id.name, bindings)) {
-    return type_id(prefix(bindings, pre, id));
+    return type_id(zion::prefix(bindings, pre, id));
   } else {
     return shared_from_this();
   }
@@ -943,8 +944,8 @@ types::Ref type_deref(Location location, types::Ref type) {
   if (types::is_type_id(ptr->oper, PTR_TYPE_OPERATOR)) {
     return ptr->operand;
   } else {
-    throw user_error(location, "attempt to dereference value of type %s",
-                     type->str().c_str());
+    throw zion::user_error(location, "attempt to dereference value of type %s",
+                           type->str().c_str());
   }
 }
 
@@ -953,7 +954,7 @@ types::Ref tuple_deref_type(Location location,
                             int index) {
   auto tuple = safe_dyncast<const types::TypeTuple>(tuple_);
   if (tuple->dimensions.size() < index || index < 0) {
-    auto error = user_error(
+    auto error = zion::user_error(
         location,
         "attempt to access type of element at index %d which is out of range",
         index);

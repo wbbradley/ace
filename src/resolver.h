@@ -6,6 +6,8 @@
 #include "llvm_utils.h"
 #include "types.h"
 
+namespace zion {
+
 namespace gen {
 
 enum resolution_status_t {
@@ -45,3 +47,5 @@ std::shared_ptr<Resolver> lazy_resolver(std::string name,
                                         lazy_resolver_callback_t &&callback);
 
 } // namespace gen
+
+} // namespace zion

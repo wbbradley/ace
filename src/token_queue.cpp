@@ -3,28 +3,30 @@
 #include "dbg.h"
 #include "utils.h"
 
+namespace zion {
+
 struct token_matcher {
   const char *text;
   token_kind tk;
 };
 
-void ZionTokenQueue::enqueue(const Location &location, token_kind tk) {
+void TokenQueue::enqueue(const Location &location, token_kind tk) {
   zion_string_t token_text;
   enqueue(location, tk, token_text);
 }
 
-void ZionTokenQueue::enqueue(const Location &location,
-                             token_kind tk,
-                             const zion_string_t &token_text) {
+void TokenQueue::enqueue(const Location &location,
+                         token_kind tk,
+                         const zion_string_t &token_text) {
   m_last_tk = tk;
   m_queue.push_back({location, tk, token_text.str()});
 }
 
-bool ZionTokenQueue::empty() const {
+bool TokenQueue::empty() const {
   return m_queue.empty();
 }
 
-Token ZionTokenQueue::pop() {
+Token TokenQueue::pop() {
   Token token = m_queue.front();
   m_queue.pop_front();
   if (m_queue.empty()) {
@@ -44,10 +46,12 @@ Token ZionTokenQueue::pop() {
   }
 }
 
-token_kind ZionTokenQueue::last_tk() const {
+token_kind TokenQueue::last_tk() const {
   return m_last_tk;
 }
 
-void ZionTokenQueue::set_last_tk(token_kind tk) {
+void TokenQueue::set_last_tk(token_kind tk) {
   m_last_tk = tk;
 }
+
+} // namespace zion

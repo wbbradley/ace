@@ -5,7 +5,9 @@
 #include "constraint.h"
 #include "env.h"
 
+namespace zion {
 types::Ref infer(const bitter::Expr *expr,
                  Env &env,
-                 Constraints &constraints,
+                 types::Constraints &constraints,
                  types::ClassPredicates &instance_requirements);
+}

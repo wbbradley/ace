@@ -6,6 +6,8 @@
 #include "defn_id.h"
 #include "types.h"
 
+namespace zion {
+
 struct Translation {
   typedef std::shared_ptr<Translation> ref;
 
@@ -38,19 +40,21 @@ struct TranslationEnv {
 };
 
 Translation::ref translate_expr(
-    const DefnId &for_defn_id,
+    const types::DefnId &for_defn_id,
     const bitter::Expr *expr,
     const std::unordered_set<std::string> &bound_vars,
     const types::TypeEnv &type_env,
     const TranslationEnv &tenv,
-    NeededDefns &needed_defns,
+    types::NeededDefns &needed_defns,
     bool &returns);
-const bitter::Expr *texpr(const DefnId &for_defn_id,
+const bitter::Expr *texpr(const types::DefnId &for_defn_id,
                           const bitter::Expr *expr,
                           const std::unordered_set<std::string> &bound_vars,
                           types::Ref type,
                           const types::TypeEnv &type_env,
                           const TranslationEnv &tenv,
                           TrackedTypes &typing,
-                          NeededDefns &needed_defns,
+                          types::NeededDefns &needed_defns,
                           bool &returns);
+
+} // namespace zion

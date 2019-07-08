@@ -4,6 +4,8 @@
 #include "types.h"
 #include "user_error.h"
 
+namespace types {
+
 Location DefnId::get_location() const {
   return id.location;
 }
@@ -19,7 +21,7 @@ DefnId DefnId::unitize() const {
   auto defn_id = DefnId{id, types::unitize(scheme->type)->generalize({})};
 
   if (scheme->btvs() != 0) {
-    throw user_error(
+    throw zion::user_error(
         scheme->get_location(),
         "(%s) attempt to unitize a scheme %s with class constraints",
         defn_id.str().c_str(), scheme->str().c_str());
@@ -57,3 +59,5 @@ void insert_needed_defn(NeededDefns &needed_defns,
                               for_defn_id.str().c_str()));
   needed_defns[defn_id.unitize()].push_back({location, for_defn_id.unitize()});
 }
+
+} // namespace types

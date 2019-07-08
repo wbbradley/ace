@@ -5,6 +5,8 @@
 #include "logger_decls.h"
 #include "zion.h"
 
+namespace zion {
+
 struct user_error : std::exception {
   user_error(log_level_t log_level, Location location);
   user_error(log_level_t log_level, Location location, const char *format...);
@@ -35,3 +37,5 @@ struct user_error : std::exception {
 };
 
 void print_exception(const user_error &e, int level = 0);
+
+} // namespace zion

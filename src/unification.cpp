@@ -7,12 +7,13 @@
 #include "dbg.h"
 #include "env.h"
 #include "logger.h"
+#include "ptr.h"
 #include "types.h"
 #include "user_error.h"
 #include "utils.h"
 #include "zion.h"
 
-using namespace types;
+namespace types {
 
 bool scheme_equality(types::Scheme::Ref a, types::Scheme::Ref b) {
   if (a == nullptr || b == nullptr) {
@@ -88,7 +89,7 @@ bool type_equality(types::Ref a, types::Ref b) {
       return true;
     }
   } else {
-    auto error = user_error(
+    auto error = zion::user_error(
         a->get_location(),
         "type_equality is not implemented between these two types");
     error.add_info(b->get_location(), "%s and %s", a->str().c_str(),
@@ -154,76 +155,6 @@ Unification unify(Ref a, Ref b) {
   };
 }
 
-void check_constraints_cover_tracked_types(const Context &context,
-                                           const TrackedTypes &tracked_types,
-                                           const Constraints &constraints) {
-  Ftvs ftvs;
-  for (auto pair : tracked_types) {
-    const Ftvs &s = pair.second->get_ftvs();
-    set_concat(ftvs, s);
-    debug_above(5, log_location(pair.first->get_location(),
-                                "%s :: %s contains {%s}",
-                                pair.first->str().c_str(),
-                                pair.second->str().c_str(), join(s).c_str()));
-  }
-
-  Ftvs constrained_tvs;
-  for (auto &constraint : constraints) {
-    set_concat(constrained_tvs, constraint.a->get_ftvs());
-    set_concat(constrained_tvs, constraint.b->get_ftvs());
-  }
-  for (auto &constrained_tv : constrained_tvs) {
-    ftvs.erase(constrained_tv);
-  }
-  if (ftvs.size() != 0) {
-    log("not all ftvs in tracked types are constrained {%s}",
-        join(ftvs, ", ").c_str());
-    dbg();
-  }
-}
-
-types::Map solver(bool check_constraint_coverage,
-                  Context &&context,
-                  Constraints &constraints,
-                  Env &env,
-                  types::ClassPredicates &instance_requirements) {
-  debug_above(2, log("solver(%s, ... %d constraints)", context.message.c_str(),
-                     constraints.size()));
-  if (check_constraint_coverage) {
-    check_constraints_cover_tracked_types(context, *env.tracked_types,
-                                          constraints);
-  }
-
-  types::Map bindings;
-  for (auto iter = constraints.begin(); iter != constraints.end();) {
-    Unification unification = unify(iter->a, iter->b);
-    if (unification.result) {
-      if (unification.bindings.size() != 0) {
-        env.rebind_env(unification.bindings);
-
-        /* save the bindings */
-        types::Map new_bindings = compose(unification.bindings, bindings);
-        std::swap(bindings, new_bindings);
-      }
-      ++iter;
-
-      rebind_constraints(iter, constraints.end(), unification.bindings);
-
-      /* rebind the class predicates */
-      instance_requirements = types::rebind(instance_requirements,
-                                            unification.bindings);
-      continue;
-    } else {
-      auto error = user_error(unification.error_location, "%s",
-                              unification.error_string.c_str());
-      error.add_info(iter->context.location, "while checking that %s",
-                     iter->context.message.c_str());
-      throw error;
-    }
-  }
-  return bindings;
-}
-
 types::Map compose(const types::Map &a, const types::Map &b) {
   debug_above(11,
               log("composing {%s} with {%s}",
@@ -278,28 +209,15 @@ std::vector<Ref> rebind_tails(const std::vector<Ref> &types,
   return new_types;
 }
 
-void rebind_constraints(Constraints::iterator iter,
-                        const Constraints::iterator &end,
-                        const Map &bindings) {
-  if (bindings.size() == 0) {
-    /* nothing to rebind, bail */
-    return;
-  }
-
-  while (iter != end) {
-    (*iter++).rebind(bindings);
-  }
-}
-
 Unification unify_many(const types::Refs &as, const types::Refs &bs) {
   debug_above(8, log("unify_many([%s], [%s])", join_str(as, ", ").c_str(),
                      join_str(bs, ", ").c_str()));
   if (as.size() == 0 && bs.size() == 0) {
     return Unification{true, INTERNAL_LOC(), "", {}};
   } else if (as.size() != bs.size()) {
-    throw user_error(as[0]->get_location(), "unification mismatch %s != %s",
-                     join_str(as, " -> ").c_str(),
-                     join_str(bs, " -> ").c_str());
+    throw zion::user_error(
+        as[0]->get_location(), "unification mismatch %s != %s",
+        join_str(as, " -> ").c_str(), join_str(bs, " -> ").c_str());
   }
 
   auto u1 = unify(as[0], bs[0]);
@@ -307,3 +225,5 @@ Unification unify_many(const types::Refs &as, const types::Refs &bs) {
                        rebind_tails(bs, u1.bindings));
   return compose(u2, u1);
 }
+
+} // namespace types
