@@ -89,20 +89,22 @@ void handle_sigint(int sig) {
   exit(2);
 }
 
-void check(bool check_constraint_coverage,
-           Identifier id,
-           const Expr *expr,
-           Env &env) {
+types::SchemeRef check(bool check_constraint_coverage,
+                       Identifier id,
+                       const Expr *expr,
+                       Env &env,
+                       const types::SchemeResolver &scheme_resolver) {
   types::Constraints constraints;
   types::ClassPredicates instance_requirements;
   debug_above(
       4, log("type checking %s = %s", id.str().c_str(), expr->str().c_str()));
-  types::Ref ty = infer(expr, env, constraints, instance_requirements);
+  types::Ref ty = infer(expr, env, scheme_resolver, constraints,
+                        instance_requirements);
   types::Map bindings = zion::solver(
       check_constraint_coverage,
       make_context(id.location, "solving %s :: %s", id.name.c_str(),
                    ty->str().c_str()),
-      constraints, env, instance_requirements);
+      constraints, env, scheme_resolver, instance_requirements);
 
   ty = ty->rebind(bindings);
   instance_requirements = types::rebind(instance_requirements, bindings);
@@ -110,9 +112,7 @@ void check(bool check_constraint_coverage,
 
   debug_above(3, log_location(id.location, "adding %s to env as %s",
                               id.str().c_str(), scheme->str().c_str()));
-  // log_location(id.location, "let %s = %s", id.str().c_str(),
-  // expr->str().c_str());
-  env.extend(id, scheme, true /*allow_subscoping*/);
+  return scheme;
 }
 
 std::vector<std::string> alphabet(int count) {
@@ -123,19 +123,19 @@ std::vector<std::string> alphabet(int count) {
   return xs;
 }
 
-void initialize_default_env(Env &env) {
+void initialize_builtin_schemes(types::SchemeResolver &scheme_resolver) {
   for (auto pair : get_builtins()) {
-    env.scheme_resolver.precache(pair.first, pair.second);
+    scheme_resolver.insert_scheme(pair.first, pair.second);
   }
 }
 
 std::map<std::string, const TypeClass *> check_type_classes(
     const std::vector<const TypeClass *> &type_classes,
-    Env &env) {
+    types::SchemeResolver &scheme_resolver) {
   std::map<std::string, const TypeClass *> type_class_map;
 
-  /* introduce all the type class signatures into the env, and build up an
-   * index of type_class names */
+  /* introduce all the type class signatures into the scheme_resolver, and build
+   * up an index of type_class names */
   for (const TypeClass *type_class : type_classes) {
     try {
       if (in(type_class->id.name, type_class_map)) {
@@ -160,18 +160,17 @@ std::map<std::string, const TypeClass *> check_type_classes(
       predicates = types::remap_vars(predicates, remapping);
 
       for (auto pair : type_class->overloads) {
-        if (in(pair.first, env.map)) {
+        if (scheme_resolver.scheme_exists(pair.first)) {
           auto error = user_error(pair.second->get_location(),
                                   "the name " c_id("%s") " is already in use",
                                   pair.first.c_str());
-          error.add_info(env.map[pair.first]->get_location(),
-                         "see first declaration here");
+          error.add_info(INTERNAL_LOC(), "TODO: get better first decl loc");
           throw error;
         }
 
-        env.extend(Identifier{pair.first, pair.second->get_location()},
-                   pair.second->remap_vars(remapping)->generalize(predicates),
-                   false /*allow_duplicates*/);
+        scheme_resolver.insert_scheme(
+            pair.first,
+            pair.second->remap_vars(remapping)->generalize(predicates));
       }
     } catch (user_error &e) {
       print_exception(e);
@@ -183,26 +182,26 @@ std::map<std::string, const TypeClass *> check_type_classes(
 
 void check_decls(std::string entry_point_name,
                  const std::vector<const Decl *> &decls,
-                 Env &env) {
+                 Env &env,
+                 types::SchemeResolver &scheme_resolver) {
   for (const Decl *decl : decls) {
     try {
       /* make sure that the "main" function has the correct signature */
-      check(false /*check_constraint_coverage*/, decl->id,
-            (decl->id.name == entry_point_name)
-                ? new As(decl->value, program_main_scheme->type,
-                         false /*force_cast*/)
-                : decl->value,
-            env);
+      types::SchemeRef resolved_scheme = check(
+          false /*check_constraint_coverage*/, decl->id,
+          (decl->id.name == entry_point_name)
+              ? new As(decl->value, program_main_scheme->type,
+                       false /*force_cast*/)
+              : decl->value,
+          env, scheme_resolver);
+      scheme_resolver.insert_scheme(decl->id.name, resolved_scheme);
     } catch (user_error &e) {
       print_exception(e);
 
       /* keep trying other decls, and pretend like this function gives back
        * whatever the user wants... */
-      env.extend(decl->id,
-                 type_arrow(type_variable(INTERNAL_LOC()),
-                            type_variable(INTERNAL_LOC()))
-                     ->generalize({}),
-                 false /*allow_subscoping*/);
+      scheme_resolver.insert_scheme(
+          decl->id.name, type_variable(INTERNAL_LOC())->generalize({}));
     }
   }
 }
@@ -223,6 +222,7 @@ void check_instance_for_type_class_overload(
     std::vector<const Decl *> &instance_decls,
     std::map<types::DefnId, const Decl *> &overrides_map,
     Env &env,
+    const types::SchemeResolver &scheme_resolver,
     const types::ClassPredicates &class_predicates) {
   bool found = false;
   for (const Decl *decl : instance->decls) {
@@ -239,39 +239,45 @@ void check_instance_for_type_class_overload(
 
       Env local_env{env};
       Identifier instance_decl_id = make_instance_decl_id(instance, decl->id);
+
       types::Ref expected_type = type->rebind(subst);
+      types::SchemeRef expected_scheme = expected_type->generalize(
+          class_predicates);
 
       Expr *instance_decl_expr = new As(decl->value, expected_type,
                                         false /*force_cast*/);
-      check(false /*check_constraint_coverage*/, instance_decl_id,
-            instance_decl_expr, local_env);
+      types::SchemeRef resolved_scheme = check(
+          false /*check_constraint_coverage*/, instance_decl_id,
+          instance_decl_expr, local_env, scheme_resolver);
 
-      debug_above(
-          3,
-          log("checking the instance fn %s :: %s. we expected %s.",
-              instance_decl_id.str().c_str(),
-              local_env.map[instance_decl_id.name]->normalize()->str().c_str(),
-              expected_type->str().c_str()));
+      // scheme_resolver.insert_scheme(id.name, scheme);
+      debug_above(3, log("checking the instance fn %s :: %s. we expected %s.",
+                         instance_decl_id.str().c_str(),
+                         scheme_resolver.lookup_scheme(instance_decl_id)
+                             ->normalize()
+                             ->str()
+                             .c_str(),
+                         expected_type->str().c_str()));
 
-      types::SchemeRef expected_scheme = expected_type->generalize(
-          class_predicates);
-      if (!scheme_equality(local_env.map[instance_decl_id.name],
-                           expected_scheme)) {
+      /* check whether the resolved scheme matches the expected scheme */
+      if (!scheme_equality(resolved_scheme, expected_scheme)) {
         auto error = user_error(instance_decl_id.location,
                                 "instance component %s appears to be more "
                                 "constrained than the type class",
                                 decl->id.str().c_str());
-        error.add_info(
-            instance_decl_id.location,
-            "instance component declaration has scheme %s",
-            local_env.map[instance_decl_id.name]->normalize()->str().c_str());
+        error.add_info(instance_decl_id.location,
+                       "instance component declaration has scheme %s",
+                       resolved_scheme->normalize()->str().c_str());
         error.add_info(type->get_location(),
                        "type class component declaration has scheme %s",
-                       expected_type->str().c_str());
+                       expected_scheme->str().c_str());
         throw error;
       }
 
-      env.map[instance_decl_id.name] = expected_scheme;
+      log("skipping adding " c_id("%s") " to the scheme_resolver...",
+          instance_decl_id.name.c_str());
+
+      // scheme_resolver.insert_scheme(instance_decl_id.name] = expected_scheme;
 
       instance_decls.push_back(new Decl(instance_decl_id, instance_decl_expr));
       auto defn_id = types::DefnId{decl->id, expected_scheme};
@@ -292,7 +298,8 @@ void check_instance_for_type_class_overloads(
     const TypeClass *type_class,
     std::vector<const Decl *> &instance_decls,
     std::map<types::DefnId, const Decl *> &overrides_map,
-    Env &env) {
+    Env &env,
+    const types::SchemeResolver &scheme_resolver) {
   /* make a template for the types that the instance implementation should
    * conform to */
   types::Map subst;
@@ -328,7 +335,7 @@ void check_instance_for_type_class_overloads(
     auto type = pair.second;
     check_instance_for_type_class_overload(
         name, type, instance, subst, names_checked, instance_decls,
-        overrides_map, env,
+        overrides_map, env, scheme_resolver,
         type_class->class_predicates /*, type_class->defaults*/);
   }
 
@@ -349,7 +356,8 @@ std::vector<const Decl *> check_instances(
     const std::vector<const Instance *> &instances,
     const std::map<std::string, const TypeClass *> &type_class_map,
     std::map<types::DefnId, const Decl *> &overrides_map,
-    Env &env) {
+    Env &env,
+    const types::SchemeResolver &scheme_resolver) {
   std::vector<const Decl *> instance_decls;
 
   for (const Instance *instance : instances) {
@@ -380,8 +388,9 @@ std::vector<const Decl *> check_instances(
 
       /* first put an instance requirement on any superclasses of the associated
        * type_class */
-      check_instance_for_type_class_overloads(
-          instance, type_class, instance_decls, overrides_map, env);
+      check_instance_for_type_class_overloads(instance, type_class,
+                                              instance_decls, overrides_map,
+                                              env, scheme_resolver);
 
     } catch (user_error &e) {
       e.add_info(instance->class_predicate->get_location(),
@@ -500,7 +509,8 @@ public:
 
   void populate(const std::map<std::string, const Decl *> &decl_map_,
                 const std::map<types::DefnId, const Decl *> &overrides_map,
-                const Env &env) {
+                const Env &env,
+                const types::SchemeResolver &scheme_resolver) {
     decl_map = decl_map_;
 
     /* populate the definition map which is the main result of the first phase
@@ -510,7 +520,7 @@ public:
       const Decl *decl = pair__.second;
       assert(decl_name == decl->id.name);
 
-      types::Scheme::Ref scheme = env.lookup_env(decl->id)->normalize();
+      types::Scheme::Ref scheme = scheme_resolver.lookup_scheme(decl->id)->normalize();
       types::DefnId defn_id = types::DefnId{decl->id, scheme};
       assert(!in(defn_id, map));
       debug_above(8, log("populating defn_map with %s", defn_id.str().c_str()));
@@ -528,16 +538,26 @@ public:
 };
 
 struct phase_2_t {
-  std::shared_ptr<Compilation const> const compilation;
-  types::Scheme::Map const typing;
-  defn_map_t const defn_map;
-  CtorIdMap const ctor_id_map;
-  DataCtorsMap const data_ctors_map;
+  phase_2_t(const std::shared_ptr<Compilation const> &compilation,
+            const std::shared_ptr<types::SchemeResolver> &scheme_resolver,
+            const defn_map_t &&defn_map,
+            const CtorIdMap &ctor_id_map,
+            const DataCtorsMap &data_ctors_map)
+      : compilation(compilation), scheme_resolver(scheme_resolver),
+        defn_map(std::move(defn_map)), ctor_id_map(ctor_id_map),
+        data_ctors_map(data_ctors_map) {
+  }
+
+  const std::shared_ptr<Compilation const> compilation;
+  const std::shared_ptr<types::SchemeResolver> scheme_resolver;
+  const defn_map_t defn_map;
+  const CtorIdMap ctor_id_map;
+  const DataCtorsMap data_ctors_map;
 
   std::ostream &dump(std::ostream &os) {
     for (auto pair : defn_map.decl_map) {
-      auto scheme = get(typing, pair.first, types::Scheme::Ref{});
-      assert(scheme != nullptr);
+      types::SchemeRef scheme = scheme_resolver->lookup_scheme(
+          Identifier{pair.first, INTERNAL_LOC()});
       os << pair.first << " = " << pair.second->str() << " :: " << scheme->str()
          << std::endl;
     }
@@ -576,21 +596,27 @@ phase_2_t compile(std::string user_program_name_) {
 
   const Program *program = compilation->program;
 
-  Env env{{} /*map*/,
-          nullptr /*return_type*/,
-          std::make_shared<TrackedTypes>(),
-          compilation->ctor_id_map,
-          compilation->data_ctors_map};
+  auto scheme_resolver_ptr = std::make_shared<types::SchemeResolver>();
+  auto &scheme_resolver = *scheme_resolver_ptr;
 
-  initialize_default_env(env);
+  Env env{nullptr /*return_type*/, std::make_shared<TrackedTypes>(),
+          compilation->ctor_id_map, compilation->data_ctors_map};
 
-  auto type_class_map = check_type_classes(program->type_classes, env);
+  /* initialize the scheme_resolver with builtins */
+  initialize_builtin_schemes(scheme_resolver);
 
-  check_decls(compilation->program_name + ".main", program->decls, env);
+  /* initialize the scheme_resolver with type class decls */
+  auto type_class_map = check_type_classes(program->type_classes,
+                                           scheme_resolver);
+
+  /* start resolving more schemes */
+  // TODO: iterate through all decls to do an ordering */
+  check_decls(compilation->program_name + ".main", program->decls, env,
+              scheme_resolver);
   std::map<types::DefnId, const Decl *> overrides_map;
 
   std::vector<const Decl *> instance_decls = check_instances(
-      program->instances, type_class_map, overrides_map, env);
+      program->instances, type_class_map, overrides_map, env, scheme_resolver);
 
   std::map<std::string, const Decl *> decl_map;
   for (const Decl *decl : program->decls) {
@@ -615,20 +641,6 @@ phase_2_t compile(std::string user_program_name_) {
     }
 #endif
 
-  for (auto pair : decl_map) {
-    assert(pair.first == pair.second->id.name);
-
-    auto type = env.lookup_env(
-        Identifier(pair.first, pair.second->id.location));
-#if 0
-        if (debug_compiled_env) {
-            INDENT(0, "--debug_compiled_env--");
-            log("%s " c_good("::") " %s", pair.second->str().c_str(),
-                env.map[pair.first]->str().c_str());
-        }
-#endif
-  }
-
 #if 0
   try {
     check_instance_requirements(program->instances, env);
@@ -648,9 +660,9 @@ phase_2_t compile(std::string user_program_name_) {
   }
 
   defn_map_t defn_map;
-  defn_map.populate(decl_map, overrides_map, env);
-  return phase_2_t{compilation, env.map, defn_map, compilation->ctor_id_map,
-                   compilation->data_ctors_map};
+  defn_map.populate(decl_map, overrides_map, env, scheme_resolver);
+  return phase_2_t{compilation, scheme_resolver_ptr, std::move(defn_map),
+                   compilation->ctor_id_map, compilation->data_ctors_map};
 }
 
 typedef std::map<std::string,
@@ -659,7 +671,7 @@ typedef std::map<std::string,
 
 void specialize_core(const types::TypeEnv &type_env,
                      const defn_map_t &defn_map,
-                     const types::Scheme::Map &typing,
+                     const types::SchemeResolver &scheme_resolver,
                      const CtorIdMap &ctor_id_map,
                      const DataCtorsMap &data_ctors_map,
                      types::DefnId defn_id,
@@ -712,7 +724,7 @@ void specialize_core(const types::TypeEnv &type_env,
 
     /* start the process of specializing our decl */
     types::ClassPredicates class_predicates;
-    Env env{typing /*map*/,
+    Env env{
             nullptr /*return_type*/,
             {} /*tracked_types*/,
             ctor_id_map,
@@ -736,7 +748,11 @@ void specialize_core(const types::TypeEnv &type_env,
     /* wrap this expr in it's asserted type to ensure that it monomorphizes */
     const As *as_defn = new As(to_check, defn_id.scheme->type, false);
     Identifier defn_to_check{defn_id.repr_public(), defn_id.id.location};
-    check(true /*check_constraint_coverage*/, defn_to_check, as_defn, env);
+    types::SchemeRef resolved_scheme = check(true /*check_constraint_coverage*/,
+                                             defn_to_check, as_defn, env,
+                                             scheme_resolver);
+    log("translation: skipping adding " c_id("%s") " to the scheme_resolver",
+        defn_id.id.name.c_str(), resolved_scheme->str().c_str());
     assert(env.tracked_types == tracked_types);
 
     if (debug_specialized_env) {
@@ -815,7 +831,7 @@ phase_3_t specialize(const phase_2_t &phase_2) {
     auto next_defn_id = needed_defns.begin()->first;
     try {
       specialize_core(phase_2.compilation->type_env, phase_2.defn_map,
-                      phase_2.typing, phase_2.ctor_id_map,
+                      *phase_2.scheme_resolver, phase_2.ctor_id_map,
                       phase_2.data_ctors_map, next_defn_id, translation_map,
                       needed_defns);
     } catch (user_error &e) {
@@ -1296,7 +1312,7 @@ int run_job(const Job &job) {
 int main(int argc, char *argv[]) {
   // signal(SIGINT, &handle_sigint);
   init_dbg();
-  init_host();
+  zion::init_host();
   std::shared_ptr<logger> logger(std::make_shared<standard_logger>("", "."));
 
   zion::Job job;
@@ -1316,7 +1332,7 @@ int main(int argc, char *argv[]) {
 
   try {
     return zion::run_job(job);
-  } catch (user_error &e) {
+  } catch (zion::user_error &e) {
     zion::print_exception(e);
     /* and continue */
     return EXIT_FAILURE;

@@ -21,7 +21,6 @@ struct Constraint {
 };
 
 typedef std::vector<Constraint> Constraints;
-std::string str(const Constraints &constraints);
 
 void append_to_constraints(Constraints &constraints,
                            Ref a,
@@ -30,5 +29,6 @@ void append_to_constraints(Constraints &constraints,
 void rebind_constraints(Constraints::iterator iter,
                         const Constraints::iterator &end,
                         const Map &bindings);
-
 } // namespace types
+
+std::string str(const types::Constraints &constraints);

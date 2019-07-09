@@ -5,29 +5,27 @@
 #include <memory>
 #include <string>
 
+#include "identifier.h"
 #include "location.h"
 #include "scheme.h"
 #include "types.h"
 
-namespace zion {
-
-typedef std::function<types::SchemeRef()> SchemeResolverFn;
-typedef std::shared_ptr<SchemeResolverFn> SchemeResolverFnRef;
-typedef std::map<std::string, SchemeResolverFnRef> SchemeResolverMap;
+namespace types {
 
 struct SchemeResolver final {
   SchemeResolver() = default;
   SchemeResolver(const SchemeResolver &rhs) = delete;
-  SchemeResolver(const SchemeResolver &&rhs) = delete;
+  SchemeResolver(SchemeResolver &&rhs) = default;
   ~SchemeResolver() = default;
 
-  void precache(std::string name, const types::SchemeRef &scheme);
-  types::SchemeRef resolve(Location location, std::string name);
-  void rebind(const types::Map &bindings);
+  bool scheme_exists(std::string name) const;
+  void insert_scheme(std::string name, const types::SchemeRef &scheme);
+  types::SchemeRef lookup_scheme(const Identifier &id) const;
+  void rebind(const types::Map &bindings) const;
 
   std::string str() const;
 
-  SchemeResolverMap map;
+private:
   types::Scheme::Map state;
 };
 

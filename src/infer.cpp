@@ -16,13 +16,14 @@ namespace {
 
 types::Ref infer_core(const Expr *expr,
                       Env &env,
+                      const types::SchemeResolver &scheme_resolver,
                       types::Constraints &constraints,
                       types::ClassPredicates &instance_requirements) {
   debug_above(8, log("infer(%s, ..., ...)", expr->str().c_str()));
   if (auto literal = dcast<const Literal *>(expr)) {
     return literal->non_tracking_infer();
   } else if (auto static_print = dcast<const StaticPrint *>(expr)) {
-    auto t1 = infer(static_print->expr, env, constraints,
+    auto t1 = infer(static_print->expr, env, scheme_resolver, constraints,
                     instance_requirements);
     append_to_constraints(
         constraints, t1, t1,
@@ -31,7 +32,7 @@ types::Ref infer_core(const Expr *expr,
   } else if (auto var = dcast<const Var *>(expr)) {
     /* get a fresh version of this principal type to inject into the context,
      * and the inference constraints */
-    types::Scheme::Ref scheme = env.lookup_env(var->id)->freshen();
+    types::Scheme::Ref scheme = scheme_resolver.lookup_scheme(var->id)->freshen();
     assert(scheme != nullptr);
     debug_above(4, log_location(var->get_location(),
                                 "found var ref %s with scheme %s",
@@ -60,8 +61,8 @@ types::Ref infer_core(const Expr *expr,
       local_env.extend(var, scheme({}, {}, tvs[i++]),
                        true /*allow_subscoping*/);
     }
-    auto body_type = infer(lambda->body, local_env, constraints,
-                           instance_requirements);
+    auto body_type = infer(lambda->body, local_env, scheme_resolver,
+                           constraints, instance_requirements);
     append_to_constraints(constraints, body_type,
                           type_unit(lambda->body->get_location()),
                           make_context(lambda->body->get_location(),
@@ -75,12 +76,13 @@ types::Ref infer_core(const Expr *expr,
     }
     return type_arrow(type_params(tvs), return_type);
   } else if (auto application = dcast<const Application *>(expr)) {
-    auto t1 = infer(application->a, env, constraints, instance_requirements);
+    auto t1 = infer(application->a, env, scheme_resolver, constraints,
+                    instance_requirements);
     std::vector<types::Ref> param_types;
     param_types.reserve(application->params.size());
     for (auto &param : application->params) {
-      param_types.push_back(
-          infer(param, env, constraints, instance_requirements));
+      param_types.push_back(infer(param, env, scheme_resolver, constraints,
+                                  instance_requirements));
     }
     auto t2 = type_params(param_types);
     auto tv = type_variable(expr->get_location());
@@ -93,10 +95,11 @@ types::Ref infer_core(const Expr *expr,
                      t2->str().c_str(), tv->str().c_str()));
     return tv;
   } else if (auto let = dcast<const Let *>(expr)) {
-    Env local_env{env.scheme_resolver, nullptr /*return_type*/,
-                  env.tracked_types, env.ctor_id_map, env.data_ctors_map};
+    Env local_env{nullptr /*return_type*/, env.tracked_types, env.ctor_id_map,
+                  env.data_ctors_map};
 
-    auto t1 = infer(let->value, local_env, constraints, instance_requirements);
+    auto t1 = infer(let->value, local_env, scheme_resolver, constraints,
+                    instance_requirements);
     auto tv = type_variable(t1->get_location());
     append_to_constraints(
         constraints, tv, t1,
@@ -104,15 +107,19 @@ types::Ref infer_core(const Expr *expr,
 
     Env body_env = Env{env};
     body_env.extend(let->var, scheme({}, {}, tv), true /*allow_subscoping*/);
-    auto t2 = infer(let->body, body_env, constraints, instance_requirements);
+    auto t2 = infer(let->body, body_env, scheme_resolver, constraints,
+                    instance_requirements);
     debug_above(3, log("the let variable is %s :: %s and the body is %s :: %s",
                        let->var.str().c_str(), tv->str().c_str(),
                        let->body->str().c_str(), t2->str().c_str()));
     return t2;
   } else if (auto condition = dcast<const Conditional *>(expr)) {
-    auto t1 = infer(condition->cond, env, constraints, instance_requirements);
-    auto t2 = infer(condition->truthy, env, constraints, instance_requirements);
-    auto t3 = infer(condition->falsey, env, constraints, instance_requirements);
+    auto t1 = infer(condition->cond, env, scheme_resolver, constraints,
+                    instance_requirements);
+    auto t2 = infer(condition->truthy, env, scheme_resolver, constraints,
+                    instance_requirements);
+    auto t3 = infer(condition->falsey, env, scheme_resolver, constraints,
+                    instance_requirements);
     append_to_constraints(
         constraints, t1, type_bool(condition->cond->get_location()),
         make_context(condition->get_location(), "conditions must be bool"));
@@ -127,18 +134,21 @@ types::Ref infer_core(const Expr *expr,
   } else if (auto continue_ = dcast<const Continue *>(expr)) {
     return type_unit(continue_->get_location());
   } else if (auto while_ = dcast<const While *>(expr)) {
-    auto t1 = infer(while_->condition, env, constraints, instance_requirements);
+    auto t1 = infer(while_->condition, env, scheme_resolver, constraints,
+                    instance_requirements);
     append_to_constraints(constraints, t1,
                           type_bool(while_->condition->get_location()),
                           make_context(while_->condition->get_location(),
                                        "while conditions must be bool"));
-    auto t2 = infer(while_->block, env, constraints, instance_requirements);
+    auto t2 = infer(while_->block, env, scheme_resolver, constraints,
+                    instance_requirements);
     return type_unit(while_->get_location());
   } else if (auto block = dcast<const Block *>(expr)) {
     types::Ref last_expr_type = type_unit(block->get_location());
     for (int i = 0; i < block->statements.size(); ++i) {
       auto expr = block->statements[i];
-      auto t1 = infer(expr, env, constraints, instance_requirements);
+      auto t1 = infer(expr, env, scheme_resolver, constraints,
+                      instance_requirements);
       if (i != block->statements.size() - 1) {
         if (auto return_statement = dcast<const ReturnStatement *>(expr)) {
           throw user_error(return_statement->get_location(),
@@ -154,7 +164,8 @@ types::Ref infer_core(const Expr *expr,
     }
     return last_expr_type;
   } else if (auto return_ = dcast<const ReturnStatement *>(expr)) {
-    auto t1 = infer(return_->value, env, constraints, instance_requirements);
+    auto t1 = infer(return_->value, env, scheme_resolver, constraints,
+                    instance_requirements);
     append_to_constraints(
         constraints, t1, env.return_type,
         make_context(return_->get_location(),
@@ -165,7 +176,8 @@ types::Ref infer_core(const Expr *expr,
   } else if (auto tuple = dcast<const Tuple *>(expr)) {
     std::vector<types::Ref> dimensions;
     for (auto dim : tuple->dims) {
-      dimensions.push_back(infer(dim, env, constraints, instance_requirements));
+      dimensions.push_back(
+          infer(dim, env, scheme_resolver, constraints, instance_requirements));
     }
     return type_tuple(tuple->location, dimensions);
   } else if (auto tuple_deref = dcast<const TupleDeref *>(expr)) {
@@ -173,7 +185,8 @@ types::Ref infer_core(const Expr *expr,
     for (int i = 0; i < tuple_deref->max; ++i) {
       dims.push_back(type_variable(INTERNAL_LOC()));
     }
-    auto t1 = infer(tuple_deref->expr, env, constraints, instance_requirements);
+    auto t1 = infer(tuple_deref->expr, env, scheme_resolver, constraints,
+                    instance_requirements);
     auto tuple = type_tuple(dims);
     append_to_constraints(constraints, t1, tuple,
                           make_context(expr->get_location(),
@@ -183,16 +196,19 @@ types::Ref infer_core(const Expr *expr,
   } else if (auto builtin = dcast<const Builtin *>(expr)) {
     types::Refs ts;
     for (auto expr : builtin->exprs) {
-      ts.push_back(infer(expr, env, constraints, instance_requirements));
+      ts.push_back(infer(expr, env, scheme_resolver, constraints,
+                         instance_requirements));
     }
     ts.push_back(type_variable(builtin->get_location()));
-    auto t1 = infer(builtin->var, env, constraints, instance_requirements);
+    auto t1 = infer(builtin->var, env, scheme_resolver, constraints,
+                    instance_requirements);
     append_to_constraints(constraints, t1, type_arrows(ts),
                           make_context(builtin->get_location(), "builtin %s",
                                        builtin->var->str().c_str()));
     return ts.back();
   } else if (auto as = dcast<const As *>(expr)) {
-    auto t1 = infer(as->expr, env, constraints, instance_requirements);
+    auto t1 = infer(as->expr, env, scheme_resolver, constraints,
+                    instance_requirements);
     types::Ref t2 = !as->force_cast ? as->type
                                     : type_variable(as->get_location());
     append_to_constraints(
@@ -203,21 +219,22 @@ types::Ref infer_core(const Expr *expr,
   } else if (auto sizeof_ = dcast<const Sizeof *>(expr)) {
     return type_id(Identifier{INT_TYPE, sizeof_->get_location()});
   } else if (auto match = dcast<const Match *>(expr)) {
-    auto t1 = infer(match->scrutinee, env, constraints, instance_requirements);
+    auto t1 = infer(match->scrutinee, env, scheme_resolver, constraints,
+                    instance_requirements);
     types::Ref match_type;
     for (auto pattern_block : match->pattern_blocks) {
       /* recurse through the pattern_block->predicate to generate more
        * constraints */
       auto local_env = Env{env};
-      auto tp = pattern_block->predicate->tracking_infer(local_env, constraints,
-                                                         instance_requirements);
+      auto tp = pattern_block->predicate->tracking_infer(
+          local_env, scheme_resolver, constraints, instance_requirements);
       append_to_constraints(
           constraints, tp, t1,
           make_context(pattern_block->predicate->get_location(),
                        "pattern must match type of scrutinee"));
 
-      auto t2 = infer(pattern_block->result, local_env, constraints,
-                      instance_requirements);
+      auto t2 = infer(pattern_block->result, local_env, scheme_resolver,
+                      constraints, instance_requirements);
       if (match_type != nullptr) {
         append_to_constraints(
             constraints, t2, match_type,
@@ -239,14 +256,16 @@ types::Ref infer_core(const Expr *expr,
 
 types::Ref infer(const Expr *expr,
                  Env &env,
+                 const types::SchemeResolver &scheme_resolver,
                  types::Constraints &constraints,
                  types::ClassPredicates &instance_requirements) {
-  return env.track(expr,
-                   infer_core(expr, env, constraints, instance_requirements));
+  return env.track(expr, infer_core(expr, env, scheme_resolver, constraints,
+                                    instance_requirements));
 }
 
 types::Ref Literal::tracking_infer(
     Env &env,
+    const types::SchemeResolver &scheme_resolver,
     types::Constraints &constraints,
     types::ClassPredicates &instance_requirements) const {
   return env.track(this, non_tracking_infer());
@@ -269,18 +288,20 @@ types::Ref Literal::non_tracking_infer() const {
 
 types::Ref TuplePredicate::tracking_infer(
     Env &env,
+    const types::SchemeResolver &scheme_resolver,
     types::Constraints &constraints,
     types::ClassPredicates &instance_requirements) const {
   types::Refs types;
   for (auto param : params) {
-    types.push_back(
-        param->tracking_infer(env, constraints, instance_requirements));
+    types.push_back(param->tracking_infer(env, scheme_resolver, constraints,
+                                          instance_requirements));
   }
   return type_tuple(types);
 }
 
 types::Ref IrrefutablePredicate::tracking_infer(
     Env &env,
+    const types::SchemeResolver &scheme_resolver,
     types::Constraints &constraints,
     types::ClassPredicates &instance_requirements) const {
   auto tv = type_variable(location);
@@ -293,6 +314,7 @@ types::Ref IrrefutablePredicate::tracking_infer(
 
 types::Ref CtorPredicate::tracking_infer(
     Env &env,
+    const types::SchemeResolver &scheme_resolver,
     types::Constraints &constraints,
     types::ClassPredicates &instance_requirements) const {
   types::Ref ctor_type = env.get_fresh_data_ctor_type(ctor_name);
@@ -312,7 +334,7 @@ types::Ref CtorPredicate::tracking_infer(
 
   types::Ref result_type;
   for (int i = 0; i < params.size(); ++i) {
-    auto tp = params[i]->tracking_infer(env, constraints,
+    auto tp = params[i]->tracking_infer(env, scheme_resolver, constraints,
                                         instance_requirements);
     append_to_constraints(constraints, tp, ctor_terms[i],
                           make_context(params[i]->get_location(),
