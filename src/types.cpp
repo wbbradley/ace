@@ -149,8 +149,8 @@ TypeId::TypeId(Identifier id) : id(id) {
   }
   assert(id.name.size() > dot_index);
   if (islower(id.name[dot_index])) {
-    throw zion::user_error(id.location,
-                     "type identifiers must begin with an upper-case letter");
+    throw zion::user_error(
+        id.location, "type identifiers must begin with an upper-case letter");
   }
 
   static bool seen_bottom = false;

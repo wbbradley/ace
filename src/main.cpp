@@ -520,7 +520,8 @@ public:
       const Decl *decl = pair__.second;
       assert(decl_name == decl->id.name);
 
-      types::Scheme::Ref scheme = scheme_resolver.lookup_scheme(decl->id)->normalize();
+      types::Scheme::Ref scheme = scheme_resolver.lookup_scheme(decl->id)
+                                      ->normalize();
       types::DefnId defn_id = types::DefnId{decl->id, scheme};
       assert(!in(defn_id, map));
       debug_above(8, log("populating defn_map with %s", defn_id.str().c_str()));
@@ -724,8 +725,7 @@ void specialize_core(const types::TypeEnv &type_env,
 
     /* start the process of specializing our decl */
     types::ClassPredicates class_predicates;
-    Env env{
-            nullptr /*return_type*/,
+    Env env{nullptr /*return_type*/,
             {} /*tracked_types*/,
             ctor_id_map,
             data_ctors_map};
@@ -1338,4 +1338,3 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 }
-
