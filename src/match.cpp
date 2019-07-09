@@ -695,9 +695,10 @@ Pattern::ref TuplePredicate::get_pattern(
   if (auto tuple_type = dyncast<const TypeTuple>(type)) {
     if (tuple_type->dimensions.size() != params.size()) {
       throw zion::user_error(location,
-                       "tuple predicate has an incorrect number of "
-                       "sub-patterns. there are %d, there should be %d",
-                       int(params.size()), int(tuple_type->dimensions.size()));
+                             "tuple predicate has an incorrect number of "
+                             "sub-patterns. there are %d, there should be %d",
+                             int(params.size()),
+                             int(tuple_type->dimensions.size()));
     }
 
     std::vector<Pattern::ref> args;
@@ -708,9 +709,9 @@ Pattern::ref TuplePredicate::get_pattern(
         location, CtorPatternValue{tuple_type->repr(), "tuple", args});
   } else {
     throw zion::user_error(location,
-                     "type mismatch on pattern. incoming type is %s. "
-                     "it is not a %d-tuple.",
-                     type->str().c_str(), (int)params.size());
+                           "type mismatch on pattern. incoming type is %s. "
+                           "it is not a %d-tuple.",
+                           type->str().c_str(), (int)params.size());
     return nullptr;
   }
 }
@@ -723,11 +724,11 @@ Pattern::ref CtorPredicate::get_pattern(
   if (ctor_terms.size() - 1 != params.size()) {
     log("params = %s", join_str(params).c_str());
     log("ctor_terms = %s", join_str(ctor_terms).c_str());
-    throw zion::user_error(location,
-                     "%s has an incorrect number of sub-patterns. there are "
-                     "%d, there should be %d",
-                     ctor_name.name.c_str(), int(params.size()),
-                     int(ctor_terms.size() - 1));
+    throw zion::user_error(
+        location,
+        "%s has an incorrect number of sub-patterns. there are "
+        "%d, there should be %d",
+        ctor_name.name.c_str(), int(params.size()), int(ctor_terms.size() - 1));
   }
 
   for (size_t i = 0; i < params.size(); ++i) {
@@ -757,8 +758,8 @@ Pattern::ref Literal::get_pattern(Ref type,
   }
 
   throw zion::user_error(token.location,
-                   "invalid type for literal '%s'. should be a %s",
-                   token.text.c_str(), type->str().c_str());
+                         "invalid type for literal '%s'. should be a %s",
+                         token.text.c_str(), type->str().c_str());
   return nullptr;
 }
 } // namespace bitter

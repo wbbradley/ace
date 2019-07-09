@@ -3,8 +3,8 @@
 #include <unordered_set>
 
 #include "ast.h"
-#include "dbg.h"
 #include "builtins.h"
+#include "dbg.h"
 #include "ptr.h"
 #include "unification.h"
 #include "user_error.h"

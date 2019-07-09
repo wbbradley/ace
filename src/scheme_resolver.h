@@ -29,4 +29,4 @@ private:
   types::Scheme::Map state;
 };
 
-} // namespace zion
+} // namespace types

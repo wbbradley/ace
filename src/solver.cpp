@@ -13,9 +13,10 @@ namespace zion {
 namespace {
 
 #ifdef ZION_DEBUG
-void check_constraints_cover_tracked_types(const Context &context,
-                                           const TrackedTypes &tracked_types,
-                                           const types::Constraints &constraints) {
+void check_constraints_cover_tracked_types(
+    const Context &context,
+    const TrackedTypes &tracked_types,
+    const types::Constraints &constraints) {
   types::Ftvs ftvs;
   for (auto pair : tracked_types) {
     const types::Ftvs &s = pair.second->get_ftvs();

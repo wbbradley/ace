@@ -44,7 +44,6 @@ std::string base26(unsigned int i);
 void strrev(char *p);
 std::string to_upper(std::string);
 
-
 template <typename T> std::set<T> without(const std::set<T> &s, T v) {
   std::set<T> c = s;
   c.erase(v);

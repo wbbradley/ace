@@ -32,7 +32,8 @@ types::Ref infer_core(const Expr *expr,
   } else if (auto var = dcast<const Var *>(expr)) {
     /* get a fresh version of this principal type to inject into the context,
      * and the inference constraints */
-    types::Scheme::Ref scheme = scheme_resolver.lookup_scheme(var->id)->freshen();
+    types::Scheme::Ref scheme = scheme_resolver.lookup_scheme(var->id)
+                                    ->freshen();
     assert(scheme != nullptr);
     debug_above(4, log_location(var->get_location(),
                                 "found var ref %s with scheme %s",

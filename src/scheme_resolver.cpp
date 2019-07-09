@@ -52,7 +52,7 @@ void SchemeResolver::rebind(const types::Map &bindings) const {
     new_state[name] = new_scheme;
 #endif
   }
-  //std::swap(state, new_state);
+  // std::swap(state, new_state);
 }
 
 std::string SchemeResolver::str() const {

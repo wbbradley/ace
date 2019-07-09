@@ -1,5 +1,5 @@
-#include <ctype.h>
 #include <cstdarg>
+#include <ctype.h>
 #include <fstream>
 #include <iostream>
 #include <limits.h>
@@ -509,8 +509,8 @@ std::string join(int argc, const char *argv[]) {
 void check_command_line_text(Location location, std::string text) {
   for (auto ch : "`$%&()|") {
     if (text.find(ch) != std::string::npos) {
-      throw zion::user_error(location,
-                       "illegal command-line text found in link in statement");
+      throw zion::user_error(
+          location, "illegal command-line text found in link in statement");
     }
   }
 }
@@ -521,7 +521,7 @@ std::string shell_get_line(std::string command) {
   FILE *fp = popen(command.c_str(), "r");
   if (fp == nullptr) {
     throw zion::user_error(INTERNAL_LOC(), "failed to invoke command %s",
-                     command.c_str());
+                           command.c_str());
   }
 
   char *linep = nullptr;
@@ -529,8 +529,8 @@ std::string shell_get_line(std::string command) {
   auto cb = getline(&linep, &linecap, fp);
 
   if (cb == -1) {
-    throw zion::user_error(INTERNAL_LOC(), "failed to read output of command %s",
-                     command.c_str());
+    throw zion::user_error(
+        INTERNAL_LOC(), "failed to read output of command %s", command.c_str());
   }
 
   pclose(fp);
