@@ -10,13 +10,12 @@
 
 namespace zion {
 
-Env::Env(SchemeResolver &scheme_resolver,
-         const std::shared_ptr<const types::Type> &return_type,
+Env::Env(const std::shared_ptr<const types::Type> &return_type,
          std::shared_ptr<TrackedTypes> tracked_types,
          const CtorIdMap &ctor_id_map,
          const DataCtorsMap &data_ctors_map)
     : TranslationEnv(tracked_types, ctor_id_map, data_ctors_map),
-      scheme_resolver(scheme_resolver), return_type(return_type) {
+      return_type(return_type) {
 }
 
 std::vector<std::pair<std::string, types::Refs>> Env::get_ctors(
@@ -24,27 +23,10 @@ std::vector<std::pair<std::string, types::Refs>> Env::get_ctors(
   return {};
 }
 
-types::Scheme::Ref Env::lookup_env(Identifier id) const {
-  return scheme_resolver.resolve(id.location, id.name);
-  /*
-  auto error = user_error(id.location, "unbound variable " C_ID "%s" C_RESET,
-                          id.name.c_str());
-#if 0
-  for (auto pair : map) {
-    error.add_info(pair.second->get_location(), "env includes %s :: %s",
-                   pair.first.c_str(), pair.second->str().c_str());
-  }
-#endif
-
-  throw error;
-  */
-}
-
 void Env::rebind_env(const types::Map &bindings) {
   if (bindings.size() == 0) {
     return;
   }
-  scheme_resolver.rebind(bindings);
 
   assert(tracked_types != nullptr);
   TrackedTypes temp_tracked_types;
@@ -80,23 +62,6 @@ types::Ref Env::maybe_get_tracked_type(bitter::Expr *expr) const {
   return (iter != tracked_types->end()) ? iter->second : nullptr;
 }
 
-void Env::extend(Identifier id,
-                 const types::Scheme::Ref &scheme,
-                 bool allow_subscoping) {
-  assert(false);
-#if 0
-  if (!allow_subscoping && in(id.name, map)) {
-    throw user_error(
-        id.location,
-        "duplicate symbol " c_id("%s") " (TODO: make this error better)",
-        id.name.c_str());
-  }
-  map[id.name] = scheme;
-  debug_above(9, log("extending env with %s => %s", id.str().c_str(),
-                     scheme->normalize()->str().c_str()));
-#endif
-}
-
 std::string str(const types::Scheme::Map &m) {
   std::stringstream ss;
   ss << "{";
@@ -110,10 +75,9 @@ std::string str(const types::Scheme::Map &m) {
 
 std::string Env::str() const {
   std::stringstream ss;
-  ss << "{scheme_resolver: (" << scheme_resolver.str() << ")";
-  if (return_type != nullptr) {
-    ss << ", return_type: (" << return_type->str() << ")";
-  }
+  ss << "{return_type: (";
+  ss << ((return_type != nullptr) ? return_type->str() : std::string{"<null>"})
+     << ")";
   ss << "}";
   return ss.str();
 }

@@ -83,6 +83,14 @@ Scheme::Ref Scheme::freshen() const {
                                   type->remap_vars(remapping));
 }
 
+Ftvs Scheme::ftvs() const {
+  auto ftvs = type->get_ftvs();
+  for (auto &v : vars) {
+    ftvs.erase(v);
+  }
+  return ftvs;
+}
+
 std::string Scheme::str() const {
   std::stringstream ss;
   const char *delim = "";

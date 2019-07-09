@@ -4,7 +4,6 @@
 #include <string>
 
 #include "identifier.h"
-#include "scheme_resolver.h"
 #include "translate.h"
 #include "types.h"
 
@@ -17,24 +16,17 @@ namespace zion {
 struct Env : public TranslationEnv {
   using ref = const Env &;
 
-  Env(SchemeResolver &scheme_resolver,
-      const std::shared_ptr<const types::Type> &return_type,
+  Env(const std::shared_ptr<const types::Type> &return_type,
       std::shared_ptr<TrackedTypes> tracked_types,
       const CtorIdMap &ctor_id_map,
       const DataCtorsMap &data_ctors_map);
-
-  SchemeResolver &scheme_resolver;
 
   std::shared_ptr<const types::Type> return_type;
 
   types::Ref track(const bitter::Expr *expr, types::Ref type);
   types::Ref get_tracked_type(bitter::Expr *expr) const;
   types::Ref maybe_get_tracked_type(bitter::Expr *expr) const;
-  void extend(Identifier id,
-              const types::SchemeRef &scheme,
-              bool allow_subscoping);
   void rebind_env(const types::Map &env);
-  types::Scheme::Ref lookup_env(Identifier id) const;
   std::vector<std::pair<std::string, types::Refs>> get_ctors(
       types::Ref type) const;
   std::string str() const;

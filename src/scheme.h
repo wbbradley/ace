@@ -34,6 +34,7 @@ struct Scheme final : public std::enable_shared_from_this<Scheme> {
 
   /* count of the constrained type variables */
   int btvs() const;
+  Ftvs ftvs() const;
 
   std::string str() const;
   std::string repr() const;

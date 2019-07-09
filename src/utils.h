@@ -42,6 +42,8 @@ std::string string_formatv(const std::string fmt_str, va_list args);
 std::string string_format(const std::string fmt_str, ...);
 std::string base26(unsigned int i);
 void strrev(char *p);
+std::string to_upper(std::string);
+
 
 template <typename T> std::set<T> without(const std::set<T> &s, T v) {
   std::set<T> c = s;
@@ -152,6 +154,15 @@ std::vector<U> keys(const std::map<U, V> &map) {
   std::vector<U> k;
   for (auto it = map.begin(); it != map.end(); ++it) {
     k.push_back(it->first);
+  }
+  return k;
+}
+
+template <typename U, typename V>
+std::set<U> set_keys(const std::map<U, V> &map) {
+  std::set<U> k;
+  for (auto it = map.begin(); it != map.end(); ++it) {
+    k.insert(it->first);
   }
   return k;
 }

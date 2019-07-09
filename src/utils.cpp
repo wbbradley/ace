@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <cstdarg>
 #include <fstream>
 #include <iostream>
@@ -15,6 +16,14 @@
 #include "zion_assert.h"
 
 #define SWP(x, y) (x ^= y, y ^= x, x ^= y)
+
+std::string to_upper(std::string x) {
+  std::string copy = x;
+  for (auto &ch : copy) {
+    ch = std::toupper(ch);
+  }
+  return copy;
+}
 
 size_t utf8_sequence_length(char ch_) {
   unsigned char ch = (unsigned char &)ch_;

@@ -1,5 +1,9 @@
 #include "solver.h"
 
+#ifdef ZION_DEBUG
+#include "ast.h"
+#endif
+
 #include "dbg.h"
 #include "unification.h"
 #include "user_error.h"
@@ -11,10 +15,10 @@ namespace {
 #ifdef ZION_DEBUG
 void check_constraints_cover_tracked_types(const Context &context,
                                            const TrackedTypes &tracked_types,
-                                           const Constraints &constraints) {
-  Ftvs ftvs;
+                                           const types::Constraints &constraints) {
+  types::Ftvs ftvs;
   for (auto pair : tracked_types) {
-    const Ftvs &s = pair.second->get_ftvs();
+    const types::Ftvs &s = pair.second->get_ftvs();
     set_concat(ftvs, s);
     debug_above(5, log_location(pair.first->get_location(),
                                 "%s :: %s contains {%s}",
@@ -22,7 +26,7 @@ void check_constraints_cover_tracked_types(const Context &context,
                                 pair.second->str().c_str(), join(s).c_str()));
   }
 
-  Ftvs constrained_tvs;
+  types::Ftvs constrained_tvs;
   for (auto &constraint : constraints) {
     set_concat(constrained_tvs, constraint.a->get_ftvs());
     set_concat(constrained_tvs, constraint.b->get_ftvs());
@@ -44,6 +48,7 @@ types::Map solver(bool check_constraint_coverage,
                   Context &&context,
                   types::Constraints &constraints,
                   Env &env,
+                  const types::SchemeResolver &scheme_resolver,
                   types::ClassPredicates &instance_requirements) {
   debug_above(2, log("solver(%s, ... %d constraints)", context.message.c_str(),
                      constraints.size()));
@@ -60,6 +65,7 @@ types::Map solver(bool check_constraint_coverage,
     if (unification.result) {
       if (unification.bindings.size() != 0) {
         env.rebind_env(unification.bindings);
+        scheme_resolver.rebind(unification.bindings);
 
         /* save the bindings */
         types::Map new_bindings = compose(unification.bindings, bindings);

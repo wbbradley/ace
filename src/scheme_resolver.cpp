@@ -1,60 +1,58 @@
 #include "scheme_resolver.h"
 
+#include "dbg.h"
 #include "user_error.h"
 
-namespace zion {
+namespace types {
 
-types::SchemeRef SchemeResolver::resolve(Location location, std::string name) {
-  auto iter = state.find(name);
-  if (iter == state.end()) {
-    state[name] = {};
-    if (map.count(name) == 0) {
-      throw user_error(location, "symbol " c_id("%s") " does not exist",
-                       name.c_str());
-    } else {
-      /* call the resolver for |name| */
-      types::SchemeRef scheme = (*map.at(name))();
-      assert(state.at(name) == nullptr);
-      state[name] = scheme;
-
-      log_location(location, "SchemeResolver::resolve(..., %s) -> %s",
-                   name.c_str(), scheme->str().c_str());
-      return scheme;
-    }
-#if 0
-  for (const Decl *decl : decls) {
-    /* seed each decl with a type variable to let inference resolve */
-    env.extend(decl->id, decl->get_early_scheme(), true /*allow_subscoping*/);
-  }
-#endif
-  } else {
-    if (iter->second == nullptr) {
-      throw user_error(location, "inference cycle detected for %s",
-                       name.c_str());
-    }
-    return iter->second;
-  }
+bool SchemeResolver::scheme_exists(std::string name) const {
+  return state.count(name) == 1;
 }
 
-void SchemeResolver::precache(std::string name,
-                              const types::SchemeRef &scheme) {
-  assert(state.at(name) == nullptr);
-  log("precache state in SchemeResolver. %s :: %s", name.c_str(),
+void SchemeResolver::insert_scheme(std::string name,
+                                   const types::SchemeRef &scheme) {
+  assert(!scheme_exists(name));
+  log("SchemeResolver::insert_scheme(%s, %s)", name.c_str(),
       scheme->str().c_str());
   state[name] = scheme;
 }
 
-void SchemeResolver::rebind(const types::Map &bindings) {
-  for (auto pair : map) {
-    auto scheme = get(state, pair.first, types::SchemeRef{});
-    if (scheme != nullptr) {
-      auto new_scheme = scheme->rebind(bindings);
-      log("SchemeResolver::rebind(...): rebinding %s to %s",
-          scheme->str().c_str(), new_scheme->str().c_str());
-
-      state[pair.first] = new_scheme;
+types::SchemeRef SchemeResolver::lookup_scheme(const Identifier &id) const {
+  auto iter = state.find(id.name);
+  if (iter != state.end()) {
+    return iter->second;
+  } else {
+    auto user_error = zion::user_error(
+        id.location, "symbol " c_id("%s") " is undefined", id.name.c_str());
+    dbg();
+    std::string upper_name = to_upper(id.name);
+    for (auto &pair : state) {
+      /* look for a substring match in another symbol */
+      if (ends_with(to_upper(pair.first), "." + upper_name)) {
+        user_error.add_info(pair.second->get_location(),
+                            "did you mean " c_id("%s") "?", pair.first.c_str());
+      }
     }
+    throw user_error;
   }
+}
+
+void SchemeResolver::rebind(const types::Map &bindings) const {
+  types::Scheme::Map new_state;
+  for (const auto &pair : state) {
+    const auto &name = pair.first;
+    const auto &scheme = pair.second;
+    assert(scheme != nullptr);
+    assert(set_intersect(scheme->ftvs(), set_keys(bindings)).empty());
+#if 0
+    auto new_scheme = scheme->rebind(bindings);
+    log("SchemeResolver::rebind(...): rebinding %s to %s",
+        scheme->str().c_str(), new_scheme->str().c_str());
+
+    new_state[name] = new_scheme;
+#endif
+  }
+  //std::swap(state, new_state);
 }
 
 std::string SchemeResolver::str() const {
@@ -70,4 +68,4 @@ std::string SchemeResolver::str() const {
   return ss.str();
 }
 
-} // namespace zion
+} // namespace types
