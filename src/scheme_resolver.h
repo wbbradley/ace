@@ -14,6 +14,7 @@ namespace types {
 
 struct SchemeResolver final {
   SchemeResolver() = default;
+  SchemeResolver(const SchemeResolver *parent);
   SchemeResolver(const SchemeResolver &rhs) = delete;
   SchemeResolver(SchemeResolver &&rhs) = default;
   ~SchemeResolver() = default;
@@ -27,6 +28,7 @@ struct SchemeResolver final {
 
 private:
   types::Scheme::Map state;
+  const SchemeResolver *parent = nullptr;
 };
 
 } // namespace types

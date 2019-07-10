@@ -57,12 +57,12 @@ types::Ref infer_core(const Expr *expr,
     /* lambdas are monomorphic at the time of initialization/definition/capture.
      * so, we do not include the vars |tvs| in the scheme. this way, when the
      * scheme freshens, it will not erase the reference to this variable. */
+    types::SchemeResolver local_scheme_resolver(&scheme_resolver);
     i = 0;
-    for (auto &var : lambda->vars) {
-      local_env.extend(var, scheme({}, {}, tvs[i++]),
-                       true /*allow_subscoping*/);
+    for (const Identifier &var : lambda->vars) {
+      local_scheme_resolver.insert_scheme(var.name, scheme({}, {}, tvs[i++]));
     }
-    auto body_type = infer(lambda->body, local_env, scheme_resolver,
+    auto body_type = infer(lambda->body, local_env, local_scheme_resolver,
                            constraints, instance_requirements);
     append_to_constraints(constraints, body_type,
                           type_unit(lambda->body->get_location()),
@@ -106,9 +106,10 @@ types::Ref infer_core(const Expr *expr,
         constraints, tv, t1,
         make_context(let->value->get_location(), "digging deeper..."));
 
-    Env body_env = Env{env};
-    body_env.extend(let->var, scheme({}, {}, tv), true /*allow_subscoping*/);
-    auto t2 = infer(let->body, body_env, scheme_resolver, constraints,
+    types::SchemeResolver local_scheme_resolver(&scheme_resolver);
+    local_scheme_resolver.insert_scheme(let->var.name, scheme({}, {}, tv));
+
+    auto t2 = infer(let->body, env, local_scheme_resolver, constraints,
                     instance_requirements);
     debug_above(3, log("the let variable is %s :: %s and the body is %s :: %s",
                        let->var.str().c_str(), tv->str().c_str(),
@@ -226,15 +227,15 @@ types::Ref infer_core(const Expr *expr,
     for (auto pattern_block : match->pattern_blocks) {
       /* recurse through the pattern_block->predicate to generate more
        * constraints */
-      auto local_env = Env{env};
+      types::SchemeResolver local_scheme_resolver(&scheme_resolver);
       auto tp = pattern_block->predicate->tracking_infer(
-          local_env, scheme_resolver, constraints, instance_requirements);
+          env, local_scheme_resolver, constraints, instance_requirements);
       append_to_constraints(
           constraints, tp, t1,
           make_context(pattern_block->predicate->get_location(),
                        "pattern must match type of scrutinee"));
 
-      auto t2 = infer(pattern_block->result, local_env, scheme_resolver,
+      auto t2 = infer(pattern_block->result, env, local_scheme_resolver,
                       constraints, instance_requirements);
       if (match_type != nullptr) {
         append_to_constraints(
@@ -266,7 +267,7 @@ types::Ref infer(const Expr *expr,
 
 types::Ref Literal::tracking_infer(
     Env &env,
-    const types::SchemeResolver &scheme_resolver,
+    types::SchemeResolver &scheme_resolver,
     types::Constraints &constraints,
     types::ClassPredicates &instance_requirements) const {
   return env.track(this, non_tracking_infer());
@@ -289,7 +290,7 @@ types::Ref Literal::non_tracking_infer() const {
 
 types::Ref TuplePredicate::tracking_infer(
     Env &env,
-    const types::SchemeResolver &scheme_resolver,
+    types::SchemeResolver &scheme_resolver,
     types::Constraints &constraints,
     types::ClassPredicates &instance_requirements) const {
   types::Refs types;
@@ -302,20 +303,19 @@ types::Ref TuplePredicate::tracking_infer(
 
 types::Ref IrrefutablePredicate::tracking_infer(
     Env &env,
-    const types::SchemeResolver &scheme_resolver,
+    types::SchemeResolver &scheme_resolver,
     types::Constraints &constraints,
     types::ClassPredicates &instance_requirements) const {
   auto tv = type_variable(location);
   if (name_assignment.valid) {
-    env.extend(name_assignment.t, scheme({}, {}, tv),
-               true /*allow_subscoping*/);
+    scheme_resolver.insert_scheme(name_assignment.t.name, scheme({}, {}, tv));
   }
   return tv;
 }
 
 types::Ref CtorPredicate::tracking_infer(
     Env &env,
-    const types::SchemeResolver &scheme_resolver,
+    types::SchemeResolver &scheme_resolver,
     types::Constraints &constraints,
     types::ClassPredicates &instance_requirements) const {
   types::Ref ctor_type = env.get_fresh_data_ctor_type(ctor_name);

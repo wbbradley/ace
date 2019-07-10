@@ -17,7 +17,7 @@
 - [ ] Compat: Automatically configure default POSIX/C/System "int" size on compiler startup
 - [ ] Perf: Implement native structures as non-pointer values
 - [ ] Perf: Escape analysis to avoid heap-allocation.
-- [ ] Perf: Explore using a conservative collector
+- [x] Perf: Explore using a conservative collector
 - [ ] Perf: Implement an inline directive to mark functions for inline expansion during optimization
 - [ ] Dev: Rework debug logging to filter based on taglevels, rather than just one global level (to enable debugging particular parts more specifically)
 - [x] Pattern-matching

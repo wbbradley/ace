@@ -30,7 +30,6 @@ DefnId DefnId::unitize() const {
 }
 
 std::string DefnId::repr() const {
-  assert(id.name[0] != '(');
   if (cached_repr.size() != 0) {
     return cached_repr;
   } else {
