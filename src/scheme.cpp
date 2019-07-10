@@ -56,12 +56,14 @@ Scheme::Ref Scheme::rebind(const types::Map &bindings) const {
 
 Scheme::Ref Scheme::normalize() const {
   std::map<std::string, std::string> ord;
+  std::vector<std::string> new_vars;
 
   int counter = 0;
-  for (auto &ftv : type->get_ftvs()) {
-    ord[ftv] = alphabetize(counter++);
+  for (auto &ftv : vars) {
+    new_vars.push_back(alphabetize(counter++));
+    ord[ftv] = new_vars.back();
   }
-  return scheme(values(ord), types::remap_vars(predicates, ord),
+  return scheme(new_vars, types::remap_vars(predicates, ord),
                 type->remap_vars(ord));
 }
 

@@ -8,7 +8,10 @@
 #include <gc/gc.h>
 
 void zion_init() {
+	/* initialize the collector */
 	GC_INIT();
+
+	/* start mutator ... */
 }
 
 void *zion_malloc(uint64_t cb) {

@@ -1,4 +1,4 @@
-# test: pass
+# test: skip
 
 class MutatingQueue c e {
     fn push(c, e) ()

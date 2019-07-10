@@ -78,7 +78,7 @@ struct Predicate {
                                           const TranslationEnv &env) const = 0;
   virtual types::Ref tracking_infer(
       Env &env,
-      const types::SchemeResolver &scheme_resolver,
+      types::SchemeResolver &scheme_resolver,
       types::Constraints &constraints,
       types::ClassPredicates &instance_requirements) const = 0;
   virtual Location get_location() const = 0;
@@ -112,7 +112,7 @@ struct TuplePredicate : public Predicate {
                                   const TranslationEnv &env) const override;
   types::Ref tracking_infer(
       Env &env,
-      const types::SchemeResolver &scheme_resolver,
+      types::SchemeResolver &scheme_resolver,
       types::Constraints &constraints,
       types::ClassPredicates &instance_requirements) const override;
   Identifier instantiate_name_assignment() const override;
@@ -146,7 +146,7 @@ struct IrrefutablePredicate : public Predicate {
                                   const TranslationEnv &env) const override;
   types::Ref tracking_infer(
       Env &env,
-      const types::SchemeResolver &scheme_resolver,
+      types::SchemeResolver &scheme_resolver,
       types::Constraints &constraints,
       types::ClassPredicates &instance_requirements) const override;
   Identifier instantiate_name_assignment() const override;
@@ -183,7 +183,7 @@ struct CtorPredicate : public Predicate {
                                   const TranslationEnv &env) const override;
   types::Ref tracking_infer(
       Env &env,
-      const types::SchemeResolver &scheme_resolver,
+      types::SchemeResolver &scheme_resolver,
       types::Constraints &constraints,
       types::ClassPredicates &instance_requirements) const override;
   Identifier instantiate_name_assignment() const override;
@@ -328,7 +328,7 @@ struct Literal : public Expr, public Predicate {
                                   const TranslationEnv &env) const override;
   types::Ref tracking_infer(
       Env &env,
-      const types::SchemeResolver &scheme_resolver,
+      types::SchemeResolver &scheme_resolver,
       types::Constraints &constraints,
       types::ClassPredicates &instance_requirements) const override;
   types::Ref non_tracking_infer() const;

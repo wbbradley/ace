@@ -168,9 +168,12 @@ std::map<std::string, const TypeClass *> check_type_classes(
           throw error;
         }
 
-        scheme_resolver.insert_scheme(
-            pair.first,
-            pair.second->remap_vars(remapping)->generalize(predicates));
+        types::SchemeRef scheme = pair.second->remap_vars(remapping)
+                                      ->generalize(predicates);
+
+        log("+= (%s) %s :: %s to the resolver", type_class->id.name.c_str(),
+            pair.first.c_str(), scheme->normalize()->str().c_str());
+        scheme_resolver.insert_scheme(pair.first, scheme);
       }
     } catch (user_error &e) {
       print_exception(e);
@@ -184,6 +187,11 @@ void check_decls(std::string entry_point_name,
                  const std::vector<const Decl *> &decls,
                  Env &env,
                  types::SchemeResolver &scheme_resolver) {
+  for (const Decl *decl : decls) {
+    scheme_resolver.insert_scheme(
+        decl->id.name,
+        scheme({"a"}, {}, type_variable(Identifier{"a", INTERNAL_LOC()})));
+  }
   for (const Decl *decl : decls) {
     try {
       /* make sure that the "main" function has the correct signature */
@@ -207,7 +215,7 @@ void check_decls(std::string entry_point_name,
 }
 
 Identifier make_instance_decl_id(const Instance *instance, Identifier decl_id) {
-  return Identifier{string_format("%s/%s",
+  return Identifier{string_format("(%s) => %s",
                                   instance->class_predicate->repr().c_str(),
                                   decl_id.name.c_str()),
                     decl_id.location};
@@ -222,7 +230,7 @@ void check_instance_for_type_class_overload(
     std::vector<const Decl *> &instance_decls,
     std::map<types::DefnId, const Decl *> &overrides_map,
     Env &env,
-    const types::SchemeResolver &scheme_resolver,
+    types::SchemeResolver &scheme_resolver,
     const types::ClassPredicates &class_predicates) {
   bool found = false;
   for (const Decl *decl : instance->decls) {
@@ -274,10 +282,7 @@ void check_instance_for_type_class_overload(
         throw error;
       }
 
-      log("skipping adding " c_id("%s") " to the scheme_resolver...",
-          instance_decl_id.name.c_str());
-
-      // scheme_resolver.insert_scheme(instance_decl_id.name] = expected_scheme;
+      scheme_resolver.insert_scheme(instance_decl_id.name, expected_scheme);
 
       instance_decls.push_back(new Decl(instance_decl_id, instance_decl_expr));
       auto defn_id = types::DefnId{decl->id, expected_scheme};
@@ -299,7 +304,7 @@ void check_instance_for_type_class_overloads(
     std::vector<const Decl *> &instance_decls,
     std::map<types::DefnId, const Decl *> &overrides_map,
     Env &env,
-    const types::SchemeResolver &scheme_resolver) {
+    types::SchemeResolver &scheme_resolver) {
   /* make a template for the types that the instance implementation should
    * conform to */
   types::Map subst;
@@ -357,7 +362,7 @@ std::vector<const Decl *> check_instances(
     const std::map<std::string, const TypeClass *> &type_class_map,
     std::map<types::DefnId, const Decl *> &overrides_map,
     Env &env,
-    const types::SchemeResolver &scheme_resolver) {
+    types::SchemeResolver &scheme_resolver) {
   std::vector<const Decl *> instance_decls;
 
   for (const Instance *instance : instances) {

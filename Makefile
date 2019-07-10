@@ -14,6 +14,14 @@ runtimedir = $(DESTDIR)/$(prefix)/share/$(PN)/runtime
 
 test_destdir ?= $(HOME)/var/zion-test
 
+.PHONY: release
+release:
+	make DEBUG= zion
+
+.PHONY: debug
+debug:
+	make DEBUG=1 zion
+
 .PHONY: zion
 zion:
 	make clean

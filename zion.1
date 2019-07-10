@@ -57,6 +57,10 @@ The `lib/std.zion` library is called the prelude and is automatically imported u
 is given.
 .TP
 .br
+ZION_RT=\fI/usr/local/share/zion/runtime\fR
+The location of the C-runtime portion of Zion's builtins. See src/zion_rt.c.
+.TP
+.br
 NO_PRELUDE=\fI1\fR
 Prevents the automatic import of the `std` library.
 This is generally not useful since the language is tied to the runtime library in a few ways.
@@ -84,9 +88,36 @@ DUMP_BUILTINS=\fI1\fR
 When set to non-zero value,
 .B zion
 lists all the registered builtin functions and quits.
-.SH AUTHOR
+.SH LICENSE
 .sp
-Zion was started and is currently maintained by William Bradley.
+Zion Programming Environment
+.TP
+.br
+MIT License
+.TP
+.br
+Copyright (c) 2019 William Bradley
+.TP
+.br
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so, subject to the following conditions:
+.TP
+.br
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+.TP
+.br
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 .SH "REPORTING BUGS"
 .sp
-Report bugs to the Zion GitHub site. \fBhttps://github.com/zionlang/zion/issues\fR.
+Note that Zion is still a pre-release language/compiler. Bug reports are greatly appreciated. Report bugs to the Zion GitHub site. \fBhttps://github.com/zionlang/zion/issues\fR.
