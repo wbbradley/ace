@@ -1,0 +1,20 @@
+# test: pass
+
+class Convert c e {
+    fn convert(c) e
+}
+
+instance Convert Int Float {
+    fn convert(a) => __builtin_int_to_float(a)
+}
+
+fn c(a) {
+    return convert(a)
+}
+
+fn main() {
+    h := c(3)
+    print(h as Float)
+    static_print(h)
+}
+

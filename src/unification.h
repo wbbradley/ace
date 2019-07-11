@@ -21,6 +21,7 @@ Unification unify_many(const types::Refs &as, const types::Refs &b);
 types::Map compose(const types::Map &a, const types::Map &b);
 Unification compose(const Unification &a, const Unification &b);
 bool type_equality(types::Ref a, types::Ref b);
+types::SchemeRef scheme_unify(types::Scheme::Ref a, types::Scheme::Ref b);
 bool scheme_equality(types::Scheme::Ref a, types::Scheme::Ref b);
 
 } // namespace types

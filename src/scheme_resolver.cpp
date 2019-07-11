@@ -16,8 +16,10 @@ bool SchemeResolver::scheme_exists(std::string name) const {
 void SchemeResolver::insert_scheme(std::string name,
                                    const types::SchemeRef &scheme) {
   if (state.count(name) != 0) {
-    log("attempt to insert scheme %s for preexisting name %s :: %s",
-        scheme->str().c_str(), name.c_str(), state.at(name)->str().c_str());
+    debug_above(3,
+                log("attempt to insert scheme %s for preexisting name %s :: %s",
+                    scheme->str().c_str(), name.c_str(),
+                    state.at(name)->str().c_str()));
     assert(scheme_equality(state.at(name), scheme));
   }
 

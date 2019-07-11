@@ -98,12 +98,13 @@ void user_error::display() const {
   }
 }
 
-void user_error::add_info(Location location, const char *format...) {
+user_error &user_error::add_info(Location location, const char *format...) {
   va_list args;
   va_start(args, format);
   std::string info = string_formatv(format, args);
   va_end(args);
   extra_info->push_back({location, info});
+  return *this;
 }
 
 } // namespace zion

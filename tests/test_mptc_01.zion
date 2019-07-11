@@ -1,4 +1,4 @@
-# test: skip
+# test: pass
 
 class MutatingQueue c e {
     fn push(c, e) ()
@@ -6,7 +6,7 @@ class MutatingQueue c e {
     fn pop(c) e
 }
 
-instance MutatingQueue [Int] Int {
+instance MutatingQueue [a] a {
     push = append
     fn peek(xs) => xs[len(xs)-1]
     fn pop(xs [a]) a {

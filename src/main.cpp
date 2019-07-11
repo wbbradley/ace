@@ -171,8 +171,6 @@ std::map<std::string, const TypeClass *> check_type_classes(
         types::SchemeRef scheme = pair.second->remap_vars(remapping)
                                       ->generalize(predicates);
 
-        log("+= (%s) %s :: %s to the resolver", type_class->id.name.c_str(),
-            pair.first.c_str(), scheme->normalize()->str().c_str());
         scheme_resolver.insert_scheme(pair.first, scheme);
       }
     } catch (user_error &e) {
@@ -453,63 +451,63 @@ void check_instance_requirements(const std::vector<Instance *> &instances,
 }
 #endif
 
-class defn_map_t {
+class DefinitionMap {
   std::map<types::DefnId, const Decl *> map;
   std::map<std::string, const Decl *> decl_map;
 
-  friend struct phase_2_t;
+  friend struct Phase2;
 
 public:
-  const Decl *maybe_lookup(types::DefnId defn_id) const {
-    auto iter = map.find(defn_id);
+  std::pair<const Decl *, types::SchemeRef> lookup_defn(
+      types::DefnId defn_id) const {
     const Decl *decl = nullptr;
-    if (iter != map.end()) {
-      decl = iter->second;
-    }
+    types::SchemeRef decl_scheme;
 
     for (auto pair : map) {
       if (pair.second == decl) {
         /* we've already chosen this one, we're just checking for dupes */
+        assert(false); // why would this happen?
         continue;
       }
       if (pair.first.id.name == defn_id.id.name) {
-        if (scheme_equality(pair.first.scheme, defn_id.scheme)) {
+        auto scheme = scheme_unify(pair.first.scheme, defn_id.scheme);
+        if (scheme != nullptr) {
           if (decl != nullptr) {
+            assert(decl_scheme != nullptr);
             throw user_error(defn_id.id.location,
-                             "found ambiguous instance method");
+                             "found ambiguous instance method")
+                .add_info(defn_id.get_location(), "while looking for %s",
+                          defn_id.str().c_str())
+                .add_info(pair.first.id.location,
+                          "%s also matches (with scheme %s)",
+                          pair.first.str().c_str(), scheme->str().c_str());
           }
           decl = pair.second;
+          decl_scheme = scheme;
         }
       }
     }
 
     if (decl != nullptr) {
-      return decl;
+      assert(decl_scheme != nullptr);
+      return {decl, decl_scheme};
     }
+    assert(decl_scheme == nullptr);
 
     auto iter_decl = decl_map.find(defn_id.id.name);
     if (iter_decl != decl_map.end()) {
-      return iter_decl->second;
+      return {iter_decl->second, defn_id.scheme};
     }
-    return nullptr;
-  }
+    auto error = user_error(defn_id.id.location,
+                            "symbol %s does not seem to exist",
+                            defn_id.id.str().c_str());
+    std::stringstream ss;
 
-  const Decl *lookup(types::DefnId defn_id) const {
-    auto decl = maybe_lookup(defn_id);
-    if (decl == nullptr) {
-      auto error = user_error(defn_id.id.location,
-                              "symbol %s does not seem to exist",
-                              defn_id.id.str().c_str());
-      std::stringstream ss;
-
-      for (auto pair : decl_map) {
-        ss << pair.first << " " << pair.second << std::endl;
-      }
-      error.add_info(defn_id.id.location, "%s", ss.str().c_str());
-      throw error;
-    } else {
-      return decl;
+    for (auto pair : decl_map) {
+      ss << pair.first << " " << pair.second << std::endl;
     }
+    error.add_info(defn_id.id.location, "%s", ss.str().c_str());
+    throw error;
   }
 
   void populate(const std::map<std::string, const Decl *> &decl_map_,
@@ -543,12 +541,12 @@ public:
   }
 };
 
-struct phase_2_t {
-  phase_2_t(const std::shared_ptr<Compilation const> &compilation,
-            const std::shared_ptr<types::SchemeResolver> &scheme_resolver,
-            const defn_map_t &&defn_map,
-            const CtorIdMap &ctor_id_map,
-            const DataCtorsMap &data_ctors_map)
+struct Phase2 {
+  Phase2(const std::shared_ptr<Compilation const> &compilation,
+         const std::shared_ptr<types::SchemeResolver> &scheme_resolver,
+         const DefinitionMap &&defn_map,
+         const CtorIdMap &ctor_id_map,
+         const DataCtorsMap &data_ctors_map)
       : compilation(compilation), scheme_resolver(scheme_resolver),
         defn_map(std::move(defn_map)), ctor_id_map(ctor_id_map),
         data_ctors_map(data_ctors_map) {
@@ -556,7 +554,7 @@ struct phase_2_t {
 
   const std::shared_ptr<Compilation const> compilation;
   const std::shared_ptr<types::SchemeResolver> scheme_resolver;
-  const defn_map_t defn_map;
+  const DefinitionMap defn_map;
   const CtorIdMap ctor_id_map;
   const DataCtorsMap data_ctors_map;
 
@@ -592,7 +590,7 @@ std::map<std::string, int> get_builtin_arities() {
   return builtin_arities;
 }
 
-phase_2_t compile(std::string user_program_name_) {
+Phase2 compile(std::string user_program_name_) {
   auto builtin_arities = get_builtin_arities();
   auto compilation = compiler::parse_program(user_program_name_,
                                              builtin_arities);
@@ -665,10 +663,10 @@ phase_2_t compile(std::string user_program_name_) {
     }
   }
 
-  defn_map_t defn_map;
+  DefinitionMap defn_map;
   defn_map.populate(decl_map, overrides_map, env, scheme_resolver);
-  return phase_2_t{compilation, scheme_resolver_ptr, std::move(defn_map),
-                   compilation->ctor_id_map, compilation->data_ctors_map};
+  return Phase2{compilation, scheme_resolver_ptr, std::move(defn_map),
+                compilation->ctor_id_map, compilation->data_ctors_map};
 }
 
 typedef std::map<std::string,
@@ -676,15 +674,15 @@ typedef std::map<std::string,
     translation_map_t;
 
 void specialize_core(const types::TypeEnv &type_env,
-                     const defn_map_t &defn_map,
+                     const DefinitionMap &defn_map,
                      const types::SchemeResolver &scheme_resolver,
                      const CtorIdMap &ctor_id_map,
                      const DataCtorsMap &data_ctors_map,
-                     types::DefnId defn_id,
+                     types::DefnId defn_id_to_match,
                      /* output */ translation_map_t &translation_map,
                      /* output */ types::NeededDefns &needed_defns) {
-  debug_above(2, log("specialize_core %s", defn_id.str().c_str()));
-  if (starts_with(defn_id.id.name, "__builtin_")) {
+  debug_above(2, log("specialize_core %s", defn_id_to_match.str().c_str()));
+  if (starts_with(defn_id_to_match.id.name, "__builtin_")) {
     return;
   }
 
@@ -698,66 +696,81 @@ void specialize_core(const types::TypeEnv &type_env,
   /* They cannot have unresolved bounded type variables, because that would
    * imply that we don't know which type class instance to choose within the
    * inner specialization. */
-  assert(defn_id.scheme->btvs() == 0);
+  assert(defn_id_to_match.scheme->btvs() == 0);
 
-  types::Ref type = defn_id.scheme->type;
+  types::Ref type = defn_id_to_match.scheme->type;
   assert(type->get_ftvs().empty());
-  auto translation = get(translation_map, defn_id.id.name, type,
+  auto translation = get(translation_map, defn_id_to_match.id.name, type,
                          Translation::ref{});
   if (translation != nullptr) {
     debug_above(6, log("we have already specialized %s. it is %s",
-                       defn_id.str().c_str(), translation->str().c_str()));
+                       defn_id_to_match.str().c_str(),
+                       translation->str().c_str()));
     return;
   }
 
-  /* ... like a GRAY mark in the visited set... */
-  translation_map[defn_id.id.name][type] = nullptr;
-  try {
-    debug_above(
-        7, log(c_good("Specializing subprogram %s"), defn_id.str().c_str()));
+  debug_above(7, log(c_good("Specializing subprogram %s"),
+                     defn_id_to_match.str().c_str()));
 
-    /* cross-check all our data sources */
+  /* cross-check all our data sources */
 #if 0
-		auto existing_type = env.maybe_get_tracked_type(translation_map[defn_id]);
+		auto existing_type = env.maybe_get_tracked_type(translation_map[defn_id_to_match]);
 		auto existing_scheme = existing_type->generalize(env)->normalize();
 		/* the env should be internally self-consistent */
-		assert(scheme_equality(get(env.map, defn_id.id.name, {}), existing_scheme));
+		assert(scheme_equality(get(env.map, defn_id_to_match.id.name, {}), existing_scheme));
 		/* the existing scheme for the unspecialized version should not match the one we are seeking
 		 * because above we looked in our map for this specialization. */
-		assert(!scheme_equality(existing_scheme, defn_id.specialization));
-		assert(!scheme_equality(get(env.map, defn_id.id.name, {}), defn_id.specialization));
+		assert(!scheme_equality(existing_scheme, defn_id_to_match.specialization));
+		assert(!scheme_equality(get(env.map, defn_id_to_match.id.name, {}), defn_id_to_match.specialization));
 #endif
 
-    /* start the process of specializing our decl */
-    types::ClassPredicates class_predicates;
-    Env env{nullptr /*return_type*/,
-            {} /*tracked_types*/,
-            ctor_id_map,
-            data_ctors_map};
+  /* start the process of specializing our decl */
+  types::ClassPredicates class_predicates;
+  Env env{nullptr /*return_type*/,
+          {} /*tracked_types*/,
+          ctor_id_map,
+          data_ctors_map};
 
-    // TODO: clean this up. it is ugly. we're accessing the base class
-    // TranslationEnv's tracked_types
-    auto tracked_types = std::make_shared<TrackedTypes>();
-    env.tracked_types = tracked_types;
+  // TODO: clean this up. it is ugly. we're accessing the base class
+  // TranslationEnv's tracked_types. Probably best to just keep track of
+  // tracked_types outside of the env.
+  auto tracked_types = std::make_shared<TrackedTypes>();
+  env.tracked_types = tracked_types;
 
-    const Decl *decl_to_check = defn_map.maybe_lookup(defn_id);
-    if (decl_to_check == nullptr) {
-      throw user_error(defn_id.id.location,
-                       "could not find a definition for %s :: %s",
-                       defn_id.id.str().c_str(), defn_id.scheme->str().c_str());
-    }
+  auto defn_lookup_pair = defn_map.lookup_defn(defn_id_to_match);
+  const Decl *decl_to_check = defn_lookup_pair.first;
+  const types::SchemeRef decl_scheme = defn_lookup_pair.second;
+
+  if (decl_to_check == nullptr) {
+    throw user_error(defn_id_to_match.id.location,
+                     "could not find a definition for %s :: %s",
+                     defn_id_to_match.id.str().c_str(),
+                     defn_id_to_match.scheme->str().c_str());
+  }
+
+  log("found defn for %s in decl %s", defn_id_to_match.str().c_str(),
+      decl_to_check->str().c_str());
+
+  /* now we know the resulting monomorphic type for the value we want to
+   * instantiate */
+  types::DefnId defn_id{defn_id_to_match.id, decl_scheme};
+
+  try {
+    /* ... like a GRAY mark in the visited set... */
+    translation_map[defn_id.id.name][type] = nullptr;
 
     const Expr *to_check = decl_to_check->value;
     const std::string final_name = defn_id.id.name;
 
     /* wrap this expr in it's asserted type to ensure that it monomorphizes */
     const As *as_defn = new As(to_check, defn_id.scheme->type, false);
+    log_location(defn_id.id.location, "checking %s", as_defn->str().c_str());
     Identifier defn_to_check{defn_id.repr_public(), defn_id.id.location};
     types::SchemeRef resolved_scheme = check(true /*check_constraint_coverage*/,
                                              defn_to_check, as_defn, env,
                                              scheme_resolver);
     log("translation: skipping adding " c_id("%s") " to the scheme_resolver",
-        defn_id.id.name.c_str(), resolved_scheme->str().c_str());
+        defn_id.repr_public().c_str(), resolved_scheme->str().c_str());
     assert(env.tracked_types == tracked_types);
 
     if (debug_specialized_env) {
@@ -803,8 +816,8 @@ void specialize_core(const types::TypeEnv &type_env,
   }
 }
 
-struct phase_3_t {
-  phase_2_t phase_2;
+struct Phase3 {
+  Phase2 phase_2;
   translation_map_t translation_map;
 
   std::ostream &dump(std::ostream &os) {
@@ -819,16 +832,18 @@ struct phase_3_t {
   }
 };
 
-phase_3_t specialize(const phase_2_t &phase_2) {
+Phase3 specialize(const Phase2 &phase_2) {
   if (user_error::errors_occurred()) {
     throw user_error(INTERNAL_LOC(), "quitting");
   }
-  const Decl *program_main = phase_2.defn_map.lookup(
+  auto defn_pair = phase_2.defn_map.lookup_defn(
       {make_iid(phase_2.compilation->program_name + ".main"),
        program_main_scheme});
+  const Decl *program_main = defn_pair.first;
+  types::SchemeRef scheme = defn_pair.second;
 
   types::NeededDefns needed_defns;
-  types::DefnId main_defn{program_main->id, program_main_scheme};
+  types::DefnId main_defn{program_main->id, scheme};
   insert_needed_defn(needed_defns, main_defn, INTERNAL_LOC(), main_defn);
 
   translation_map_t translation_map;
@@ -863,12 +878,12 @@ phase_3_t specialize(const phase_2_t &phase_2) {
       }
     }
   }
-  return phase_3_t{phase_2, translation_map};
+  return Phase3{phase_2, translation_map};
 }
 
 struct phase_4_t {
   phase_4_t(const phase_4_t &) = delete;
-  phase_4_t(phase_3_t phase_3,
+  phase_4_t(Phase3 phase_3,
             gen::gen_env_t &&gen_env,
             llvm::Module *llvm_module,
             llvm::DIBuilder *dbuilder,
@@ -889,7 +904,7 @@ struct phase_4_t {
     // FUTURE: unlink(output_llvm_filename.c_str());
   }
 
-  phase_3_t phase_3;
+  Phase3 phase_3;
   gen::gen_env_t gen_env;
   llvm::Module *llvm_module = nullptr;
   llvm::DIBuilder *dbuilder = nullptr;
@@ -910,7 +925,7 @@ struct CodeSymbol {
   const bitter::Expr *expr;
 };
 
-std::unordered_set<std::string> get_globals(const phase_3_t &phase_3) {
+std::unordered_set<std::string> get_globals(const Phase3 &phase_3) {
   std::unordered_set<std::string> globals;
   for (auto pair : phase_3.translation_map) {
     debug_above(7, log("adding global %s", pair.first.c_str()));
@@ -971,7 +986,7 @@ void build_main_function(llvm::IRBuilder<> &builder,
   builder.CreateRet(builder.getInt32(0));
 }
 
-phase_4_t ssa_gen(llvm::LLVMContext &context, const phase_3_t &phase_3) {
+phase_4_t ssa_gen(llvm::LLVMContext &context, const Phase3 &phase_3) {
   llvm::Module *llvm_module = new llvm::Module("program", context);
   llvm::DIBuilder *dbuilder = nullptr; // new llvm::DIBuilder(*module);
   llvm::IRBuilder<> builder(context);

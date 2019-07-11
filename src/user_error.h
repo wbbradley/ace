@@ -20,7 +20,7 @@ struct user_error : std::exception {
   virtual ~user_error() {
   }
   virtual const char *what() const noexcept;
-  void add_info(Location location, const char *format...);
+  user_error &add_info(Location location, const char *format...);
 
   log_level_t log_level;
   Location location;
