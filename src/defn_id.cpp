@@ -14,21 +14,6 @@ std::string DefnId::str() const {
   return C_VAR + repr() + C_RESET;
 }
 
-DefnId DefnId::unitize() const {
-  if (scheme->type->get_ftvs().size() == 0) {
-    return *this;
-  }
-  auto defn_id = DefnId{id, types::unitize(scheme->type)->generalize({})};
-
-  if (scheme->btvs() != 0) {
-    throw zion::user_error(
-        scheme->get_location(),
-        "(%s) attempt to unitize a scheme %s with class constraints",
-        defn_id.str().c_str(), scheme->str().c_str());
-  }
-  return defn_id;
-}
-
 std::string DefnId::repr() const {
   if (cached_repr.size() != 0) {
     return cached_repr;
@@ -56,7 +41,7 @@ void insert_needed_defn(NeededDefns &needed_defns,
                         const DefnId &for_defn_id) {
   debug_above(1, log_location(location, "adding a needed defn for %s",
                               for_defn_id.str().c_str()));
-  needed_defns[defn_id.unitize()].push_back({location, for_defn_id.unitize()});
+  needed_defns[defn_id].push_back({location, for_defn_id});
 }
 
 } // namespace types

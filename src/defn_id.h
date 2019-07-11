@@ -20,9 +20,6 @@ struct DefnId {
   Identifier const id;
   types::SchemeRef const scheme;
 
-  /* convert all free type variables to type unit */
-  DefnId unitize() const;
-
 private:
   mutable std::string cached_repr;
   std::string repr() const;

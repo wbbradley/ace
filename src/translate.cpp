@@ -100,8 +100,8 @@ const Expr *texpr(const types::DefnId &for_defn_id,
       if (!in(var->id.name, bound_vars)) {
         auto defn_id = types::DefnId{var->id,
                                      type->generalize({})->normalize()};
-        debug_above(6, log(c_id("%s") " depends on " c_id("%s"),
-                           for_defn_id.str().c_str(), defn_id.str().c_str()));
+        log(c_id("%s") " depends on " c_id("%s"), for_defn_id.str().c_str(),
+            defn_id.str().c_str());
         insert_needed_defn(needed_defns, defn_id, var->get_location(),
                            for_defn_id);
         auto new_var = new Var(var->id);

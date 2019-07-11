@@ -15,6 +15,38 @@
 
 namespace types {
 
+types::SchemeRef scheme_unify(types::Scheme::Ref a, types::Scheme::Ref b) {
+  if (a == nullptr || b == nullptr) {
+    assert(false);
+    return {};
+  }
+  // log("checking %s == %s", a->str().c_str(), b->str().c_str());
+  // log("normalized checking %s == %s", a->normalize()->str().c_str(),
+  // b->normalize()->str().c_str());
+  if (a->normalize()->str() == b->normalize()->str()) {
+    log("found exact match between %s and %s", a->str().c_str(),
+        b->str().c_str());
+    return a;
+  }
+
+  auto ta = a->freshen()->type;
+  auto tb = b->freshen()->type;
+  log("unifying %s and %s", ta->str().c_str(), tb->str().c_str());
+  auto unification = unify(ta, tb);
+  if (!unification.result) {
+    debug_above(9, log_location(unification.error_location,
+                                "schemes %s and %s do not match because %s",
+                                ta->str().c_str(), tb->str().c_str(),
+                                unification.error_string.c_str()));
+    return {};
+  }
+
+  auto scheme = ta->rebind(unification.bindings)->generalize({});
+  assert(scheme->normalize()->repr() ==
+         tb->rebind(unification.bindings)->generalize({})->normalize()->repr());
+  return scheme;
+}
+
 bool scheme_equality(types::Scheme::Ref a, types::Scheme::Ref b) {
   if (a == nullptr || b == nullptr) {
     assert(false);
@@ -108,6 +140,7 @@ Unification bind(std::string a, Ref type) {
 
   /* first do an occurs check */
   if (type->get_ftvs().count(a) != 0) {
+    dbg();
     /* this type exists within its own substitution. Fail. */
     return Unification{false,
                        type->get_location(),
