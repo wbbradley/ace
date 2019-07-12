@@ -1,6 +1,7 @@
 #include "scheme_resolver.h"
 
 #include "dbg.h"
+#include "unification.h"
 #include "user_error.h"
 
 namespace types {
@@ -51,7 +52,9 @@ types::SchemeRef SchemeResolver::lookup_scheme(const Identifier &id) const {
 }
 
 void SchemeResolver::rebind(const types::Map &bindings) const {
-  assert(parent == nullptr);
+  if (parent != nullptr) {
+    parent->rebind(bindings);
+  }
 
   types::Scheme::Map new_state;
   for (const auto &pair : state) {

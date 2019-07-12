@@ -8,6 +8,7 @@
 Identifier::Identifier(const std::string &name, Location location)
     : name(name), location(location) {
   assert(name.size() != 0);
+  assert(name.find("0x7") == std::string::npos);
 }
 
 std::string str(const Identifiers &ids) {

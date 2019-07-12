@@ -402,6 +402,7 @@ struct While : public Expr {
 
 struct Decl {
   Decl(Identifier id, const Expr *value) : id(id), value(value) {
+    assert(id.name.find("0x7") == std::string::npos);
   }
   std::string str() const;
   Location get_location() const;

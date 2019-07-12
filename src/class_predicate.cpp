@@ -6,6 +6,7 @@
 
 #include "colors.h"
 #include "dbg.h"
+#include "ptr.h"
 #include "types.h"
 #include "unification.h"
 #include "utils.h"
@@ -62,7 +63,11 @@ std::string ClassPredicate::repr() const {
     std::stringstream ss;
     ss << classname.name;
     for (auto &param : params) {
-      ss << " " << param->repr();
+      if (dyncast<const types::TypeOperator>(param)) {
+        ss << " (" << param->repr() << ")";
+      } else {
+        ss << " " << param->repr();
+      }
     }
     repr_ = ss.str();
   }
@@ -74,7 +79,11 @@ std::string ClassPredicate::str() const {
   std::stringstream ss;
   ss << C_TYPECLASS << classname.name << C_RESET;
   for (auto &param : params) {
-    ss << " " << param->str();
+    if (dyncast<const types::TypeOperator>(param)) {
+      ss << " (" << param->str() << ")";
+    } else {
+      ss << " " << param->str();
+    }
   }
   return ss.str();
 }

@@ -1,30 +1,25 @@
-# test: pass
+# test: pass, noprelude
 
-class MutatingQueue c e {
-    fn push(c, e) ()
-    fn peek(c) e
-    fn pop(c) e
+data List a {
+    Cons(a, List a)
+    Nil
 }
 
-instance MutatingQueue [a] a {
-    push = append
-    fn peek(xs) => xs[len(xs)-1]
-    fn pop(xs [a]) a {
-        back := peek(xs)
-        resize(xs, len(xs)-1)
-        return back
+class Pushable c e {
+    fn push(c, e) c
+}
+
+instance Pushable (List a) a {
+    fn push(l, v) => match l {
+        Cons(hd, tl) => Cons(hd, push(tl, v))
+        Nil => Cons(v, Nil)
     }
 }
 
 fn main() {
-    h := []
-    push(h, 2)
-    push(h, 3)
-    push(h, 4)
-    static_print(h)
-    assert(pop(h) == 4)
-    assert(pop(h) == 3)
-    assert(pop(h) == 2)
+    h := Nil
+    g := push(h, 2)
+    static_print(g)
     __builtin_pass_test
 }
 

@@ -49,6 +49,7 @@ const Expr *texpr(const types::DefnId &for_defn_id,
                   const TranslationEnv &tenv,
                   TrackedTypes &typing,
                   types::NeededDefns &needed_defns,
+                  // TODO: pass in overloads in order to perform resolution
                   bool &returns) {
   TTC ttc(string_format("texpr(%s, %s, ..., %s, ...)",
                         for_defn_id.str().c_str(), expr->str().c_str(),
@@ -98,10 +99,9 @@ const Expr *texpr(const types::DefnId &for_defn_id,
       return unit_ret;
     } else if (auto var = dcast<const Var *>(expr)) {
       if (!in(var->id.name, bound_vars)) {
-        auto defn_id = types::DefnId{var->id,
-                                     type->generalize({})->normalize()};
-        log(c_id("%s") " depends on " c_id("%s"), for_defn_id.str().c_str(),
-            defn_id.str().c_str());
+        auto defn_id = types::DefnId{var->id, type};
+        debug_above(2, log(c_id("%s") " depends on " c_id("%s"),
+                           for_defn_id.str().c_str(), defn_id.str().c_str()));
         insert_needed_defn(needed_defns, defn_id, var->get_location(),
                            for_defn_id);
         auto new_var = new Var(var->id);
