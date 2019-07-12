@@ -1,20 +1,25 @@
-# test: pass
+# test: pass, noprelude
+# expect: 3
 
 class Convert c e {
     fn convert(c) e
 }
 
-instance Convert Int Float {
-    fn convert(a) => __builtin_int_to_float(a)
+instance Convert Float Int {
+    fn convert(a) => __builtin_float_to_int(a)
 }
 
 fn c(a) {
     return convert(a)
 }
 
+fn print_int(f Int) {
+    __builtin_print_int(f)
+}
+
 fn main() {
-    h := c(3)
-    print(h as Float)
+    h := c(3.0)
+    print_int(h)
     static_print(h)
 }
 

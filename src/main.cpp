@@ -93,7 +93,7 @@ types::SchemeRef check(bool check_constraint_coverage,
                        Identifier id,
                        const Expr *expr,
                        Env &env,
-                       const types::SchemeResolver &scheme_resolver) {
+                       types::SchemeResolver &scheme_resolver) {
   types::Constraints constraints;
   types::ClassPredicates instance_requirements;
   debug_above(
@@ -112,6 +112,8 @@ types::SchemeRef check(bool check_constraint_coverage,
 
   debug_above(3, log_location(id.location, "adding %s to env as %s",
                               id.str().c_str(), scheme->str().c_str()));
+  scheme_resolver.insert_scheme(id.name, scheme);
+
   return scheme;
 }
 
@@ -193,14 +195,13 @@ void check_decls(std::string entry_point_name,
   for (const Decl *decl : decls) {
     try {
       /* make sure that the "main" function has the correct signature */
-      types::SchemeRef resolved_scheme = check(
+      check(
           false /*check_constraint_coverage*/, decl->id,
           (decl->id.name == entry_point_name)
               ? new As(decl->value, program_main_scheme->type,
                        false /*force_cast*/)
               : decl->value,
           env, scheme_resolver);
-      scheme_resolver.insert_scheme(decl->id.name, resolved_scheme);
     } catch (user_error &e) {
       print_exception(e);
 
@@ -280,10 +281,9 @@ void check_instance_for_type_class_overload(
         throw error;
       }
 
-      scheme_resolver.insert_scheme(instance_decl_id.name, expected_scheme);
-
       instance_decls.push_back(new Decl(instance_decl_id, instance_decl_expr));
       auto defn_id = types::DefnId{decl->id, expected_scheme};
+      log("adding %s to the overrides map", defn_id.str().c_str());
       overrides_map[defn_id] = instance_decls.back();
     }
   }
@@ -499,14 +499,14 @@ public:
       return {iter_decl->second, defn_id.scheme};
     }
     auto error = user_error(defn_id.id.location,
-                            "symbol %s does not seem to exist",
-                            defn_id.id.str().c_str());
-    std::stringstream ss;
-
+                            "definition for %s does not seem to exist",
+                            defn_id.str().c_str());
     for (auto pair : decl_map) {
-      ss << pair.first << " " << pair.second << std::endl;
+      if (ends_with(pair.first, defn_id.id.name)) {
+        error.add_info(pair.second->get_location(),
+                       "we did find " c_id("%s") "?", pair.first.c_str());
+      }
     }
-    error.add_info(defn_id.id.location, "%s", ss.str().c_str());
     throw error;
   }
 
@@ -533,8 +533,8 @@ public:
 
     for (auto pair : overrides_map) {
       const types::DefnId &defn_id = pair.first;
-      debug_above(8, log("populating defn_map with override %s",
-                         defn_id.str().c_str()));
+      log("populating defn_map with override %s",
+                         defn_id.str().c_str());
       assert(!in(defn_id, map));
       map[defn_id] = pair.second;
     }
@@ -699,7 +699,13 @@ void specialize_core(const types::TypeEnv &type_env,
   assert(defn_id_to_match.scheme->btvs() == 0);
 
   types::Ref type = defn_id_to_match.scheme->type;
-  assert(type->get_ftvs().empty());
+  if (!type->get_ftvs().empty()) {
+    throw user_error(defn_id_to_match.get_location(),
+                     "unable to monomorphize %s because it still has free "
+                     "types variables %s",
+                     defn_id_to_match.str().c_str(),
+                     str(type->get_ftvs()).c_str());
+  }
   auto translation = get(translation_map, defn_id_to_match.id.name, type,
                          Translation::ref{});
   if (translation != nullptr) {
@@ -748,8 +754,9 @@ void specialize_core(const types::TypeEnv &type_env,
                      defn_id_to_match.scheme->str().c_str());
   }
 
-  log("found defn for %s in decl %s", defn_id_to_match.str().c_str(),
-      decl_to_check->str().c_str());
+  debug_above(3, log("found defn for %s in decl %s",
+                     defn_id_to_match.str().c_str(),
+                     decl_to_check->str().c_str()));
 
   /* now we know the resulting monomorphic type for the value we want to
    * instantiate */
@@ -764,13 +771,17 @@ void specialize_core(const types::TypeEnv &type_env,
 
     /* wrap this expr in it's asserted type to ensure that it monomorphizes */
     const As *as_defn = new As(to_check, defn_id.scheme->type, false);
-    log_location(defn_id.id.location, "checking %s", as_defn->str().c_str());
+    debug_above(3, log_location(defn_id.id.location, "checking %s",
+                                as_defn->str().c_str()));
     Identifier defn_to_check{defn_id.repr_public(), defn_id.id.location};
+    types::SchemeResolver local_scheme_resolver(&scheme_resolver);
     types::SchemeRef resolved_scheme = check(true /*check_constraint_coverage*/,
                                              defn_to_check, as_defn, env,
-                                             scheme_resolver);
-    log("translation: skipping adding " c_id("%s") " to the scheme_resolver",
-        defn_id.repr_public().c_str(), resolved_scheme->str().c_str());
+                                             local_scheme_resolver);
+    debug_above(1, log("translation: skipping adding " c_id(
+                           "%s") " to the scheme_resolver",
+                       defn_id.repr_public().c_str(),
+                       resolved_scheme->str().c_str()));
     assert(env.tracked_types == tracked_types);
 
     if (debug_specialized_env) {

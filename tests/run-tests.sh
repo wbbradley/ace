@@ -29,18 +29,23 @@ passed=0
 runs=0
 failed_tests=()
 for test_file in "${test_dir}"/test_*.zion; do
-		runs+=1
-		[[ "$DEBUG_TESTS" != "" ]] && echo "$0: Invoking run-test.sh on ${test_file}..."
-		if "${run_test}" "${bin_dir}" "${source_dir}" "${test_file}"; then
-				passed+=1
-		else
-				failed_tests+=("$test_file")
-				echo "$0:$LINENO:1: error: test ${test_file} failed"
-				if [[ "${FAIL_FAST}" != "" ]]; then
-					echo "FAIL_FAST was specified. Quitting..."
-					exit 1
-				fi
+	if [ "$TEST_FILTER" != "" ]; then
+		if ! grep "$TEST_FILTER" <(echo "$test_file"); then
+			continue
 		fi
+	fi
+	runs+=1
+	[[ "$DEBUG_TESTS" != "" ]] && echo "$0: Invoking run-test.sh on ${test_file}..."
+	if "${run_test}" "${bin_dir}" "${source_dir}" "${test_file}"; then
+		passed+=1
+	else
+		failed_tests+=("$test_file")
+		echo "$0:$LINENO:1: error: test ${test_file} failed"
+		if [[ "${FAIL_FAST}" != "" ]]; then
+			echo "FAIL_FAST was specified. Quitting..."
+			exit 1
+		fi
+	fi
 done
 
 if [[ ${#failed_tests[*]} != 0 ]]; then

@@ -190,7 +190,7 @@ const Expr *Literal::translate(
 
   typing[literal_cmp] = cmp_type;
   insert_needed_defn(needed_defns,
-                     types::DefnId{literal_cmp->id, cmp_type->generalize({})},
+                     types::DefnId{literal_cmp->id, cmp_type},
                      token.location, for_defn_id);
 
   bool truthy_returns = false;

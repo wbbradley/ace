@@ -24,17 +24,18 @@ types::SchemeRef scheme_unify(types::Scheme::Ref a, types::Scheme::Ref b) {
   // log("normalized checking %s == %s", a->normalize()->str().c_str(),
   // b->normalize()->str().c_str());
   if (a->normalize()->str() == b->normalize()->str()) {
-    log("found exact match between %s and %s", a->str().c_str(),
-        b->str().c_str());
+    debug_above(4, log("found exact match between %s and %s", a->str().c_str(),
+                       b->str().c_str()));
     return a;
   }
 
   auto ta = a->freshen()->type;
   auto tb = b->freshen()->type;
-  log("unifying %s and %s", ta->str().c_str(), tb->str().c_str());
+  debug_above(4,
+              log("unifying %s and %s", ta->str().c_str(), tb->str().c_str()));
   auto unification = unify(ta, tb);
   if (!unification.result) {
-    debug_above(9, log_location(unification.error_location,
+    debug_above(4, log_location(unification.error_location,
                                 "schemes %s and %s do not match because %s",
                                 ta->str().c_str(), tb->str().c_str(),
                                 unification.error_string.c_str()));
@@ -63,7 +64,7 @@ bool scheme_equality(types::Scheme::Ref a, types::Scheme::Ref b) {
   auto tb = b->freshen()->type;
   auto unification = unify(ta, tb);
   if (!unification.result) {
-    debug_above(9, log_location(unification.error_location,
+    debug_above(4, log_location(unification.error_location,
                                 "schemes %s and %s do not match because %s",
                                 ta->str().c_str(), tb->str().c_str(),
                                 unification.error_string.c_str()));

@@ -885,7 +885,7 @@ std::string str(const types::Ftvs &ftvs) {
   std::stringstream ss;
   ss << "{";
   ss << join_with(ftvs, ", ",
-                  [](const std::string &s) { return "C_TYPE" + s + C_RESET; });
+                  [](const std::string &s) { return C_TYPE + s + C_RESET; });
   ss << "}";
   return ss.str();
 }

@@ -53,6 +53,11 @@ types::Map solver(bool check_constraint_coverage,
                   types::ClassPredicates &instance_requirements) {
   debug_above(2, log("solver(%s, ... %d constraints)", context.message.c_str(),
                      constraints.size()));
+  for (auto &constraint : constraints) {
+    log_location(best_location(constraint.a->get_location(),
+                               constraint.b->get_location()),
+                 "%s", constraint.str().c_str());
+  }
 #ifdef ZION_DEBUG
   if (check_constraint_coverage) {
     check_constraints_cover_tracked_types(context, *env.tracked_types,

@@ -18,13 +18,9 @@ std::string DefnId::repr() const {
   if (cached_repr.size() != 0) {
     return cached_repr;
   } else {
-    cached_repr = "\"" + id.name + " :: " + scheme->repr() + "\"";
+    cached_repr = "\"" + id.name + " :: " + type->repr() + "\"";
     return cached_repr;
   }
-}
-
-Identifier DefnId::repr_id() const {
-  return {repr(), id.location};
 }
 
 bool DefnId::operator<(const DefnId &rhs) const {
