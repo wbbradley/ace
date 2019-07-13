@@ -6,7 +6,6 @@
 
 #include "ast.h"
 #include "builtins.h"
-#include "env.h"
 #include "ptr.h"
 #include "translate.h"
 #include "types.h"
@@ -684,7 +683,7 @@ std::string CtorPatternValue::str() const {
 } // namespace match
 
 namespace zion {
-namespace bitter {
+namespace ast {
 using namespace ::match;
 using namespace ::types;
 
@@ -762,5 +761,5 @@ Pattern::ref Literal::get_pattern(Ref type,
                          token.text.c_str(), type->str().c_str());
   return nullptr;
 }
-} // namespace bitter
+} // namespace ast
 } // namespace zion

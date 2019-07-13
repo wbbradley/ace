@@ -11,7 +11,7 @@
 
 namespace zion {
 
-using namespace bitter;
+using namespace ast;
 
 void check_typing_for_ftvs(const std::string &context,
                            const TrackedTypes &typing) {
@@ -42,7 +42,7 @@ struct TTC {
 };
 
 const Expr *texpr(const types::DefnId &for_defn_id,
-                  const bitter::Expr *expr,
+                  const ast::Expr *expr,
                   const std::unordered_set<std::string> &bound_vars,
                   types::Ref type,
                   const types::TypeEnv &type_env,
@@ -311,7 +311,7 @@ const Expr *texpr(const types::DefnId &for_defn_id,
 
 Translation::ref translate_expr(
     const types::DefnId &for_defn_id,
-    const bitter::Expr *expr,
+    const ast::Expr *expr,
     const std::unordered_set<std::string> &bound_vars,
     const types::TypeEnv &type_env,
     const TranslationEnv &tenv,
@@ -324,7 +324,7 @@ Translation::ref translate_expr(
   return std::make_shared<Translation>(translated_expr, typing);
 }
 
-Translation::Translation(const bitter::Expr *expr, const TrackedTypes &typing)
+Translation::Translation(const ast::Expr *expr, const TrackedTypes &typing)
     : expr(expr), typing(typing) {
   check_typing_for_ftvs(std::string("making a Translation"), typing);
 }
@@ -338,7 +338,7 @@ Location Translation::get_location() const {
   return expr->get_location();
 }
 
-types::Ref TranslationEnv::get_type(const bitter::Expr *e) const {
+types::Ref TranslationEnv::get_type(const ast::Expr *e) const {
   auto t = (*tracked_types)[e];
   if (t == nullptr) {
     log_location(log_error, e->get_location(),
@@ -410,25 +410,6 @@ std::map<std::string, types::Ref> TranslationEnv::get_data_ctors_types(
   return data_ctors_types;
 }
 
-types::Ref TranslationEnv::get_fresh_data_ctor_type(Identifier ctor_id) const {
-  // FUTURE: build an index to make this faster
-  for (auto type_ctors : data_ctors_map) {
-    for (auto ctors : type_ctors.second) {
-      if (ctors.first == ctor_id.name) {
-        types::Ref ctor_type = ctors.second;
-        while (true) {
-          if (auto type_lambda = dyncast<const types::TypeLambda>(ctor_type)) {
-            ctor_type = type_lambda->apply(type_variable(INTERNAL_LOC()));
-          } else {
-            return ctor_type;
-          }
-        }
-      }
-    }
-  }
-  throw user_error(ctor_id.location, "no data constructor found for %s",
-                   ctor_id.str().c_str());
-}
 
 int TranslationEnv::get_ctor_id(std::string ctor_name) const {
   auto iter = ctor_id_map.find(ctor_name);

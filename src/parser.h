@@ -77,27 +77,27 @@ inline Identifier iid(const Token &token) {
     eat_token();                                                               \
   } while (0)
 
-const bitter::Module *parse_module(
+const ast::Module *parse_module(
     ParseState &ps,
-    std::vector<const bitter::Module *> auto_import_modules,
+    std::vector<const ast::Module *> auto_import_modules,
     std::set<Identifier> &module_deps);
 
 types::Ref parse_type(ParseState &ps, bool allow_top_level_application);
-const bitter::Expr *parse_literal(ParseState &ps);
-const bitter::Expr *parse_expr(ParseState &ps);
-const bitter::Expr *parse_assignment(ParseState &ps);
-const bitter::Expr *parse_tuple_expr(ParseState &ps);
-const bitter::Expr *parse_let(ParseState &ps, Identifier var_id, bool is_let);
-const bitter::Expr *parse_block(ParseState &ps, bool expression_means_return);
-const bitter::Conditional *parse_if(ParseState &ps);
-const bitter::While *parse_while(ParseState &ps);
-const bitter::Expr *parse_lambda(ParseState &ps);
-const bitter::Match *parse_match(ParseState &ps);
-const bitter::Predicate *parse_predicate(ParseState &ps,
+const ast::Expr *parse_literal(ParseState &ps);
+const ast::Expr *parse_expr(ParseState &ps);
+const ast::Expr *parse_assignment(ParseState &ps);
+const ast::Expr *parse_tuple_expr(ParseState &ps);
+const ast::Expr *parse_let(ParseState &ps, Identifier var_id, bool is_let);
+const ast::Expr *parse_block(ParseState &ps, bool expression_means_return);
+const ast::Conditional *parse_if(ParseState &ps);
+const ast::While *parse_while(ParseState &ps);
+const ast::Expr *parse_lambda(ParseState &ps);
+const ast::Match *parse_match(ParseState &ps);
+const ast::Predicate *parse_predicate(ParseState &ps,
                                          bool allow_else,
                                          maybe<Identifier> name_assignment);
-const bitter::Predicate *unfold_application_into_predicate(
-    const bitter::Application *application);
-const bitter::Predicate *convert_expr_to_predicate(const bitter::Expr *expr);
+const ast::Predicate *unfold_application_into_predicate(
+    const ast::Application *application);
+const ast::Predicate *convert_expr_to_predicate(const ast::Expr *expr);
 
 } // namespace zion

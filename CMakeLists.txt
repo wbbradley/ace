@@ -48,7 +48,6 @@ add_executable(zion
 	src/dbg.cpp
 	src/defn_id.cpp
 	src/disk.cpp
-	src/env.cpp
 	src/gen.cpp
 	src/host.cpp
 	src/identifier.cpp

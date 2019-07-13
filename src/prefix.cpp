@@ -5,7 +5,7 @@
 
 namespace zion {
 
-using namespace bitter;
+using namespace ast;
 
 std::string prefix(const std::set<std::string> &bindings,
                    std::string pre,

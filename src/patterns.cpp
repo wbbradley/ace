@@ -11,7 +11,7 @@
 
 namespace zion {
 
-using namespace bitter;
+using namespace ast;
 
 const Expr *build_patterns(const types::DefnId &for_defn_id,
                            const pattern_blocks_t &pattern_blocks,
@@ -124,7 +124,7 @@ void check_patterns(Location location,
 
 const Expr *translate_match_expr(
     const types::DefnId &for_defn_id,
-    const bitter::Match *match,
+    const ast::Match *match,
     const std::unordered_set<std::string> &bound_vars,
     const types::TypeEnv &type_env,
     const TranslationEnv &tenv,

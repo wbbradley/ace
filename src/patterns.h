@@ -8,9 +8,9 @@ namespace zion {
 
 struct TranslationEnv;
 
-const bitter::Expr *translate_match_expr(
+const ast::Expr *translate_match_expr(
     const types::DefnId &for_defn_id,
-    const bitter::Match *match,
+    const ast::Match *match,
     const std::unordered_set<std::string> &bound_vars,
     const types::TypeEnv &type_env,
     const TranslationEnv &tenv,
@@ -18,7 +18,7 @@ const bitter::Expr *translate_match_expr(
     types::NeededDefns &needed_defns,
     bool &returns);
 
-typedef const std::function<const bitter::Expr *(
+typedef const std::function<const ast::Expr *(
     const std::unordered_set<std::string> &bound_vars,
     const types::TypeEnv &type_env,
     const TranslationEnv &tenv,

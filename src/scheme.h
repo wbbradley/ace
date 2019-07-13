@@ -50,3 +50,5 @@ struct Scheme final : public std::enable_shared_from_this<Scheme> {
 types::SchemeRef scheme(std::vector<std::string> vars,
                         const types::ClassPredicates &predicates,
                         const types::Ref &type);
+
+std::string str(const types::Scheme::Map &m);

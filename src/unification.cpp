@@ -5,7 +5,6 @@
 
 #include "ast.h"
 #include "dbg.h"
-#include "env.h"
 #include "logger.h"
 #include "ptr.h"
 #include "types.h"

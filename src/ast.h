@@ -3,7 +3,6 @@
 #include <vector>
 
 #include "constraint.h"
-#include "env.h"
 #include "identifier.h"
 #include "infer.h"
 #include "match.h"
@@ -15,7 +14,7 @@
 struct TranslationEnv;
 
 namespace zion {
-namespace bitter {
+namespace ast {
 
 std::string fresh();
 
@@ -77,8 +76,12 @@ struct Predicate {
   virtual match::Pattern::ref get_pattern(types::Ref type,
                                           const TranslationEnv &env) const = 0;
   virtual types::Ref tracking_infer(
-      Env &env,
+      const DataCtorsMap &data_ctors_map,
+      const types::Ref &return_type,
+      // Predicates can implicitly bind symbols, hence the following mutable
+      // SchemeResolver.
       types::SchemeResolver &scheme_resolver,
+      TrackedTypes &tracked_types,
       types::Constraints &constraints,
       types::ClassPredicates &instance_requirements) const = 0;
   virtual Location get_location() const = 0;
@@ -111,8 +114,10 @@ struct TuplePredicate : public Predicate {
   match::Pattern::ref get_pattern(types::Ref type,
                                   const TranslationEnv &env) const override;
   types::Ref tracking_infer(
-      Env &env,
+      const DataCtorsMap &data_ctors_map,
+      const types::Ref &return_type,
       types::SchemeResolver &scheme_resolver,
+      TrackedTypes &tracked_types,
       types::Constraints &constraints,
       types::ClassPredicates &instance_requirements) const override;
   Identifier instantiate_name_assignment() const override;
@@ -145,8 +150,10 @@ struct IrrefutablePredicate : public Predicate {
   match::Pattern::ref get_pattern(types::Ref type,
                                   const TranslationEnv &env) const override;
   types::Ref tracking_infer(
-      Env &env,
+      const DataCtorsMap &data_ctors_map,
+      const types::Ref &return_type,
       types::SchemeResolver &scheme_resolver,
+      TrackedTypes &tracked_types,
       types::Constraints &constraints,
       types::ClassPredicates &instance_requirements) const override;
   Identifier instantiate_name_assignment() const override;
@@ -182,8 +189,10 @@ struct CtorPredicate : public Predicate {
   match::Pattern::ref get_pattern(types::Ref type,
                                   const TranslationEnv &env) const override;
   types::Ref tracking_infer(
-      Env &env,
+      const DataCtorsMap &data_ctors_map,
+      const types::Ref &return_type,
       types::SchemeResolver &scheme_resolver,
+      TrackedTypes &tracked_types,
       types::Constraints &constraints,
       types::ClassPredicates &instance_requirements) const override;
   Identifier instantiate_name_assignment() const override;
@@ -327,8 +336,10 @@ struct Literal : public Expr, public Predicate {
   match::Pattern::ref get_pattern(types::Ref type,
                                   const TranslationEnv &env) const override;
   types::Ref tracking_infer(
-      Env &env,
+      const DataCtorsMap &data_ctors_map,
+      const types::Ref &return_type,
       types::SchemeResolver &scheme_resolver,
+      TrackedTypes &tracked_types,
       types::Constraints &constraints,
       types::ClassPredicates &instance_requirements) const override;
   types::Ref non_tracking_infer() const;
@@ -491,11 +502,11 @@ struct Program {
   std::vector<const Instance *> instances;
   const Expr *const expr;
 };
-} // namespace bitter
+} // namespace ast
 
-bitter::Expr *unit_expr(Location location);
+ast::Expr *unit_expr(Location location);
 } // namespace zion
 
-std::ostream &operator<<(std::ostream &os, zion::bitter::Program *program);
-std::ostream &operator<<(std::ostream &os, zion::bitter::Decl *decl);
-std::ostream &operator<<(std::ostream &os, zion::bitter::Expr *expr);
+std::ostream &operator<<(std::ostream &os, zion::ast::Program *program);
+std::ostream &operator<<(std::ostream &os, zion::ast::Decl *decl);
+std::ostream &operator<<(std::ostream &os, zion::ast::Expr *expr);

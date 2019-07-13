@@ -97,7 +97,7 @@ std::string Scheme::str() const {
   std::stringstream ss;
   const char *delim = "";
   if (vars.size() != 0) {
-    ss << "(∀ " << C_TYPE << join(vars, " ") << C_RESET;
+    ss << "(forall " << C_TYPE << join(vars, " ") << C_RESET;
     delim = " ";
   }
 
@@ -121,7 +121,8 @@ std::string Scheme::str() const {
 std::string Scheme::repr() const {
   std::stringstream ss;
   if (vars.size() != 0) {
-    ss << "(∀ " << join(vars, " ");
+    // ∀
+    ss << "(forall " << join(vars, " ");
     auto predicates_str = ::str(predicates);
     if (predicates_str.size() != 0) {
       ss << " where " << predicates_str;
@@ -151,3 +152,14 @@ Location Scheme::get_location() const {
 }
 
 } // namespace types
+
+std::string str(const types::Scheme::Map &m) {
+  std::stringstream ss;
+  ss << "{";
+  ss << join_with(m, ", ", [](const auto &pair) {
+    return string_format("%s: %s", pair.first.c_str(),
+                         pair.second->str().c_str());
+  });
+  ss << "}";
+  return ss.str();
+}

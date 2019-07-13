@@ -6,10 +6,10 @@
 
 #include "ast.h"
 #include "builtins.h"
+#include "checked.h"
 #include "class_predicate.h"
 #include "compiler.h"
 #include "disk.h"
-#include "env.h"
 #include "gen.h"
 #include "host.h"
 #include "lexer.h"
@@ -24,9 +24,11 @@
 
 namespace zion {
 
-using namespace bitter;
+using namespace ast;
 
 namespace {
+
+typedef std::unordered_map<std::string, std::vector<CheckedDefinitionRef>> overrides_map;
 
 bool get_help = false;
 bool fast_fail = true && (getenv("ZION_SHOW_ALL_ERRORS") == nullptr);
@@ -89,6 +91,7 @@ void handle_sigint(int sig) {
   exit(2);
 }
 
+#if 0
 types::SchemeRef check(bool check_constraint_coverage,
                        Identifier id,
                        const Expr *expr,
@@ -104,7 +107,7 @@ types::SchemeRef check(bool check_constraint_coverage,
       check_constraint_coverage,
       make_context(id.location, "solving %s :: %s", id.name.c_str(),
                    ty->str().c_str()),
-      constraints, env, scheme_resolver, instance_requirements);
+      constraints, tracked_types, scheme_resolver, instance_requirements);
 
   ty = ty->rebind(bindings);
   instance_requirements = types::rebind(instance_requirements, bindings);
@@ -116,6 +119,7 @@ types::SchemeRef check(bool check_constraint_coverage,
 
   return scheme;
 }
+#endif
 
 std::vector<std::string> alphabet(int count) {
   std::vector<std::string> xs;
@@ -183,34 +187,60 @@ std::map<std::string, const TypeClass *> check_type_classes(
   return type_class_map;
 }
 
-void check_decls(std::string entry_point_name,
-                 const std::vector<const Decl *> &decls,
-                 Env &env,
-                 types::SchemeResolver &scheme_resolver) {
-  for (const Decl *decl : decls) {
-    scheme_resolver.insert_scheme(
-        decl->id.name,
-        scheme({"a"}, {}, type_variable(Identifier{"a", INTERNAL_LOC()})));
+ast::Expr *build_program(std::string entry_point_name,
+                         types::SchemeResolver &scheme_resolver,
+                         const std::vector<const Decl *> &decls) {
+  // TODO: topographically sort and merge mutually recursive nodes
+  ast::Expr *program = new As(
+      new Application(new Var(Identifier{entry_point_name, INTERNAL_LOC()}),
+                      {new Tuple(INTERNAL_LOC(), {})}),
+      type_unit(INTERNAL_LOC()), false /*force_cast*/);
+
+  types::Constraints constraints;
+  types::ClassPredicates instance_requirements;
+  for (auto iter = decls.rbegin(); iter != decls.rend(); ++iter) {
+    auto &decl = *iter;
+    program = new Let(decl->id, decl->value, program);
   }
+  return program;
+}
+}
+
+CheckedDefinitionsByName check_decls(std::string entry_point_name,
+                                     const std::vector<const Decl *> &decls,
+                                     Env &env,
+                                     types::SchemeResolver &scheme_resolver) {
+  /* tracked types */
+  TrackedTypes tracked_types;
+
+  // ast::Expr -> types::Ref
+
+  std::string -> ast::Expr
+
+  ast::Expr *program_expr = build_program(entry_point_name, scheme_resolver, decls);
+
+  types::Ref ty = infer(program_expr, scheme_resolver, constraints,
+                        instance_requirements);
+types::Ref infer(const Expr *expr,
+                 Env &env,
+                 const types::SchemeResolver &scheme_resolver,
+                 types::Constraints &constraints,
+                 types::ClassPredicates &instance_requirements) {
   for (const Decl *decl : decls) {
     try {
       /* make sure that the "main" function has the correct signature */
-      check(
-          false /*check_constraint_coverage*/, decl->id,
-          (decl->id.name == entry_point_name)
-              ? new As(decl->value, program_main_scheme->type,
-                       false /*force_cast*/)
-              : decl->value,
-          env, scheme_resolver);
+      run_inference(false /*check_constraint_coverage*/, decl->id,
+                    (decl->id.name == entry_point_name)
+                        ? new As(decl->value, program_main_scheme->type,
+                                 false /*force_cast*/)
+                        : decl->value,
+                    env, scheme_resolver);
     } catch (user_error &e) {
       print_exception(e);
-
-      /* keep trying other decls, and pretend like this function gives back
-       * whatever the user wants... */
-      scheme_resolver.insert_scheme(
-          decl->id.name, type_variable(INTERNAL_LOC())->generalize({}));
     }
   }
+  run_solver();
+  assign_checked_definitions();
 }
 
 Identifier make_instance_decl_id(const Instance *instance, Identifier decl_id) {
@@ -294,6 +324,7 @@ void check_instance_for_type_class_overload(
   }
 }
 
+#if 0
 /* typecheck an instance for whether it properly overloads the type class with
  * which it is associated */
 void check_instance_for_type_class_overloads(
@@ -404,6 +435,7 @@ std::vector<const Decl *> check_instances(
   }
   return instance_decls;
 }
+#endif
 
 #if 0
 bool instance_matches_requirement(Instance *instance,
@@ -612,16 +644,16 @@ Phase2 compile(std::string user_program_name_) {
   /* initialize the scheme_resolver with type class decls */
   auto type_class_map = check_type_classes(program->type_classes,
                                            scheme_resolver);
-
   /* start resolving more schemes */
   // TODO: iterate through all decls to do an ordering */
-  check_decls(compilation->program_name + ".main", program->decls, env,
-              scheme_resolver);
-  std::map<types::DefnId, const Decl *> overrides_map;
+  CheckedDefinitionsByName checked_defns =
+      check_decls(compilation->program_name + ".main", program->decls, env,
+                  scheme_resolver, checked_defns);
 
+#if 0
   std::vector<const Decl *> instance_decls = check_instances(
       program->instances, type_class_map, overrides_map, env, scheme_resolver);
-
+#endif
   std::map<std::string, const Decl *> decl_map;
   for (const Decl *decl : program->decls) {
     assert(!in(decl->id.name, decl_map));
@@ -797,7 +829,7 @@ void specialize_core(const types::TypeEnv &type_env,
     // properly adding to needed_defns
 #if 0
     for (auto pair : tracked_types) {
-      const bitter::Expr *expr;
+      const ast::Expr *expr;
       types::Ref type;
       std::tie(std::ref(expr), std::ref(type)) = pair;
     }
@@ -933,7 +965,7 @@ struct CodeSymbol {
   std::string name;
   types::Ref type;
   const TrackedTypes &typing;
-  const bitter::Expr *expr;
+  const ast::Expr *expr;
 };
 
 std::unordered_set<std::string> get_globals(const Phase3 &phase_3) {

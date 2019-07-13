@@ -66,19 +66,19 @@ static types::Ref get_nth_type_in_lambda_type(types::Ref arrow_type, int n) {
 }
 #endif
 
-void get_free_vars(const bitter::Expr *expr,
+void get_free_vars(const ast::Expr *expr,
                    const TrackedTypes &typing,
                    const std::unordered_set<std::string> &globals,
                    const std::unordered_set<std::string> &locals,
                    FreeVars &free_vars) {
-  if (auto literal = dcast<const bitter::Literal *>(expr)) {
-  } else if (auto static_print = dcast<const bitter::StaticPrint *>(expr)) {
-  } else if (auto var = dcast<const bitter::Var *>(expr)) {
+  if (auto literal = dcast<const ast::Literal *>(expr)) {
+  } else if (auto static_print = dcast<const ast::StaticPrint *>(expr)) {
+  } else if (auto var = dcast<const ast::Var *>(expr)) {
     if (!in(var->id.name, globals) && !in(var->id.name, locals)) {
       /* we need to capture this variable in order to put it into our closure */
       free_vars.add(var->id, get(typing, expr, {}));
     }
-  } else if (auto lambda = dcast<const bitter::Lambda *>(expr)) {
+  } else if (auto lambda = dcast<const ast::Lambda *>(expr)) {
     debug_above(5, log("checking lambda %s", lambda->str().c_str()));
 
 #ifdef ZION_DEBUG
@@ -110,46 +110,46 @@ void get_free_vars(const bitter::Expr *expr,
       ++i;
     }
 #endif
-  } else if (auto application = dcast<const bitter::Application *>(expr)) {
+  } else if (auto application = dcast<const ast::Application *>(expr)) {
     get_free_vars(application->a, typing, globals, locals, free_vars);
     for (auto &param : application->params) {
       get_free_vars(param, typing, globals, locals, free_vars);
     }
-  } else if (auto let = dcast<const bitter::Let *>(expr)) {
+  } else if (auto let = dcast<const ast::Let *>(expr)) {
     // TODO: allow let-rec
     get_free_vars(let->value, typing, globals, locals, free_vars);
     auto new_globals = globals;
     new_globals.insert(let->var.name);
     get_free_vars(let->body, typing, new_globals, locals, free_vars);
-  } else if (auto condition = dcast<const bitter::Conditional *>(expr)) {
+  } else if (auto condition = dcast<const ast::Conditional *>(expr)) {
     get_free_vars(condition->cond, typing, globals, locals, free_vars);
     get_free_vars(condition->truthy, typing, globals, locals, free_vars);
     get_free_vars(condition->falsey, typing, globals, locals, free_vars);
-  } else if (auto break_ = dcast<const bitter::Break *>(expr)) {
-  } else if (auto break_ = dcast<const bitter::Continue *>(expr)) {
-  } else if (auto while_ = dcast<const bitter::While *>(expr)) {
+  } else if (auto break_ = dcast<const ast::Break *>(expr)) {
+  } else if (auto break_ = dcast<const ast::Continue *>(expr)) {
+  } else if (auto while_ = dcast<const ast::While *>(expr)) {
     get_free_vars(while_->condition, typing, globals, locals, free_vars);
     get_free_vars(while_->block, typing, globals, locals, free_vars);
-  } else if (auto block = dcast<const bitter::Block *>(expr)) {
+  } else if (auto block = dcast<const ast::Block *>(expr)) {
     for (auto statement : block->statements) {
       get_free_vars(statement, typing, globals, locals, free_vars);
     }
-  } else if (auto return_ = dcast<const bitter::ReturnStatement *>(expr)) {
+  } else if (auto return_ = dcast<const ast::ReturnStatement *>(expr)) {
     get_free_vars(return_->value, typing, globals, locals, free_vars);
-  } else if (auto tuple = dcast<const bitter::Tuple *>(expr)) {
+  } else if (auto tuple = dcast<const ast::Tuple *>(expr)) {
     for (auto dim : tuple->dims) {
       get_free_vars(dim, typing, globals, locals, free_vars);
     }
-  } else if (auto tuple_deref = dcast<const bitter::TupleDeref *>(expr)) {
+  } else if (auto tuple_deref = dcast<const ast::TupleDeref *>(expr)) {
     get_free_vars(tuple_deref->expr, typing, globals, locals, free_vars);
-  } else if (auto as = dcast<const bitter::As *>(expr)) {
+  } else if (auto as = dcast<const ast::As *>(expr)) {
     get_free_vars(as->expr, typing, globals, locals, free_vars);
-  } else if (auto sizeof_ = dcast<const bitter::Sizeof *>(expr)) {
-  } else if (auto builtin = dcast<const bitter::Builtin *>(expr)) {
+  } else if (auto sizeof_ = dcast<const ast::Sizeof *>(expr)) {
+  } else if (auto builtin = dcast<const ast::Builtin *>(expr)) {
     for (auto expr : builtin->exprs) {
       get_free_vars(expr, typing, globals, locals, free_vars);
     }
-  } else if (auto match = dcast<const bitter::Match *>(expr)) {
+  } else if (auto match = dcast<const ast::Match *>(expr)) {
     /* by this point, all match expressions should have been transformed into
      * conditionals */
     assert(false);
@@ -672,7 +672,7 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
 void gen_lambda(std::string name,
                 llvm::IRBuilder<> &builder,
                 llvm::Module *llvm_module,
-                const bitter::Lambda *lambda,
+                const ast::Lambda *lambda,
                 types::Ref type,
                 const TrackedTypes &typing,
                 const types::TypeEnv &type_env,
@@ -863,7 +863,7 @@ void gen_lambda(std::string name,
 
 resolution_status_t gen_literal(std::string name,
                                 llvm::IRBuilder<> &builder,
-                                const bitter::Literal *literal,
+                                const ast::Literal *literal,
                                 types::Ref type,
                                 Publisher *publisher) {
   auto &token = literal->token;
@@ -918,7 +918,7 @@ resolution_status_t gen(llvm::IRBuilder<> &builder,
                         llvm::Module *llvm_module,
                         llvm::BasicBlock *break_to_block,
                         llvm::BasicBlock *continue_to_block,
-                        const bitter::Expr *expr,
+                        const ast::Expr *expr,
                         const TrackedTypes &typing,
                         const types::TypeEnv &type_env,
                         const gen_env_t &gen_env_globals,
@@ -941,7 +941,7 @@ llvm::Value *gen(llvm::IRBuilder<> &builder,
                  llvm::Module *llvm_module,
                  llvm::BasicBlock *break_to_block,
                  llvm::BasicBlock *continue_to_block,
-                 const bitter::Expr *expr,
+                 const ast::Expr *expr,
                  const TrackedTypes &typing,
                  const types::TypeEnv &type_env,
                  const gen_env_t &gen_env_globals,
@@ -959,7 +959,7 @@ resolution_status_t gen(std::string name,
                         llvm::Module *llvm_module,
                         llvm::BasicBlock *break_to_block,
                         llvm::BasicBlock *continue_to_block,
-                        const bitter::Expr *expr,
+                        const ast::Expr *expr,
                         const TrackedTypes &typing,
                         const types::TypeEnv &type_env,
                         const gen_env_t &gen_env_globals,
@@ -983,11 +983,11 @@ resolution_status_t gen(std::string name,
 
     INDENT(2, string_format("gen(..., %s, ..., ...) :: %s", expr->str().c_str(),
                             type->str().c_str()));
-    if (auto literal = dcast<const bitter::Literal *>(expr)) {
+    if (auto literal = dcast<const ast::Literal *>(expr)) {
       return gen_literal(name, builder, literal, type, publisher);
-    } else if (auto static_print = dcast<const bitter::StaticPrint *>(expr)) {
+    } else if (auto static_print = dcast<const ast::StaticPrint *>(expr)) {
       assert(false);
-    } else if (auto var = dcast<const bitter::Var *>(expr)) {
+    } else if (auto var = dcast<const ast::Var *>(expr)) {
       auto value = get(gen_env_locals, var->id.name,
                        static_cast<llvm::Value *>(nullptr));
       if (value == nullptr) {
@@ -998,13 +998,13 @@ resolution_status_t gen(std::string name,
         publish(value);
       }
       return rs_cache_resolution;
-    } else if (auto lambda = dcast<const bitter::Lambda *>(expr)) {
+    } else if (auto lambda = dcast<const ast::Lambda *>(expr)) {
       /* gen_lambda needs access to locals in order to capture closed over
        * variables */
       gen_lambda(name, builder, llvm_module, lambda, type, typing, type_env,
                  gen_env_globals, gen_env_locals, globals, publisher);
       return rs_cache_resolution;
-    } else if (auto application = dcast<const bitter::Application *>(expr)) {
+    } else if (auto application = dcast<const ast::Application *>(expr)) {
       debug_above(4, log("applying (%s :: %s) (%s :: ...TODO...)...",
                          application->a->str().c_str(),
                          typing.at(application->a)->str().c_str(),
@@ -1038,7 +1038,7 @@ resolution_status_t gen(std::string name,
                         application->get_location().repr().c_str()));
       publish(callsite);
       return rs_cache_resolution;
-    } else if (auto let = dcast<const bitter::Let *>(expr)) {
+    } else if (auto let = dcast<const ast::Let *>(expr)) {
       llvm::Value *let_value = nullptr;
       Publishable publishable(&let_value);
       gen(let->var.name, builder, llvm_module, break_to_block,
@@ -1047,7 +1047,7 @@ resolution_status_t gen(std::string name,
 
       auto new_env_locals = gen_env_locals;
       set_env_var(new_env_locals, let->var.name,
-                  get(typing, static_cast<const bitter::Expr *>(let->value),
+                  get(typing, static_cast<const ast::Expr *>(let->value),
                       types::Ref{}),
                   let_value);
 
@@ -1055,7 +1055,7 @@ resolution_status_t gen(std::string name,
                   let->body, typing, type_env, gen_env_globals, new_env_locals,
                   globals));
       return rs_cache_resolution;
-    } else if (auto condition = dcast<const bitter::Conditional *>(expr)) {
+    } else if (auto condition = dcast<const ast::Conditional *>(expr)) {
       llvm::Value *cond = gen(builder, llvm_module, break_to_block,
                               continue_to_block, condition->cond, typing,
                               type_env, gen_env_globals, gen_env_locals,
@@ -1063,7 +1063,7 @@ resolution_status_t gen(std::string name,
 
       llvm::Function *llvm_function = llvm_get_function(builder);
 
-      auto tag = bitter::fresh();
+      auto tag = ast::fresh();
       llvm::BasicBlock *truthy_block = llvm::BasicBlock::Create(
           builder.getContext(),
           string_format("truthy.%s{%s}", tag.c_str(),
@@ -1146,17 +1146,17 @@ resolution_status_t gen(std::string name,
         }
       }
       return rs_cache_resolution;
-    } else if (auto break_ = dcast<const bitter::Break *>(expr)) {
+    } else if (auto break_ = dcast<const ast::Break *>(expr)) {
       assert(break_to_block != nullptr);
       builder.CreateBr(break_to_block);
       return rs_cache_resolution;
-    } else if (auto continue_ = dcast<const bitter::Continue *>(expr)) {
+    } else if (auto continue_ = dcast<const ast::Continue *>(expr)) {
       assert(continue_to_block != nullptr);
       builder.CreateBr(continue_to_block);
       return rs_cache_resolution;
-    } else if (auto while_ = dcast<const bitter::While *>(expr)) {
+    } else if (auto while_ = dcast<const ast::While *>(expr)) {
       llvm::Function *llvm_function = llvm_get_function(builder);
-      auto tag = bitter::fresh();
+      auto tag = ast::fresh();
       auto cond_block = llvm::BasicBlock::Create(
           builder.getContext(), "while_cond." + tag, llvm_function);
       builder.CreateBr(cond_block);
@@ -1189,7 +1189,7 @@ resolution_status_t gen(std::string name,
 
       builder.SetInsertPoint(else_block);
       return rs_cache_resolution;
-    } else if (auto block = dcast<const bitter::Block *>(expr)) {
+    } else if (auto block = dcast<const ast::Block *>(expr)) {
       size_t inst_counter = block->statements.size() - 1;
 
       llvm::Value *value = nullptr;
@@ -1199,7 +1199,7 @@ resolution_status_t gen(std::string name,
       }
       publish(value);
       return rs_cache_resolution;
-    } else if (auto return_ = dcast<const bitter::ReturnStatement *>(expr)) {
+    } else if (auto return_ = dcast<const ast::ReturnStatement *>(expr)) {
       llvm::Value *llvm_value = nullptr;
       gen(builder, llvm_module, break_to_block, continue_to_block,
           return_->value, typing, type_env, gen_env_globals, gen_env_locals,
@@ -1225,7 +1225,7 @@ resolution_status_t gen(std::string name,
 #endif
       builder.CreateRet(llvm_value);
       return rs_cache_resolution;
-    } else if (auto tuple = dcast<const bitter::Tuple *>(expr)) {
+    } else if (auto tuple = dcast<const ast::Tuple *>(expr)) {
       std::vector<llvm::Value *> dim_values;
       for (auto dim : tuple->dims) {
         dim_values.push_back(gen(builder, llvm_module, break_to_block,
@@ -1234,7 +1234,7 @@ resolution_status_t gen(std::string name,
       }
       publish(llvm_tuple_alloc(builder, llvm_module, dim_values));
       return rs_cache_resolution;
-    } else if (auto tuple_deref = dcast<const bitter::TupleDeref *>(expr)) {
+    } else if (auto tuple_deref = dcast<const ast::TupleDeref *>(expr)) {
       auto td = gen(builder, llvm_module, break_to_block, continue_to_block,
                     tuple_deref->expr, typing, type_env, gen_env_globals,
                     gen_env_locals, globals);
@@ -1251,7 +1251,7 @@ resolution_status_t gen(std::string name,
                         tuple_deref->get_location().repr().c_str()));
       publish(load);
       return rs_cache_resolution;
-    } else if (auto as = dcast<const bitter::As *>(expr)) {
+    } else if (auto as = dcast<const ast::As *>(expr)) {
       assert(as->force_cast);
       auto expr_value = gen(builder, llvm_module, break_to_block,
                             continue_to_block, as->expr, typing, type_env,
@@ -1268,18 +1268,18 @@ resolution_status_t gen(std::string name,
         publish(builder.CreateBitOrPointerCast(expr_value, cast_type));
       }
       return rs_cache_resolution;
-    } else if (auto sizeof_ = dcast<const bitter::Sizeof *>(expr)) {
+    } else if (auto sizeof_ = dcast<const ast::Sizeof *>(expr)) {
       assert(false);
-    } else if (auto match = dcast<const bitter::Match *>(expr)) {
+    } else if (auto match = dcast<const ast::Match *>(expr)) {
       assert(false);
-    } else if (auto builtin = dcast<const bitter::Builtin *>(expr)) {
+    } else if (auto builtin = dcast<const ast::Builtin *>(expr)) {
       std::vector<llvm::Value *> llvm_values;
       types::Refs types;
 
       auto iter = builtin->exprs.begin();
       std::string ffi_name;
       if (starts_with(builtin->var->id.name, "__builtin_ffi_")) {
-        auto ffi_name_expr = dcast<const bitter::Literal *>(*iter);
+        auto ffi_name_expr = dcast<const ast::Literal *>(*iter);
         if (ffi_name_expr == nullptr || ffi_name_expr->token.tk != tk_string) {
           throw user_error((*iter)->get_location(), "invalid FFI name");
         }

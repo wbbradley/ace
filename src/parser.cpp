@@ -18,7 +18,7 @@
 
 namespace zion {
 
-using namespace bitter;
+using namespace ast;
 
 class RawParseMode {
 public:
@@ -1750,7 +1750,7 @@ DataTypeDecl parse_newtype_decl(ParseState &ps,
     std::vector<const Expr *> dims;
     for (int i = 0; i < tuple_type->dimensions.size(); ++i) {
       dim_names.push_back(Identifier{
-          bitter::fresh(), tuple_type->dimensions[i]->get_location()});
+          ast::fresh(), tuple_type->dimensions[i]->get_location()});
       dims.push_back(new Var(dim_names.back()));
     }
 
@@ -1763,7 +1763,7 @@ DataTypeDecl parse_newtype_decl(ParseState &ps,
                               type_decl.get_type(), true /*force_cast*/))));
   } else {
     ctor_parts.push_back(rhs_type);
-    Identifier param_iid = Identifier{bitter::fresh(),
+    Identifier param_iid = Identifier{ast::fresh(),
                                       rhs_type->get_location()};
     decl = new Decl(type_decl.id,
                     new Lambda({param_iid}, {rhs_type}, type_decl.get_type(),

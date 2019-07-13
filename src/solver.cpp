@@ -48,7 +48,7 @@ void check_constraints_cover_tracked_types(
 types::Map solver(bool check_constraint_coverage,
                   Context &&context,
                   types::Constraints &constraints,
-                  Env &env,
+                  TrackedTypes &tracked_types,
                   const types::SchemeResolver &scheme_resolver,
                   types::ClassPredicates &instance_requirements) {
   debug_above(2, log("solver(%s, ... %d constraints)", context.message.c_str(),
@@ -60,7 +60,7 @@ types::Map solver(bool check_constraint_coverage,
   }
 #ifdef ZION_DEBUG
   if (check_constraint_coverage) {
-    check_constraints_cover_tracked_types(context, *env.tracked_types,
+    check_constraints_cover_tracked_types(context, tracked_types,
                                           constraints);
   }
 #endif
@@ -70,7 +70,7 @@ types::Map solver(bool check_constraint_coverage,
     types::Unification unification = types::unify(iter->a, iter->b);
     if (unification.result) {
       if (unification.bindings.size() != 0) {
-        env.rebind_env(unification.bindings);
+        rebind_tracked_types(tracked_types, unification.bindings);
         scheme_resolver.rebind(unification.bindings);
 
         /* save the bindings */
