@@ -3,27 +3,29 @@
 #include "ast.h"
 #include "builtins.h"
 #include "dbg.h"
-#include "env.h"
 #include "ptr.h"
 #include "unification.h"
 #include "user_error.h"
 
 namespace zion {
 
-using namespace bitter;
+using namespace ast;
 
 namespace {
 
 types::Ref infer_core(const Expr *expr,
-                      Env &env,
+                      const DataCtorsMap &data_ctors_map,
+                      const types::Ref &return_type,
                       const types::SchemeResolver &scheme_resolver,
+                      TrackedTypes &tracked_types,
                       types::Constraints &constraints,
                       types::ClassPredicates &instance_requirements) {
   debug_above(8, log("infer(%s, ..., ...)", expr->str().c_str()));
   if (auto literal = dcast<const Literal *>(expr)) {
     return literal->non_tracking_infer();
   } else if (auto static_print = dcast<const StaticPrint *>(expr)) {
-    auto t1 = infer(static_print->expr, env, scheme_resolver, constraints,
+    auto t1 = infer(static_print->expr, data_ctors_map, return_type,
+                    scheme_resolver, tracked_types, constraints,
                     instance_requirements);
     append_to_constraints(
         constraints, t1, t1,
@@ -51,9 +53,7 @@ types::Ref infer_core(const Expr *expr,
       assert(param_type != nullptr);
       tvs.push_back(param_type);
     }
-    auto return_type = type_variable(lambda->get_location());
-    Env local_env = Env{env};
-    local_env.return_type = return_type;
+    auto local_return_type = type_variable(lambda->get_location());
     /* lambdas are monomorphic at the time of initialization/definition/capture.
      * so, we do not include the vars |tvs| in the scheme. this way, when the
      * scheme freshens, it will not erase the reference to this variable. */
@@ -62,27 +62,30 @@ types::Ref infer_core(const Expr *expr,
     for (const Identifier &var : lambda->vars) {
       local_scheme_resolver.insert_scheme(var.name, scheme({}, {}, tvs[i++]));
     }
-    auto body_type = infer(lambda->body, local_env, local_scheme_resolver,
-                           constraints, instance_requirements);
+    auto body_type = infer(lambda->body, data_ctors_map, local_return_type,
+                           local_scheme_resolver, tracked_types, constraints,
+                           instance_requirements);
     append_to_constraints(constraints, body_type,
                           type_unit(lambda->body->get_location()),
                           make_context(lambda->body->get_location(),
                                        "function body value is not ignored"));
     if (lambda->return_type != nullptr) {
       append_to_constraints(
-          constraints, return_type, lambda->return_type,
+          constraints, local_return_type, lambda->return_type,
           make_context(lambda->return_type->get_location(),
                        "return type does not match type annotation :: %s",
                        lambda->return_type->str().c_str()));
     }
-    return type_arrow(type_params(tvs), return_type);
+    return type_arrow(type_params(tvs), local_return_type);
   } else if (auto application = dcast<const Application *>(expr)) {
-    auto t1 = infer(application->a, env, scheme_resolver, constraints,
+    auto t1 = infer(application->a, data_ctors_map, return_type,
+                    scheme_resolver, tracked_types, constraints,
                     instance_requirements);
     std::vector<types::Ref> param_types;
     param_types.reserve(application->params.size());
     for (auto &param : application->params) {
-      param_types.push_back(infer(param, env, scheme_resolver, constraints,
+      param_types.push_back(infer(param, data_ctors_map, return_type,
+                                  scheme_resolver, tracked_types, constraints,
                                   instance_requirements));
     }
     auto t2 = type_params(param_types);
@@ -96,11 +99,8 @@ types::Ref infer_core(const Expr *expr,
                      t2->str().c_str(), tv->str().c_str()));
     return tv;
   } else if (auto let = dcast<const Let *>(expr)) {
-    Env local_env{nullptr /*return_type*/, env.tracked_types, env.ctor_id_map,
-                  env.data_ctors_map};
-
-    auto t1 = infer(let->value, local_env, scheme_resolver, constraints,
-                    instance_requirements);
+    auto t1 = infer(let->value, data_ctors_map, return_type, scheme_resolver,
+                    tracked_types, constraints, instance_requirements);
     auto tv = type_variable(t1->get_location());
     append_to_constraints(
         constraints, tv, t1,
@@ -109,18 +109,22 @@ types::Ref infer_core(const Expr *expr,
     types::SchemeResolver local_scheme_resolver(&scheme_resolver);
     local_scheme_resolver.insert_scheme(let->var.name, scheme({}, {}, tv));
 
-    auto t2 = infer(let->body, env, local_scheme_resolver, constraints,
+    auto t2 = infer(let->body, data_ctors_map, return_type,
+                    local_scheme_resolver, tracked_types, constraints,
                     instance_requirements);
     debug_above(3, log("the let variable is %s :: %s and the body is %s :: %s",
                        let->var.str().c_str(), tv->str().c_str(),
                        let->body->str().c_str(), t2->str().c_str()));
     return t2;
   } else if (auto condition = dcast<const Conditional *>(expr)) {
-    auto t1 = infer(condition->cond, env, scheme_resolver, constraints,
+    auto t1 = infer(condition->cond, data_ctors_map, return_type,
+                    scheme_resolver, tracked_types, constraints,
                     instance_requirements);
-    auto t2 = infer(condition->truthy, env, scheme_resolver, constraints,
+    auto t2 = infer(condition->truthy, data_ctors_map, return_type,
+                    scheme_resolver, tracked_types, constraints,
                     instance_requirements);
-    auto t3 = infer(condition->falsey, env, scheme_resolver, constraints,
+    auto t3 = infer(condition->falsey, data_ctors_map, return_type,
+                    scheme_resolver, tracked_types, constraints,
                     instance_requirements);
     append_to_constraints(
         constraints, t1, type_bool(condition->cond->get_location()),
@@ -136,21 +140,22 @@ types::Ref infer_core(const Expr *expr,
   } else if (auto continue_ = dcast<const Continue *>(expr)) {
     return type_unit(continue_->get_location());
   } else if (auto while_ = dcast<const While *>(expr)) {
-    auto t1 = infer(while_->condition, env, scheme_resolver, constraints,
+    auto t1 = infer(while_->condition, data_ctors_map, return_type,
+                    scheme_resolver, tracked_types, constraints,
                     instance_requirements);
     append_to_constraints(constraints, t1,
                           type_bool(while_->condition->get_location()),
                           make_context(while_->condition->get_location(),
                                        "while conditions must be bool"));
-    auto t2 = infer(while_->block, env, scheme_resolver, constraints,
-                    instance_requirements);
+    auto t2 = infer(while_->block, data_ctors_map, return_type, scheme_resolver,
+                    tracked_types, constraints, instance_requirements);
     return type_unit(while_->get_location());
   } else if (auto block = dcast<const Block *>(expr)) {
     types::Ref last_expr_type = type_unit(block->get_location());
     for (int i = 0; i < block->statements.size(); ++i) {
       auto expr = block->statements[i];
-      auto t1 = infer(expr, env, scheme_resolver, constraints,
-                      instance_requirements);
+      auto t1 = infer(expr, data_ctors_map, return_type, scheme_resolver,
+                      tracked_types, constraints, instance_requirements);
       if (i != block->statements.size() - 1) {
         if (auto return_statement = dcast<const ReturnStatement *>(expr)) {
           throw user_error(return_statement->get_location(),
@@ -166,20 +171,22 @@ types::Ref infer_core(const Expr *expr,
     }
     return last_expr_type;
   } else if (auto return_ = dcast<const ReturnStatement *>(expr)) {
-    auto t1 = infer(return_->value, env, scheme_resolver, constraints,
+    auto t1 = infer(return_->value, data_ctors_map, return_type,
+                    scheme_resolver, tracked_types, constraints,
                     instance_requirements);
     append_to_constraints(
-        constraints, t1, env.return_type,
+        constraints, t1, return_type,
         make_context(return_->get_location(),
                      "returning (%s " c_good("::") " %s and %s)",
                      return_->value->str().c_str(), t1->str().c_str(),
-                     env.return_type->str().c_str()));
+                     return_type->str().c_str()));
     return type_unit(return_->get_location());
   } else if (auto tuple = dcast<const Tuple *>(expr)) {
     std::vector<types::Ref> dimensions;
     for (auto dim : tuple->dims) {
-      dimensions.push_back(
-          infer(dim, env, scheme_resolver, constraints, instance_requirements));
+      dimensions.push_back(infer(dim, data_ctors_map, return_type,
+                                 scheme_resolver, tracked_types, constraints,
+                                 instance_requirements));
     }
     return type_tuple(tuple->location, dimensions);
   } else if (auto tuple_deref = dcast<const TupleDeref *>(expr)) {
@@ -187,7 +194,8 @@ types::Ref infer_core(const Expr *expr,
     for (int i = 0; i < tuple_deref->max; ++i) {
       dims.push_back(type_variable(INTERNAL_LOC()));
     }
-    auto t1 = infer(tuple_deref->expr, env, scheme_resolver, constraints,
+    auto t1 = infer(tuple_deref->expr, data_ctors_map, return_type,
+                    scheme_resolver, tracked_types, constraints,
                     instance_requirements);
     auto tuple = type_tuple(dims);
     append_to_constraints(constraints, t1, tuple,
@@ -198,19 +206,19 @@ types::Ref infer_core(const Expr *expr,
   } else if (auto builtin = dcast<const Builtin *>(expr)) {
     types::Refs ts;
     for (auto expr : builtin->exprs) {
-      ts.push_back(infer(expr, env, scheme_resolver, constraints,
-                         instance_requirements));
+      ts.push_back(infer(expr, data_ctors_map, return_type, scheme_resolver,
+                         tracked_types, constraints, instance_requirements));
     }
     ts.push_back(type_variable(builtin->get_location()));
-    auto t1 = infer(builtin->var, env, scheme_resolver, constraints,
-                    instance_requirements);
+    auto t1 = infer(builtin->var, data_ctors_map, return_type, scheme_resolver,
+                    tracked_types, constraints, instance_requirements);
     append_to_constraints(constraints, t1, type_arrows(ts),
                           make_context(builtin->get_location(), "builtin %s",
                                        builtin->var->str().c_str()));
     return ts.back();
   } else if (auto as = dcast<const As *>(expr)) {
-    auto t1 = infer(as->expr, env, scheme_resolver, constraints,
-                    instance_requirements);
+    auto t1 = infer(as->expr, data_ctors_map, return_type, scheme_resolver,
+                    tracked_types, constraints, instance_requirements);
     types::Ref t2 = !as->force_cast ? as->type
                                     : type_variable(as->get_location());
     append_to_constraints(
@@ -221,7 +229,8 @@ types::Ref infer_core(const Expr *expr,
   } else if (auto sizeof_ = dcast<const Sizeof *>(expr)) {
     return type_id(Identifier{INT_TYPE, sizeof_->get_location()});
   } else if (auto match = dcast<const Match *>(expr)) {
-    auto t1 = infer(match->scrutinee, env, scheme_resolver, constraints,
+    auto t1 = infer(match->scrutinee, data_ctors_map, return_type,
+                    scheme_resolver, tracked_types, constraints,
                     instance_requirements);
     types::Ref match_type;
     for (auto pattern_block : match->pattern_blocks) {
@@ -229,14 +238,16 @@ types::Ref infer_core(const Expr *expr,
        * constraints */
       types::SchemeResolver local_scheme_resolver(&scheme_resolver);
       auto tp = pattern_block->predicate->tracking_infer(
-          env, local_scheme_resolver, constraints, instance_requirements);
+          data_ctors_map, return_type, local_scheme_resolver, tracked_types,
+          constraints, instance_requirements);
       append_to_constraints(
           constraints, tp, t1,
           make_context(pattern_block->predicate->get_location(),
                        "pattern must match type of scrutinee"));
 
-      auto t2 = infer(pattern_block->result, env, local_scheme_resolver,
-                      constraints, instance_requirements);
+      auto t2 = infer(pattern_block->result, data_ctors_map, return_type,
+                      local_scheme_resolver, tracked_types, constraints,
+                      instance_requirements);
       if (match_type != nullptr) {
         append_to_constraints(
             constraints, t2, match_type,
@@ -257,20 +268,29 @@ types::Ref infer_core(const Expr *expr,
 } // namespace
 
 types::Ref infer(const Expr *expr,
-                 Env &env,
+                 const DataCtorsMap &data_ctors_map,
+                 const types::Ref &return_type,
                  const types::SchemeResolver &scheme_resolver,
+                 TrackedTypes &tracked_types,
                  types::Constraints &constraints,
                  types::ClassPredicates &instance_requirements) {
-  return env.track(expr, infer_core(expr, env, scheme_resolver, constraints,
-                                    instance_requirements));
+  types::Ref type = infer_core(expr, data_ctors_map, return_type,
+                               scheme_resolver, tracked_types, constraints,
+                               instance_requirements);
+  tracked_types[expr] = type;
+  return type;
 }
 
 types::Ref Literal::tracking_infer(
-    Env &env,
+    const DataCtorsMap &data_ctors_map,
+    const types::Ref &return_type,
     types::SchemeResolver &scheme_resolver,
+    TrackedTypes &tracked_types,
     types::Constraints &constraints,
     types::ClassPredicates &instance_requirements) const {
-  return env.track(this, non_tracking_infer());
+  types::Ref type = non_tracking_infer();
+  tracked_types[this] = type;
+  return type;
 }
 
 types::Ref Literal::non_tracking_infer() const {
@@ -289,21 +309,26 @@ types::Ref Literal::non_tracking_infer() const {
 }
 
 types::Ref TuplePredicate::tracking_infer(
-    Env &env,
+    const DataCtorsMap &data_ctors_map,
+    const types::Ref &return_type,
     types::SchemeResolver &scheme_resolver,
+    TrackedTypes &tracked_types,
     types::Constraints &constraints,
     types::ClassPredicates &instance_requirements) const {
   types::Refs types;
   for (auto param : params) {
-    types.push_back(param->tracking_infer(env, scheme_resolver, constraints,
-                                          instance_requirements));
+    types.push_back(param->tracking_infer(data_ctors_map, return_type,
+                                          scheme_resolver, tracked_types,
+                                          constraints, instance_requirements));
   }
   return type_tuple(types);
 }
 
 types::Ref IrrefutablePredicate::tracking_infer(
-    Env &env,
+    const DataCtorsMap &data_ctors_map,
+    const types::Ref &return_type,
     types::SchemeResolver &scheme_resolver,
+    TrackedTypes &tracked_types,
     types::Constraints &constraints,
     types::ClassPredicates &instance_requirements) const {
   auto tv = type_variable(location);
@@ -313,12 +338,35 @@ types::Ref IrrefutablePredicate::tracking_infer(
   return tv;
 }
 
+static types::Ref get_fresh_data_ctor_type(const DataCtorsMap &data_ctors_map,
+                                           Identifier ctor_id) {
+  // FUTURE: build an index to make this faster
+  for (auto type_ctors : data_ctors_map) {
+    for (auto ctors : type_ctors.second) {
+      if (ctors.first == ctor_id.name) {
+        types::Ref ctor_type = ctors.second;
+        while (true) {
+          if (auto type_lambda = dyncast<const types::TypeLambda>(ctor_type)) {
+            ctor_type = type_lambda->apply(type_variable(INTERNAL_LOC()));
+          } else {
+            return ctor_type;
+          }
+        }
+      }
+    }
+  }
+  throw user_error(ctor_id.location, "no data constructor found for %s",
+                   ctor_id.str().c_str());
+}
+
 types::Ref CtorPredicate::tracking_infer(
-    Env &env,
+    const DataCtorsMap &data_ctors_map,
+    const types::Ref &return_type,
     types::SchemeResolver &scheme_resolver,
+    TrackedTypes &tracked_types,
     types::Constraints &constraints,
     types::ClassPredicates &instance_requirements) const {
-  types::Ref ctor_type = env.get_fresh_data_ctor_type(ctor_name);
+  types::Ref ctor_type = get_fresh_data_ctor_type(data_ctors_map, ctor_name);
 
   debug_above(5, log_location(ctor_type->get_location(), "got ctor_type = %s",
                               ctor_type->str().c_str()));
@@ -335,8 +383,9 @@ types::Ref CtorPredicate::tracking_infer(
 
   types::Ref result_type;
   for (int i = 0; i < params.size(); ++i) {
-    auto tp = params[i]->tracking_infer(env, scheme_resolver, constraints,
-                                        instance_requirements);
+    auto tp = params[i]->tracking_infer(data_ctors_map, return_type,
+                                        scheme_resolver, tracked_types,
+                                        constraints, instance_requirements);
     append_to_constraints(constraints, tp, ctor_terms[i],
                           make_context(params[i]->get_location(),
                                        "checking subpattern %s",

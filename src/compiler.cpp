@@ -19,7 +19,7 @@
 
 namespace zion {
 
-using namespace bitter;
+using namespace ast;
 
 std::string strip_zion_extension(std::string module_name) {
   if (ends_with(module_name, ".zion")) {

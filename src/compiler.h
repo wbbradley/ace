@@ -11,7 +11,7 @@ namespace zion {
 struct Compilation {
   using ref = std::shared_ptr<Compilation>;
   Compilation(std::string program_name,
-              const bitter::Program *program,
+              const ast::Program *program,
               std::vector<Token> comments,
               const std::set<LinkIn> &link_ins,
               const CtorIdMap &ctor_id_map,
@@ -23,7 +23,7 @@ struct Compilation {
   }
 
   std::string const program_name;
-  const bitter::Program *program;
+  const ast::Program *program;
   std::vector<Token> const comments;
   std::set<LinkIn> const link_ins;
   CtorIdMap const ctor_id_map;
@@ -42,14 +42,14 @@ Compilation::ref parse_program(
     const std::map<std::string, int> &builtin_arities);
 
 /* parse a single module */
-bitter::Module *parse_module(Location location, std::string module_name);
+ast::Module *parse_module(Location location, std::string module_name);
 std::string resolve_module_filename(Location location,
                                     std::string name,
                                     std::string extension);
 std::set<std::string> get_top_level_decls(
-    const std::vector<const bitter::Decl *> &decls,
-    const std::vector<bitter::TypeDecl> &type_decls,
-    const std::vector<const bitter::TypeClass *> &type_classes);
+    const std::vector<const ast::Decl *> &decls,
+    const std::vector<ast::TypeDecl> &type_decls,
+    const std::vector<const ast::TypeClass *> &type_classes);
 }; // namespace compiler
 
 std::string strip_zion_extension(std::string module_name);
