@@ -21,17 +21,6 @@ std::string Constraint::str() const {
                        b->str().c_str(), context.message.c_str());
 }
 
-std::string str(const Constraints &constraints) {
-  std::stringstream ss;
-  ss << "[";
-  const char *delim = "";
-  for (auto c : constraints) {
-    ss << delim << c.str();
-    delim = ", ";
-  }
-  ss << "]";
-  return ss.str();
-}
 void append_to_constraints(Constraints &constraints,
                            types::Ref a,
                            types::Ref b,
@@ -61,3 +50,15 @@ void rebind_constraints(Constraints::iterator iter,
 }
 
 } // namespace types
+
+std::string str(const types::Constraints &constraints) {
+  std::stringstream ss;
+  ss << "[";
+  const char *delim = "";
+  for (auto c : constraints) {
+    ss << delim << c.str();
+    delim = ", ";
+  }
+  ss << "]";
+  return ss.str();
+}

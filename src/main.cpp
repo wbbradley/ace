@@ -192,15 +192,17 @@ ast::Expr *build_program(std::string entry_point_name,
                          types::SchemeResolver &scheme_resolver,
                          const std::vector<const Decl *> &decls) {
   // TODO: topographically sort and merge mutually recursive nodes
-  ast::Expr *program = new As(
-      new Application(new Var(Identifier{entry_point_name, INTERNAL_LOC()}),
-                      {new Tuple(INTERNAL_LOC(), {})}),
-      type_unit(INTERNAL_LOC()), false /*force_cast*/);
+  ast::Expr *program = new Application(
+      new Var(Identifier{entry_point_name, INTERNAL_LOC()}),
+      {new Tuple(INTERNAL_LOC(), {})});
 
   for (auto iter = decls.rbegin(); iter != decls.rend(); ++iter) {
     auto &decl = *iter;
     program = new Let(decl->id, decl->value, program);
   }
+  log("build_program(...) = scheme_resolver = %s",
+      scheme_resolver.str().c_str());
+  log("build_program(...) = %s", program->str().c_str());
   return program;
 }
 
@@ -220,17 +222,34 @@ CheckedDefinitionsByName check_decls(std::string entry_point_name,
 
   types::Constraints constraints;
   types::ClassPredicates instance_requirements;
-  types::Ref ty = infer(program_expr, data_ctors_map, type_unit(INTERNAL_LOC()),
+  types::Ref ty = infer(program_expr, data_ctors_map, nullptr/*return_type*/, 
                         scheme_resolver, tracked_types, constraints,
                         instance_requirements);
+  append_to_constraints(constraints, ty, type_unit(INTERNAL_LOC()),
+                        make_context(INTERNAL_LOC(), "program must return ()"));
   if (debug_all_expr_types) {
     INDENT(0, "--debug_all_expr_types--");
     log(c_good("All Expression Types"));
     for (auto pair : tracked_types) {
       log_location(pair.first->get_location(), "%s :: %s",
                    pair.first->str().c_str(),
-                   pair.second->generalize({})->str().c_str());
+                   pair.second->str().c_str());
     }
+  }
+  log(c_good("All Constraints"));
+  log("%s", str(constraints).c_str());
+
+  types::Map bindings = zion::solver(false /*check_constraint_coverage*/,
+                                     make_context(INTERNAL_LOC(), "solving"),
+                                     constraints, tracked_types,
+                                     scheme_resolver, instance_requirements);
+
+  log(c_good("Rebound Expression Types"));
+  rebind_tracked_types(tracked_types, bindings);
+  for (auto pair : tracked_types) {
+    log_location(pair.first->get_location(), "%s :: %s",
+                 pair.first->str().c_str(),
+                 pair.second->generalize({})->str().c_str());
   }
   assert(false);
   // run_solver();

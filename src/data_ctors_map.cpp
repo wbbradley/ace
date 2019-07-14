@@ -10,16 +10,6 @@
 
 namespace zion {
 
-std::string str(const DataCtorsMap &data_ctors_map) {
-  std::stringstream ss;
-  const char *delim = "";
-  for (auto pair : data_ctors_map.data_ctors_type_map) {
-    ss << delim << pair.first << ": " << ::str(pair.second);
-    delim = ", ";
-  }
-  return ss.str();
-}
-
 types::Ref get_data_ctor_type(const DataCtorsMap &data_ctors_map,
                               types::Ref type,
                               const Identifier &ctor_id) {
@@ -31,7 +21,7 @@ types::Ref get_data_ctor_type(const DataCtorsMap &data_ctors_map,
   debug_above(7, log("looking for %s in data_ctors_map of size %d",
                      id->str().c_str(),
                      int(data_ctors_map.data_ctors_type_map.size())));
-  debug_above(8, log("%s", ::str(data_ctors_map.data_ctors_type_map).c_str()));
+  debug_above(8, log("%s", ::str(data_ctors_map).c_str()));
   assert(data_ctors_map.data_ctors_type_map.count(id->id.name) != 0);
   auto &data_ctors = data_ctors_map.data_ctors_type_map.at(id->id.name);
 
@@ -63,7 +53,7 @@ std::map<std::string, types::Ref> get_data_ctors_types(
   debug_above(7, log("looking for %s in data_ctors_map of size %d",
                      id->str().c_str(),
                      int(data_ctors_map.data_ctors_type_map.size())));
-  debug_above(7, log("%s", ::str(data_ctors_map.data_ctors_type_map).c_str()));
+  debug_above(7, log("%s", ::str(data_ctors_map).c_str()));
 
   assert(data_ctors_map.data_ctors_type_map.count(id->id.name) != 0);
   auto &data_ctors = data_ctors_map.data_ctors_type_map.at(id->id.name);
@@ -119,3 +109,14 @@ types::Ref get_fresh_data_ctor_type(const DataCtorsMap &data_ctors_map,
 }
 
 } // namespace zion
+
+std::string str(const zion::DataCtorsMap &data_ctors_map) {
+  std::stringstream ss;
+  const char *delim = "";
+  for (auto pair : data_ctors_map.data_ctors_type_map) {
+    ss << delim << pair.first << ": " << ::str(pair.second);
+    delim = ", ";
+  }
+  return ss.str();
+}
+
