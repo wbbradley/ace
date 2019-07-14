@@ -94,8 +94,8 @@ const ast::While *parse_while(ParseState &ps);
 const ast::Expr *parse_lambda(ParseState &ps);
 const ast::Match *parse_match(ParseState &ps);
 const ast::Predicate *parse_predicate(ParseState &ps,
-                                         bool allow_else,
-                                         maybe<Identifier> name_assignment);
+                                      bool allow_else,
+                                      maybe<Identifier> name_assignment);
 const ast::Predicate *unfold_application_into_predicate(
     const ast::Application *application);
 const ast::Predicate *convert_expr_to_predicate(const ast::Expr *expr);

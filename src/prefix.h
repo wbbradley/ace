@@ -17,24 +17,24 @@ Token prefix(const std::set<std::string> &bindings,
              std::string pre,
              Token name);
 const ast::Expr *prefix(const std::set<std::string> &bindings,
-                           std::string pre,
-                           const ast::Expr *value);
-const ast::Predicate *prefix(const std::set<std::string> &bindings,
-                                std::string pre,
-                                const ast::Predicate *predicate,
-                                std::set<std::string> &new_symbols);
-const ast::PatternBlock *prefix(const std::set<std::string> &bindings,
-                                   std::string pre,
-                                   const ast::PatternBlock *pattern_block);
-const ast::Decl *prefix(const std::set<std::string> &bindings,
-                           std::string pre,
-                           const ast::Decl *value);
-ast::TypeDecl prefix(const std::set<std::string> &bindings,
                         std::string pre,
-                        const ast::TypeDecl &type_decl);
-const ast::TypeClass *prefix(const std::set<std::string> &bindings,
+                        const ast::Expr *value);
+const ast::Predicate *prefix(const std::set<std::string> &bindings,
+                             std::string pre,
+                             const ast::Predicate *predicate,
+                             std::set<std::string> &new_symbols);
+const ast::PatternBlock *prefix(const std::set<std::string> &bindings,
                                 std::string pre,
-                                const ast::TypeClass *type_class);
+                                const ast::PatternBlock *pattern_block);
+const ast::Decl *prefix(const std::set<std::string> &bindings,
+                        std::string pre,
+                        const ast::Decl *value);
+ast::TypeDecl prefix(const std::set<std::string> &bindings,
+                     std::string pre,
+                     const ast::TypeDecl &type_decl);
+const ast::TypeClass *prefix(const std::set<std::string> &bindings,
+                             std::string pre,
+                             const ast::TypeClass *type_class);
 types::ClassPredicateRef prefix(
     const std::set<std::string> &bindings,
     std::string pre,
@@ -49,16 +49,16 @@ types::Scheme::Ref prefix(const std::set<std::string> &bindings,
                           std::string pre,
                           types::Scheme::Ref scheme);
 const ast::Expr *prefix(const std::set<std::string> &bindings,
-                           std::string pre,
-                           const ast::Expr *value);
+                        std::string pre,
+                        const ast::Expr *value);
 std::vector<ast::Expr *> prefix(const std::set<std::string> &bindings,
-                                   std::string pre,
-                                   std::vector<ast::Expr *> values);
+                                std::string pre,
+                                std::vector<ast::Expr *> values);
 const ast::Module *prefix(const std::set<std::string> &bindings,
-                             const ast::Module *module);
+                          const ast::Module *module);
 const ast::Instance *prefix(const std::set<std::string> &bindings,
-                               std::string pre,
-                               const ast::Instance *instance);
+                            std::string pre,
+                            const ast::Instance *instance);
 DataCtorsMap prefix(const std::set<std::string> &bindings,
                     std::string pre,
                     const DataCtorsMap &data_ctors_map);

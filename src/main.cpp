@@ -28,7 +28,8 @@ using namespace ast;
 
 namespace {
 
-typedef std::unordered_map<std::string, std::vector<CheckedDefinitionRef>> overrides_map;
+typedef std::unordered_map<std::string, std::vector<CheckedDefinitionRef>>
+    overrides_map;
 
 bool get_help = false;
 bool fast_fail = true && (getenv("ZION_SHOW_ALL_ERRORS") == nullptr);
@@ -196,36 +197,34 @@ ast::Expr *build_program(std::string entry_point_name,
                       {new Tuple(INTERNAL_LOC(), {})}),
       type_unit(INTERNAL_LOC()), false /*force_cast*/);
 
-  types::Constraints constraints;
-  types::ClassPredicates instance_requirements;
   for (auto iter = decls.rbegin(); iter != decls.rend(); ++iter) {
     auto &decl = *iter;
     program = new Let(decl->id, decl->value, program);
   }
   return program;
 }
-}
 
 CheckedDefinitionsByName check_decls(std::string entry_point_name,
                                      const std::vector<const Decl *> &decls,
-                                     Env &env,
                                      types::SchemeResolver &scheme_resolver) {
   /* tracked types */
   TrackedTypes tracked_types;
 
   // ast::Expr -> types::Ref
 
-  std::string -> ast::Expr
+  // std::string -> ast::Expr
 
-  ast::Expr *program_expr = build_program(entry_point_name, scheme_resolver, decls);
+  ast::Expr *program_expr = build_program(entry_point_name, scheme_resolver,
+                                          decls);
 
+  types::Constraints constraints;
+  types::ClassPredicates instance_requirements;
   types::Ref ty = infer(program_expr, scheme_resolver, constraints,
                         instance_requirements);
-types::Ref infer(const Expr *expr,
-                 Env &env,
-                 const types::SchemeResolver &scheme_resolver,
-                 types::Constraints &constraints,
-                 types::ClassPredicates &instance_requirements) {
+  types::Ref infer(const Expr *expr, Env &env,
+                   const types::SchemeResolver &scheme_resolver,
+                   types::Constraints &constraints,
+                   types::ClassPredicates &instance_requirements);
   for (const Decl *decl : decls) {
     try {
       /* make sure that the "main" function has the correct signature */
@@ -242,6 +241,8 @@ types::Ref infer(const Expr *expr,
   run_solver();
   assign_checked_definitions();
 }
+
+} // namespace
 
 Identifier make_instance_decl_id(const Instance *instance, Identifier decl_id) {
   return Identifier{string_format("(%s) => %s",
@@ -565,8 +566,7 @@ public:
 
     for (auto pair : overrides_map) {
       const types::DefnId &defn_id = pair.first;
-      log("populating defn_map with override %s",
-                         defn_id.str().c_str());
+      log("populating defn_map with override %s", defn_id.str().c_str());
       assert(!in(defn_id, map));
       map[defn_id] = pair.second;
     }
@@ -646,9 +646,9 @@ Phase2 compile(std::string user_program_name_) {
                                            scheme_resolver);
   /* start resolving more schemes */
   // TODO: iterate through all decls to do an ordering */
-  CheckedDefinitionsByName checked_defns =
-      check_decls(compilation->program_name + ".main", program->decls, env,
-                  scheme_resolver, checked_defns);
+  CheckedDefinitionsByName checked_defns = check_decls(
+      compilation->program_name + ".main", program->decls, env, scheme_resolver,
+      checked_defns);
 
 #if 0
   std::vector<const Decl *> instance_decls = check_instances(
@@ -660,8 +660,8 @@ Phase2 compile(std::string user_program_name_) {
     decl_map[decl->id.name] = decl;
   }
 
-  /* the instance decls were already checked, but let's add them to the list of
-   * decls for the lowering step */
+  /* the instance decls were already checked, but let's add them to the list
+   * of decls for the lowering step */
   for (auto decl : instance_decls) {
     assert(!in(decl->id.name, decl_map));
     decl_map[decl->id.name] = decl;
@@ -1037,9 +1037,10 @@ phase_4_t ssa_gen(llvm::LLVMContext &context, const Phase3 &phase_3) {
   gen::gen_env_t gen_env;
 
   /* resolvers is the list of top-level symbols that need to be resolved. they
-   * can be traversed in any order, and will automatically resolve in dependency
-   * order based on a topological sorting. this could be a bit intense on the
-   * stack, worst case is on the same order as the user's program stack depth.
+   * can be traversed in any order, and will automatically resolve in
+   * dependency order based on a topological sorting. this could be a bit
+   * intense on the stack, worst case is on the same order as the user's
+   * program stack depth.
    */
   std::list<std::shared_ptr<gen::Resolver>> resolvers;
   std::string output_filename;
@@ -1081,8 +1082,8 @@ phase_4_t ssa_gen(llvm::LLVMContext &context, const Phase3 &phase_3) {
             [&builder, &llvm_module, name, translation, &phase_3, &gen_env,
              &globals](llvm::Value **llvm_value) -> gen::resolution_status_t {
               gen::Publishable publishable(llvm_value);
-              /* we are resolving a global object, so we should not be inside of
-               * a basic block. */
+              /* we are resolving a global object, so we should not be inside
+               * of a basic block. */
               builder.ClearInsertionPoint();
               llvm::IRBuilderBase::InsertPointGuard ipg(builder);
 
@@ -1368,7 +1369,7 @@ int run_job(const Job &job) {
   }
 }
 
-} // namespace
+} // namespace zion
 
 } // namespace zion
 

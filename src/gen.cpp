@@ -1046,10 +1046,10 @@ resolution_status_t gen(std::string name,
           gen_env_locals, globals, &publishable);
 
       auto new_env_locals = gen_env_locals;
-      set_env_var(new_env_locals, let->var.name,
-                  get(typing, static_cast<const ast::Expr *>(let->value),
-                      types::Ref{}),
-                  let_value);
+      set_env_var(
+          new_env_locals, let->var.name,
+          get(typing, static_cast<const ast::Expr *>(let->value), types::Ref{}),
+          let_value);
 
       publish(gen(builder, llvm_module, break_to_block, continue_to_block,
                   let->body, typing, type_env, gen_env_globals, new_env_locals,

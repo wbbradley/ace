@@ -43,10 +43,11 @@ struct TTC {
 
 const Expr *texpr(const types::DefnId &for_defn_id,
                   const ast::Expr *expr,
+                  const DataCtorsMap &data_ctors_map,
                   const std::unordered_set<std::string> &bound_vars,
+                  const TrackedTypes &tracked_types,
                   types::Ref type,
                   const types::TypeEnv &type_env,
-                  const TranslationEnv &tenv,
                   TrackedTypes &typing,
                   types::NeededDefns &needed_defns,
                   // TODO: pass in overloads in order to perform resolution
@@ -88,9 +89,10 @@ const Expr *texpr(const types::DefnId &for_defn_id,
       return literal;
     } else if (auto static_print = dcast<const StaticPrint *>(expr)) {
       bool fake_returns = false;
-      auto inner_expr = texpr(for_defn_id, static_print->expr, bound_vars,
-                              tenv.get_type(static_print->expr), type_env, tenv,
-                              typing, needed_defns, fake_returns);
+      auto inner_expr = texpr(
+          for_defn_id, static_print->expr, data_ctors_map, bound_vars,
+          tracked_types, get_tracked_type(tracked_types, static_print->expr),
+          type_env, typing, needed_defns, fake_returns);
       log_location(static_print->expr->get_location(),
                    "within %s the type is %s", for_defn_id.str().c_str(),
                    typing[inner_expr]->str().c_str());
@@ -117,9 +119,10 @@ const Expr *texpr(const types::DefnId &for_defn_id,
         new_bound_vars.insert(var.name);
       }
       bool lambda_returns = false;
-      auto new_body = texpr(for_defn_id, lambda->body, new_bound_vars,
-                            tenv.get_type(lambda->body), type_env, tenv, typing,
-                            needed_defns, lambda_returns);
+      auto new_body = texpr(for_defn_id, lambda->body, data_ctors_map,
+                            new_bound_vars, tracked_types,
+                            get_tracked_type(tracked_types, lambda->body),
+                            type_env, typing, needed_defns, lambda_returns);
       types::Refs lambda_terms = unfold_arrows(type);
       assert(lambda_terms.size() >= 2);
 
@@ -135,10 +138,11 @@ const Expr *texpr(const types::DefnId &for_defn_id,
       typing[new_lambda] = type;
       return new_lambda;
     } else if (auto application = dcast<const Application *>(expr)) {
-      types::Ref operator_type = tenv.get_type(application->a);
+      types::Ref operator_type = get_tracked_type(tracked_types,
+                                                  application->a);
       types::Refs operand_types;
       for (auto &param : application->params) {
-        operand_types.push_back(tenv.get_type(param));
+        operand_types.push_back(get_tracked_type(tracked_types, param));
       }
       types::Ref operand_type = type_params(operand_types);
 
@@ -152,44 +156,50 @@ const Expr *texpr(const types::DefnId &for_defn_id,
       assert(unification.result);
       operator_type = operator_type->rebind(unification.bindings);
 
-      auto a = texpr(for_defn_id, application->a, bound_vars, operator_type,
-                     type_env, tenv, typing, needed_defns, returns);
+      auto a = texpr(for_defn_id, application->a, data_ctors_map, bound_vars,
+                     tracked_types, operator_type, type_env, typing,
+                     needed_defns, returns);
       std::vector<const Expr *> new_params;
       assert(operand_types.size() == application->params.size());
       for (int i = 0; i < application->params.size(); ++i) {
         /* translate all the parameters */
         auto &param = application->params[i];
         new_params.push_back(
-            texpr(for_defn_id, param, bound_vars,
+            texpr(for_defn_id, param, data_ctors_map, bound_vars, tracked_types,
                   operand_types[i]->rebind(unification.bindings), type_env,
-                  tenv, typing, needed_defns, returns));
+                  typing, needed_defns, returns));
       }
       auto new_app = new Application(a, {new_params});
       typing[new_app] = type;
       return new_app;
     } else if (auto let = dcast<const Let *>(expr)) {
-      auto new_value = texpr(for_defn_id, let->value, bound_vars,
-                             tenv.get_type(let->value), type_env, tenv, typing,
-                             needed_defns, returns);
+      auto new_value = texpr(for_defn_id, let->value, data_ctors_map,
+                             bound_vars, tracked_types,
+                             get_tracked_type(tracked_types, let->value),
+                             type_env, typing, needed_defns, returns);
       auto new_bound_vars = bound_vars;
       new_bound_vars.insert(let->var.name);
-      auto new_body = texpr(for_defn_id, let->body, new_bound_vars, type,
-                            type_env, tenv, typing, needed_defns, returns);
+      auto new_body = texpr(for_defn_id, let->body, data_ctors_map,
+                            new_bound_vars, tracked_types, type, type_env,
+                            typing, needed_defns, returns);
       auto new_let = new Let(let->var, new_value, new_body);
       typing[new_let] = type;
       return new_let;
     } else if (auto condition = dcast<const Conditional *>(expr)) {
-      auto cond = texpr(for_defn_id, condition->cond, bound_vars,
-                        tenv.get_type(condition->cond), type_env, tenv, typing,
-                        needed_defns, returns);
+      auto cond = texpr(for_defn_id, condition->cond, data_ctors_map,
+                        bound_vars, tracked_types,
+                        get_tracked_type(tracked_types, condition->cond),
+                        type_env, typing, needed_defns, returns);
       bool truthy_returns = false;
-      auto truthy = texpr(for_defn_id, condition->truthy, bound_vars,
-                          tenv.get_type(condition->truthy), type_env, tenv,
-                          typing, needed_defns, truthy_returns);
+      auto truthy = texpr(for_defn_id, condition->truthy, data_ctors_map,
+                          bound_vars, tracked_types,
+                          get_tracked_type(tracked_types, condition->truthy),
+                          type_env, typing, needed_defns, truthy_returns);
       bool falsey_returns = false;
-      auto falsey = texpr(for_defn_id, condition->falsey, bound_vars,
-                          tenv.get_type(condition->falsey), type_env, tenv,
-                          typing, needed_defns, falsey_returns);
+      auto falsey = texpr(for_defn_id, condition->falsey, data_ctors_map,
+                          bound_vars, tracked_types,
+                          get_tracked_type(tracked_types, condition->falsey),
+                          type_env, typing, needed_defns, falsey_returns);
       if (truthy_returns && falsey_returns) {
         returns = true;
       }
@@ -202,21 +212,24 @@ const Expr *texpr(const types::DefnId &for_defn_id,
         if (returns && !starts_already_returned) {
           throw user_error(stmt->get_location(), "this code will never run");
         }
-        statements.push_back(texpr(for_defn_id, stmt, bound_vars,
-                                   tenv.get_type(stmt), type_env, tenv, typing,
-                                   needed_defns, returns));
+        statements.push_back(texpr(for_defn_id, stmt, data_ctors_map,
+                                   bound_vars, tracked_types,
+                                   get_tracked_type(tracked_types, stmt),
+                                   type_env, typing, needed_defns, returns));
       }
       auto new_block = new Block(statements);
       typing[new_block] = type;
       return new_block;
     } else if (auto while_ = dcast<const While *>(expr)) {
       bool block_returns = false;
-      auto condition = texpr(for_defn_id, while_->condition, bound_vars,
-                             tenv.get_type(while_->condition), type_env, tenv,
-                             typing, needed_defns, returns);
-      auto block = texpr(for_defn_id, while_->block, bound_vars,
-                         tenv.get_type(while_->block), type_env, tenv, typing,
-                         needed_defns, block_returns);
+      auto condition = texpr(for_defn_id, while_->condition, data_ctors_map,
+                             bound_vars, tracked_types,
+                             get_tracked_type(tracked_types, while_->condition),
+                             type_env, typing, needed_defns, returns);
+      auto block = texpr(for_defn_id, while_->block, data_ctors_map, bound_vars,
+                         tracked_types,
+                         get_tracked_type(tracked_types, while_->block),
+                         type_env, typing, needed_defns, block_returns);
       /* NB: we don't really care if the block returns because we can't
        * validate that the loop ever actually runs */
       auto new_while = new While(condition, block);
@@ -232,9 +245,9 @@ const Expr *texpr(const types::DefnId &for_defn_id,
       return new_continue;
     } else if (auto return_ = dcast<const ReturnStatement *>(expr)) {
       auto ret = new ReturnStatement(
-          texpr(for_defn_id, return_->value, bound_vars,
-                tenv.get_type(return_->value), type_env, tenv, typing,
-                needed_defns, returns));
+          texpr(for_defn_id, return_->value, data_ctors_map, bound_vars,
+                tracked_types, get_tracked_type(tracked_types, return_->value),
+                type_env, typing, needed_defns, returns));
       typing[ret] = type_unit(return_->get_location());
       returns = true;
       return ret;
@@ -245,19 +258,22 @@ const Expr *texpr(const types::DefnId &for_defn_id,
           throw user_error(expr->get_location(),
                            "this code will never run due to a prior return");
         }
-        dims.push_back(texpr(for_defn_id, dim, bound_vars, tenv.get_type(dim),
-                             type_env, tenv, typing, needed_defns, returns));
+        dims.push_back(texpr(for_defn_id, dim, data_ctors_map, bound_vars,
+                             tracked_types,
+                             get_tracked_type(tracked_types, dim), type_env,
+                             typing, needed_defns, returns));
       }
       auto new_tuple = new Tuple(tuple->get_location(), dims);
       typing[new_tuple] = type;
       return new_tuple;
     } else if (auto match = dcast<const Match *>(expr)) {
-      return translate_match_expr(for_defn_id, match, bound_vars, type_env,
-                                  tenv, typing, needed_defns, returns);
+      return translate_match_expr(for_defn_id, match, bound_vars, tracked_types,
+                                  type_env, typing, needed_defns, returns);
     } else if (auto as = dcast<const As *>(expr)) {
-      auto expr = texpr(for_defn_id, as->expr, bound_vars,
-                        as->force_cast ? tenv.get_type(as->expr) : type,
-                        type_env, tenv, typing, needed_defns, returns);
+      auto expr = texpr(
+          for_defn_id, as->expr, data_ctors_map, bound_vars, tracked_types,
+          as->force_cast ? get_tracked_type(tracked_types, as->expr) : type,
+          type_env, typing, needed_defns, returns);
       if (as->force_cast) {
         auto new_as = new As(expr, type, true /*force_cast*/);
         typing[new_as] = type;
@@ -270,14 +286,16 @@ const Expr *texpr(const types::DefnId &for_defn_id,
     } else if (auto builtin = dcast<const Builtin *>(expr)) {
       std::vector<const Expr *> exprs;
       for (auto expr : builtin->exprs) {
-        exprs.push_back(texpr(for_defn_id, expr, bound_vars,
-                              tenv.get_type(expr), type_env, tenv, typing,
-                              needed_defns, returns));
+        exprs.push_back(texpr(for_defn_id, expr, data_ctors_map, bound_vars,
+                              tracked_types,
+                              get_tracked_type(tracked_types, expr), type_env,
+                              typing, needed_defns, returns));
       }
       auto new_builtin = new Builtin(
-          dynamic_cast<const Var *>(texpr(for_defn_id, builtin->var, bound_vars,
-                                          tenv.get_type(builtin->var), type_env,
-                                          tenv, typing, needed_defns, returns)),
+          dynamic_cast<const Var *>(texpr(
+              for_defn_id, builtin->var, data_ctors_map, bound_vars,
+              tracked_types, get_tracked_type(tracked_types, builtin->var),
+              type_env, typing, needed_defns, returns)),
           exprs);
       typing[new_builtin] = type;
       return new_builtin;
@@ -290,15 +308,16 @@ const Expr *texpr(const types::DefnId &for_defn_id,
       return new_sizeof;
     } else if (auto tuple_deref = dcast<const TupleDeref *>(expr)) {
       auto new_tuple_deref = new TupleDeref(
-          texpr(for_defn_id, tuple_deref->expr, bound_vars,
-                tenv.get_type(tuple_deref->expr), type_env, tenv, typing,
-                needed_defns, returns),
+          texpr(for_defn_id, tuple_deref->expr, data_ctors_map, bound_vars,
+                tracked_types,
+                get_tracked_type(tracked_types, tuple_deref->expr), type_env,
+                typing, needed_defns, returns),
           tuple_deref->index, tuple_deref->max);
       typing[new_tuple_deref] = type;
       return new_tuple_deref;
     }
   } catch (user_error &e) {
-    auto type = tenv.get_type(expr);
+    auto type = get_tracked_type(tracked_types, expr);
     e.add_info(expr->get_location(), "error while translating %s :: %s",
                expr->str().c_str(), type->str().c_str());
     throw;
@@ -312,15 +331,17 @@ const Expr *texpr(const types::DefnId &for_defn_id,
 Translation::ref translate_expr(
     const types::DefnId &for_defn_id,
     const ast::Expr *expr,
+    const DataCtorsMap &data_ctors_map,
     const std::unordered_set<std::string> &bound_vars,
+    const TrackedTypes &tracked_types,
     const types::TypeEnv &type_env,
-    const TranslationEnv &tenv,
     types::NeededDefns &needed_defns,
     bool &returns) {
   TrackedTypes typing;
-  const Expr *translated_expr = texpr(for_defn_id, expr, bound_vars,
-                                      tenv.get_type(expr), type_env, tenv,
-                                      typing, needed_defns, returns);
+  const Expr *translated_expr = texpr(for_defn_id, expr, data_ctors_map,
+                                      bound_vars, tracked_types,
+                                      get_tracked_type(tracked_types, expr),
+                                      type_env, typing, needed_defns, returns);
   return std::make_shared<Translation>(translated_expr, typing);
 }
 
@@ -338,19 +359,9 @@ Location Translation::get_location() const {
   return expr->get_location();
 }
 
-types::Ref TranslationEnv::get_type(const ast::Expr *e) const {
-  auto t = (*tracked_types)[e];
-  if (t == nullptr) {
-    log_location(log_error, e->get_location(),
-                 "translation env does not contain a type for %s",
-                 e->str().c_str());
-    assert(false && !!"missing type for expression");
-  }
-  return t;
-}
-
-types::Ref TranslationEnv::get_data_ctor_type(types::Ref type,
-                                              Identifier ctor_id) const {
+types::Ref get_data_ctor_type(const DataCtorsMap &data_ctors_map,
+                              types::Ref type,
+                              Identifier ctor_id) {
   types::Refs type_terms;
   unfold_ops_lassoc(type, type_terms);
   assert(type_terms.size() != 0);
@@ -379,8 +390,9 @@ types::Ref TranslationEnv::get_data_ctor_type(types::Ref type,
   return ctor_type;
 }
 
-std::map<std::string, types::Ref> TranslationEnv::get_data_ctors_types(
-    types::Ref type) const {
+std::map<std::string, types::Ref> get_data_ctors_types(
+    const DataCtorsMap &data_ctors_map,
+    types::Ref type) {
   types::Refs type_terms;
   unfold_ops_lassoc(type, type_terms);
   assert(type_terms.size() != 0);
@@ -410,8 +422,7 @@ std::map<std::string, types::Ref> TranslationEnv::get_data_ctors_types(
   return data_ctors_types;
 }
 
-
-int TranslationEnv::get_ctor_id(std::string ctor_name) const {
+int get_ctor_id(const CtorIdMap &ctor_id_map, std::string ctor_name) {
   auto iter = ctor_id_map.find(ctor_name);
   if (iter == ctor_id_map.end()) {
     throw user_error(INTERNAL_LOC(),
