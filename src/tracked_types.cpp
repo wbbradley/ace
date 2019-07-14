@@ -13,6 +13,7 @@ types::Ref get_tracked_type(const TrackedTypes &tracked_types,
                  "translation env does not contain a type for %s",
                  e->str().c_str());
     assert(false && !!"missing type for expression");
+    return {};
   } else {
     return iter->second;
   }

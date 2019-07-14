@@ -1725,7 +1725,7 @@ DataTypeDecl parse_struct_decl(ParseState &ps, types::Map &data_ctors) {
 
 DataTypeDecl parse_newtype_decl(ParseState &ps,
                                 types::Map &data_ctors,
-                                CtorIdMap &ctor_id_map) {
+                                ParsedCtorIdMap &ctor_id_map) {
   expect_token(tk_identifier);
   Token type_name = ps.token;
   TypeDecl type_decl = parse_type_decl(ps);
@@ -1789,7 +1789,7 @@ DataTypeDecl parse_newtype_decl(ParseState &ps,
 
 DataTypeDecl parse_data_type_decl(ParseState &ps,
                                   types::Map &data_ctors,
-                                  CtorIdMap &ctor_id_map) {
+                                  ParsedCtorIdMap &ctor_id_map) {
   TypeDecl type_decl = parse_type_decl(ps);
 
   chomp_token(tk_lcurly);

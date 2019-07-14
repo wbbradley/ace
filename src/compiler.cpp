@@ -261,8 +261,8 @@ Compilation::ref parse_program(
     std::vector<const Decl *> program_decls;
     std::vector<const TypeClass *> program_type_classes;
     std::vector<const Instance *> program_instances;
-    CtorIdMap ctor_id_map;
-    DataCtorsMap data_ctors_map;
+    ParsedCtorIdMap ctor_id_map;
+    ParsedDataCtorsMap data_ctors_map;
     types::TypeEnv type_env;
 
     /* next, merge the entire set of modules into one program */
@@ -307,7 +307,8 @@ Compilation::ref parse_program(
         new Program(program_decls, program_type_classes, program_instances,
                     new Application(new Var(make_iid("main")),
                                     {unit_expr(INTERNAL_LOC())})),
-        gps.comments, gps.link_ins, ctor_id_map, data_ctors_map, type_env);
+        gps.comments, gps.link_ins, DataCtorsMap{data_ctors_map, ctor_id_map},
+        type_env);
   } catch (user_error &e) {
     print_exception(e);
     return nullptr;

@@ -2,6 +2,7 @@
 #include <unordered_set>
 
 #include "ast_decls.h"
+#include "data_ctors_map.h"
 #include "defn_id.h"
 #include "tracked_types.h"
 #include "types.h"

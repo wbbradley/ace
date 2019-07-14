@@ -870,16 +870,6 @@ std::string str(const types::Map &coll) {
   return ss.str();
 }
 
-std::string str(const DataCtorsMap &data_ctors_map) {
-  std::stringstream ss;
-  const char *delim = "";
-  for (auto pair : data_ctors_map) {
-    ss << delim << pair.first << ": " << ::str(pair.second);
-    delim = ", ";
-  }
-  return ss.str();
-}
-
 std::string str(const types::Ftvs &ftvs) {
   std::stringstream ss;
   ss << "{";

@@ -1,7 +1,6 @@
 #include "defn_id.h"
 
 #include "ptr.h"
-#include "types.h"
 #include "user_error.h"
 
 namespace types {
@@ -18,12 +17,15 @@ std::string DefnId::repr() const {
   if (cached_repr.size() != 0) {
     return cached_repr;
   } else {
-    cached_repr = "\"" + id.name + " :: " + type->repr() + "\"";
+    cached_repr = "\"" + id.name + " :: " + scheme->repr() + "\"";
     return cached_repr;
   }
 }
 
 bool DefnId::operator<(const DefnId &rhs) const {
+  /* definitions can't be sorted because the only way to match on them is via
+   * a linear walk with unification */
+  assert(false);
   return repr() < rhs.repr();
 }
 
