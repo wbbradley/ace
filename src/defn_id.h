@@ -12,8 +12,7 @@ struct Scheme;
 struct Type;
 
 struct DefnId {
-  DefnId(Identifier const id, const types::Ref &type)
-      : id(id), type(type) {
+  DefnId(Identifier const id, const types::Ref &type) : id(id), type(type) {
   }
 
   Identifier const id;

@@ -11,8 +11,6 @@
 #include "token.h"
 #include "types.h"
 
-struct TranslationEnv;
-
 namespace zion {
 namespace ast {
 
@@ -57,24 +55,25 @@ struct PatternBlock {
   const Expr *result;
 };
 
-typedef std::vector<const PatternBlock *> pattern_blocks_t;
+typedef std::vector<const PatternBlock *> PatternBlocks;
 struct Match : public Expr {
-  Match(const Expr *scrutinee, pattern_blocks_t pattern_blocks)
+  Match(const Expr *scrutinee, PatternBlocks pattern_blocks)
       : scrutinee(scrutinee), pattern_blocks(pattern_blocks) {
   }
   Location get_location() const override;
   std::ostream &render(std::ostream &os, int parent_precedence) const override;
 
   const Expr *scrutinee;
-  const pattern_blocks_t pattern_blocks;
+  const PatternBlocks pattern_blocks;
 };
 
 struct Predicate {
   virtual ~Predicate() {
   }
   virtual std::ostream &render(std::ostream &os) const = 0;
-  virtual match::Pattern::ref get_pattern(types::Ref type,
-                                          const TranslationEnv &env) const = 0;
+  virtual match::Pattern::ref get_pattern(
+      types::Ref type,
+      const DataCtorsMap &data_ctors_map) const = 0;
   virtual types::Ref tracking_infer(
       const DataCtorsMap &data_ctors_map,
       const types::Ref &return_type,
@@ -93,14 +92,15 @@ struct Predicate {
       const Identifier &scrutinee_id,
       const types::Ref &scrutinee_type,
       bool do_checks,
+      const DataCtorsMap &data_ctors_map,
       const std::unordered_set<std::string> &bound_vars,
+      const TrackedTypes &tracked_types,
       const types::TypeEnv &type_env,
-      const TranslationEnv &tenv,
       TrackedTypes &typing,
       types::NeededDefns &needed_defns,
       bool &returns,
-      translate_continuation_t &matched,
-      translate_continuation_t &failed) const = 0;
+      TranslateContinuationFn &matched,
+      TranslateContinuationFn &failed) const = 0;
   std::string str() const;
 };
 
@@ -111,8 +111,9 @@ struct TuplePredicate : public Predicate {
       : location(location), params(params), name_assignment(name_assignment) {
   }
   std::ostream &render(std::ostream &os) const override;
-  match::Pattern::ref get_pattern(types::Ref type,
-                                  const TranslationEnv &env) const override;
+  match::Pattern::ref get_pattern(
+      types::Ref type,
+      const DataCtorsMap &data_ctors_map) const override;
   types::Ref tracking_infer(
       const DataCtorsMap &data_ctors_map,
       const types::Ref &return_type,
@@ -127,14 +128,15 @@ struct TuplePredicate : public Predicate {
                         const Identifier &scrutinee_id,
                         const types::Ref &scrutinee_type,
                         bool do_checks,
+                        const DataCtorsMap &data_ctors_map,
                         const std::unordered_set<std::string> &bound_vars,
+                        const TrackedTypes &tracked_types,
                         const types::TypeEnv &type_env,
-                        const TranslationEnv &tenv,
                         TrackedTypes &typing,
                         types::NeededDefns &needed_defns,
                         bool &returns,
-                        translate_continuation_t &matched,
-                        translate_continuation_t &failed) const override;
+                        TranslateContinuationFn &matched,
+                        TranslateContinuationFn &failed) const override;
   Location get_location() const override;
 
   Location location;
@@ -147,8 +149,9 @@ struct IrrefutablePredicate : public Predicate {
       : location(location), name_assignment(name_assignment) {
   }
   std::ostream &render(std::ostream &os) const override;
-  match::Pattern::ref get_pattern(types::Ref type,
-                                  const TranslationEnv &env) const override;
+  match::Pattern::ref get_pattern(
+      types::Ref type,
+      const DataCtorsMap &data_ctors_map) const override;
   types::Ref tracking_infer(
       const DataCtorsMap &data_ctors_map,
       const types::Ref &return_type,
@@ -163,14 +166,15 @@ struct IrrefutablePredicate : public Predicate {
                         const Identifier &scrutinee_id,
                         const types::Ref &scrutinee_type,
                         bool do_checks,
+                        const DataCtorsMap &data_ctors_map,
                         const std::unordered_set<std::string> &bound_vars,
+                        const TrackedTypes &tracked_types,
                         const types::TypeEnv &type_env,
-                        const TranslationEnv &tenv,
                         TrackedTypes &typing,
                         types::NeededDefns &needed_defns,
                         bool &returns,
-                        translate_continuation_t &matched,
-                        translate_continuation_t &failed) const override;
+                        TranslateContinuationFn &matched,
+                        TranslateContinuationFn &failed) const override;
   Location get_location() const override;
 
   Location location;
@@ -186,8 +190,9 @@ struct CtorPredicate : public Predicate {
         name_assignment(name_assignment) {
   }
   std::ostream &render(std::ostream &os) const override;
-  match::Pattern::ref get_pattern(types::Ref type,
-                                  const TranslationEnv &env) const override;
+  match::Pattern::ref get_pattern(
+      types::Ref type,
+      const DataCtorsMap &data_ctors_map) const override;
   types::Ref tracking_infer(
       const DataCtorsMap &data_ctors_map,
       const types::Ref &return_type,
@@ -202,14 +207,15 @@ struct CtorPredicate : public Predicate {
                         const Identifier &scrutinee_id,
                         const types::Ref &scrutinee_type,
                         bool do_checks,
+                        const DataCtorsMap &data_ctors_map,
                         const std::unordered_set<std::string> &bound_vars,
+                        const TrackedTypes &tracked_types,
                         const types::TypeEnv &type_env,
-                        const TranslationEnv &tenv,
                         TrackedTypes &typing,
                         types::NeededDefns &needed_defns,
                         bool &returns,
-                        translate_continuation_t &matched,
-                        translate_continuation_t &failed) const override;
+                        TranslateContinuationFn &matched,
+                        TranslateContinuationFn &failed) const override;
   Location get_location() const override;
 
   Location location;
@@ -333,8 +339,9 @@ struct Literal : public Expr, public Predicate {
   std::ostream &render(std::ostream &os, int parent_precedence) const override;
 
   std::ostream &render(std::ostream &os) const override;
-  match::Pattern::ref get_pattern(types::Ref type,
-                                  const TranslationEnv &env) const override;
+  match::Pattern::ref get_pattern(
+      types::Ref type,
+      const DataCtorsMap &data_ctors_map) const override;
   types::Ref tracking_infer(
       const DataCtorsMap &data_ctors_map,
       const types::Ref &return_type,
@@ -350,14 +357,15 @@ struct Literal : public Expr, public Predicate {
                         const Identifier &scrutinee_id,
                         const types::Ref &scrutinee_type,
                         bool do_checks,
+                        const DataCtorsMap &data_ctors_map,
                         const std::unordered_set<std::string> &bound_vars,
+                        const TrackedTypes &tracked_types,
                         const types::TypeEnv &type_env,
-                        const TranslationEnv &tenv,
                         TrackedTypes &typing,
                         types::NeededDefns &needed_defns,
                         bool &returns,
-                        translate_continuation_t &matched,
-                        translate_continuation_t &failed) const override;
+                        TranslateContinuationFn &matched,
+                        TranslateContinuationFn &failed) const override;
   Location get_location() const override;
 
   Token token;

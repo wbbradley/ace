@@ -210,7 +210,7 @@ bool is_unit(Ref type);
 }; // namespace types
 
 typedef std::map<std::string, types::Map> DataCtorsMap;
-typedef std::unordered_map<const zion::ast::Expr *, types::Ref> TrackedTypes;
+
 typedef std::unordered_map<std::string, int> CtorIdMap;
 
 std::string gensym_name();
@@ -264,5 +264,3 @@ std::ostream &join_dimensions(std::ostream &os,
                               const types::Map &bindings);
 std::string get_name_from_index(const types::NameIndex &name_index, int i);
 bool is_valid_udt_initial_char(int ch);
-void rebind_tracked_types(TrackedTypes &tracked_types,
-                          const types::Map &bindings);

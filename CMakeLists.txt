@@ -71,6 +71,7 @@ add_executable(zion
 	src/solver.cpp
 	src/token.cpp
 	src/token_queue.cpp
+	src/tracked_types.cpp
 	src/translate.cpp
 	src/typed_id.cpp
 	src/types.cpp

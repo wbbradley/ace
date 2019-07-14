@@ -8,7 +8,7 @@ struct Expr;
 struct Var;
 struct Predicate;
 struct PatternBlock;
-typedef std::vector<const PatternBlock *> pattern_blocks_t;
+typedef std::vector<const PatternBlock *> PatternBlocks;
 struct Match;
 struct TypeDecl;
 struct TypeClass;

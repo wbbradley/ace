@@ -60,8 +60,7 @@ types::Map solver(bool check_constraint_coverage,
   }
 #ifdef ZION_DEBUG
   if (check_constraint_coverage) {
-    check_constraints_cover_tracked_types(context, tracked_types,
-                                          constraints);
+    check_constraints_cover_tracked_types(context, tracked_types, constraints);
   }
 #endif
 

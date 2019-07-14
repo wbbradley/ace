@@ -1,16 +1,18 @@
 #pragma once
 
+#include <list>
 #include <memory>
- 
+
 namespace zion {
 struct CheckedDefinition;
 typedef std::shared_ptr<const CheckedDefinition> CheckedDefinitionRef;
-typedef std::map<std::string, std::list<CheckedDefinitionRef>> CheckedDefinitionsByName;
-}
+typedef std::map<std::string, std::list<CheckedDefinitionRef>>
+    CheckedDefinitionsByName;
+} // namespace zion
 
 #include "ast.h"
-#include "types.h"
 #include "scheme.h"
+#include "types.h"
 
 namespace zion {
 

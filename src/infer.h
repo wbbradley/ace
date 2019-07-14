@@ -4,6 +4,7 @@
 #include "class_predicate.h"
 #include "constraint.h"
 #include "scheme_resolver.h"
+#include "tracked_types.h"
 
 namespace zion {
 types::Ref infer(const ast::Expr *expr,

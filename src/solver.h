@@ -3,6 +3,7 @@
 #include "constraint.h"
 #include "context.h"
 #include "scheme_resolver.h"
+#include "tracked_types.h"
 #include "types.h"
 
 namespace zion {

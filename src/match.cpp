@@ -54,14 +54,15 @@ struct CtorPatterns : std::enable_shared_from_this<CtorPatterns>, Pattern {
 
 struct AllOf : std::enable_shared_from_this<AllOf>, Pattern {
   maybe<Identifier> name;
-  const zion::TranslationEnv &tenv;
+  const DataCtorsMap &data_ctors_map;
   types::Ref type;
 
   AllOf(Location location,
         maybe<Identifier> name,
-        const zion::TranslationEnv &tenv,
+        const DataCtorsMap &data_ctors_map,
         types::Ref type)
-      : Pattern(location), name(name), tenv(tenv), type(type) {
+      : Pattern(location), name(name), data_ctors_map(data_ctors_map),
+        type(type) {
   }
 
   virtual std::string str() const;
@@ -146,9 +147,9 @@ std::shared_ptr<Scalars<double>> allFloats = std::make_shared<Scalars<double>>(
 
 Pattern::ref all_of(Location location,
                     maybe<Identifier> expr,
-                    const zion::TranslationEnv &tenv,
+                    const DataCtorsMap &data_ctors_map,
                     types::Ref type) {
-  return std::make_shared<match::AllOf>(location, expr, tenv, type);
+  return std::make_shared<match::AllOf>(location, expr, data_ctors_map, type);
 }
 
 Pattern::ref reduce_all_datatype(Location location,
@@ -381,12 +382,12 @@ Pattern::ref pattern_union(Pattern::ref lhs, Pattern::ref rhs) {
 }
 
 Pattern::ref from_type(Location location,
-                       const zion::TranslationEnv &tenv,
+                       const DataCtorsMap &data_ctors_map,
                        Ref type) {
   if (auto tuple_type = dyncast<const types::TypeTuple>(type)) {
     std::vector<Pattern::ref> args;
     for (auto dim : tuple_type->dimensions) {
-      args.push_back(from_type(location, tenv, dim));
+      args.push_back(from_type(location, data_ctors_map, dim));
     }
     CtorPatternValue cpv{type->repr(), "tuple", args};
     return std::make_shared<CtorPattern>(location, cpv);
@@ -397,10 +398,10 @@ Pattern::ref from_type(Location location,
   } else if (type_equality(type, type_id(make_iid(FLOAT_TYPE)))) {
     return allFloats;
   } else if (unify(type, type_ptr(type_variable(location))).result) {
-    return all_of(location, {}, tenv, type);
+    return all_of(location, {}, data_ctors_map, type);
   } else {
     // TODO: support Char values here...
-    auto ctors_types = tenv.get_data_ctors_types(type);
+    auto ctors_types = zion::get_data_ctors_types(data_ctors_map, type);
     std::vector<CtorPatternValue> cpvs;
 
     for (auto pair : ctors_types) {
@@ -412,7 +413,7 @@ Pattern::ref from_type(Location location,
 
       for (size_t i = 0; i < ctor_terms.size() - 1; ++i) {
         args.push_back(std::make_shared<AllOf>(location, maybe<Identifier>(),
-                                               tenv, ctor_terms[i]));
+                                               data_ctors_map, ctor_terms[i]));
       }
       /* add a ctor */
       cpvs.push_back(CtorPatternValue{type->repr(), ctor_name, args});
@@ -433,7 +434,7 @@ Pattern::ref from_type(Location location,
       maybe<Identifier>(
           Identifier{string_format("AllOf(%s)", type->str().c_str()),
                      type->get_location()}),
-      tenv, type);
+      data_ctors_map, type);
 }
 
 void difference(Pattern::ref lhs,
@@ -553,14 +554,17 @@ void difference(Pattern::ref lhs,
       throw error;
     }
 
-    difference(from_type(lhs->location, lhs_allof->tenv, lhs_allof->type), rhs,
-               send);
+    difference(
+        from_type(lhs->location, lhs_allof->data_ctors_map, lhs_allof->type),
+        rhs, send);
     return;
   }
 
   if (rhs_allof) {
-    difference(lhs, from_type(rhs->location, rhs_allof->tenv, rhs_allof->type),
-               send);
+    difference(
+        lhs,
+        from_type(rhs->location, rhs_allof->data_ctors_map, rhs_allof->type),
+        send);
     return;
   }
 
@@ -689,7 +693,7 @@ using namespace ::types;
 
 Pattern::ref TuplePredicate::get_pattern(
     Ref type,
-    const zion::TranslationEnv &tenv) const {
+    const DataCtorsMap &data_ctors_map) const {
   std::vector<Pattern::ref> args;
   if (auto tuple_type = dyncast<const TypeTuple>(type)) {
     if (tuple_type->dimensions.size() != params.size()) {
@@ -702,7 +706,8 @@ Pattern::ref TuplePredicate::get_pattern(
 
     std::vector<Pattern::ref> args;
     for (size_t i = 0; i < params.size(); ++i) {
-      args.push_back(params[i]->get_pattern(tuple_type->dimensions[i], tenv));
+      args.push_back(
+          params[i]->get_pattern(tuple_type->dimensions[i], data_ctors_map));
     }
     return std::make_shared<CtorPattern>(
         location, CtorPatternValue{tuple_type->repr(), "tuple", args});
@@ -714,10 +719,12 @@ Pattern::ref TuplePredicate::get_pattern(
     return nullptr;
   }
 }
+
 Pattern::ref CtorPredicate::get_pattern(
     Ref type,
-    const zion::TranslationEnv &tenv) const {
-  auto ctor_terms = unfold_arrows(tenv.get_data_ctor_type(type, ctor_name));
+    const DataCtorsMap &data_ctors_map) const {
+  auto ctor_terms = unfold_arrows(
+      get_data_ctor_type(data_ctors_map, type, ctor_name));
 
   std::vector<Pattern::ref> args;
   if (ctor_terms.size() - 1 != params.size()) {
@@ -731,20 +738,23 @@ Pattern::ref CtorPredicate::get_pattern(
   }
 
   for (size_t i = 0; i < params.size(); ++i) {
-    args.push_back(params[i]->get_pattern(ctor_terms[i], tenv));
+    args.push_back(params[i]->get_pattern(ctor_terms[i], data_ctors_map));
   }
 
   /* found the ctor we're matching on */
   return std::make_shared<CtorPattern>(
       location, CtorPatternValue{type->repr(), ctor_name.name, args});
 }
+
 Pattern::ref IrrefutablePredicate::get_pattern(
     Ref type,
-    const zion::TranslationEnv &tenv) const {
-  return std::make_shared<AllOf>(location, name_assignment, tenv, type);
+    const DataCtorsMap &data_ctors_map) const {
+  return std::make_shared<AllOf>(location, name_assignment, data_ctors_map,
+                                 type);
 }
+
 Pattern::ref Literal::get_pattern(Ref type,
-                                  const zion::TranslationEnv &tenv) const {
+                                  const DataCtorsMap &data_ctors_map) const {
   if (type_equality(type, type_int(INTERNAL_LOC()))) {
     if (token.tk == tk_integer) {
       int64_t value = parse_int_value(token);

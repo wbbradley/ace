@@ -1370,7 +1370,7 @@ const Match *parse_match(ParseState &ps) {
   }
   auto scrutinee = parse_expr(ps);
   chomp_token(tk_lcurly);
-  pattern_blocks_t pattern_blocks;
+  PatternBlocks pattern_blocks;
   while (ps.token.tk != tk_rcurly) {
     if (ps.token.is_ident(K(else))) {
       throw user_error(ps.token.location,
@@ -1749,8 +1749,8 @@ DataTypeDecl parse_newtype_decl(ParseState &ps,
     std::vector<Identifier> dim_names;
     std::vector<const Expr *> dims;
     for (int i = 0; i < tuple_type->dimensions.size(); ++i) {
-      dim_names.push_back(Identifier{
-          ast::fresh(), tuple_type->dimensions[i]->get_location()});
+      dim_names.push_back(
+          Identifier{ast::fresh(), tuple_type->dimensions[i]->get_location()});
       dims.push_back(new Var(dim_names.back()));
     }
 
@@ -1763,8 +1763,7 @@ DataTypeDecl parse_newtype_decl(ParseState &ps,
                               type_decl.get_type(), true /*force_cast*/))));
   } else {
     ctor_parts.push_back(rhs_type);
-    Identifier param_iid = Identifier{ast::fresh(),
-                                      rhs_type->get_location()};
+    Identifier param_iid = Identifier{ast::fresh(), rhs_type->get_location()};
     decl = new Decl(type_decl.id,
                     new Lambda({param_iid}, {rhs_type}, type_decl.get_type(),
                                new ReturnStatement(new As(
