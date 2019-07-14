@@ -3,6 +3,7 @@
 #include "ast.h"
 #include "class_predicate.h"
 #include "constraint.h"
+#include "data_ctors_map.h"
 #include "scheme_resolver.h"
 #include "tracked_types.h"
 

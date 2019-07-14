@@ -101,7 +101,8 @@ const Expr *texpr(const types::DefnId &for_defn_id,
       return unit_ret;
     } else if (auto var = dcast<const Var *>(expr)) {
       if (!in(var->id.name, bound_vars)) {
-        auto defn_id = types::DefnId{var->id, type};
+        auto defn_id = types::DefnId{var->id,
+                                     types::unitize(type)->generalize({})};
         debug_above(2, log(c_id("%s") " depends on " c_id("%s"),
                            for_defn_id.str().c_str(), defn_id.str().c_str()));
         insert_needed_defn(needed_defns, defn_id, var->get_location(),
@@ -267,8 +268,9 @@ const Expr *texpr(const types::DefnId &for_defn_id,
       typing[new_tuple] = type;
       return new_tuple;
     } else if (auto match = dcast<const Match *>(expr)) {
-      return translate_match_expr(for_defn_id, match, bound_vars, tracked_types,
-                                  type_env, typing, needed_defns, returns);
+      return translate_match_expr(for_defn_id, match, data_ctors_map,
+                                  bound_vars, tracked_types, type_env, typing,
+                                  needed_defns, returns);
     } else if (auto as = dcast<const As *>(expr)) {
       auto expr = texpr(
           for_defn_id, as->expr, data_ctors_map, bound_vars, tracked_types,
@@ -357,80 +359,6 @@ std::string Translation::str() const {
 
 Location Translation::get_location() const {
   return expr->get_location();
-}
-
-types::Ref get_data_ctor_type(const DataCtorsMap &data_ctors_map,
-                              types::Ref type,
-                              Identifier ctor_id) {
-  types::Refs type_terms;
-  unfold_ops_lassoc(type, type_terms);
-  assert(type_terms.size() != 0);
-
-  auto id = safe_dyncast<const types::TypeId>(type_terms[0]);
-  debug_above(7, log("looking for %s in data_ctors_map of size %d",
-                     id->str().c_str(), int(data_ctors_map.size())));
-  debug_above(8, log("%s", ::str(data_ctors_map).c_str()));
-  assert(data_ctors_map.count(id->id.name) != 0);
-  auto &data_ctors = data_ctors_map.at(id->id.name);
-
-  auto ctor_type = get(data_ctors, ctor_id.name, {});
-  if (ctor_type == nullptr) {
-    throw user_error(ctor_id.location, "data ctor %s does not exist",
-                     ctor_id.str().c_str());
-  }
-
-  debug_above(7, log("starting with ctor_type as %s and type_terms as %s",
-                     ctor_type->str().c_str(), ::str(type_terms).c_str()));
-
-  for (int i = 1; i < type_terms.size(); ++i) {
-    ctor_type = ctor_type->apply(type_terms[i]);
-  }
-  debug_above(7, log("resolved ctor_type as %s", ctor_type->str().c_str()));
-
-  return ctor_type;
-}
-
-std::map<std::string, types::Ref> get_data_ctors_types(
-    const DataCtorsMap &data_ctors_map,
-    types::Ref type) {
-  types::Refs type_terms;
-  unfold_ops_lassoc(type, type_terms);
-  assert(type_terms.size() != 0);
-
-  auto id = safe_dyncast<const types::TypeId>(type_terms[0]);
-  debug_above(7, log("looking for %s in data_ctors_map of size %d",
-                     id->str().c_str(), int(data_ctors_map.size())));
-  debug_above(7, log("%s", ::str(data_ctors_map).c_str()));
-
-  assert(data_ctors_map.count(id->id.name) != 0);
-  auto &data_ctors = data_ctors_map.at(id->id.name);
-
-  std::map<std::string, types::Ref> data_ctors_types;
-
-  for (auto pair : data_ctors) {
-    auto ctor_type = pair.second;
-    debug_above(7, log("starting with ctor_type as %s and type_terms as %s",
-                       ctor_type->str().c_str(), ::str(type_terms).c_str()));
-
-    for (int i = 1; i < type_terms.size(); ++i) {
-      ctor_type = ctor_type->apply(type_terms[i]);
-    }
-    debug_above(7, log("resolved ctor_type as %s", ctor_type->str().c_str()));
-
-    data_ctors_types[pair.first] = ctor_type;
-  }
-  return data_ctors_types;
-}
-
-int get_ctor_id(const CtorIdMap &ctor_id_map, std::string ctor_name) {
-  auto iter = ctor_id_map.find(ctor_name);
-  if (iter == ctor_id_map.end()) {
-    throw user_error(INTERNAL_LOC(),
-                     "bad ctor name requested during translation (%s)",
-                     ctor_name.c_str());
-  } else {
-    return iter->second;
-  }
 }
 
 } // namespace zion

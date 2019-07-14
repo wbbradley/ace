@@ -338,27 +338,6 @@ types::Ref IrrefutablePredicate::tracking_infer(
   return tv;
 }
 
-static types::Ref get_fresh_data_ctor_type(const DataCtorsMap &data_ctors_map,
-                                           Identifier ctor_id) {
-  // FUTURE: build an index to make this faster
-  for (auto type_ctors : data_ctors_map) {
-    for (auto ctors : type_ctors.second) {
-      if (ctors.first == ctor_id.name) {
-        types::Ref ctor_type = ctors.second;
-        while (true) {
-          if (auto type_lambda = dyncast<const types::TypeLambda>(ctor_type)) {
-            ctor_type = type_lambda->apply(type_variable(INTERNAL_LOC()));
-          } else {
-            return ctor_type;
-          }
-        }
-      }
-    }
-  }
-  throw user_error(ctor_id.location, "no data constructor found for %s",
-                   ctor_id.str().c_str());
-}
-
 types::Ref CtorPredicate::tracking_infer(
     const DataCtorsMap &data_ctors_map,
     const types::Ref &return_type,

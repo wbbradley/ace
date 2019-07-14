@@ -11,6 +11,10 @@
 #include "user_error.h"
 
 namespace zion {
+
+typedef std::map<std::string, types::Map> ParsedDataCtorsMap;
+typedef std::unordered_map<std::string, int> ParsedCtorIdMap;
+
 struct ParseState {
   typedef log_level_t parse_error_level_t;
   parse_error_level_t pel_error = log_error;
@@ -45,8 +49,8 @@ struct ParseState {
 
   std::vector<Token> &comments;
   std::set<LinkIn> &link_ins;
-  CtorIdMap ctor_id_map;
-  DataCtorsMap data_ctors_map;
+  ParsedCtorIdMap ctor_id_map;
+  ParsedDataCtorsMap data_ctors_map;
   types::TypeEnv type_env;
 
   /* scoped expression contexts */

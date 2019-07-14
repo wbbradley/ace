@@ -245,10 +245,10 @@ types::Map prefix(const std::set<std::string> &bindings,
   return new_data_ctors;
 }
 
-DataCtorsMap prefix(const std::set<std::string> &bindings,
-                    std::string pre,
-                    const DataCtorsMap &data_ctors_map) {
-  DataCtorsMap new_data_ctors_map;
+ParsedDataCtorsMap prefix(const std::set<std::string> &bindings,
+                          std::string pre,
+                          const ParsedDataCtorsMap &data_ctors_map) {
+  ParsedDataCtorsMap new_data_ctors_map;
   for (auto pair : data_ctors_map) {
     new_data_ctors_map[prefix(bindings, pre, pair.first)] = prefix(
         bindings, pre, pair.second);

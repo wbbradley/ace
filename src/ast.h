@@ -477,8 +477,8 @@ struct Module {
          const std::vector<TypeDecl> &type_decls,
          const std::vector<const TypeClass *> &type_classes,
          const std::vector<const Instance *> &instances,
-         const CtorIdMap &ctor_id_map,
-         const DataCtorsMap &data_ctors_map,
+         const ParsedCtorIdMap &ctor_id_map,
+         const ParsedDataCtorsMap &data_ctors_map,
          const types::TypeEnv &type_env)
       : name(name), decls(decls), type_decls(type_decls),
         type_classes(type_classes), instances(instances),
@@ -491,8 +491,8 @@ struct Module {
   std::vector<TypeDecl> type_decls;
   std::vector<const TypeClass *> type_classes;
   std::vector<const Instance *> instances;
-  CtorIdMap ctor_id_map;
-  DataCtorsMap data_ctors_map;
+  ParsedCtorIdMap ctor_id_map;
+  ParsedDataCtorsMap data_ctors_map;
   types::TypeEnv const type_env;
 };
 

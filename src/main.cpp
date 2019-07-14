@@ -206,6 +206,7 @@ ast::Expr *build_program(std::string entry_point_name,
 
 CheckedDefinitionsByName check_decls(std::string entry_point_name,
                                      const std::vector<const Decl *> &decls,
+                                     const DataCtorsMap &data_ctors_map,
                                      types::SchemeResolver &scheme_resolver) {
   /* tracked types */
   TrackedTypes tracked_types;
@@ -219,27 +220,22 @@ CheckedDefinitionsByName check_decls(std::string entry_point_name,
 
   types::Constraints constraints;
   types::ClassPredicates instance_requirements;
-  types::Ref ty = infer(program_expr, scheme_resolver, constraints,
+  types::Ref ty = infer(program_expr, data_ctors_map, type_unit(INTERNAL_LOC()),
+                        scheme_resolver, tracked_types, constraints,
                         instance_requirements);
-  types::Ref infer(const Expr *expr, Env &env,
-                   const types::SchemeResolver &scheme_resolver,
-                   types::Constraints &constraints,
-                   types::ClassPredicates &instance_requirements);
-  for (const Decl *decl : decls) {
-    try {
-      /* make sure that the "main" function has the correct signature */
-      run_inference(false /*check_constraint_coverage*/, decl->id,
-                    (decl->id.name == entry_point_name)
-                        ? new As(decl->value, program_main_scheme->type,
-                                 false /*force_cast*/)
-                        : decl->value,
-                    env, scheme_resolver);
-    } catch (user_error &e) {
-      print_exception(e);
+  if (debug_all_expr_types) {
+    INDENT(0, "--debug_all_expr_types--");
+    log(c_good("All Expression Types"));
+    for (auto pair : tracked_types) {
+      log_location(pair.first->get_location(), "%s :: %s",
+                   pair.first->str().c_str(),
+                   pair.second->generalize({})->str().c_str());
     }
   }
-  run_solver();
-  assign_checked_definitions();
+  assert(false);
+  // run_solver();
+  // assign_checked_definitions();
+  return CheckedDefinitionsByName{};
 }
 
 } // namespace
@@ -251,6 +247,7 @@ Identifier make_instance_decl_id(const Instance *instance, Identifier decl_id) {
                     decl_id.location};
 }
 
+#if 0
 void check_instance_for_type_class_overload(
     std::string name,
     types::Ref type,
@@ -259,7 +256,6 @@ void check_instance_for_type_class_overload(
     std::set<std::string> &names_checked,
     std::vector<const Decl *> &instance_decls,
     std::map<types::DefnId, const Decl *> &overrides_map,
-    Env &env,
     types::SchemeResolver &scheme_resolver,
     const types::ClassPredicates &class_predicates) {
   bool found = false;
@@ -325,7 +321,6 @@ void check_instance_for_type_class_overload(
   }
 }
 
-#if 0
 /* typecheck an instance for whether it properly overloads the type class with
  * which it is associated */
 void check_instance_for_type_class_overloads(
@@ -496,6 +491,8 @@ public:
     const Decl *decl = nullptr;
     types::SchemeRef decl_scheme;
 
+    assert(false);
+#if 0
     for (auto pair : map) {
       if (pair.second == decl) {
         /* we've already chosen this one, we're just checking for dupes */
@@ -520,6 +517,7 @@ public:
         }
       }
     }
+#endif
 
     if (decl != nullptr) {
       assert(decl_scheme != nullptr);
@@ -543,6 +541,7 @@ public:
     throw error;
   }
 
+#if 0
   void populate(const std::map<std::string, const Decl *> &decl_map_,
                 const std::map<types::DefnId, const Decl *> &overrides_map,
                 const Env &env,
@@ -571,23 +570,21 @@ public:
       map[defn_id] = pair.second;
     }
   }
+#endif
 };
 
 struct Phase2 {
   Phase2(const std::shared_ptr<Compilation const> &compilation,
          const std::shared_ptr<types::SchemeResolver> &scheme_resolver,
          const DefinitionMap &&defn_map,
-         const CtorIdMap &ctor_id_map,
          const DataCtorsMap &data_ctors_map)
       : compilation(compilation), scheme_resolver(scheme_resolver),
-        defn_map(std::move(defn_map)), ctor_id_map(ctor_id_map),
-        data_ctors_map(data_ctors_map) {
+        defn_map(std::move(defn_map)), data_ctors_map(data_ctors_map) {
   }
 
   const std::shared_ptr<Compilation const> compilation;
   const std::shared_ptr<types::SchemeResolver> scheme_resolver;
   const DefinitionMap defn_map;
-  const CtorIdMap ctor_id_map;
   const DataCtorsMap data_ctors_map;
 
   std::ostream &dump(std::ostream &os) {
@@ -635,9 +632,6 @@ Phase2 compile(std::string user_program_name_) {
   auto scheme_resolver_ptr = std::make_shared<types::SchemeResolver>();
   auto &scheme_resolver = *scheme_resolver_ptr;
 
-  Env env{nullptr /*return_type*/, std::make_shared<TrackedTypes>(),
-          compilation->ctor_id_map, compilation->data_ctors_map};
-
   /* initialize the scheme_resolver with builtins */
   initialize_builtin_schemes(scheme_resolver);
 
@@ -647,13 +641,12 @@ Phase2 compile(std::string user_program_name_) {
   /* start resolving more schemes */
   // TODO: iterate through all decls to do an ordering */
   CheckedDefinitionsByName checked_defns = check_decls(
-      compilation->program_name + ".main", program->decls, env, scheme_resolver,
-      checked_defns);
+      compilation->program_name + ".main", program->decls,
+      compilation->data_ctors_map, scheme_resolver);
 
 #if 0
   std::vector<const Decl *> instance_decls = check_instances(
       program->instances, type_class_map, overrides_map, env, scheme_resolver);
-#endif
   std::map<std::string, const Decl *> decl_map;
   for (const Decl *decl : program->decls) {
     assert(!in(decl->id.name, decl_map));
@@ -666,6 +659,7 @@ Phase2 compile(std::string user_program_name_) {
     assert(!in(decl->id.name, decl_map));
     decl_map[decl->id.name] = decl;
   }
+#endif
 
 #if 0
     if (debug_compiled_env) {
@@ -683,22 +677,22 @@ Phase2 compile(std::string user_program_name_) {
   } catch (user_error &e) {
     print_exception(e);
   }
-#endif
 
   if (debug_all_expr_types) {
     INDENT(0, "--debug_all_expr_types--");
     log(c_good("All Expression Types"));
-    for (auto pair : *env.tracked_types) {
+    for (auto pair : tracked_types) {
       log_location(pair.first->get_location(), "%s :: %s",
                    pair.first->str().c_str(),
                    pair.second->generalize({})->str().c_str());
     }
   }
+#endif
 
   DefinitionMap defn_map;
-  defn_map.populate(decl_map, overrides_map, env, scheme_resolver);
+  // defn_map.populate(decl_map, overrides_map, env, scheme_resolver);
   return Phase2{compilation, scheme_resolver_ptr, std::move(defn_map),
-                compilation->ctor_id_map, compilation->data_ctors_map};
+                compilation->data_ctors_map};
 }
 
 typedef std::map<std::string,
@@ -708,7 +702,6 @@ typedef std::map<std::string,
 void specialize_core(const types::TypeEnv &type_env,
                      const DefinitionMap &defn_map,
                      const types::SchemeResolver &scheme_resolver,
-                     const CtorIdMap &ctor_id_map,
                      const DataCtorsMap &data_ctors_map,
                      types::DefnId defn_id_to_match,
                      /* output */ translation_map_t &translation_map,
@@ -764,16 +757,7 @@ void specialize_core(const types::TypeEnv &type_env,
 
   /* start the process of specializing our decl */
   types::ClassPredicates class_predicates;
-  Env env{nullptr /*return_type*/,
-          {} /*tracked_types*/,
-          ctor_id_map,
-          data_ctors_map};
-
-  // TODO: clean this up. it is ugly. we're accessing the base class
-  // TranslationEnv's tracked_types. Probably best to just keep track of
-  // tracked_types outside of the env.
-  auto tracked_types = std::make_shared<TrackedTypes>();
-  env.tracked_types = tracked_types;
+  TrackedTypes tracked_types;
 
   auto defn_lookup_pair = defn_map.lookup_defn(defn_id_to_match);
   const Decl *decl_to_check = defn_lookup_pair.first;
@@ -805,15 +789,14 @@ void specialize_core(const types::TypeEnv &type_env,
     const As *as_defn = new As(to_check, defn_id.scheme->type, false);
     debug_above(3, log_location(defn_id.id.location, "checking %s",
                                 as_defn->str().c_str()));
-    Identifier defn_to_check{defn_id.repr_public(), defn_id.id.location};
+#if 0
+    Identifier defn_to_check{defn_id.repr(), defn_id.id.location};
     types::SchemeResolver local_scheme_resolver(&scheme_resolver);
     types::SchemeRef resolved_scheme = check(true /*check_constraint_coverage*/,
                                              defn_to_check, as_defn, env,
                                              local_scheme_resolver);
-    debug_above(1, log("translation: skipping adding " c_id(
-                           "%s") " to the scheme_resolver",
-                       defn_id.repr_public().c_str(),
-                       resolved_scheme->str().c_str()));
+    debug_above(1, log("translation: skipping adding %s to the scheme_resolver",
+                       defn_id.str().c_str(), resolved_scheme->str().c_str()));
     assert(env.tracked_types == tracked_types);
 
     if (debug_specialized_env) {
@@ -853,6 +836,7 @@ void specialize_core(const types::TypeEnv &type_env,
     debug_above(4, log("setting %s :: %s = %s", final_name.c_str(),
                        type->str().c_str(), translated_decl->str().c_str()));
     translation_map[final_name][type] = translated_decl;
+#endif
   } catch (...) {
     translation_map[defn_id.id.name].erase(type);
     throw;
@@ -894,9 +878,8 @@ Phase3 specialize(const Phase2 &phase_2) {
     auto next_defn_id = needed_defns.begin()->first;
     try {
       specialize_core(phase_2.compilation->type_env, phase_2.defn_map,
-                      *phase_2.scheme_resolver, phase_2.ctor_id_map,
-                      phase_2.data_ctors_map, next_defn_id, translation_map,
-                      needed_defns);
+                      *phase_2.scheme_resolver, phase_2.data_ctors_map,
+                      next_defn_id, translation_map, needed_defns);
     } catch (user_error &e) {
       if (fast_fail) {
         throw;
@@ -1368,8 +1351,6 @@ int run_job(const Job &job) {
     return cmd_map[job.cmd](job, get_help);
   }
 }
-
-} // namespace zion
 
 } // namespace zion
 

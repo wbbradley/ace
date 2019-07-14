@@ -209,10 +209,6 @@ bool is_unit(Ref type);
 
 }; // namespace types
 
-typedef std::map<std::string, types::Map> DataCtorsMap;
-
-typedef std::unordered_map<std::string, int> CtorIdMap;
-
 std::string gensym_name();
 Identifier gensym(Location location);
 
@@ -249,7 +245,6 @@ types::Ref type_tuple_accessor(int i,
 
 std::string str(types::Refs Refs);
 std::string str(const types::Map &coll);
-std::string str(const DataCtorsMap &data_ctors_map);
 std::string str(const types::Ftvs &ftvs);
 std::ostream &operator<<(std::ostream &out, const types::Ref &type);
 bool operator<(const types::Ref &lhs, const types::Ref &rhs);

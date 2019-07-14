@@ -45,6 +45,7 @@ add_executable(zion
 	src/compiler.cpp
 	src/context.cpp
 	src/constraint.cpp
+	src/data_ctors_map.cpp
 	src/dbg.cpp
 	src/defn_id.cpp
 	src/disk.cpp

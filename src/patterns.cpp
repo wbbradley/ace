@@ -189,7 +189,8 @@ const Expr *Literal::translate(
     TranslateContinuationFn &matched,
     TranslateContinuationFn &failed) const {
   if (!do_checks) {
-    return matched(bound_vars, type_env, tenv, typing, needed_defns, returns);
+    return matched(data_ctors_map, bound_vars, tracked_types, type_env, typing,
+                   needed_defns, returns);
   }
 
   types::Ref type = get_tracked_type(tracked_types, this);
@@ -198,7 +199,7 @@ const Expr *Literal::translate(
   types::Ref cmp_type = type_arrow(type_params({type, type}), Bool);
 
   typing[literal_cmp] = cmp_type;
-  insert_needed_defn(needed_defns, types::DefnId{literal_cmp->id, cmp_type},
+  insert_needed_defn(needed_defns, types::DefnId{literal_cmp->id, cmp_type->generalize({})},
                      token.location, for_defn_id);
 
   bool truthy_returns = false;
@@ -216,8 +217,10 @@ const Expr *Literal::translate(
 
   auto cond = new Conditional(
       condition,
-      matched(bound_vars, type_env, tenv, typing, needed_defns, truthy_returns),
-      failed(bound_vars, type_env, tenv, typing, needed_defns, falsey_returns));
+      matched(data_ctors_map, bound_vars, tracked_types, type_env, typing,
+              needed_defns, truthy_returns),
+      failed(data_ctors_map, bound_vars, tracked_types, type_env, typing,
+             needed_defns, falsey_returns));
   assert(!returns);
   returns = returns || (truthy_returns && falsey_returns);
   assert(typing.count(cond) == 0);
@@ -231,7 +234,9 @@ const Expr *translate_next(const types::DefnId &for_defn_id,
                            const types::Ref &scrutinee_type,
                            const types::Refs &param_types,
                            bool do_checks,
+                           const DataCtorsMap &data_ctors_map,
                            const std::unordered_set<std::string> &bound_vars_,
+                           const TrackedTypes &tracked_types,
                            const std::vector<const Predicate *> &params,
                            int param_index,
                            int dim_offset,
@@ -248,7 +253,9 @@ const Expr *translate_next(const types::DefnId &for_defn_id,
 
   auto matching = [&for_defn_id, param_index, dim_offset, &matched, &failed,
                    &params, &scrutinee_id, &scrutinee_type, &param_types,
-                   do_checks](const std::unordered_set<std::string> &bound_vars,
+                   do_checks](const DataCtorsMap &data_ctors_map,
+                              const std::unordered_set<std::string> &bound_vars,
+                              const TrackedTypes &tracked_types,
                               const types::TypeEnv &type_env,
                               TrackedTypes &typing,
                               types::NeededDefns &needed_defns, bool &returns) {
@@ -258,7 +265,8 @@ const Expr *translate_next(const types::DefnId &for_defn_id,
           data_ctors_map, bound_vars, tracked_types, params, param_index + 1,
           dim_offset, type_env, typing, needed_defns, returns, matched, failed);
     } else {
-      return matched(bound_vars, type_env, tenv, typing, needed_defns, returns);
+      return matched(data_ctors_map, bound_vars, tracked_types, type_env,
+                     typing, needed_defns, returns);
     }
   };
 
@@ -285,8 +293,9 @@ const Expr *translate_next(const types::DefnId &for_defn_id,
   typing[dim] = param_types[param_index];
 
   auto body = params[param_index]->translate(
-      for_defn_id, param_id, param_types[param_index], do_checks, bound_vars,
-      type_env, tenv, typing, needed_defns, returns, matching, failed);
+      for_defn_id, param_id, param_types[param_index], do_checks,
+      data_ctors_map, bound_vars, tracked_types, type_env, typing, needed_defns,
+      returns, matching, failed);
   assert(in(body, typing));
 
   auto let = new Let(param_id, dim, body);
@@ -352,8 +361,8 @@ const Expr *CtorPredicate::translate(
       new_bound_vars.insert(param_id.name);
       auto let_body = params[0]->translate(
           for_defn_id, param_id, resolved_scrutinee_type, do_checks,
-          new_bound_vars, type_env, tenv, typing, needed_defns, returns,
-          matched, failed);
+          data_ctors_map, new_bound_vars, tracked_types, type_env, typing,
+          needed_defns, returns, matched, failed);
       auto casted_pattern_match = new Let(param_id, casted_scrutinee, let_body);
       typing[casted_pattern_match] = typing.at(let_body);
       debug_above(4, log("emitting newtype pattern match %s",
@@ -373,14 +382,14 @@ const Expr *CtorPredicate::translate(
       return translate_next(for_defn_id, scrutinee_id, resolved_scrutinee_type,
                             tuple_type->dimensions, do_checks, data_ctors_map,
                             bound_vars, tracked_types, params, 0,
-                            0 /*dim_offset*/, type_env, tenv, typing,
+                            0 /*dim_offset*/, type_env, typing,
                             needed_defns, returns, matched, failed);
     }
   }
 
   if (do_checks) {
     Expr *condition;
-    int ctor_id = tenv.get_ctor_id(ctor_name.name);
+    int ctor_id = get_ctor_id(data_ctors_map, ctor_name.name);
     auto ctor_id_literal = new Literal(
         Token{location, tk_integer, std::to_string(ctor_id)});
     typing[ctor_id_literal] = Int;
@@ -503,8 +512,8 @@ const Expr *IrrefutablePredicate::translate(
                               for_defn_id.str().c_str(),
                               scrutinee_id.str().c_str(),
                               scrutinee_type->str().c_str()));
-  return matched(data_ctors_map, bound_vars, tracked_types, type_env, tenv,
-                 typing, needed_defns, returns);
+  return matched(data_ctors_map, bound_vars, tracked_types, type_env, typing,
+                 needed_defns, returns);
 }
 
 } // namespace zion

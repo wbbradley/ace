@@ -6,6 +6,7 @@
 
 #include "ast.h"
 #include "builtins.h"
+#include "data_ctors_map.h"
 #include "ptr.h"
 #include "translate.h"
 #include "types.h"
@@ -14,7 +15,6 @@
 #include "zion.h"
 
 namespace match {
-using namespace ::types;
 
 struct Nothing : std::enable_shared_from_this<Nothing>, Pattern {
   Nothing() : Pattern(INTERNAL_LOC()) {
@@ -54,12 +54,12 @@ struct CtorPatterns : std::enable_shared_from_this<CtorPatterns>, Pattern {
 
 struct AllOf : std::enable_shared_from_this<AllOf>, Pattern {
   maybe<Identifier> name;
-  const DataCtorsMap &data_ctors_map;
+  const zion::DataCtorsMap &data_ctors_map;
   types::Ref type;
 
   AllOf(Location location,
         maybe<Identifier> name,
-        const DataCtorsMap &data_ctors_map,
+        const zion::DataCtorsMap &data_ctors_map,
         types::Ref type)
       : Pattern(location), name(name), data_ctors_map(data_ctors_map),
         type(type) {
@@ -147,7 +147,7 @@ std::shared_ptr<Scalars<double>> allFloats = std::make_shared<Scalars<double>>(
 
 Pattern::ref all_of(Location location,
                     maybe<Identifier> expr,
-                    const DataCtorsMap &data_ctors_map,
+                    const zion::DataCtorsMap &data_ctors_map,
                     types::Ref type) {
   return std::make_shared<match::AllOf>(location, expr, data_ctors_map, type);
 }
@@ -382,8 +382,8 @@ Pattern::ref pattern_union(Pattern::ref lhs, Pattern::ref rhs) {
 }
 
 Pattern::ref from_type(Location location,
-                       const DataCtorsMap &data_ctors_map,
-                       Ref type) {
+                       const zion::DataCtorsMap &data_ctors_map,
+                       types::Ref type) {
   if (auto tuple_type = dyncast<const types::TypeTuple>(type)) {
     std::vector<Pattern::ref> args;
     for (auto dim : tuple_type->dimensions) {
@@ -692,8 +692,8 @@ using namespace ::match;
 using namespace ::types;
 
 Pattern::ref TuplePredicate::get_pattern(
-    Ref type,
-    const DataCtorsMap &data_ctors_map) const {
+    types::Ref type,
+    const zion::DataCtorsMap &data_ctors_map) const {
   std::vector<Pattern::ref> args;
   if (auto tuple_type = dyncast<const TypeTuple>(type)) {
     if (tuple_type->dimensions.size() != params.size()) {
@@ -721,8 +721,8 @@ Pattern::ref TuplePredicate::get_pattern(
 }
 
 Pattern::ref CtorPredicate::get_pattern(
-    Ref type,
-    const DataCtorsMap &data_ctors_map) const {
+    types::Ref type,
+    const zion::DataCtorsMap &data_ctors_map) const {
   auto ctor_terms = unfold_arrows(
       get_data_ctor_type(data_ctors_map, type, ctor_name));
 
@@ -747,14 +747,14 @@ Pattern::ref CtorPredicate::get_pattern(
 }
 
 Pattern::ref IrrefutablePredicate::get_pattern(
-    Ref type,
-    const DataCtorsMap &data_ctors_map) const {
+    types::Ref type,
+    const zion::DataCtorsMap &data_ctors_map) const {
   return std::make_shared<AllOf>(location, name_assignment, data_ctors_map,
                                  type);
 }
 
-Pattern::ref Literal::get_pattern(Ref type,
-                                  const DataCtorsMap &data_ctors_map) const {
+Pattern::ref Literal::get_pattern(types::Ref type,
+                                  const zion::DataCtorsMap &data_ctors_map) const {
   if (type_equality(type, type_int(INTERNAL_LOC()))) {
     if (token.tk == tk_integer) {
       int64_t value = parse_int_value(token);

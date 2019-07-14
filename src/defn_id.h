@@ -5,18 +5,16 @@
 #include <vector>
 
 #include "identifier.h"
-#include "types.h"
+#include "scheme.h"
 
 namespace types {
-struct Scheme;
-struct Type;
 
 struct DefnId {
-  DefnId(Identifier const id, const types::Ref &type) : id(id), type(type) {
+  DefnId(Identifier const id, const types::SchemeRef &scheme) : id(id), scheme(scheme) {
   }
 
   Identifier const id;
-  types::Ref const type;
+  types::SchemeRef const scheme;
 
 private:
   mutable std::string cached_repr;
