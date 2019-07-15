@@ -10,6 +10,11 @@ instance Getter Int {
 }
 
 fn use_getter() => getter()
+fn g(n) => f(n)
+fn f(n) {
+    return n <= 2 ? 1 : (g(n-1) + g(n-2))
+}
 fn main() {
+    _ := f(4)
     __builtin_print_int(use_getter())
 }
