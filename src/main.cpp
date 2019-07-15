@@ -9,6 +9,7 @@
 #include "checked.h"
 #include "class_predicate.h"
 #include "compiler.h"
+#include "context.h"
 #include "disk.h"
 #include "gen.h"
 #include "host.h"
@@ -207,51 +208,105 @@ ast::Expr *build_program(std::string entry_point_name,
   return program;
 }
 
+tarjan::Graph build_program_graph(const std::vector<const Decl *> &decls) {
+  tarjan::Graph graph;
+  for (auto decl : decls) {
+    const auto &name = decl->id.name;
+    graph.insert({name, get_free_vars(decl->value, {})});
+  }
+  return graph;
+}
+
 CheckedDefinitionsByName check_decls(std::string entry_point_name,
                                      const std::vector<const Decl *> &decls,
                                      const DataCtorsMap &data_ctors_map,
                                      types::SchemeResolver &scheme_resolver) {
-  /* tracked types */
-  TrackedTypes tracked_types;
 
   // ast::Expr -> types::Ref
 
   // std::string -> ast::Expr
+  std::unordered_map<std::string, const Decl *> decl_map;
+  for (auto decl : decls) {
+    log("adding decl named %s to decl_map", decl->id.name.c_str());
+    decl_map.insert({decl->id.name, decl});
+  }
 
-  ast::Expr *program_expr = build_program(entry_point_name, scheme_resolver,
-                                          decls);
+  tarjan::Graph graph = build_program_graph(decls);
+  tarjan::SCCs sccs = tarjan::compute_strongly_connected_components(graph);
+  log("found program ordering %s", str(sccs).c_str());
 
-  types::Constraints constraints;
-  types::ClassPredicates instance_requirements;
-  types::Ref ty = infer(program_expr, data_ctors_map, nullptr/*return_type*/, 
-                        scheme_resolver, tracked_types, constraints,
-                        instance_requirements);
-  append_to_constraints(constraints, ty, type_unit(INTERNAL_LOC()),
-                        make_context(INTERNAL_LOC(), "program must return ()"));
-  if (debug_all_expr_types) {
+  for (auto &scc : sccs) {
+    /* we are looking at a strongly coupled (aka mutually recursive) set of
+     * functions or expressions. let's run inference on them all at once. */
+    types::SchemeResolver local_scheme_resolver(&scheme_resolver);
+
+    types::Map map;
+    /* seed the SCC with a local type scheme */
+    for (auto name : scc) {
+      if (decl_map.count(name) != 0) {
+        map[name] = type_variable(INTERNAL_LOC());
+        local_scheme_resolver.insert_scheme(name, scheme({}, {}, map[name]));
+      }
+    }
+
+    TrackedTypes tracked_types;
+    types::Constraints constraints;
+    types::ClassPredicates instance_requirements;
+
+    for (auto name : scc) {
+      if (decl_map.count(name) != 0) {
+        auto ty = infer(decl_map.at(name)->value, data_ctors_map,
+                        nullptr /*return_type*/, local_scheme_resolver,
+                        tracked_types, constraints, instance_requirements);
+        if (name == entry_point_name) {
+          append_to_constraints(
+              constraints, ty,
+              type_arrow(INTERNAL_LOC(),
+                         type_params({type_unit(INTERNAL_LOC())}),
+                         type_unit(INTERNAL_LOC())),
+              make_context(INTERNAL_LOC(),
+                           "main function must have signature fn () ()"));
+        }
+
+        append_to_constraints(
+            constraints, ty, map[name],
+            make_context(INTERNAL_LOC(), "scc checks should match inference"));
+      }
+      log("inferred types %s", str(map).c_str());
+    }
+
     INDENT(0, "--debug_all_expr_types--");
-    log(c_good("All Expression Types"));
+    log("All Expression Types in {%s}", join(scc, ", ").c_str());
+    for (auto pair : tracked_types) {
+      log_location(pair.first->get_location(), "%s :: %s",
+                   pair.first->str().c_str(), pair.second->str().c_str());
+    }
+    log("All Constraints for {%s}", join(scc, ", ").c_str());
+    log("%s", str(constraints).c_str());
+
+    types::Map bindings = zion::solver(false /*check_constraint_coverage*/,
+                                       make_context(INTERNAL_LOC(), "solving"),
+                                       constraints, tracked_types,
+                                       scheme_resolver, instance_requirements);
+
+    log("Rebound Expression Types for {%s}", join(scc, ", ").c_str());
+    rebind_tracked_types(tracked_types, bindings);
     for (auto pair : tracked_types) {
       log_location(pair.first->get_location(), "%s :: %s",
                    pair.first->str().c_str(),
-                   pair.second->str().c_str());
+                   pair.second->generalize({})->str().c_str());
+    }
+    for (auto pair : map) {
+      auto scheme = pair.second->rebind(bindings)
+                        ->generalize(
+                            types::rebind(instance_requirements, bindings))
+                        ->normalize();
+      log("resolved %s to scheme %s", pair.first.c_str(),
+          scheme->str().c_str());
+      scheme_resolver.insert_scheme(pair.first, scheme);
     }
   }
-  log(c_good("All Constraints"));
-  log("%s", str(constraints).c_str());
 
-  types::Map bindings = zion::solver(false /*check_constraint_coverage*/,
-                                     make_context(INTERNAL_LOC(), "solving"),
-                                     constraints, tracked_types,
-                                     scheme_resolver, instance_requirements);
-
-  log(c_good("Rebound Expression Types"));
-  rebind_tracked_types(tracked_types, bindings);
-  for (auto pair : tracked_types) {
-    log_location(pair.first->get_location(), "%s :: %s",
-                 pair.first->str().c_str(),
-                 pair.second->generalize({})->str().c_str());
-  }
   assert(false);
   // run_solver();
   // assign_checked_definitions();

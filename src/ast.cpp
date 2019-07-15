@@ -465,4 +465,90 @@ ast::Expr *unit_expr(Location location) {
   return new ast::Tuple(location, {});
 }
 
+tarjan::Vertices get_free_vars(
+    const ast::Expr *expr,
+    const std::unordered_set<std::string> &bound_vars) {
+  if (auto literal = dcast<const ast::Literal *>(expr)) {
+    return {};
+  } else if (auto static_print = dcast<const ast::StaticPrint *>(expr)) {
+    return get_free_vars(static_print->expr, bound_vars);
+  } else if (auto var = dcast<const ast::Var *>(expr)) {
+    if (!in(var->id.name, bound_vars)) {
+      return {var->id.name};
+    }
+    return {};
+  } else if (auto lambda = dcast<const ast::Lambda *>(expr)) {
+    /* bind the params so that they do not appear as free variables from lower
+     * scoping */
+    auto new_bound_vars = bound_vars;
+    for (auto &var : lambda->vars) {
+      new_bound_vars.insert(var.name);
+    }
+    return get_free_vars(lambda->body, new_bound_vars);
+  } else if (auto application = dcast<const ast::Application *>(expr)) {
+    tarjan::Vertices free_vars = get_free_vars(application->a, bound_vars);
+    for (auto &param : application->params) {
+      set_merge(free_vars, get_free_vars(param, bound_vars));
+    }
+    return free_vars;
+  } else if (auto let = dcast<const ast::Let *>(expr)) {
+    tarjan::Vertices free_vars = get_free_vars(let->value, bound_vars);
+    auto new_bound_vars = bound_vars;
+    new_bound_vars.insert(let->var.name);
+    set_merge(free_vars, get_free_vars(let->body, new_bound_vars));
+    return free_vars;
+  } else if (auto condition = dcast<const ast::Conditional *>(expr)) {
+    tarjan::Vertices free_vars = get_free_vars(condition->cond, bound_vars);
+    set_merge(free_vars, get_free_vars(condition->truthy, bound_vars));
+    set_merge(free_vars, get_free_vars(condition->falsey, bound_vars));
+    return free_vars;
+  } else if (auto break_ = dcast<const ast::Break *>(expr)) {
+    return {};
+  } else if (auto continue_ = dcast<const ast::Continue *>(expr)) {
+    return {};
+  } else if (auto while_ = dcast<const ast::While *>(expr)) {
+    tarjan::Vertices free_vars = get_free_vars(while_->condition, bound_vars);
+    set_merge(free_vars, get_free_vars(while_->block, bound_vars));
+    return free_vars;
+  } else if (auto block = dcast<const ast::Block *>(expr)) {
+    tarjan::Vertices free_vars;
+    for (auto statement : block->statements) {
+      set_merge(free_vars, get_free_vars(statement, bound_vars));
+    }
+    return free_vars;
+  } else if (auto return_ = dcast<const ast::ReturnStatement *>(expr)) {
+    return get_free_vars(return_->value, bound_vars);
+  } else if (auto tuple = dcast<const ast::Tuple *>(expr)) {
+    tarjan::Vertices free_vars;
+    for (auto dim : tuple->dims) {
+      set_merge(free_vars, get_free_vars(dim, bound_vars));
+    }
+    return free_vars;
+  } else if (auto tuple_deref = dcast<const ast::TupleDeref *>(expr)) {
+    return get_free_vars(tuple_deref->expr, bound_vars);
+  } else if (auto as = dcast<const ast::As *>(expr)) {
+    return get_free_vars(as->expr, bound_vars);
+  } else if (auto sizeof_ = dcast<const ast::Sizeof *>(expr)) {
+    return {};
+  } else if (auto builtin = dcast<const ast::Builtin *>(expr)) {
+    tarjan::Vertices free_vars;
+    for (auto expr : builtin->exprs) {
+      set_merge(free_vars, get_free_vars(expr, bound_vars));
+    }
+    return free_vars;
+  } else if (auto match = dcast<const ast::Match *>(expr)) {
+    tarjan::Vertices free_vars = get_free_vars(match->scrutinee, bound_vars);
+    for (auto pattern_block : match->pattern_blocks) {
+      auto new_bound_vars = bound_vars;
+      pattern_block->predicate->get_bound_vars(new_bound_vars);
+      set_merge(free_vars,
+                get_free_vars(pattern_block->result, new_bound_vars));
+    }
+    return free_vars;
+  } else {
+    assert(false);
+    return {};
+  }
+}
+
 } // namespace zion
