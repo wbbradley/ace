@@ -16,6 +16,7 @@
 #include "logger.h"
 #include "logger_decls.h"
 #include "solver.h"
+#include "tarjan.h"
 #include "tests.h"
 #include "translate.h"
 #include "unification.h"
@@ -1166,12 +1167,24 @@ int run_job(const Job &job) {
       std::cerr << "test: run tests" << std::endl;
       return EXIT_FAILURE;
     }
+
     assert(alphabetize(0) == "a");
     assert(alphabetize(1) == "b");
     assert(alphabetize(2) == "c");
     assert(alphabetize(26) == "aa");
     assert(alphabetize(27) == "ab");
-    return run_job({"run", {}, {"test_basic"}});
+
+    tarjan::Graph graph;
+    graph.insert({"a", {"b", "f"}});
+    graph.insert({"b", {"c"}});
+    graph.insert({"g", {"c", "f"}});
+    graph.insert({"d", {"c"}});
+    graph.insert({"c", {"d"}});
+    graph.insert({"h", {"g"}});
+    graph.insert({"f", {"h", "c"}});
+    tarjan::SCCs sccs = tarjan::compute_strongly_connected_components(graph);
+    log("tarjan = %s", str(sccs).c_str());
+    return EXIT_SUCCESS;
   };
   cmd_map["find"] = [&](const Job &job, bool explain) {
     if (explain) {
