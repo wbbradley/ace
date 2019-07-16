@@ -42,6 +42,7 @@ add_executable(zion
 	src/ast.cpp
 	src/builtins.cpp
 	src/class_predicate.cpp
+	src/checked.cpp
 	src/compiler.cpp
 	src/context.cpp
 	src/constraint.cpp

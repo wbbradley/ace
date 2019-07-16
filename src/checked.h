@@ -1,7 +1,9 @@
 #pragma once
 
 #include <list>
+#include <map>
 #include <memory>
+#include <string>
 
 namespace zion {
 struct CheckedDefinition;
@@ -17,8 +19,10 @@ typedef std::map<std::string, std::list<CheckedDefinitionRef>>
 namespace zion {
 
 struct CheckedDefinition {
+  CheckedDefinition(types::SchemeRef scheme,
+                    const ast::Decl *decl,
+                    TrackedTypes tracked_types);
   types::SchemeRef scheme;
-  // forall a b . a -> [b]
   const ast::Decl *decl;
   TrackedTypes tracked_types;
 };
