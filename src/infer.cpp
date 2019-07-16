@@ -112,7 +112,7 @@ types::Ref infer_core(const Expr *expr,
     auto t2 = infer(let->body, data_ctors_map, return_type,
                     local_scheme_resolver, tracked_types, constraints,
                     instance_requirements);
-    debug_above(3, log("the let variable is %s :: %s and the body is %s :: %s",
+    debug_above(5, log("the let variable is %s :: %s and the body is %s :: %s",
                        let->var.str().c_str(), tv->str().c_str(),
                        let->body->str().c_str(), t2->str().c_str()));
     return t2;
