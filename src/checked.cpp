@@ -8,4 +8,8 @@ CheckedDefinition::CheckedDefinition(types::SchemeRef scheme,
     : scheme(scheme), decl(decl), tracked_types(tracked_types) {
 }
 
+Location CheckedDefinition::get_location() const {
+  return decl->get_location();
+}
+
 } // namespace zion

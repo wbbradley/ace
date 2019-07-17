@@ -10,11 +10,11 @@
 namespace types {
 
 struct DefnId {
-  DefnId(Identifier const id, const types::SchemeRef &scheme) : id(id), scheme(scheme) {
+  DefnId(Identifier const id, const types::Ref &type) : id(id), type(type) {
   }
 
   Identifier const id;
-  types::SchemeRef const scheme;
+  types::Ref const type;
 
 private:
   mutable std::string cached_repr;

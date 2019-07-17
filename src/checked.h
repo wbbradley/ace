@@ -25,6 +25,8 @@ struct CheckedDefinition {
   types::SchemeRef scheme;
   const ast::Decl *decl;
   TrackedTypes tracked_types;
+
+  Location get_location() const;
 };
 
 } // namespace zion
