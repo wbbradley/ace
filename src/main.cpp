@@ -92,12 +92,12 @@ void handle_sigint(int sig) {
 }
 
 types::SchemeRef check_decl(bool check_constraint_coverage,
-                       const DataCtorsMap &data_ctors_map,
-                       Identifier id,
-                       const Decl *decl,
-                       types::Ref expected_type,
-                       const types::SchemeResolver &scheme_resolver,
-                       CheckedDefinitionsByName &checked_defns) {
+                            const DataCtorsMap &data_ctors_map,
+                            Identifier id,
+                            const Decl *decl,
+                            types::Ref expected_type,
+                            const types::SchemeResolver &scheme_resolver,
+                            CheckedDefinitionsByName &checked_defns) {
   const Expr *expr = decl->value;
   types::Constraints constraints;
   types::ClassPredicates instance_requirements;
@@ -320,13 +320,13 @@ CheckedDefinitionsByName check_decls(std::string entry_point_name,
     }
 #endif
     for (auto pair : map) {
-      auto scheme = pair.second->rebind(bindings)
-                        ->generalize(
-                            types::rebind(instance_requirements, bindings))
-                        ->normalize();
+      auto scheme = pair.second->rebind(bindings)->generalize(
+          types::rebind(instance_requirements, bindings));
+      // NB: do not normalize the scheme
       debug_above(1, log("resolved %s to scheme %s", pair.first.c_str(),
-                         scheme->str().c_str()));
+                         scheme->normalize()->str().c_str()));
       scheme_resolver.insert_scheme(pair.first, scheme);
+      // TODO: consider altering CheckedDefinition to have a type, not a scheme
       CheckedDefinitionRef checked_definition =
           std::make_shared<const CheckedDefinition>(
               scheme, decl_map[pair.first], tracked_types);
@@ -504,9 +504,9 @@ void check_instances(
 
       /* first put an instance requirement on any superclasses of the associated
        * type_class */
-      check_instance_for_type_class_overloads(
-          instance, type_class, data_ctors_map, instance_decls, 
-          scheme_resolver, checked_defns);
+      check_instance_for_type_class_overloads(instance, type_class,
+                                              data_ctors_map, instance_decls,
+                                              scheme_resolver, checked_defns);
 
     } catch (user_error &e) {
       e.add_info(instance->class_predicate->get_location(),
@@ -563,121 +563,68 @@ void check_instance_requirements(const std::vector<Instance *> &instances,
 }
 #endif
 
-class DefinitionMap {
-  std::map<types::DefnId, const Decl *> map;
-  std::map<std::string, const Decl *> decl_map;
-
-  friend struct Phase2;
-
-public:
-  std::pair<const Decl *, types::SchemeRef> lookup_defn(
-      types::DefnId defn_id) const {
-    const Decl *decl = nullptr;
-    types::SchemeRef decl_scheme;
-
-    assert(false);
-#if 0
-    for (auto pair : map) {
-      if (pair.second == decl) {
-        /* we've already chosen this one, we're just checking for dupes */
-        assert(false); // why would this happen?
-        continue;
-      }
-      if (pair.first.id.name == defn_id.id.name) {
-        auto scheme = scheme_unify(pair.first.scheme, defn_id.scheme);
-        if (scheme != nullptr) {
-          if (decl != nullptr) {
-            assert(decl_scheme != nullptr);
-            throw user_error(defn_id.id.location,
-                             "found ambiguous instance method")
-                .add_info(defn_id.get_location(), "while looking for %s",
-                          defn_id.str().c_str())
-                .add_info(pair.first.id.location,
-                          "%s also matches (with scheme %s)",
-                          pair.first.str().c_str(), scheme->str().c_str());
-          }
-          decl = pair.second;
-          decl_scheme = scheme;
-        }
-      }
-    }
-#endif
-
-    if (decl != nullptr) {
-      assert(decl_scheme != nullptr);
-      return {decl, decl_scheme};
-    }
-    assert(decl_scheme == nullptr);
-
-    auto iter_decl = decl_map.find(defn_id.id.name);
-    if (iter_decl != decl_map.end()) {
-      return {iter_decl->second, defn_id.scheme};
-    }
-    auto error = user_error(defn_id.id.location,
-                            "definition for %s does not seem to exist",
-                            defn_id.str().c_str());
-    for (auto pair : decl_map) {
-      if (ends_with(pair.first, defn_id.id.name)) {
-        error.add_info(pair.second->get_location(),
-                       "we did find " c_id("%s") "?", pair.first.c_str());
-      }
-    }
-    throw error;
+std::tuple<const Decl *, types::Ref, TrackedTypes> get_specialization_manifest(
+    const CheckedDefinitionsByName &checked_definitions_by_name,
+    Location location,
+    std::string name,
+    types::Ref type) {
+  if (checked_definitions_by_name.count(name) == 0) {
+    throw user_error(
+        location,
+        "unknown symbol '" c_id("%s") "' requested for specialization ",
+        name.c_str());
   }
 
-#if 0
-  void populate(const std::map<std::string, const Decl *> &decl_map_,
-                const std::map<types::DefnId, const Decl *> &overrides_map,
-                const Env &env,
-                const types::SchemeResolver &scheme_resolver) {
-    decl_map = decl_map_;
+  const Decl *decl = nullptr;
+  types::Ref decl_type;
+  TrackedTypes tracked_types;
 
-    /* populate the definition map which is the main result of the first phase
-     * of compilation */
-    for (auto pair__ : decl_map) {
-      const std::string &decl_name = pair__.first;
-      const Decl *decl = pair__.second;
-      assert(decl_name == decl->id.name);
-
-      types::Scheme::Ref scheme = scheme_resolver.lookup_scheme(decl->id)
-                                      ->normalize();
-      types::DefnId defn_id = types::DefnId{decl->id, scheme};
-      assert(!in(defn_id, map));
-      debug_above(8, log("populating defn_map with %s", defn_id.str().c_str()));
-      map[defn_id] = decl;
-    }
-
-    for (auto pair : overrides_map) {
-      const types::DefnId &defn_id = pair.first;
-      log("populating defn_map with override %s", defn_id.str().c_str());
-      assert(!in(defn_id, map));
-      map[defn_id] = pair.second;
+  for (auto checked_defn : checked_definitions_by_name.at(name)) {
+    types::Unification unification = unify(checked_defn->scheme->type, type);
+    if (unification.result) {
+      if (decl != nullptr) {
+        throw user_error(decl->get_location(),
+                         "found ambiguous instance method")
+            .add_info(location, "while looking for " c_id("%s") " :: %s",
+                      name.c_str(), type->str().c_str())
+            .add_info(checked_defn->get_location(),
+                      "also matches (with scheme %s)",
+                      checked_defn->scheme->normalize()->str().c_str());
+      }
+      decl = checked_defn->decl;
+      decl_type = type->rebind(unification.bindings);
+      tracked_types = checked_defn->tracked_types;
+      rebind_tracked_types(tracked_types, unification.bindings);
     }
   }
-#endif
-};
+  return {decl, decl_type, tracked_types};
+}
 
 struct Phase2 {
   Phase2(const std::shared_ptr<Compilation const> &compilation,
          const std::shared_ptr<types::SchemeResolver> &scheme_resolver,
-         const DefinitionMap &&defn_map,
+         const CheckedDefinitionsByName &&checked_definitions_by_name,
          const DataCtorsMap &data_ctors_map)
       : compilation(compilation), scheme_resolver(scheme_resolver),
-        defn_map(std::move(defn_map)), data_ctors_map(data_ctors_map) {
+        checked_definitions_by_name(std::move(checked_definitions_by_name)),
+        data_ctors_map(data_ctors_map) {
   }
 
   const std::shared_ptr<Compilation const> compilation;
   const std::shared_ptr<types::SchemeResolver> scheme_resolver;
-  const DefinitionMap defn_map;
+  const CheckedDefinitionsByName checked_definitions_by_name;
   const DataCtorsMap data_ctors_map;
 
   std::ostream &dump(std::ostream &os) {
-    for (auto pair : defn_map.decl_map) {
+    assert(false);
+#if 0
+    for (auto pair : checked.decl_map) {
       types::SchemeRef scheme = scheme_resolver->lookup_scheme(
           Identifier{pair.first, INTERNAL_LOC()});
       os << pair.first << " = " << pair.second->str() << " :: " << scheme->str()
          << std::endl;
     }
+#endif
     return os;
   }
 };
@@ -759,9 +706,7 @@ Phase2 compile(std::string user_program_name_) {
   }
 #endif
 
-  DefinitionMap defn_map;
-  // defn_map.populate(decl_map, overrides_map, env, scheme_resolver);
-  return Phase2{compilation, scheme_resolver_ptr, std::move(defn_map),
+  return Phase2{compilation, scheme_resolver_ptr, std::move(checked_defns),
                 compilation->data_ctors_map};
 }
 
@@ -770,7 +715,7 @@ typedef std::map<std::string,
     translation_map_t;
 
 void specialize_core(const types::TypeEnv &type_env,
-                     const DefinitionMap &defn_map,
+                     const CheckedDefinitionsByName &checked_defns,
                      const types::SchemeResolver &scheme_resolver,
                      const DataCtorsMap &data_ctors_map,
                      types::DefnId defn_id_to_match,
@@ -791,9 +736,7 @@ void specialize_core(const types::TypeEnv &type_env,
   /* They cannot have unresolved bounded type variables, because that would
    * imply that we don't know which type class instance to choose within the
    * inner specialization. */
-  assert(defn_id_to_match.scheme->btvs() == 0);
-
-  types::Ref type = defn_id_to_match.scheme->type;
+  types::Ref type = defn_id_to_match.type;
   if (!type->get_ftvs().empty()) {
     throw user_error(defn_id_to_match.get_location(),
                      "unable to monomorphize %s because it still has free "
@@ -826,38 +769,36 @@ void specialize_core(const types::TypeEnv &type_env,
 #endif
 
   /* start the process of specializing our decl */
-  types::ClassPredicates class_predicates;
+  const Decl *decl = nullptr;
+  types::Ref defn_type;
   TrackedTypes tracked_types;
 
-  auto defn_lookup_pair = defn_map.lookup_defn(defn_id_to_match);
-  const Decl *decl_to_check = defn_lookup_pair.first;
-  const types::SchemeRef decl_scheme = defn_lookup_pair.second;
-
-  if (decl_to_check == nullptr) {
-    throw user_error(defn_id_to_match.id.location,
-                     "could not find a definition for %s :: %s",
-                     defn_id_to_match.id.str().c_str(),
-                     defn_id_to_match.scheme->str().c_str());
-  }
+  /* get the decl and its tracked types so that we can rebind them and translate
+   * a new decl */
+  std::tie(decl, defn_type, tracked_types) = get_specialization_manifest(
+      checked_defns, defn_id_to_match.id.location, defn_id_to_match.id.name,
+      defn_id_to_match.type);
 
   debug_above(3, log("found defn for %s in decl %s",
                      defn_id_to_match.str().c_str(),
-                     decl_to_check->str().c_str()));
+                     decl->str().c_str()));
 
   /* now we know the resulting monomorphic type for the value we want to
    * instantiate */
-  types::DefnId defn_id{defn_id_to_match.id, decl_scheme};
+  types::DefnId defn_id{defn_id_to_match.id, defn_type};
+
+  assert(type_equality(defn_type, type));
 
   try {
     /* ... like a GRAY mark in the visited set... */
     translation_map[defn_id.id.name][type] = nullptr;
 
-    const Expr *to_check = decl_to_check->value;
+    const Expr *to_check = decl->value;
     const std::string final_name = defn_id.id.name;
 
     /* wrap this expr in it's asserted type to ensure that it monomorphizes */
-    const As *as_defn = new As(to_check, defn_id.scheme->type, false);
-    debug_above(3, log_location(defn_id.id.location, "checking %s",
+    const As *as_defn = new As(to_check, defn_id.type, false);
+    debug_above(3, log_location(defn_id.id.location, "hey, checking %s",
                                 as_defn->str().c_str()));
 #if 0
     Identifier defn_to_check{defn_id.repr(), defn_id.id.location};
@@ -933,21 +874,23 @@ Phase3 specialize(const Phase2 &phase_2) {
   if (user_error::errors_occurred()) {
     throw user_error(INTERNAL_LOC(), "quitting");
   }
-  auto defn_pair = phase_2.defn_map.lookup_defn(
-      {make_iid(phase_2.compilation->program_name + ".main"),
-       program_main_scheme});
-  const Decl *program_main = defn_pair.first;
-  types::SchemeRef scheme = defn_pair.second;
+  CheckedDefinitionRef checked_defn_main =
+      phase_2.checked_definitions_by_name
+          .at(phase_2.compilation->program_name + ".main")
+          .back();
+  const Decl *program_main = checked_defn_main->decl;
+  types::Ref program_type = checked_defn_main->scheme->type;
 
   types::NeededDefns needed_defns;
-  types::DefnId main_defn{program_main->id, scheme};
+  types::DefnId main_defn{program_main->id, program_type};
   insert_needed_defn(needed_defns, main_defn, INTERNAL_LOC(), main_defn);
 
+  CheckedDefinitionsByName checked_defns = phase_2.checked_definitions_by_name;
   translation_map_t translation_map;
   while (needed_defns.size() != 0) {
     auto next_defn_id = needed_defns.begin()->first;
     try {
-      specialize_core(phase_2.compilation->type_env, phase_2.defn_map,
+      specialize_core(phase_2.compilation->type_env, checked_defns,
                       *phase_2.scheme_resolver, phase_2.data_ctors_map,
                       next_defn_id, translation_map, needed_defns);
     } catch (user_error &e) {
@@ -1109,6 +1052,12 @@ phase_4_t ssa_gen(llvm::LLVMContext &context, const Phase3 &phase_3) {
         const std::string &name = pair.first;
         const types::Ref &type = overload.first;
         Translation::ref translation = overload.second;
+        if (translation == nullptr) {
+          log("how did we get here in ssa_gen with null translation for %s :: "
+              "%s",
+              name.c_str(), type->str().c_str());
+          assert(false);
+        }
 
         debug_above(4, log("fetching %s expression type from translated types",
                            name.c_str()));

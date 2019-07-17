@@ -57,6 +57,8 @@ const Expr *texpr(const types::DefnId &for_defn_id,
                         type->str().c_str()),
           typing);
 
+  type = types::unitize(type);
+
   bool starts_already_returned = returns;
   try {
     /* the job of this function is to create a new ast that is constrained to
@@ -101,10 +103,11 @@ const Expr *texpr(const types::DefnId &for_defn_id,
       return unit_ret;
     } else if (auto var = dcast<const Var *>(expr)) {
       if (!in(var->id.name, bound_vars)) {
-        auto defn_id = types::DefnId{var->id,
-                                     types::unitize(type)->generalize({})};
+        types::DefnId defn_id{var->id, type};
+
         debug_above(2, log(c_id("%s") " depends on " c_id("%s"),
                            for_defn_id.str().c_str(), defn_id.str().c_str()));
+
         insert_needed_defn(needed_defns, defn_id, var->get_location(),
                            for_defn_id);
         auto new_var = new Var(var->id);
