@@ -1,5 +1,6 @@
 # test: pass, noprelude
 # expect: 1000
+# expect: 144
 
 class Getter a {
     fn getter() a
@@ -12,9 +13,11 @@ instance Getter Int {
 fn use_getter() => getter()
 fn g(n) => f(n)
 fn f(n) {
-    return n <= 2 ? 1 : (g(n-1) + g(n-2))
+    return __builtin_int_lte(n, 2)
+    ? 1
+    : __builtin_add_int(g(__builtin_subtract_int(n, 1)), g(__builtin_subtract_int(n, 2)))
 }
 fn main() {
-    _ := f(4)
+    __builtin_print_int(f(12))
     __builtin_print_int(use_getter())
 }

@@ -91,17 +91,96 @@ void handle_sigint(int sig) {
   exit(2);
 }
 
-types::SchemeRef check_decl(bool check_constraint_coverage,
-                            const DataCtorsMap &data_ctors_map,
-                            Identifier id,
-                            const Decl *decl,
-                            types::Ref expected_type,
-                            const types::SchemeResolver &scheme_resolver,
-                            CheckedDefinitionsByName &checked_defns) {
+types::Map resolve_free_type_after_specialization_inference(
+    const ast::Expr *expr,
+    types::Ref type,
+    const types::ClassPredicates &instance_requirements,
+    const types::ClassPredicates &instance_predicates) {
+  if (type->ftv_count() != 0) {
+    const types::ClassPredicates referenced_predicates =
+        types::get_overlapping_predicates(instance_requirements,
+                                          type->get_ftvs(),
+                                          nullptr /*overlapping_ftvs*/);
+    /* resolve overloads when they are ambiguous by looking at available
+     * instances */
+    log_location(expr->get_location(),
+                 "%s :: %s has free variables that are bound to predicates "
+                 "{%s}. let's try to match this scheme to "
+                 "a known type class instance...",
+                 expr->str().c_str(), type->str().c_str(),
+                 join_str(referenced_predicates, ", ").c_str());
+
+    types::Map bindings;
+    bool found_instance = false;
+    types::ClassPredicates found_instances;
+
+    /* just out of curiosity, see when there are more referenced
+     * predicates in a single expression type */
+    assert(referenced_predicates.size() == 1);
+
+    for (auto &referenced_predicate : referenced_predicates) {
+      log("we need to solve %s against {%s}",
+          referenced_predicate->str().c_str(),
+          join_str(instance_predicates, ", ").c_str());
+
+      for (auto &instance_predicate : instance_predicates) {
+        if (instance_predicate->classname.name ==
+            referenced_predicate->classname.name) {
+          /* we are referring to the same type class. now, let's unify the
+           * instance parameters in an attempt to resolve any functional
+           * dependencies between the associated types. */
+          types::Unification unification = types::unify_many(
+              instance_predicate->params, referenced_predicate->params);
+          if (unification.result) {
+            /* unification was successful. now check whether we've already found
+             * a matching instance or not */
+            /* this is the only instance which unifies so far. that's good */
+            found_instances.insert(instance_predicate);
+            std::swap(bindings, unification.bindings);
+          }
+        }
+      }
+      if (found_instances.size() == 1) {
+        /* this is good, it means that we found a single type class
+         * instance that satisfies our requirements. go ahead and return
+         * the bindings that will map the ftvs in the given type to some
+         * concrete type. */
+        assert(bindings.size() != 0);
+        assert(type->rebind(bindings)->ftv_count() == 0);
+        return bindings;
+      } else if (found_instances.size() == 0) {
+        throw user_error(expr->get_location(),
+                         "could not resolve the type of expr %s :: %s",
+                         expr->str().c_str(), type->str().c_str());
+      } else {
+        /* uh-oh, we found some ambiguity */
+        auto error = user_error(expr->get_location(),
+                                "ambiguous type instance here");
+        for (auto &predicate : found_instances) {
+          error.add_info(predicate->get_location(), "could be %s",
+                         predicate->str().c_str());
+        }
+        throw error;
+      }
+    }
+  }
+
+  /* nothing to do */
+  return {};
+}
+
+CheckedDefinitionRef check_decl(
+    const bool check_constraint_coverage,
+    const DataCtorsMap &data_ctors_map,
+    const types::ClassPredicates &instance_predicates,
+    const Identifier id,
+    const Decl *decl,
+    const types::Ref expected_type,
+    const types::SchemeResolver &scheme_resolver) {
   const Expr *expr = decl->value;
+  TrackedTypes tracked_types;
   types::Constraints constraints;
   types::ClassPredicates instance_requirements;
-  TrackedTypes tracked_types;
 
   debug_above(
       4, log("type checking %s = %s", id.str().c_str(), expr->str().c_str()));
@@ -120,12 +199,22 @@ types::SchemeRef check_decl(bool check_constraint_coverage,
   instance_requirements = types::rebind(instance_requirements, bindings);
   types::SchemeRef scheme = ty->generalize(instance_requirements)->normalize();
 
-  debug_above(3, log_location(id.location, "adding %s to env as %s",
-                              id.str().c_str(), scheme->str().c_str()));
-  checked_defns[id.name].push_back(
-      std::make_shared<CheckedDefinition>(scheme, decl, tracked_types));
+  if (instance_predicates.size() != 0) {
+    // TODO: clean up where this code is sitting.
 
-  return scheme;
+    for (auto pair : tracked_types) {
+      const ast::Expr *expr = pair.first;
+      const types::Ref &type = pair.second;
+
+      types::Map bindings = resolve_free_type_after_specialization_inference(
+          expr, type, instance_requirements, instance_predicates);
+
+      // REVIEW: this may be too sketchy to update the tracked_types while we
+      // are looping over them
+      rebind_tracked_types(tracked_types, bindings);
+    }
+  }
+  return std::make_shared<CheckedDefinition>(scheme, decl, tracked_types);
 }
 
 std::vector<std::string> alphabet(int count) {
@@ -236,7 +325,7 @@ CheckedDefinitionsByName check_decls(std::string entry_point_name,
   tarjan::SCCs sccs = tarjan::compute_strongly_connected_components(graph);
   debug_above(5, log("found program ordering %s", str(sccs).c_str()));
 
-  CheckedDefinitionsByName checked_definitions_by_name;
+  CheckedDefinitionsByName checked_defns;
   for (auto &scc : sccs) {
     /* we are looking at a strongly coupled (aka mutually recursive) set of
      * functions or expressions. let's run inference on them all at once. */
@@ -330,12 +419,12 @@ CheckedDefinitionsByName check_decls(std::string entry_point_name,
       CheckedDefinitionRef checked_definition =
           std::make_shared<const CheckedDefinition>(
               scheme, decl_map[pair.first], tracked_types);
-      checked_definitions_by_name.insert(
+      checked_defns.insert(
           {pair.first, std::list<CheckedDefinitionRef>{checked_definition}});
     }
   }
 
-  return checked_definitions_by_name;
+  return checked_defns;
 }
 
 } // namespace
@@ -374,9 +463,16 @@ void check_instance_for_type_class_overload(
       types::SchemeRef expected_scheme = expected_type->generalize(
           class_predicates);
 
-      types::SchemeRef resolved_scheme = check_decl(
-          false /*check_constraint_coverage*/, data_ctors_map, decl->id, decl,
-          expected_type, scheme_resolver, checked_defns);
+      CheckedDefinitionRef checked_defn = check_decl(
+          false /*check_constraint_coverage*/, data_ctors_map, {}, decl->id, decl,
+          expected_type, scheme_resolver);
+      const auto &resolved_scheme = checked_defn->scheme;
+      const auto &decl = checked_defn->decl;
+
+      debug_above(3, log_location(decl->id.location,
+                                  "adding %s to env as %s", decl->id.str().c_str(),
+                                  resolved_scheme->str().c_str()));
+      checked_defns[decl->id.name].push_back(checked_defn);
 
       debug_above(3, log_location(
                          decl->id.location,
@@ -425,11 +521,6 @@ void check_instance_for_type_class_overloads(
   // find all ftvs
   // freshen them all
   const types::Ftvs &ftvs = instance->class_predicate->get_ftvs();
-#if 0
-  for (auto &ftv : ftvs) {
-    assert(in(ftv, type_class->type_var_ids));
-  }
-#endif
   int i = 0;
   if (instance->class_predicate->params.size() !=
       type_class->type_var_ids.size()) {
@@ -472,8 +563,9 @@ void check_instances(
     const std::vector<const Instance *> &instances,
     const std::map<std::string, const TypeClass *> &type_class_map,
     const DataCtorsMap &data_ctors_map,
-    types::SchemeResolver &scheme_resolver,
-    CheckedDefinitionsByName &checked_defns) {
+    /* out */ types::SchemeResolver &scheme_resolver,
+    /* out */ CheckedDefinitionsByName &checked_defns,
+    /* out */ types::ClassPredicates &instance_predicates) {
   std::vector<const Decl *> instance_decls;
 
   for (const Instance *instance : instances) {
@@ -508,6 +600,10 @@ void check_instances(
                                               data_ctors_map, instance_decls,
                                               scheme_resolver, checked_defns);
 
+      debug_above(
+          3, log("adding predicate %s to the set of all instance predicates",
+                 instance->class_predicate->str().c_str()));
+      instance_predicates.insert(instance->class_predicate);
     } catch (user_error &e) {
       e.add_info(instance->class_predicate->get_location(),
                  "while checking instance %s",
@@ -563,27 +659,33 @@ void check_instance_requirements(const std::vector<Instance *> &instances,
 }
 #endif
 
-std::tuple<const Decl *, types::Ref, TrackedTypes> get_specialization_manifest(
-    const CheckedDefinitionsByName &checked_definitions_by_name,
-    Location location,
-    std::string name,
-    types::Ref type) {
-  if (checked_definitions_by_name.count(name) == 0) {
+CheckedDefinitionRef specialize_checked_defn(
+    const DataCtorsMap &data_ctors_map,
+    const types::SchemeResolver &scheme_resolver,
+    const CheckedDefinitionsByName &checked_defns,
+    const types::ClassPredicates &instance_predicates,
+    const Location location,
+    const std::string name,
+    const types::Ref &type) {
+  if (checked_defns.count(name) == 0) {
     throw user_error(
         location,
         "unknown symbol '" c_id("%s") "' requested for specialization ",
         name.c_str());
   }
 
-  const Decl *decl = nullptr;
   types::Ref decl_type;
-  TrackedTypes tracked_types;
+  CheckedDefinitionRef checked_defn_to_specialize;
+  types::Map bindings;
 
-  for (auto checked_defn : checked_definitions_by_name.at(name)) {
+  for (auto checked_defn : checked_defns.at(name)) {
+    /* we have to loop over all possible overloads to ensure that only one
+     * unifies */
     types::Unification unification = unify(checked_defn->scheme->type, type);
     if (unification.result) {
-      if (decl != nullptr) {
-        throw user_error(decl->get_location(),
+      /* multiple overloads exist that match this name and type */
+      if (checked_defn_to_specialize != nullptr) {
+        throw user_error(checked_defn_to_specialize->decl->get_location(),
                          "found ambiguous instance method")
             .add_info(location, "while looking for " c_id("%s") " :: %s",
                       name.c_str(), type->str().c_str())
@@ -591,28 +693,45 @@ std::tuple<const Decl *, types::Ref, TrackedTypes> get_specialization_manifest(
                       "also matches (with scheme %s)",
                       checked_defn->scheme->normalize()->str().c_str());
       }
-      decl = checked_defn->decl;
+      bindings.swap(unification.bindings);
+      checked_defn_to_specialize = checked_defn;
       decl_type = type->rebind(unification.bindings);
-      tracked_types = checked_defn->tracked_types;
-      rebind_tracked_types(tracked_types, unification.bindings);
+      assert(decl_type->ftv_count() == 0);
     }
   }
-  return {decl, decl_type, tracked_types};
+
+  if (checked_defn_to_specialize == nullptr) {
+    throw user_error(location,
+                     "could not find a definition for " c_id("%s") " :: %s",
+                     name.c_str(), type->str().c_str());
+  }
+
+  INDENT(0, string_format("specializing checked definition %s :: %s",
+                          checked_defn_to_specialize->decl->id.str().c_str(),
+                          decl_type->str().c_str(), str(bindings).c_str()));
+
+  return check_decl(false /*check_constraint_coverage*/, data_ctors_map,
+                    instance_predicates, checked_defn_to_specialize->decl->id,
+                    checked_defn_to_specialize->decl, decl_type,
+                    scheme_resolver);
 }
 
 struct Phase2 {
-  Phase2(const std::shared_ptr<Compilation const> &compilation,
-         const std::shared_ptr<types::SchemeResolver> &scheme_resolver,
-         const CheckedDefinitionsByName &&checked_definitions_by_name,
-         const DataCtorsMap &data_ctors_map)
+  explicit Phase2(const std::shared_ptr<Compilation const> &compilation,
+                  const std::shared_ptr<types::SchemeResolver> &scheme_resolver,
+                  const CheckedDefinitionsByName &&checked_defns,
+                  const types::ClassPredicates &instance_predicates,
+                  const DataCtorsMap &data_ctors_map)
       : compilation(compilation), scheme_resolver(scheme_resolver),
-        checked_definitions_by_name(std::move(checked_definitions_by_name)),
+        checked_defns(std::move(checked_defns)),
+        instance_predicates(instance_predicates),
         data_ctors_map(data_ctors_map) {
   }
 
   const std::shared_ptr<Compilation const> compilation;
   const std::shared_ptr<types::SchemeResolver> scheme_resolver;
-  const CheckedDefinitionsByName checked_definitions_by_name;
+  const CheckedDefinitionsByName checked_defns;
+  const types::ClassPredicates instance_predicates;
   const DataCtorsMap data_ctors_map;
 
   std::ostream &dump(std::ostream &os) {
@@ -675,8 +794,10 @@ Phase2 compile(std::string user_program_name_) {
       compilation->program_name + ".main", program->decls,
       compilation->data_ctors_map, scheme_resolver);
 
+  types::ClassPredicates instance_predicates;
   check_instances(program->instances, type_class_map,
-                  compilation->data_ctors_map, scheme_resolver, checked_defns);
+                  compilation->data_ctors_map, scheme_resolver, checked_defns,
+                  instance_predicates);
 
 #if 0
     if (debug_compiled_env) {
@@ -707,7 +828,7 @@ Phase2 compile(std::string user_program_name_) {
 #endif
 
   return Phase2{compilation, scheme_resolver_ptr, std::move(checked_defns),
-                compilation->data_ctors_map};
+                instance_predicates, compilation->data_ctors_map};
 }
 
 typedef std::map<std::string,
@@ -716,6 +837,7 @@ typedef std::map<std::string,
 
 void specialize_core(const types::TypeEnv &type_env,
                      const CheckedDefinitionsByName &checked_defns,
+                     const types::ClassPredicates &instance_predicates,
                      const types::SchemeResolver &scheme_resolver,
                      const DataCtorsMap &data_ctors_map,
                      types::DefnId defn_id_to_match,
@@ -744,6 +866,7 @@ void specialize_core(const types::TypeEnv &type_env,
                      defn_id_to_match.str().c_str(),
                      str(type->get_ftvs()).c_str());
   }
+  /* see whether we've already specialized this decl */
   auto translation = get(translation_map, defn_id_to_match.id.name, type,
                          Translation::ref{});
   if (translation != nullptr) {
@@ -756,36 +879,25 @@ void specialize_core(const types::TypeEnv &type_env,
   debug_above(7, log(c_good("Specializing subprogram %s"),
                      defn_id_to_match.str().c_str()));
 
-  /* cross-check all our data sources */
-#if 0
-		auto existing_type = env.maybe_get_tracked_type(translation_map[defn_id_to_match]);
-		auto existing_scheme = existing_type->generalize(env)->normalize();
-		/* the env should be internally self-consistent */
-		assert(scheme_equality(get(env.map, defn_id_to_match.id.name, {}), existing_scheme));
-		/* the existing scheme for the unspecialized version should not match the one we are seeking
-		 * because above we looked in our map for this specialization. */
-		assert(!scheme_equality(existing_scheme, defn_id_to_match.specialization));
-		assert(!scheme_equality(get(env.map, defn_id_to_match.id.name, {}), defn_id_to_match.specialization));
-#endif
-
   /* start the process of specializing our decl */
-  const Decl *decl = nullptr;
-  types::Ref defn_type;
-  TrackedTypes tracked_types;
-
   /* get the decl and its tracked types so that we can rebind them and translate
    * a new decl */
-  std::tie(decl, defn_type, tracked_types) = get_specialization_manifest(
-      checked_defns, defn_id_to_match.id.location, defn_id_to_match.id.name,
+  CheckedDefinitionRef checked_defn = specialize_checked_defn(
+      data_ctors_map, scheme_resolver, checked_defns, instance_predicates,
+      defn_id_to_match.id.location, defn_id_to_match.id.name,
       defn_id_to_match.type);
 
-  debug_above(3, log("found defn for %s in decl %s",
+  debug_above(1, log("found defn for %s in decl %s",
                      defn_id_to_match.str().c_str(),
-                     decl->str().c_str()));
+                     checked_defn->decl->str().c_str()));
 
   /* now we know the resulting monomorphic type for the value we want to
    * instantiate */
-  types::DefnId defn_id{defn_id_to_match.id, defn_type};
+  const auto defn_type = checked_defn->scheme->type;
+  const auto &decl = checked_defn->decl;
+  const auto &tracked_types = checked_defn->tracked_types;
+
+  const types::DefnId defn_id{defn_id_to_match.id, defn_type};
 
   assert(type_equality(defn_type, type));
 
@@ -797,45 +909,32 @@ void specialize_core(const types::TypeEnv &type_env,
     const std::string final_name = defn_id.id.name;
 
     /* wrap this expr in it's asserted type to ensure that it monomorphizes */
-    const As *as_defn = new As(to_check, defn_id.type, false);
     debug_above(3, log_location(defn_id.id.location, "hey, checking %s",
-                                as_defn->str().c_str()));
-#if 0
-    Identifier defn_to_check{defn_id.repr(), defn_id.id.location};
-    types::SchemeResolver local_scheme_resolver(&scheme_resolver);
-    types::SchemeRef resolved_scheme = check(true /*check_constraint_coverage*/,
-                                             defn_to_check, as_defn, env,
-                                             local_scheme_resolver);
-    debug_above(1, log("translation: skipping adding %s to the scheme_resolver",
-                       defn_id.str().c_str(), resolved_scheme->str().c_str()));
-    assert(env.tracked_types == tracked_types);
-
+                                to_check->str().c_str()));
     if (debug_specialized_env) {
-      for (auto pair : *tracked_types) {
+      for (auto pair : tracked_types) {
         log_location(pair.first->get_location(), "%s :: %s",
                      pair.first->str().c_str(), pair.second->str().c_str());
       }
     }
 
-    // TODO: this may be the right spot to look through the tracked_types and
-    // determine how to rebind any type variables with btvs > 0 so that we can
-    // resolve instance defaults... we'll need to check to ensure that we are
-    // properly adding to needed_defns
-#if 0
+    std::unordered_set<std::string> bound_vars;
+    INDENT(1, string_format("----------- specialize %s ------------",
+                            defn_id.str().c_str()));
+#ifdef ZION_DEBUG
     for (auto pair : tracked_types) {
       const ast::Expr *expr;
       types::Ref type;
-      std::tie(std::ref(expr), std::ref(type)) = pair;
+      std::tie(expr, type) = pair;
+      debug_above(
+          1, log("spec %s :: %s", expr->str().c_str(), type->str().c_str()));
     }
 #endif
 
-    TranslationEnv tenv{tracked_types, ctor_id_map, data_ctors_map};
-    std::unordered_set<std::string> bound_vars;
-    INDENT(6, string_format("----------- specialize %s ------------",
-                            defn_id.str().c_str()));
     bool returns = true;
-    auto translated_decl = translate_expr(
-        defn_id, as_defn, bound_vars, type_env, tenv, needed_defns, returns);
+    auto translated_decl = translate_expr(defn_id, to_check, data_ctors_map,
+                                          bound_vars, tracked_types, type_env,
+                                          needed_defns, returns);
 
     assert(returns);
 
@@ -847,7 +946,6 @@ void specialize_core(const types::TypeEnv &type_env,
     debug_above(4, log("setting %s :: %s = %s", final_name.c_str(),
                        type->str().c_str(), translated_decl->str().c_str()));
     translation_map[final_name][type] = translated_decl;
-#endif
   } catch (...) {
     translation_map[defn_id.id.name].erase(type);
     throw;
@@ -875,8 +973,7 @@ Phase3 specialize(const Phase2 &phase_2) {
     throw user_error(INTERNAL_LOC(), "quitting");
   }
   CheckedDefinitionRef checked_defn_main =
-      phase_2.checked_definitions_by_name
-          .at(phase_2.compilation->program_name + ".main")
+      phase_2.checked_defns.at(phase_2.compilation->program_name + ".main")
           .back();
   const Decl *program_main = checked_defn_main->decl;
   types::Ref program_type = checked_defn_main->scheme->type;
@@ -885,14 +982,15 @@ Phase3 specialize(const Phase2 &phase_2) {
   types::DefnId main_defn{program_main->id, program_type};
   insert_needed_defn(needed_defns, main_defn, INTERNAL_LOC(), main_defn);
 
-  CheckedDefinitionsByName checked_defns = phase_2.checked_definitions_by_name;
+  CheckedDefinitionsByName checked_defns = phase_2.checked_defns;
   translation_map_t translation_map;
   while (needed_defns.size() != 0) {
     auto next_defn_id = needed_defns.begin()->first;
     try {
       specialize_core(phase_2.compilation->type_env, checked_defns,
-                      *phase_2.scheme_resolver, phase_2.data_ctors_map,
-                      next_defn_id, translation_map, needed_defns);
+                      phase_2.instance_predicates, *phase_2.scheme_resolver,
+                      phase_2.data_ctors_map, next_defn_id, translation_map,
+                      needed_defns);
     } catch (user_error &e) {
       if (fast_fail) {
         throw;
@@ -1066,8 +1164,8 @@ phase_4_t ssa_gen(llvm::LLVMContext &context, const Phase3 &phase_3) {
             log("%s should be the same type as %s",
                 get(translation->typing, translation->expr, {})->str().c_str(),
                 type->str().c_str()));
-        assert(type_equality(get(translation->typing, translation->expr, {}),
-                             type));
+        assert_type_equality(get(translation->typing, translation->expr, {}),
+                             type);
 
         /* at this point we should not have a resolver or a declaration or
          * definition or anything for this symbol */
