@@ -25,13 +25,9 @@ void rebind_tracked_types(TrackedTypes &tracked_types,
     return;
   }
 
-  TrackedTypes temp_tracked_types;
-
   for (auto pair : tracked_types) {
-    assert(temp_tracked_types.count(pair.first) == 0);
-    temp_tracked_types.insert({pair.first, pair.second->rebind(bindings)});
+    tracked_types[pair.first] = pair.second->rebind(bindings);
   }
-  temp_tracked_types.swap(tracked_types);
 }
 
 } // namespace zion

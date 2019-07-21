@@ -207,6 +207,11 @@ bool is_callable(const types::Ref &type);
 bool is_type_id(Ref type, const std::string &type_name);
 bool is_unit(Ref type);
 
+types::ClassPredicates get_overlapping_predicates(
+    const types::ClassPredicates &class_predicates,
+    const Ftvs &ftvs,
+    Ftvs *overlapping_ftvs);
+
 }; // namespace types
 
 std::string gensym_name();

@@ -4,11 +4,15 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <set>
+#include <list>
 
 namespace types {
 struct Scheme;
 typedef std::shared_ptr<const Scheme> SchemeRef;
 typedef std::map<std::string, SchemeRef> SchemeMap;
+typedef std::set<SchemeRef> SchemeSet;
+typedef std::list<SchemeRef> Schemes;
 } // namespace types
 
 #include "class_predicate.h"

@@ -70,9 +70,9 @@ install-test:
 
 .PHONY: test
 test:
-	make $(BUILT_BINARY)
-	make install-test
-	ZION_RT=$(test_destdir)/$(prefix)/share/$(PN)/runtime \
+	@make $(BUILT_BINARY)
+	@make install-test
+	@ZION_RT=$(test_destdir)/$(prefix)/share/$(PN)/runtime \
 		ZION_PATH=$(test_destdir)/$(prefix)/share/$(PN)/lib \
 			$(SRCDIR)/tests/run-tests.sh \
 				$(test_destdir)/$(prefix)/bin \

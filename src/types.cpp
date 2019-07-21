@@ -81,25 +81,26 @@ std::string Type::repr(const Map &bindings) const {
 }
 
 types::ClassPredicates get_overlapping_predicates(
-    const types::ClassPredicates &cps,
+    const types::ClassPredicates &class_predicates,
     const Ftvs &ftvs,
     Ftvs *overlapping_ftvs) {
   /* eliminate class predicates that do not mention any ftvs. fill out the
    * |overlapping_ftvs|.  */
 #ifdef ZION_DEBUG
-  if (cps.size() != 0 || ftvs.size() != 0) {
+  if (class_predicates.size() != 0 || ftvs.size() != 0) {
     debug_above(5,
                 log("looking for overlapping predicates between {%s} and {%s}",
-                    join_str(cps, ", ").c_str(), join(ftvs, ", ").c_str()));
+                    join_str(class_predicates, ", ").c_str(),
+                    join(ftvs, ", ").c_str()));
   }
 #endif
-  types::ClassPredicates new_cps;
+  types::ClassPredicates new_class_predicates;
   Ftvs existing_ftvs;
-  for (auto &cp : cps) {
-    const Ftvs &cp_ftvs = cp->get_ftvs();
+  for (auto &class_predicate : class_predicates) {
+    const Ftvs &cp_ftvs = class_predicate->get_ftvs();
     if (any_in(ftvs, cp_ftvs)) {
       set_concat(existing_ftvs, cp_ftvs);
-      new_cps.insert(cp);
+      new_class_predicates.insert(class_predicate);
     }
   }
   if (overlapping_ftvs != nullptr) {
@@ -107,17 +108,18 @@ types::ClassPredicates get_overlapping_predicates(
     std::swap(*overlapping_ftvs, existing_ftvs);
   }
 #ifdef ZION_DEBUG
-  if (cps.size() != 0) {
-    debug_above(5, log("found new cps %s", str(new_cps).c_str()));
+  if (class_predicates.size() != 0) {
+    debug_above(5, log("found new class_predicates %s",
+                       str(new_class_predicates).c_str()));
   }
 #endif
-  return new_cps;
+  return new_class_predicates;
 }
 
-Ftvs get_ftvs(const types::ClassPredicates &cps) {
+Ftvs get_ftvs(const types::ClassPredicates &class_predicates) {
   Ftvs ftvs;
-  for (auto &cp : cps) {
-    set_concat(ftvs, cp->get_ftvs());
+  for (auto &class_predicate : class_predicates) {
+    set_concat(ftvs, class_predicate->get_ftvs());
   }
   return ftvs;
 }
