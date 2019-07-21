@@ -25,24 +25,24 @@ struct LazyResolver final : public Resolver {
    * reference one another */
   LazyResolver(std::string name,
                types::Ref type,
-               lazy_resolver_callback_t &&callback);
+               LazyResolverCallback &&callback);
   ~LazyResolver();
   llvm::Value *resolve_impl() override;
   std::string str() const override;
   Location get_location() const override;
 
 private:
-  /* by using a topographical sorting algorithm, we can enable re-entrancy in
+  /* by using a topological sorting algorithm, we can enable re-entrancy in
    * order to resolve prototypes (basically forward decls) */
-  enum sort_color_t {
+  enum SortColor {
     sc_unresolved,
     sc_resolving,
     sc_resolved,
   };
-  sort_color_t sort_color;
+  SortColor sort_color;
   std::string name;
   types::Ref type;
-  lazy_resolver_callback_t callback;
+  LazyResolverCallback callback;
   llvm::Value *value = nullptr;
 };
 

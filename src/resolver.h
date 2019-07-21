@@ -10,13 +10,12 @@ namespace zion {
 
 namespace gen {
 
-enum resolution_status_t {
+enum ResolutionStatus {
   rs_resolve_again,
   rs_cache_resolution,
 };
 
-typedef std::function<resolution_status_t(llvm::Value **)>
-    lazy_resolver_callback_t;
+typedef std::function<ResolutionStatus(llvm::Value **)> LazyResolverCallback;
 
 struct Publisher {
   virtual ~Publisher() {
@@ -44,7 +43,7 @@ struct Resolver {
 std::shared_ptr<Resolver> strict_resolver(llvm::Value *llvm_value);
 std::shared_ptr<Resolver> lazy_resolver(std::string name,
                                         types::Ref type,
-                                        lazy_resolver_callback_t &&callback);
+                                        LazyResolverCallback &&callback);
 
 } // namespace gen
 

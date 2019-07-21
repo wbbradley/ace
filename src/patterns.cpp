@@ -382,8 +382,8 @@ const Expr *CtorPredicate::translate(
       return translate_next(for_defn_id, scrutinee_id, resolved_scrutinee_type,
                             tuple_type->dimensions, do_checks, data_ctors_map,
                             bound_vars, tracked_types, params, 0,
-                            0 /*dim_offset*/, type_env, typing,
-                            needed_defns, returns, matched, failed);
+                            0 /*dim_offset*/, type_env, typing, needed_defns,
+                            returns, matched, failed);
     }
   }
 

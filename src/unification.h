@@ -3,9 +3,9 @@
 #include <string>
 #include <vector>
 
-#include "zion_assert.h"
 #include "location.h"
 #include "types.h"
+#include "zion_assert.h"
 
 namespace types {
 

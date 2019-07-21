@@ -1,7 +1,7 @@
 #include "data_ctors_map.h"
 
-#include <string>
 #include <sstream>
+#include <string>
 
 #include "dbg.h"
 #include "logger_decls.h"
@@ -119,4 +119,3 @@ std::string str(const zion::DataCtorsMap &data_ctors_map) {
   }
   return ss.str();
 }
-

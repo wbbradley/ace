@@ -753,8 +753,9 @@ Pattern::ref IrrefutablePredicate::get_pattern(
                                  type);
 }
 
-Pattern::ref Literal::get_pattern(types::Ref type,
-                                  const zion::DataCtorsMap &data_ctors_map) const {
+Pattern::ref Literal::get_pattern(
+    types::Ref type,
+    const zion::DataCtorsMap &data_ctors_map) const {
   if (type_equality(type, type_int(INTERNAL_LOC()))) {
     if (token.tk == tk_integer) {
       int64_t value = parse_int_value(token);

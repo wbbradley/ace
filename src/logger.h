@@ -10,7 +10,7 @@
 #include "utils.h"
 #include "zion.h"
 
-const char *logstr(log_level_t ll);
+const char *logstr(LogLevel ll);
 void time_now(std::ostream &os, bool exact, bool for_humans);
 void append_time(std::ostream &os,
                  double time_exact,
@@ -21,11 +21,11 @@ void append_time(std::ostream &os,
 struct logger {
   virtual ~logger() throw() {
   }
-  virtual void logv(log_level_t level,
+  virtual void logv(LogLevel level,
                     const Location *location,
                     const char *format,
                     va_list args) = 0;
-  virtual void log(log_level_t level,
+  virtual void log(LogLevel level,
                    const Location *location,
                    const char *format,
                    ...) = 0;
@@ -38,21 +38,18 @@ public:
   standard_logger(const std::string &name, const std::string &root_file_path);
   virtual ~standard_logger();
 
-  void logv(log_level_t level,
+  void logv(LogLevel level,
             const Location *location,
             const char *format,
             va_list args);
-  void log(log_level_t level,
-           const Location *location,
-           const char *format,
-           ...);
+  void log(LogLevel level, const Location *location, const char *format, ...);
   void close();
   void open();
   void flush();
   void dump();
 
   friend void panic_(const char *filename, int line, std::string msg);
-  friend void logv(log_level_t level, const char *format, va_list args);
+  friend void logv(LogLevel level, const char *format, va_list args);
 
   virtual int get_depth() const {
     return 0;
@@ -70,11 +67,11 @@ struct tee_logger : public logger {
   tee_logger();
   virtual ~tee_logger() throw();
 
-  virtual void logv(log_level_t level,
+  virtual void logv(LogLevel level,
                     const Location *location,
                     const char *format,
                     va_list args);
-  virtual void log(log_level_t level,
+  virtual void log(LogLevel level,
                    const Location *location,
                    const char *format,
                    ...);
@@ -86,19 +83,18 @@ struct tee_logger : public logger {
   }
 
   logger *logger_old;
-  std::list<std::tuple<log_level_t, maybe<Location>, std::string>>
-      captured_logs;
+  std::list<std::tuple<LogLevel, maybe<Location>, std::string>> captured_logs;
 };
 
 struct indent_logger : logger {
   indent_logger(Location location, int level, std::string message);
   virtual ~indent_logger() throw();
 
-  virtual void logv(log_level_t level,
+  virtual void logv(LogLevel level,
                     const Location *location,
                     const char *format,
                     va_list args);
-  virtual void log(log_level_t level,
+  virtual void log(LogLevel level,
                    const Location *location,
                    const char *format,
                    ...);
@@ -126,11 +122,11 @@ struct note_logger : logger {
   note_logger(std::string message);
   virtual ~note_logger() throw();
 
-  virtual void logv(log_level_t level,
+  virtual void logv(LogLevel level,
                     const Location *location,
                     const char *format,
                     va_list args);
-  virtual void log(log_level_t level,
+  virtual void log(LogLevel level,
                    const Location *location,
                    const char *format,
                    ...);
@@ -144,7 +140,7 @@ struct note_logger : logger {
 };
 
 void write_log_streamv(std::ostream &os,
-                       log_level_t level,
+                       LogLevel level,
                        const Location *location,
                        const char *format,
                        va_list args);

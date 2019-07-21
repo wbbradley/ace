@@ -16,8 +16,8 @@ typedef std::map<std::string, types::Map> ParsedDataCtorsMap;
 typedef std::unordered_map<std::string, int> ParsedCtorIdMap;
 
 struct ParseState {
-  typedef log_level_t parse_error_level_t;
-  parse_error_level_t pel_error = log_error;
+  typedef LogLevel ParseError_level;
+  ParseError_level pel_error = log_error;
 
   ParseState(std::string filename,
              std::string module_name,

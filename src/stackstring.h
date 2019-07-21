@@ -8,11 +8,11 @@
 #include <string.h>
 #include <string>
 
-template <size_t MAX_STRLEN> struct stackstring_t {
-  stackstring_t() : length(0) {
+template <size_t MAX_STRLEN> struct StackString {
+  StackString() : length(0) {
   }
 
-  ~stackstring_t() = default;
+  ~StackString() = default;
 
   void reset() {
     length = 0;

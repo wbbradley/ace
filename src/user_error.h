@@ -8,9 +8,9 @@
 namespace zion {
 
 struct user_error : std::exception {
-  user_error(log_level_t log_level, Location location);
-  user_error(log_level_t log_level, Location location, const char *format...);
-  user_error(log_level_t log_level,
+  user_error(LogLevel log_level, Location location);
+  user_error(LogLevel log_level, Location location, const char *format...);
+  user_error(LogLevel log_level,
              Location location,
              const char *format,
              va_list args);
@@ -22,7 +22,7 @@ struct user_error : std::exception {
   virtual const char *what() const noexcept;
   user_error &add_info(Location location, const char *format...);
 
-  log_level_t log_level;
+  LogLevel log_level;
   Location location;
   std::string message;
 
