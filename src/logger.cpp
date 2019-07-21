@@ -30,7 +30,7 @@ void log_enable(int log_level) {
 
 logger *_logger = nullptr;
 
-const char *level_color(log_level_t ll) {
+const char *level_color(LogLevel ll) {
   switch (ll) {
   case log_info:
     return C_INFO;
@@ -44,7 +44,7 @@ const char *level_color(log_level_t ll) {
   return "";
 }
 
-const char *logstr(log_level_t ll) {
+const char *logstr(LogLevel ll) {
   switch (ll) {
   case log_info:
     return "";
@@ -59,7 +59,7 @@ const char *logstr(log_level_t ll) {
 }
 
 void write_log_streamv(std::ostream &os,
-                       log_level_t level,
+                       LogLevel level,
                        const Location *location,
                        const char *format,
                        va_list args) {
@@ -71,7 +71,7 @@ void write_log_streamv(std::ostream &os,
 }
 
 void write_log_stream(std::ostream &os,
-                      log_level_t level,
+                      LogLevel level,
                       const Location *location,
                       const char *format,
                       ...) {
@@ -82,7 +82,7 @@ void write_log_stream(std::ostream &os,
 }
 
 void write_logv(FILE *fp,
-                log_level_t level,
+                LogLevel level,
                 const Location *location,
                 const char *format,
                 va_list args) {
@@ -114,19 +114,17 @@ tee_logger::~tee_logger() throw() {
   _logger = logger_old;
 }
 
-void tee_logger::logv(log_level_t level,
+void tee_logger::logv(LogLevel level,
                       const Location *location,
                       const char *format,
                       va_list args) {
   if (_max_log_depth == 0 || get_depth() < _max_log_depth) {
     auto str = string_formatv(format, args);
 
-    captured_logs.push_back(
-        std::tuple<log_level_t, maybe<Location>, std::string>(
-            level,
-            location != nullptr ? maybe<Location>(*location)
-                                : maybe<Location>(),
-            str));
+    captured_logs.push_back(std::tuple<LogLevel, maybe<Location>, std::string>(
+        level,
+        location != nullptr ? maybe<Location>(*location) : maybe<Location>(),
+        str));
 
     if (logger_old != nullptr) {
       logger_old->log(level, location, "%s", str.c_str());
@@ -134,7 +132,7 @@ void tee_logger::logv(log_level_t level,
   }
 }
 
-void tee_logger::log(log_level_t level,
+void tee_logger::log(LogLevel level,
                      const Location *location,
                      const char *format,
                      ...) {
@@ -166,7 +164,7 @@ indent_logger::~indent_logger() throw() {
   debug_above(level, ::log(log_info, c_control(")")));
 }
 
-void indent_logger::logv(log_level_t level,
+void indent_logger::logv(LogLevel level,
                          const Location *location,
                          const char *format,
                          va_list args) {
@@ -179,7 +177,7 @@ void indent_logger::logv(log_level_t level,
   }
 }
 
-void indent_logger::log(log_level_t level,
+void indent_logger::log(LogLevel level,
                         const Location *location,
                         const char *format,
                         ...) {
@@ -197,7 +195,7 @@ note_logger::~note_logger() throw() {
   _logger = logger_old;
 }
 
-void note_logger::logv(log_level_t level,
+void note_logger::logv(LogLevel level,
                        const Location *location,
                        const char *format,
                        va_list args) {
@@ -208,7 +206,7 @@ void note_logger::logv(log_level_t level,
   }
 }
 
-void note_logger::log(log_level_t level,
+void note_logger::log(LogLevel level,
                       const Location *location,
                       const char *format,
                       ...) {
@@ -354,7 +352,7 @@ void panic_(const char *filename, int line, std::string msg) {
   raise(SIGKILL);
 }
 
-void log_location(log_level_t level,
+void log_location(LogLevel level,
                   const Location &location,
                   const char *format,
                   ...) {
@@ -378,7 +376,7 @@ void log(const char *format, ...) {
   va_end(args);
 }
 
-void log(log_level_t level, const char *format, ...) {
+void log(LogLevel level, const char *format, ...) {
   if (mask(logger_level, level) == 0)
     return;
 
@@ -388,7 +386,7 @@ void log(log_level_t level, const char *format, ...) {
   va_end(args);
 }
 
-void logv_location(log_level_t level,
+void logv_location(LogLevel level,
                    const Location &location,
                    const char *format,
                    va_list args) {
@@ -400,7 +398,7 @@ void logv_location(log_level_t level,
   _logger->logv(level, &location, format, args);
 }
 
-void logv(log_level_t level, const char *format, va_list args) {
+void logv(LogLevel level, const char *format, va_list args) {
   if (mask(logger_level, level) == 0)
     return;
 
@@ -413,7 +411,7 @@ void standard_logger::flush() {
     fflush(m_fp);
 }
 
-void standard_logger::log(log_level_t level,
+void standard_logger::log(LogLevel level,
                           const Location *location,
                           const char *format,
                           ...) {
@@ -426,7 +424,7 @@ void standard_logger::log(log_level_t level,
   va_end(args);
 }
 
-void standard_logger::logv(log_level_t level,
+void standard_logger::logv(LogLevel level,
                            const Location *location,
                            const char *format,
                            va_list args) {
@@ -620,7 +618,7 @@ void print_stacktrace(FILE *p_out, unsigned int p_max_frames) {
   fflush(p_out);
 }
 
-void log_stack(log_level_t level) {
+void log_stack(LogLevel level) {
   print_stacktrace(stdout, 100);
   return;
 

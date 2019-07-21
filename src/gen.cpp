@@ -169,13 +169,13 @@ void get_free_vars(const ast::Expr *expr,
                      join(locals, ", ").c_str(), free_vars.str().c_str()));
 }
 
-llvm::Value *maybe_get_env_var(const gen_env_t &gen_env,
+llvm::Value *maybe_get_env_var(const GenEnv &gen_env,
                                std::string name,
                                types::Ref type) {
   return maybe_get_env_var(gen_env, make_iid(name), type);
 }
 
-llvm::Value *maybe_get_env_var(const gen_env_t &gen_env,
+llvm::Value *maybe_get_env_var(const GenEnv &gen_env,
                                Identifier id,
                                types::Ref type) {
   auto iter_id = gen_env.find(id.name);
@@ -207,7 +207,7 @@ llvm::Value *maybe_get_env_var(const gen_env_t &gen_env,
 }
 
 llvm::Value *get_env_var(llvm::IRBuilder<> &builder,
-                         const gen_env_t &gen_env,
+                         const GenEnv &gen_env,
                          Identifier id,
                          types::Ref type) {
   llvm::IRBuilderBase::InsertPointGuard ipg(builder);
@@ -239,7 +239,7 @@ llvm::Value *get_env_var(llvm::IRBuilder<> &builder,
   return llvm_value;
 }
 
-void set_env_var(gen_local_env_t &gen_env,
+void set_env_var(GenLocalEnv &gen_env,
                  std::string name,
                  types::Ref type,
                  llvm::Value *llvm_value) {
@@ -676,8 +676,8 @@ void gen_lambda(std::string name,
                 types::Ref type,
                 const TrackedTypes &typing,
                 const types::TypeEnv &type_env,
-                const gen_env_t &gen_env_globals,
-                const gen_local_env_t &gen_env_locals,
+                const GenEnv &gen_env_globals,
+                const GenLocalEnv &gen_env_locals,
                 const std::unordered_set<std::string> &globals,
                 Publisher *publisher) {
   if (name == "") {
@@ -801,7 +801,7 @@ void gen_lambda(std::string name,
     builder.SetInsertPoint(block);
 
     /* put the param in scope */
-    gen_local_env_t new_env_locals;
+    GenLocalEnv new_env_locals;
     if (name != "") {
       /* inject the closure itself so that it can self refer */
       // set_env_var(new_env, name, type, opaque_closure);
@@ -861,11 +861,11 @@ void gen_lambda(std::string name,
   }
 }
 
-resolution_status_t gen_literal(std::string name,
-                                llvm::IRBuilder<> &builder,
-                                const ast::Literal *literal,
-                                types::Ref type,
-                                Publisher *publisher) {
+ResolutionStatus gen_literal(std::string name,
+                             llvm::IRBuilder<> &builder,
+                             const ast::Literal *literal,
+                             types::Ref type,
+                             Publisher *publisher) {
   auto &token = literal->token;
   debug_above(6, log("emitting literal %s :: %s", token.str().c_str(),
                      type->str().c_str()));
@@ -914,17 +914,17 @@ resolution_status_t gen_literal(std::string name,
   throw user_error(INTERNAL_LOC(), "compiler error");
 }
 
-resolution_status_t gen(llvm::IRBuilder<> &builder,
-                        llvm::Module *llvm_module,
-                        llvm::BasicBlock *break_to_block,
-                        llvm::BasicBlock *continue_to_block,
-                        const ast::Expr *expr,
-                        const TrackedTypes &typing,
-                        const types::TypeEnv &type_env,
-                        const gen_env_t &gen_env_globals,
-                        const gen_local_env_t &gen_env_locals,
-                        const std::unordered_set<std::string> &globals,
-                        llvm::Value **output_llvm_value) {
+ResolutionStatus gen(llvm::IRBuilder<> &builder,
+                     llvm::Module *llvm_module,
+                     llvm::BasicBlock *break_to_block,
+                     llvm::BasicBlock *continue_to_block,
+                     const ast::Expr *expr,
+                     const TrackedTypes &typing,
+                     const types::TypeEnv &type_env,
+                     const GenEnv &gen_env_globals,
+                     const GenLocalEnv &gen_env_locals,
+                     const std::unordered_set<std::string> &globals,
+                     llvm::Value **output_llvm_value) {
   if (output_llvm_value == nullptr) {
     return gen("", builder, llvm_module, break_to_block, continue_to_block,
                expr, typing, type_env, gen_env_globals, gen_env_locals, globals,
@@ -944,8 +944,8 @@ llvm::Value *gen(llvm::IRBuilder<> &builder,
                  const ast::Expr *expr,
                  const TrackedTypes &typing,
                  const types::TypeEnv &type_env,
-                 const gen_env_t &gen_env_globals,
-                 const gen_local_env_t &gen_env_locals,
+                 const GenEnv &gen_env_globals,
+                 const GenLocalEnv &gen_env_locals,
                  const std::unordered_set<std::string> &globals) {
   llvm::Value *llvm_value = nullptr;
   Publishable publishable(&llvm_value);
@@ -954,18 +954,18 @@ llvm::Value *gen(llvm::IRBuilder<> &builder,
   return llvm_value;
 }
 
-resolution_status_t gen(std::string name,
-                        llvm::IRBuilder<> &builder,
-                        llvm::Module *llvm_module,
-                        llvm::BasicBlock *break_to_block,
-                        llvm::BasicBlock *continue_to_block,
-                        const ast::Expr *expr,
-                        const TrackedTypes &typing,
-                        const types::TypeEnv &type_env,
-                        const gen_env_t &gen_env_globals,
-                        const gen_local_env_t &gen_env_locals,
-                        const std::unordered_set<std::string> &globals,
-                        Publisher *const publisher) {
+ResolutionStatus gen(std::string name,
+                     llvm::IRBuilder<> &builder,
+                     llvm::Module *llvm_module,
+                     llvm::BasicBlock *break_to_block,
+                     llvm::BasicBlock *continue_to_block,
+                     const ast::Expr *expr,
+                     const TrackedTypes &typing,
+                     const types::TypeEnv &type_env,
+                     const GenEnv &gen_env_globals,
+                     const GenLocalEnv &gen_env_locals,
+                     const std::unordered_set<std::string> &globals,
+                     Publisher *const publisher) {
   auto publish = [publisher](llvm::Value *llvm_value) {
     if (publisher != nullptr) {
       publisher->publish(llvm_value);

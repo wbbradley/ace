@@ -31,14 +31,14 @@ void print_exception(const user_error &e, int level) {
   e.display();
 }
 
-user_error::user_error(log_level_t log_level, Location location)
+user_error::user_error(LogLevel log_level, Location location)
     : log_level(log_level), location(location),
       extra_info(
           std::make_shared<std::vector<std::pair<Location, std::string>>>()) {
   errors_occurred_ = true;
 }
 
-user_error::user_error(log_level_t log_level,
+user_error::user_error(LogLevel log_level,
                        Location location,
                        const char *format...)
     : user_error(log_level, location) {
@@ -52,7 +52,7 @@ user_error::user_error(log_level_t log_level,
   }
 }
 
-user_error::user_error(log_level_t log_level,
+user_error::user_error(LogLevel log_level,
                        Location location,
                        const char *format,
                        va_list args)

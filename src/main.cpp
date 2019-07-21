@@ -464,13 +464,13 @@ void check_instance_for_type_class_overload(
           class_predicates);
 
       CheckedDefinitionRef checked_defn = check_decl(
-          false /*check_constraint_coverage*/, data_ctors_map, {}, decl->id, decl,
-          expected_type, scheme_resolver);
+          false /*check_constraint_coverage*/, data_ctors_map, {}, decl->id,
+          decl, expected_type, scheme_resolver);
       const auto &resolved_scheme = checked_defn->scheme;
       const auto &decl = checked_defn->decl;
 
-      debug_above(3, log_location(decl->id.location,
-                                  "adding %s to env as %s", decl->id.str().c_str(),
+      debug_above(3, log_location(decl->id.location, "adding %s to env as %s",
+                                  decl->id.str().c_str(),
                                   resolved_scheme->str().c_str()));
       checked_defns[decl->id.name].push_back(checked_defn);
 
@@ -833,7 +833,7 @@ Phase2 compile(std::string user_program_name_) {
 
 typedef std::map<std::string,
                  std::map<types::Ref, Translation::ref, types::CompareType>>
-    translation_map_t;
+    TranslationMap;
 
 void specialize_core(const types::TypeEnv &type_env,
                      const CheckedDefinitionsByName &checked_defns,
@@ -841,7 +841,7 @@ void specialize_core(const types::TypeEnv &type_env,
                      const types::SchemeResolver &scheme_resolver,
                      const DataCtorsMap &data_ctors_map,
                      types::DefnId defn_id_to_match,
-                     /* output */ translation_map_t &translation_map,
+                     /* output */ TranslationMap &translation_map,
                      /* output */ types::NeededDefns &needed_defns) {
   debug_above(2, log("specialize_core %s", defn_id_to_match.str().c_str()));
   if (starts_with(defn_id_to_match.id.name, "__builtin_")) {
@@ -954,7 +954,7 @@ void specialize_core(const types::TypeEnv &type_env,
 
 struct Phase3 {
   Phase2 phase_2;
-  translation_map_t translation_map;
+  TranslationMap translation_map;
 
   std::ostream &dump(std::ostream &os) {
     for (auto pair : translation_map) {
@@ -983,7 +983,7 @@ Phase3 specialize(const Phase2 &phase_2) {
   insert_needed_defn(needed_defns, main_defn, INTERNAL_LOC(), main_defn);
 
   CheckedDefinitionsByName checked_defns = phase_2.checked_defns;
-  translation_map_t translation_map;
+  TranslationMap translation_map;
   while (needed_defns.size() != 0) {
     auto next_defn_id = needed_defns.begin()->first;
     try {
@@ -1018,31 +1018,31 @@ Phase3 specialize(const Phase2 &phase_2) {
   return Phase3{phase_2, translation_map};
 }
 
-struct phase_4_t {
-  phase_4_t(const phase_4_t &) = delete;
-  phase_4_t(Phase3 phase_3,
-            gen::gen_env_t &&gen_env,
-            llvm::Module *llvm_module,
-            llvm::DIBuilder *dbuilder,
-            std::string output_llvm_filename)
+struct Phase4 {
+  Phase4(const Phase4 &) = delete;
+  Phase4(Phase3 phase_3,
+         gen::GenEnv &&gen_env,
+         llvm::Module *llvm_module,
+         llvm::DIBuilder *dbuilder,
+         std::string output_llvm_filename)
       : phase_3(phase_3), gen_env(std::move(gen_env)), llvm_module(llvm_module),
         dbuilder(dbuilder), output_llvm_filename(output_llvm_filename) {
   }
-  phase_4_t(phase_4_t &&rhs)
+  Phase4(Phase4 &&rhs)
       : phase_3(rhs.phase_3), gen_env(std::move(rhs.gen_env)),
         llvm_module(rhs.llvm_module), dbuilder(rhs.dbuilder),
         output_llvm_filename(rhs.output_llvm_filename) {
     rhs.llvm_module = nullptr;
     rhs.dbuilder = nullptr;
   }
-  ~phase_4_t() {
+  ~Phase4() {
     delete dbuilder;
     delete llvm_module;
     // FUTURE: unlink(output_llvm_filename.c_str());
   }
 
   Phase3 phase_3;
-  gen::gen_env_t gen_env;
+  gen::GenEnv gen_env;
   llvm::Module *llvm_module = nullptr;
   llvm::DIBuilder *dbuilder = nullptr;
   std::string output_llvm_filename;
@@ -1079,7 +1079,7 @@ std::unordered_set<std::string> get_globals(const Phase3 &phase_3) {
 
 void build_main_function(llvm::IRBuilder<> &builder,
                          llvm::Module *llvm_module,
-                         const gen::gen_env_t &gen_env,
+                         const gen::GenEnv &gen_env,
                          std::string program_name) {
   std::string main_closure = program_name + ".main";
   types::Ref main_type = type_arrows(
@@ -1123,12 +1123,12 @@ void build_main_function(llvm::IRBuilder<> &builder,
   builder.CreateRet(builder.getInt32(0));
 }
 
-phase_4_t ssa_gen(llvm::LLVMContext &context, const Phase3 &phase_3) {
+Phase4 ssa_gen(llvm::LLVMContext &context, const Phase3 &phase_3) {
   llvm::Module *llvm_module = new llvm::Module("program", context);
   llvm::DIBuilder *dbuilder = nullptr; // new llvm::DIBuilder(*module);
   llvm::IRBuilder<> builder(context);
 
-  gen::gen_env_t gen_env;
+  gen::GenEnv gen_env;
 
   /* resolvers is the list of top-level symbols that need to be resolved. they
    * can be traversed in any order, and will automatically resolve in
@@ -1180,7 +1180,7 @@ phase_4_t ssa_gen(llvm::LLVMContext &context, const Phase3 &phase_3) {
         std::shared_ptr<gen::Resolver> resolver = gen::lazy_resolver(
             name, type,
             [&builder, &llvm_module, name, translation, &phase_3, &gen_env,
-             &globals](llvm::Value **llvm_value) -> gen::resolution_status_t {
+             &globals](llvm::Value **llvm_value) -> gen::ResolutionStatus {
               gen::Publishable publishable(llvm_value);
               /* we are resolving a global object, so we should not be inside
                * of a basic block. */
@@ -1224,8 +1224,8 @@ phase_4_t ssa_gen(llvm::LLVMContext &context, const Phase3 &phase_3) {
     /* and continue */
   }
 
-  return phase_4_t(phase_3, std::move(gen_env), llvm_module, dbuilder,
-                   output_filename);
+  return Phase4(phase_3, std::move(gen_env), llvm_module, dbuilder,
+                output_filename);
 }
 
 struct Job {
@@ -1395,7 +1395,7 @@ int run_job(const Job &job) {
       return run_job({"help", {}});
     } else {
       llvm::LLVMContext context;
-      phase_4_t phase_4 = ssa_gen(context, specialize(compile(job.args[0])));
+      Phase4 phase_4 = ssa_gen(context, specialize(compile(job.args[0])));
 
       return user_error::errors_occurred() ? EXIT_FAILURE : EXIT_SUCCESS;
     }
@@ -1416,7 +1416,7 @@ int run_job(const Job &job) {
     }
 
     llvm::LLVMContext context;
-    phase_4_t phase_4 = ssa_gen(context, specialize(compile(job.args[0])));
+    Phase4 phase_4 = ssa_gen(context, specialize(compile(job.args[0])));
 
     if (!user_error::errors_occurred()) {
       std::stringstream ss_c_flags;

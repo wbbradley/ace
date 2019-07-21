@@ -29,7 +29,7 @@ std::shared_ptr<Resolver> strict_resolver(llvm::Value *llvm_value) {
 
 std::shared_ptr<Resolver> lazy_resolver(std::string name,
                                         types::Ref type,
-                                        lazy_resolver_callback_t &&callback) {
+                                        LazyResolverCallback &&callback) {
   return std::make_shared<LazyResolver>(name, type, std::move(callback));
 }
 

@@ -157,7 +157,7 @@ bool Lexer::_get_tokens() {
 
   char ch = 0;
   size_t sequence_length = 0;
-  zion_string_t token_text;
+  ZionString token_text;
   token_kind tk = tk_none;
   int line = m_line;
   int col = m_col;

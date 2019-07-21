@@ -18,8 +18,7 @@ struct Compilation {
               const DataCtorsMap &data_ctors_map,
               const types::TypeEnv &type_env)
       : program_name(program_name), program(program), comments(comments),
-        link_ins(link_ins),
-        data_ctors_map(data_ctors_map), type_env(type_env) {
+        link_ins(link_ins), data_ctors_map(data_ctors_map), type_env(type_env) {
   }
 
   std::string const program_name;

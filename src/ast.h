@@ -514,7 +514,9 @@ struct Program {
 } // namespace ast
 
 ast::Expr *unit_expr(Location location);
-tarjan::Vertices get_free_vars(const ast::Expr *expr, const std::unordered_set<std::string> &bound_vars);
+tarjan::Vertices get_free_vars(
+    const ast::Expr *expr,
+    const std::unordered_set<std::string> &bound_vars);
 } // namespace zion
 
 std::ostream &operator<<(std::ostream &os, zion::ast::Program *program);

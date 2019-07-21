@@ -436,45 +436,6 @@ llvm::GlobalVariable *llvm_get_global(llvm::Module *llvm_module,
   return v;
 }
 
-#if 0
-bound_var_t::ref llvm_create_global_tag(
-		llvm::IRBuilder<> &builder,
-		Scope::ref scope,
-		bound_type_t::ref tag_type,
-		std::string tag,
-		identifier::ref id)
-{
-	auto program_scope = scope->get_program_scope();
-
-	bound_type_t::ref var_ptr_type = program_scope->get_runtime_type(builder, STD_MANAGED_TYPE, true /*get_ptr*/);
-	llvm::Type *llvm_var_ptr_type = var_ptr_type->get_llvm_type();
-
-	llvm::StructType *llvm_tag_struct_type = llvm::dyn_cast<llvm::StructType>(llvm_var_ptr_type->getPointerElementType());
-	debug_above(10, log(log_info, "var_ptr_type is %s", llvm_print(var_ptr_type->get_llvm_type()).c_str()));
-	debug_above(10, log(log_info, "tag_struct_type is %s", llvm_print(llvm_tag_struct_type).c_str()));
-	assert(llvm_tag_struct_type != nullptr);
-
-	llvm::Module *llvm_module = scope->get_llvm_module(builder);
-	assert(llvm_module != nullptr);
-
-	llvm::Constant *llvm_name = llvm_create_global_string_constant(builder, *llvm_module, tag);
-	debug_above(10, log(log_info, "llvm_name is %s", llvm_print(*llvm_name).c_str()));
-
-	std::vector<llvm::Constant *> llvm_struct_data_tag = {
-		builder.getInt32(atomize(tag)),
-	};
-
-	/* create the actual tag singleton */
-	llvm::Constant *llvm_tag_constant = llvm_create_struct_instance(
-			std::string("__tag_") + tag,
-			llvm_module,
-			llvm_tag_struct_type,
-			llvm_struct_data_tag);
-
-	return make_bound_var(INTERNAL_LOC(), tag, tag_type, llvm_tag_constant, id);
-}
-#endif
-
 llvm::Value *llvm_maybe_pointer_cast(llvm::IRBuilder<> &builder,
                                      llvm::Value *llvm_value,
                                      llvm::Type *llvm_type) {
@@ -491,16 +452,6 @@ llvm::Value *llvm_int_cast(llvm::IRBuilder<> &builder,
   return builder.CreateIntCast(llvm_value, llvm_type, false /*isSigned*/);
 }
 
-#if 0
-llvm::Value *llvm_maybe_pointer_cast(
-		llvm::IRBuilder<> &builder,
-		llvm::Value *llvm_value,
-		const bound_type_t::ref &bound_type)
-{
-	return llvm_maybe_pointer_cast(builder, llvm_value, bound_type->get_llvm_specific_type());
-}
-#endif
-
 void explain(llvm::Type *llvm_type) {
   INDENT(6, string_format("explain %s", llvm_print(llvm_type).c_str()));
 
@@ -510,55 +461,6 @@ void explain(llvm::Type *llvm_type) {
     }
   } else if (auto lp = llvm::dyn_cast<llvm::PointerType>(llvm_type)) {
     explain(lp->getElementType());
-  }
-}
-
-bool llvm_value_is_handle(llvm::Value *llvm_value) {
-  llvm::Type *llvm_type = llvm_value->getType();
-  return llvm_type->isPointerTy() && llvm::cast<llvm::PointerType>(llvm_type)
-                                         ->getElementType()
-                                         ->isPointerTy();
-}
-
-bool llvm_value_is_pointer(llvm::Value *llvm_value) {
-  llvm::Type *llvm_type = llvm_value->getType();
-  return llvm_type->isPointerTy();
-}
-
-llvm::StructType *llvm_find_struct(llvm::Type *llvm_type) {
-  if (auto llvm_struct_type = llvm::dyn_cast<llvm::StructType>(llvm_type)) {
-    return llvm_struct_type;
-  } else if (auto llvm_ptr_type = llvm::dyn_cast<llvm::PointerType>(
-                 llvm_type)) {
-    return llvm_find_struct(llvm_ptr_type->getElementType());
-  } else {
-    return nullptr;
-  }
-}
-
-void llvm_generate_dead_return(llvm::IRBuilder<> &builder) {
-  llvm::Function *llvm_function_current = llvm_get_function(builder);
-  llvm::Type *llvm_return_type = llvm_function_current->getReturnType();
-  llvm_dead_return(builder, llvm_return_type);
-}
-
-llvm::Instruction *llvm_dead_return(llvm::IRBuilder<> &builder,
-                                    llvm::Type *llvm_return_type) {
-  if (llvm_return_type->isPointerTy()) {
-    return builder.CreateRet(llvm::Constant::getNullValue(llvm_return_type));
-  } else if (llvm_return_type->isIntegerTy()) {
-    return builder.CreateRet(llvm::ConstantInt::get(llvm_return_type, 0));
-  } else if (llvm_return_type->isVoidTy()) {
-    return builder.CreateRetVoid();
-  } else if (llvm_return_type->isFloatTy()) {
-    return builder.CreateRet(llvm::ConstantFP::get(llvm_return_type, 0.0));
-  } else if (llvm_return_type->isDoubleTy()) {
-    return builder.CreateRet(llvm::ConstantFP::get(llvm_return_type, 0.0));
-  } else {
-    log(log_error, "unhandled return type for dead return %s",
-        llvm_print(llvm_return_type).c_str());
-    assert(false && "Unhandled return type.");
-    return nullptr;
   }
 }
 
