@@ -552,14 +552,7 @@ fn append(vec [a], val a) {
     }
 
     if !vec.capacity <= !vec.size {
-        new_capacity := !vec.capacity * 2
-        new_array := alloc(new_capacity)
-        __builtin_memcpy(
-            new_array as! *Char,
-            (!vec.array) as! *Char,
-            sizeof(a) * !vec.size)
-        vec.capacity = new_capacity
-        vec.array = new_array
+        reserve(vec, !vec.capacity * 2)
     }
 
     if !vec.capacity == 0 {
@@ -571,14 +564,21 @@ fn append(vec [a], val a) {
     assert(!vec.size <= !vec.capacity)
 }
 
-fn reserve(vec [a], cap Int) {
-    # TODO: impl
+fn reserve(vec [a], new_capacity Int) {
+    if !vec.capacity >= new_capacity {
+        return
+    }
+    new_array := alloc(new_capacity)
+    __builtin_memcpy(
+        new_array as! *Char,
+        (!vec.array) as! *Char,
+        sizeof(a) * !vec.size)
+    vec.capacity = new_capacity
+    vec.array = new_array
 }
 
 instance HasDefault [a] {
-    fn new() {
-        return Vector(Ref(null), Ref(0), Ref(0))
-    }
+    fn new() => Vector(Ref(null), Ref(0), Ref(0))
 }
 
 class Iterable f {

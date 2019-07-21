@@ -1,0 +1,8 @@
+link pkg "libsodium"
+
+fn rand() Int {
+    cb := sizeof(Int)
+    pb := alloc(cb) as *Char
+    __builtin_ffi_2("randombytes_buf", pb, cb) as ()
+    return (pb as! *Int)[0]
+}
