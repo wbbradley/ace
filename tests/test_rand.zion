@@ -1,0 +1,16 @@
+# need to ensure libsodium is installed
+# test: skip
+
+get random {rand}
+
+fn main() {
+    wait_for := len(str(0xffffffffffffffff)) - 3
+    for i in [0..] {
+        x := rand()
+        if len(str(x)) <= wait_for {
+            print(concat("found it after ", str(i)))
+            print(x)
+            break
+        }
+    }
+}

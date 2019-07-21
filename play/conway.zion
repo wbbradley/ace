@@ -1,56 +1,49 @@
 # An implementation of Conway's Game of Life.
 # Stolen shamelessly from https://golang.org/ in order to
 # see how hard it would be to port to Zion.
-module conway
+
+get random {rand}
 
 # Field represents a two-dimensional field of cells.
-type Field has {
-    s [[bool]]
-    w int
-    h int
+struct Field {
+    state [[Bool]]
+    width Int
+    height Int
 }
 
 # NewField returns an empty field of the specified width and height.
-fn NewField(w int, h int) Field {
-    # TODO: make array allocation better. It was painful
-    # to have to remove Go's `make` construct, and to
-    # manually initialize this 2-d array.
-    s := new [[bool]]
-    reserve(s, h)
+fn NewField(w Int, h Int) Field {
+    state := []
     for y in range(h) {
-        row := new [bool]
-        reserve(row, w)
+        row := []
         for x in range(w) {
-            append(row, false)
+            append(row, False)
         }
-        append(s, row)
+        append(state, row)
     }
-    return Field(s, w, h)
+    return Field(state, w, h)
 }
 
 # Set sets the state of the specified cell to the given value.
-fn Set(f Field, x int, y int, b bool) {
-    f.s[y][x] = b
+fn Set(f Field, x Int, y Int, b Bool) {
+    f.state[y][x] = b
 }
 
 # Alive reports whether the specified cell is alive.
 # If the x or y coordinates are outside the field boundaries they are wrapped
 # toroidally. For instance, an x value of -1 is treated as width-1.
-fn Alive(f Field, x int, y int) bool {
-    x += f.w
-    # TODO: implement mod_assignment_t::render
-    x = x % f.w
-    y += f.h
-    y = y % f.h
-    return f.s[y][x]
+fn Alive(f Field, x Int, y Int) Bool {
+    y_wrapped := (y + f.height) % f.height
+    x_wrapped := (x + f.width) % f.width
+    return f.state[y_wrapped][x_wrapped]
 }
 
 # Next returns the state of the specified cell at the next time step.
-fn Next(f Field, x int, y int) bool {
+fn Next(f Field, x Int, y Int) Bool {
     # Count the adjacent cells that are alive.
     var alive = 0
-    for i in range(-1, 2) {
-        for j in range(-1, 2) {
+    for i in [-1..1] {
+        for j in [-1..1] {
             if (j != 0 or i != 0) and Alive(f, x+i, y+j) {
                 alive += 1
             }
@@ -60,56 +53,61 @@ fn Next(f Field, x int, y int) bool {
     #   exactly 3 neighbors: on,
     #   exactly 2 neighbors: maintain current state,
     #   otherwise: off.
-    return alive == 3 or alive == 2 and Alive(f, x, y)
+    return !alive == 3 or !alive == 2 and Alive(f, x, y)
 }
 
 # Life stores the state of a round of Conway's Game of Life.
-type Life has {
-    var a Field
-    var b Field
-    w int
-    h int
+struct Life {
+    a Ref Field
+    b Ref Field
+    life_width Int
+    life_height Int
+}
+
+fn uniform(w) {
+    return abs(rand()) % w
 }
 
 # NewLife returns a new Life game state with a random initial state.
-fn NewLife(w int, h int) Life {
+fn NewLife(w Int, h Int) Life {
     a := NewField(w, h)
     for i in range(w * h / 4) {
-        Set(a, rand(w), rand(h), true)
+        Set(a, uniform(w), uniform(h), True)
     }
-    return Life(a, NewField(w, h), w, h)
+    return Life(Ref(a), Ref(NewField(w, h)), w, h)
 }
 
 # Step advances the game by one instant, recomputing and updating all cells.
 fn Step(l Life) {
     # Update the state of the next field (b) from the current field (a).
-    for y in range(l.h) {
-        for x in range(l.w) {
-            Set(l.b, x, y, Next(l.a, x, y))
+    for y in range(l.life_height) {
+        for x in range(l.life_width) {
+            Set(!l.b, x, y, Next(!l.a, x, y))
         }
     }
     # Swap fields a and b.
-    c := l.a
-    l.a = l.b
+    c := !l.a
+    l.a = !l.b
     l.b = c
 }
 
 # String returns the game board as a str.
-[global]
-fn str(l Life) str {
-    # TODO: make a better string builder type thing
-    var buf str
-    for y in range(l.h) {
-        for x in range(l.w) {
-            if Alive(l.a, x, y) {
-                buf += "*"
-            } else {
-                buf += " "
+instance Show Life {
+    fn str(l) {
+        # TODO: make a better string builder type thing
+        var buf = ""
+        for y in range(l.life_height) {
+            for x in range(l.life_width) {
+                if Alive(!l.a, x, y) {
+                    buf = concat(!buf, "*")
+                } else {
+                    buf = concat(!buf, " ")
+                }
             }
+            buf = concat(!buf, "\n")
         }
-        buf += "\n"
+        return !buf
     }
-    return buf
 }
 
 fn main() {
@@ -117,8 +115,7 @@ fn main() {
     for i in range(300) {
         Step(l)
         print("\x0c")
-        posix.fflush(stdout)
         print(l)
-        posix.sleep(1)
+        __builtin_ffi_1("sleep", 1)
     }
 }
