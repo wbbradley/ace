@@ -146,6 +146,8 @@ struct GlobalParserState {
   std::vector<const Module *> modules;
   std::map<std::string, const Module *> modules_map_by_filename;
   std::map<std::string, const Module *> modules_map_by_name;
+  parser::SymbolExports symbol_exports;
+  parser::SymbolImports symbol_imports;
   std::vector<Token> comments;
   std::set<LinkIn> link_ins;
   const std::map<std::string, int> &builtin_arities;
@@ -171,14 +173,16 @@ struct GlobalParserState {
                           module_filename.c_str()));
       Lexer lexer({module_filename}, ifs);
 
-      ParseState ps(module_filename, "", lexer, comments, link_ins,
-                    builtin_arities);
+      parser::ParseState ps(module_filename, "", lexer, comments, link_ins,
+                            symbol_exports, symbol_imports, builtin_arities);
 
       std::set<Identifier> dependencies;
       const Module *module = parse_module(ps, {modules_map_by_name["std"]},
                                           dependencies);
 
       modules.push_back(module);
+
+      /* break any circular dependencies. inject this module into the graph */
       modules_map_by_name[ps.module_name] = module;
       modules_map_by_filename[ps.filename] = module;
 
@@ -305,6 +309,7 @@ Compilation::ref parse_program(
     if (getenv("NO_PRELUDE") == nullptr || atoi(getenv("NO_PRELUDE")) == 0) {
       gps.parse_module_statefully({"std" /* lib/std */, Location{"std", 0, 0}});
     } else {
+      /* in the case that we are omitting the prelude, still include the GC */
       gps.link_ins.insert(LinkIn{
           lit_pkgconfig, Token{INTERNAL_LOC(), tk_string, "\"bdw-gc\""}});
     }
@@ -315,7 +320,17 @@ Compilation::ref parse_program(
 
     debug_above(11, log(log_info, "parse_module of %s succeeded",
                         module_name.c_str(), false /*global*/));
-
+    for (auto module_names_map_pair : gps.symbol_imports) {
+      std::cout << "Module " << module_names_map_pair.first << " is importing:" << std::endl;
+      for (auto source_module_name_symbol_pair : module_names_map_pair.second) {
+        const auto &source_module_name = source_module_name_symbol_pair.first;
+        const auto &symbols = source_module_name_symbol_pair.second;
+        for (auto &symbol : symbols) {
+          std::cout << "\t" << source_module_name << ": " << symbol
+                    << std::endl;
+        }
+      }
+    }
     return merge_compilation(program_name, gps.modules, gps.comments,
                              gps.link_ins);
 

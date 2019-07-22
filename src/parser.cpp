@@ -17,6 +17,7 @@
 #include "token.h"
 
 namespace zion {
+namespace parser {
 
 using namespace ast;
 
@@ -1999,6 +2000,9 @@ const Module *parse_module(ParseState &ps,
                            "it is not possible to import module-scoped "
                            "variables into other modules");
         }
+        /* record this import */
+        ps.symbol_imports[ps.module_name][module_name.name].insert(
+            Identifier::from_token(ps.token));
         ps.add_term_map(ps.token.location, ps.token.text,
                         module_name.name + "." + ps.token.text);
         ps.advance();
@@ -2088,4 +2092,5 @@ const Module *parse_module(ParseState &ps,
                     ps.ctor_id_map, ps.data_ctors_map, ps.type_env);
 }
 
+} // namespace parser
 } // namespace zion
