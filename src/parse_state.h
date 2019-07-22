@@ -11,6 +11,10 @@
 #include "user_error.h"
 
 namespace zion {
+namespace parser {
+
+typedef std::map<std::string, std::map<Identifier, Identifier>> SymbolExports;
+typedef std::map<std::string, std::map<std::string, std::set<Identifier>>> SymbolImports;
 
 typedef std::map<std::string, types::Map> ParsedDataCtorsMap;
 typedef std::unordered_map<std::string, int> ParsedCtorIdMap;
@@ -24,6 +28,8 @@ struct ParseState {
              Lexer &lexer,
              std::vector<Token> &comments,
              std::set<LinkIn> &link_ins,
+             SymbolExports &symbol_exports,
+             SymbolImports &symbol_imports,
              const std::map<std::string, int> &builtin_arities);
 
   bool advance();
@@ -49,6 +55,8 @@ struct ParseState {
 
   std::vector<Token> &comments;
   std::set<LinkIn> &link_ins;
+  SymbolExports &symbol_exports;
+  SymbolImports &symbol_imports;
   ParsedCtorIdMap ctor_id_map;
   ParsedDataCtorsMap data_ctors_map;
   types::TypeEnv type_env;
@@ -68,4 +76,5 @@ private:
   bool newline = false;
 };
 
+} // namespace parser
 } // namespace zion

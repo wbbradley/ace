@@ -116,52 +116,58 @@ types::Map resolve_free_type_after_specialization_inference(
 
     /* just out of curiosity, see when there are more referenced
      * predicates in a single expression type */
-    assert(referenced_predicates.size() == 1);
+    if (referenced_predicates.size() >= 1) {
+      assert(referenced_predicates.size() == 1);
 
-    for (auto &referenced_predicate : referenced_predicates) {
-      log("we need to solve %s against {%s}",
-          referenced_predicate->str().c_str(),
-          join_str(instance_predicates, ", ").c_str());
+      for (auto &referenced_predicate : referenced_predicates) {
+        log("we need to solve %s against {%s}",
+            referenced_predicate->str().c_str(),
+            join_str(instance_predicates, ", ").c_str());
 
-      for (auto &instance_predicate : instance_predicates) {
-        if (instance_predicate->classname.name ==
-            referenced_predicate->classname.name) {
-          /* we are referring to the same type class. now, let's unify the
-           * instance parameters in an attempt to resolve any functional
-           * dependencies between the associated types. */
-          types::Unification unification = types::unify_many(
-              instance_predicate->params, referenced_predicate->params);
-          if (unification.result) {
-            /* unification was successful. now check whether we've already found
-             * a matching instance or not */
-            /* this is the only instance which unifies so far. that's good */
-            found_instances.insert(instance_predicate);
-            std::swap(bindings, unification.bindings);
+        for (auto &instance_predicate : instance_predicates) {
+          if (instance_predicate->classname.name ==
+              referenced_predicate->classname.name) {
+            /* we are referring to the same type class. now, let's unify the
+             * instance parameters in an attempt to resolve any functional
+             * dependencies between the associated types. */
+            types::Unification unification = types::unify_many(
+                instance_predicate->params, referenced_predicate->params);
+            if (unification.result) {
+              /* unification was successful. now check whether we've already
+               * found a matching instance or not */
+              /* this is the only instance which unifies so far. that's good */
+              found_instances.insert(instance_predicate);
+              std::swap(bindings, unification.bindings);
+            }
           }
         }
-      }
-      if (found_instances.size() == 1) {
-        /* this is good, it means that we found a single type class
-         * instance that satisfies our requirements. go ahead and return
-         * the bindings that will map the ftvs in the given type to some
-         * concrete type. */
-        assert(bindings.size() != 0);
-        assert(type->rebind(bindings)->ftv_count() == 0);
-        return bindings;
-      } else if (found_instances.size() == 0) {
-        throw user_error(expr->get_location(),
-                         "could not resolve the type of expr %s :: %s",
-                         expr->str().c_str(), type->str().c_str());
-      } else {
-        /* uh-oh, we found some ambiguity */
-        auto error = user_error(expr->get_location(),
-                                "ambiguous type instance here");
-        for (auto &predicate : found_instances) {
-          error.add_info(predicate->get_location(), "could be %s",
-                         predicate->str().c_str());
+        if (found_instances.size() == 1) {
+          /* this is good, it means that we found a single type class
+           * instance that satisfies our requirements. go ahead and return
+           * the bindings that will map the ftvs in the given type to some
+           * concrete type. */
+          assert(bindings.size() != 0);
+          assert(type->rebind(bindings)->ftv_count() == 0);
+          return bindings;
+        } else if (found_instances.size() == 0) {
+          throw user_error(expr->get_location(),
+                           "could not resolve the type of expr %s :: %s",
+                           expr->str().c_str(), type->str().c_str());
+        } else {
+          /* uh-oh, we found some ambiguity */
+          auto error = user_error(expr->get_location(),
+                                  "ambiguous type instance here");
+          for (auto &predicate : found_instances) {
+            error.add_info(predicate->get_location(), "could be %s",
+                           predicate->str().c_str());
+          }
+          throw error;
         }
-        throw error;
       }
+    } else {
+      /* here there are unbound type variables */
+      // TODO: consider unitization here...
+      return {};
     }
   }
 

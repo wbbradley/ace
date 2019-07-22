@@ -7,32 +7,9 @@
 #include "parse_state.h"
 
 namespace zion {
+namespace parser {
 
 std::map<std::string, int> get_builtin_arities();
-
-template <typename T, typename... Args>
-std::shared_ptr<T> parse_text(std::istream &is,
-                              std::string filename = "repl.zion") {
-  Lexer lexer(filename, is);
-  std::vector<Token> comments;
-  std::set<LinkIn> link_ins;
-
-  ParseState ps(filename, "<text>", lexer, comments, link_ins,
-                get_builtin_arities());
-
-  auto item = T::parse(ps);
-  if (ps.token.tk != tk_none) {
-    return nullptr;
-  }
-  return item;
-}
-
-template <typename T, typename... Args>
-std::shared_ptr<T> parse_text(const std::string &text,
-                              std::string filename = "repl.zion") {
-  std::istringstream iss(text);
-  return parse_text<T>(iss, filename);
-}
 
 bool token_begins_type(const Token &token);
 inline Identifier iid(const Token &token) {
@@ -100,4 +77,5 @@ const ast::Predicate *unfold_application_into_predicate(
     const ast::Application *application);
 const ast::Predicate *convert_expr_to_predicate(const ast::Expr *expr);
 
+} // namespace parser
 } // namespace zion
