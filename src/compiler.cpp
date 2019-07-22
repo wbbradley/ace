@@ -231,6 +231,64 @@ std::set<std::string> get_top_level_decls(
   return top_level_decls;
 }
 
+std::shared_ptr<Compilation> merge_compilation(
+    std::string program_name,
+    std::vector<const Module *> modules,
+    const std::vector<Token> &comments,
+    const std::set<LinkIn> &link_ins) {
+  std::vector<const Decl *> program_decls;
+  std::vector<const TypeClass *> program_type_classes;
+  std::vector<const Instance *> program_instances;
+  ParsedCtorIdMap ctor_id_map;
+  ParsedDataCtorsMap data_ctors_map;
+  types::TypeEnv type_env;
+
+  /* next, merge the entire set of modules into one program */
+  for (const Module *module : modules) {
+    /* get a list of all top-level decls */
+    std::set<std::string> bindings = get_top_level_decls(
+        module->decls, module->type_decls, module->type_classes);
+
+    const Module *module_rebound = prefix(bindings, module);
+
+    /* now all locally referring vars are fully qualified */
+    for (const Decl *decl : module_rebound->decls) {
+      program_decls.push_back(decl);
+    }
+
+    for (const TypeClass *type_class : module_rebound->type_classes) {
+      program_type_classes.push_back(type_class);
+    }
+
+    for (const Instance *instance : module_rebound->instances) {
+      program_instances.push_back(instance);
+    }
+
+    for (auto pair : module_rebound->ctor_id_map) {
+      assert(!in(pair.first, ctor_id_map));
+      ctor_id_map[pair.first] = pair.second;
+    }
+
+    for (auto pair : module_rebound->data_ctors_map) {
+      assert(!in(pair.first, data_ctors_map));
+      data_ctors_map[pair.first] = pair.second;
+    }
+
+    for (auto pair : module_rebound->type_env) {
+      assert(!in(pair.first, type_env));
+      type_env[pair.first] = pair.second;
+    }
+  }
+
+  return std::make_shared<Compilation>(
+      program_name,
+      new Program(program_decls, program_type_classes, program_instances,
+                  new Application(new Var(make_iid("main")),
+                                  {unit_expr(INTERNAL_LOC())})),
+      comments, link_ins, DataCtorsMap{data_ctors_map, ctor_id_map},
+      type_env);
+}
+
 Compilation::ref parse_program(
     std::string user_program_name,
     const std::map<std::string, int> &builtin_arities) {
@@ -258,57 +316,9 @@ Compilation::ref parse_program(
     debug_above(11, log(log_info, "parse_module of %s succeeded",
                         module_name.c_str(), false /*global*/));
 
-    std::vector<const Decl *> program_decls;
-    std::vector<const TypeClass *> program_type_classes;
-    std::vector<const Instance *> program_instances;
-    ParsedCtorIdMap ctor_id_map;
-    ParsedDataCtorsMap data_ctors_map;
-    types::TypeEnv type_env;
+    return merge_compilation(program_name, gps.modules, gps.comments,
+                             gps.link_ins);
 
-    /* next, merge the entire set of modules into one program */
-    for (const Module *module : gps.modules) {
-      /* get a list of all top-level decls */
-      std::set<std::string> bindings = get_top_level_decls(
-          module->decls, module->type_decls, module->type_classes);
-
-      const Module *module_rebound = prefix(bindings, module);
-
-      /* now all locally referring vars are fully qualified */
-      for (const Decl *decl : module_rebound->decls) {
-        program_decls.push_back(decl);
-      }
-
-      for (const TypeClass *type_class : module_rebound->type_classes) {
-        program_type_classes.push_back(type_class);
-      }
-
-      for (const Instance *instance : module_rebound->instances) {
-        program_instances.push_back(instance);
-      }
-
-      for (auto pair : module_rebound->ctor_id_map) {
-        assert(!in(pair.first, ctor_id_map));
-        ctor_id_map[pair.first] = pair.second;
-      }
-
-      for (auto pair : module_rebound->data_ctors_map) {
-        assert(!in(pair.first, data_ctors_map));
-        data_ctors_map[pair.first] = pair.second;
-      }
-
-      for (auto pair : module_rebound->type_env) {
-        assert(!in(pair.first, type_env));
-        type_env[pair.first] = pair.second;
-      }
-    }
-
-    return std::make_shared<Compilation>(
-        program_name,
-        new Program(program_decls, program_type_classes, program_instances,
-                    new Application(new Var(make_iid("main")),
-                                    {unit_expr(INTERNAL_LOC())})),
-        gps.comments, gps.link_ins, DataCtorsMap{data_ctors_map, ctor_id_map},
-        type_env);
   } catch (user_error &e) {
     print_exception(e);
     return nullptr;

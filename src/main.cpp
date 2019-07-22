@@ -283,24 +283,6 @@ std::map<std::string, const TypeClass *> check_type_classes(
   return type_class_map;
 }
 
-ast::Expr *build_program(std::string entry_point_name,
-                         types::SchemeResolver &scheme_resolver,
-                         const std::vector<const Decl *> &decls) {
-  // TODO: topographically sort and merge mutually recursive nodes
-  ast::Expr *program = new Application(
-      new Var(Identifier{entry_point_name, INTERNAL_LOC()}),
-      {new Tuple(INTERNAL_LOC(), {})});
-
-  for (auto iter = decls.rbegin(); iter != decls.rend(); ++iter) {
-    auto &decl = *iter;
-    program = new Let(decl->id, decl->value, program);
-  }
-  log("build_program(...) = scheme_resolver = %s",
-      scheme_resolver.str().c_str());
-  log("build_program(...) = %s", program->str().c_str());
-  return program;
-}
-
 tarjan::Graph build_program_graph(const std::vector<const Decl *> &decls) {
   tarjan::Graph graph;
   for (auto decl : decls) {
