@@ -1,7 +1,7 @@
 module logit
 
-get os
-get file
+import os
+import file
 
 fn main()
 	print("note: ", NoLF)

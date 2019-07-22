@@ -2,7 +2,7 @@
 # Stolen shamelessly from https://golang.org/ in order to
 # see how hard it would be to port to Zion.
 
-get random {rand}
+import random {rand}
 
 # Field represents a two-dimensional field of cells.
 struct Field {

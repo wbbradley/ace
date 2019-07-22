@@ -1,7 +1,7 @@
 # test: pass
 # expect: 4613732
 
-get math {even}
+import math {even}
 
 struct FibonacciIterator {
     index Ref Int

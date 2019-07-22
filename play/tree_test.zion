@@ -1,5 +1,5 @@
 module _
-get tree
+import tree
 
 fn main()
 	t := tree.insert(null, 5)

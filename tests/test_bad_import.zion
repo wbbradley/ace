@@ -1,7 +1,7 @@
 # test: fail
 # expect: module not found: .does.not.exist
 
-get does_not_exist {a_symbol}
+import does_not_exist {a_symbol}
 
 fn main() {
     a_symbol()

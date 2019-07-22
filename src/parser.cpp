@@ -1985,7 +1985,7 @@ const Module *parse_module(ParseState &ps,
   std::vector<const TypeClass *> type_classes;
   std::vector<const Instance *> instances;
 
-  while (ps.token.is_ident(K(get))) {
+  while (ps.token.is_ident(K(import))) {
     ps.advance();
     expect_token(tk_identifier);
     Identifier module_name = ps.identifier_and_advance();
@@ -2024,9 +2024,9 @@ const Module *parse_module(ParseState &ps,
   }
 
   while (true) {
-    if (ps.token.is_ident(K(get))) {
+    if (ps.token.is_ident(K(import))) {
       throw user_error(ps.token.location,
-                       "get statements must occur at the top of the module");
+                       "import statements must occur at the top of the module");
     } else if (ps.token.is_ident(K(fn))) {
       /* module-level functions */
       ps.advance();

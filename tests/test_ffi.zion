@@ -1,6 +1,6 @@
 # test: pass
 
-get sys {open, read, write, O_RDONLY, CreateMode}
+import sys {open, read, write, O_RDONLY, CreateMode}
 
 fn main() {
     fd := open(str(__filename__), O_RDONLY, CreateMode(0))

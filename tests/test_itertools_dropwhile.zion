@@ -1,8 +1,8 @@
 # test: pass
 # expect: 40
 
-get itertools {dropwhile}
-get math {sum}
+import itertools {dropwhile}
+import math {sum}
 
 fn main() {
     print(sum(dropwhile(fn (x) => x < 6, [0..10])))

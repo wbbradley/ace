@@ -1,7 +1,7 @@
 module _
 
-get os
-get sqlite3
+import os
+import sqlite3
 
 fn main()
 	sqlite3.initialize()
