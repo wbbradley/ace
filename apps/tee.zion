@@ -1,7 +1,7 @@
 # A basic implementation of tee
-get sys
+import sys
 
-get argparse {parse, Parser, Some, Option}
+import argparse {parse, Parser, Some, Option}
 
 fn main() int {
     var options [str: Option]

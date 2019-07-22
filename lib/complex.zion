@@ -1,4 +1,4 @@
-get math {sqrt}
+import math {sqrt}
 
 struct Complex {
    real Float

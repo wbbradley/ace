@@ -1,7 +1,7 @@
 # test: pass
 # expect: 7
 
-get math {sum}
+import math {sum}
 
 fn compose(f, g) => fn (x) => f(g(x))
 

@@ -1,7 +1,7 @@
 # test: pass
 # expect: 145
 
-get itertools {count_up_from}
+import itertools {count_up_from}
 
 fn main() {
     var total = 0

@@ -1,7 +1,7 @@
 # test: pass
 # expect: 222335543222
 
-get complex {Complex}
+import complex {Complex}
 
 struct Rect {
    x0 Float
