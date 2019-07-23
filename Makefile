@@ -25,7 +25,7 @@ debug:
 .PHONY: zion
 zion:
 	make clean
-	make install
+	make -j8 install
 
 .PHONY: $(BUILT_BINARY)
 $(BUILT_BINARY): $(BUILD_DIR)/Makefile

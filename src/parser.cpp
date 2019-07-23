@@ -2017,6 +2017,40 @@ const Module *parse_module(ParseState &ps,
     module_deps.insert(module_name);
   }
 
+  std::set<Identifier> exports;
+  while (ps.token.is_ident(K(export))) {
+    ps.advance();
+    chomp_token(tk_lcurly);
+
+    while (ps.token.tk != tk_rcurly) {
+      expect_token(tk_identifier);
+      Identifier symbol = Identifier::from_token(ps.token_and_advance());
+      if (in(symbol, exports)) {
+        auto iter = exports.find(symbol);
+        assert(iter != exports.end());
+        throw user_error(symbol.location, "duplicate symbol %s in exports",
+                         symbol.str().c_str())
+            .add_info(iter->location, "see previous export");
+      }
+      exports.insert(symbol);
+      if (ps.token.tk != tk_rcurly) {
+        chomp_token(tk_comma);
+      }
+    }
+    chomp_token(tk_rcurly);
+  }
+
+  /* for now we will only allow exports at the top. trying to be draconian with
+   * module layout */
+  for (auto &id : exports) {
+    auto fully_qualified_id = Identifier{ps.module_name + "." + id.name,
+                                         id.location};
+    auto imported_id = ps.id_mapped(id);
+    ps.symbol_exports[ps.module_name][fully_qualified_id] =
+        (imported_id.name.find(".") != std::string::npos) ? imported_id
+                                                          : fully_qualified_id;
+  }
+
   while (ps.token.is_ident(K(link))) {
     ps.advance();
     if (ps.token.is_ident(K(pkg))) {
@@ -2031,6 +2065,10 @@ const Module *parse_module(ParseState &ps,
     if (ps.token.is_ident(K(import))) {
       throw user_error(ps.token.location,
                        "import statements must occur at the top of the module");
+    } else if (ps.token.is_ident(K(export))) {
+      throw user_error(ps.token.location,
+                       "export statements must occur at the top of the module, "
+                       "or just below any existing imports");
     } else if (ps.token.is_ident(K(fn))) {
       /* module-level functions */
       ps.advance();

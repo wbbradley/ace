@@ -331,6 +331,15 @@ Compilation::ref parse_program(
         }
       }
     }
+    for (auto module_names_map_pair : gps.symbol_exports) {
+      std::cout << "Module " << module_names_map_pair.first << " is exporting:" << std::endl;
+      for (auto symbols_pair : module_names_map_pair.second) {
+        const auto &exported_symbol = symbols_pair.first;
+        const auto &final_symbol = symbols_pair.second;
+        std::cout << "\t" << exported_symbol << ": " << final_symbol
+                  << std::endl;
+      }
+    }
     return merge_compilation(program_name, gps.modules, gps.comments,
                              gps.link_ins);
 
