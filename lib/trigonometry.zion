@@ -1,0 +1,56 @@
+export {
+    PI,
+    acos,
+    asin,
+    atan,
+    atan2,
+    cos,
+    cosh,
+    sin,
+    sinh,
+    tan,
+    tanh,
+}
+
+let PI = 3.141592653589793238
+
+fn sin(x Float) Float {
+    return __builtin_ffi_1("sin", x)
+}
+
+fn cos(x Float) Float {
+    return __builtin_ffi_1("cos", x)
+}
+
+fn tan(x Float) Float {
+    return __builtin_ffi_1("tan", x)
+}
+
+fn acos(x Float) Float {
+    return __builtin_ffi_1("acos", x)
+}
+
+fn asin(x Float) Float {
+    return __builtin_ffi_1("asin", x)
+}
+
+fn sinh(x Float) Float {
+    return __builtin_ffi_1("sinh", x)
+}
+
+fn cosh(x Float) Float {
+    return __builtin_ffi_1("cosh", x)
+}
+
+fn tanh(x Float) Float {
+    return __builtin_ffi_1("tanh", x)
+}
+
+fn atan(x Float) Float {
+    return __builtin_ffi_1("atan", x)
+}
+
+fn atan2(y Float, x Float) Float {
+    return __builtin_ffi_2("atan2", y, x)
+}
+

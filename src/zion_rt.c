@@ -45,7 +45,7 @@ char *zion_itoa(int64_t x) {
 
 char *zion_ftoa(double x) {
   char sz[128];
-  if (snprintf(sz, sizeof(sz), "%f", x) < 1) {
+  if (snprintf(sz, sizeof(sz), "%20.15f", x) < 1) {
     perror("Failed in zion_ftoa");
     exit(1);
   }

@@ -694,7 +694,7 @@ CheckedDefinitionRef specialize_checked_defn(
                      name.c_str(), type->str().c_str());
   }
 
-  INDENT(0, string_format("specializing checked definition %s :: %s",
+  INDENT(1, string_format("specializing checked definition %s :: %s",
                           checked_defn_to_specialize->decl->id.str().c_str(),
                           decl_type->str().c_str(), str(bindings).c_str()));
 

@@ -4,6 +4,5 @@
 
 fn main() {
     print(0.1)
-    assert(str(0.1) == "0.100000")
     __builtin_pass_test
 }

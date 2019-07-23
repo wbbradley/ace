@@ -10,15 +10,19 @@
 
 struct Identifier {
   Identifier() = default;
+  Identifier(const Identifier &) = default;
   Identifier(const std::string &name, Location location);
-  std::string const name;
-  Location const location;
+
+  std::string name;
+  Location location;
+
   static Identifier from_token(zion::Token token);
   zion::Token get_token() const;
   std::string str() const;
 
   bool operator<(const Identifier &rhs) const;
 };
+
 using Identifiers = std::vector<Identifier>;
 
 std::string str(Identifiers ids);
