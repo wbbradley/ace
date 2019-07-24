@@ -27,9 +27,9 @@ ParseState::ParseState(std::string filename,
       module_name(module_name.size() != 0
                       ? module_name
                       : strip_zion_extension(leaf_from_file_path(filename))),
-      lexer(lexer), comments(comments), link_ins(link_ins),
-      symbol_exports(symbol_exports), symbol_imports(symbol_imports),
-      builtin_arities(builtin_arities) {
+      builtin_arities(builtin_arities), lexer(lexer), comments(comments),
+      link_ins(link_ins), symbol_exports(symbol_exports),
+      symbol_imports(symbol_imports) {
   advance();
 }
 

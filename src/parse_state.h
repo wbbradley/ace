@@ -42,17 +42,17 @@ struct ParseState {
     return newline || prior_token.tk == tk_semicolon;
   }
 
-  const std::map<std::string, int> &builtin_arities;
   Identifier id_mapped(Identifier id);
   Token token;
   Token prior_token;
   std::string filename;
   std::string module_name;
-  Lexer &lexer;
 
   /* top-level term remapping from "get" statements */
   std::unordered_map<std::string, std::string> term_map;
 
+  const std::map<std::string, int> &builtin_arities;
+  Lexer &lexer;
   std::vector<Token> &comments;
   std::set<LinkIn> &link_ins;
   SymbolExports &symbol_exports;

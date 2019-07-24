@@ -194,17 +194,8 @@ Location Lambda::get_location() const {
 }
 
 std::ostream &Lambda::render(std::ostream &os, int parent_precedence) const {
-  const int precedence = 7;
   os << "(λ"
      << join_with(vars, ",", [](const Identifier &id) { return id.name; });
-#if 0
-  if (param_type != nullptr) {
-    os << c_good(" :: ");
-    os << C_TYPE;
-    param_type->emit(os, {}, 0);
-    os << C_RESET;
-  }
-#endif
   os << " . ";
   body->render(os, 0);
   os << ")";
@@ -253,7 +244,6 @@ Location Tuple::get_location() const {
 
 std::ostream &Tuple::render(std::ostream &os, int parent_precedence) const {
   os << "(";
-  int i = 0;
   const char *delim = "";
   for (auto dim : dims) {
     os << delim;

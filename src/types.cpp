@@ -198,15 +198,14 @@ Location TypeId::get_location() const {
 }
 
 TypeVariable::TypeVariable(Identifier id) : id(id) {
+#ifdef ZION_DEBUG
   for (auto ch : id.name) {
     assert(islower(ch) || !isalpha(ch));
   }
+#endif
 }
 
-TypeVariable::TypeVariable(Location location) : id(gensym(location)) {
-  for (auto ch : id.name) {
-    assert(islower(ch) || !isalpha(ch));
-  }
+TypeVariable::TypeVariable(Location location) : TypeVariable(gensym(location)) {
 }
 
 std::ostream &TypeVariable::emit(std::ostream &os,

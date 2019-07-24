@@ -86,11 +86,6 @@ int run_program(std::string executable, std::vector<const char *> args) {
   return 0;
 }
 
-void handle_sigint(int sig) {
-  print_stacktrace(stderr, 100);
-  exit(2);
-}
-
 types::Map resolve_free_type_after_specialization_inference(
     const ast::Expr *expr,
     types::Ref type,
@@ -111,7 +106,6 @@ types::Map resolve_free_type_after_specialization_inference(
                  join_str(referenced_predicates, ", ").c_str());
 
     types::Map bindings;
-    bool found_instance = false;
     types::ClassPredicates found_instances;
 
     /* just out of curiosity, see when there are more referenced
@@ -221,14 +215,6 @@ CheckedDefinitionRef check_decl(
     }
   }
   return std::make_shared<CheckedDefinition>(scheme, decl, tracked_types);
-}
-
-std::vector<std::string> alphabet(int count) {
-  std::vector<std::string> xs;
-  for (int i = 0; i < count; ++i) {
-    xs.push_back(alphabetize(i));
-  }
-  return xs;
 }
 
 void initialize_builtin_schemes(types::SchemeResolver &scheme_resolver) {
@@ -506,9 +492,7 @@ void check_instance_for_type_class_overloads(
 
   types::Refs new_type_parameters;
 
-  // find all ftvs
   // freshen them all
-  const types::Ftvs &ftvs = instance->class_predicate->get_ftvs();
   int i = 0;
   if (instance->class_predicate->params.size() !=
       type_class->type_var_ids.size()) {
@@ -1157,9 +1141,11 @@ Phase4 ssa_gen(llvm::LLVMContext &context, const Phase3 &phase_3) {
 
         /* at this point we should not have a resolver or a declaration or
          * definition or anything for this symbol */
+#ifdef ZION_DEBUG
         llvm::Value *value = gen::maybe_get_env_var(
             gen_env, {pair.first, overload.second->expr->get_location()}, type);
         assert(value == nullptr);
+#endif
 
         debug_above(4, log("making a placeholder proxy value for %s :: %s = %s",
                            pair.first.c_str(), type->str().c_str(),
@@ -1191,7 +1177,10 @@ Phase4 ssa_gen(llvm::LLVMContext &context, const Phase3 &phase_3) {
     // global initialization will happen inside of the __program_init function
     for (auto resolver : resolvers) {
       debug_above(2, log("resolving %s...", resolver->str().c_str()));
-      llvm::Value *value = resolver->resolve();
+#ifdef ZION_DEBUG
+      llvm::Value *value =
+#endif
+          resolver->resolve();
       debug_above(2, log("resolved to %s", llvm_print(value).c_str()));
     }
 
@@ -1472,7 +1461,6 @@ int run_job(const Job &job) {
 } // namespace zion
 
 int main(int argc, char *argv[]) {
-  // signal(SIGINT, &handle_sigint);
   init_dbg();
   zion::init_host();
   std::shared_ptr<logger> logger(std::make_shared<standard_logger>("", "."));
