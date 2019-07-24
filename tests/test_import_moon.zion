@@ -1,0 +1,4 @@
+# test: skip
+
+import test_moon {moonrocks}
+export {moonrocks}

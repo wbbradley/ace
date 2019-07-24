@@ -1,0 +1,5 @@
+# test: fail
+# expect: circular exports
+
+import test_import_moon {moonrocks}
+export {moonrocks}

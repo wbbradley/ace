@@ -10,26 +10,9 @@ namespace zion {
 
 bool is_restricted_var_name(std::string x) {
   static const std::string keywords[] = {
-      "and",
-      "as",
-      "break",
-      "continue",
-      "fn",
-      "else",
-      "for",
-      "if",
-      "in",
-      "let",
-      "match",
-      "not",
-      "null",
-      "or",
-      "pass",
-      "return",
-      "sizeof",
-      "struct",
-      "var",
-      "while",
+      "and",  "as",     "break",  "continue", "fn",  "else",  "for",
+      "if",   "in",     "let",    "match",    "not", "null",  "or",
+      "pass", "return", "sizeof", "struct",   "var", "while",
   };
   for (auto k : keywords) {
     if (x == k) {

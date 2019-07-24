@@ -14,7 +14,8 @@ namespace zion {
 namespace parser {
 
 typedef std::map<std::string, std::map<Identifier, Identifier>> SymbolExports;
-typedef std::map<std::string, std::map<std::string, std::set<Identifier>>> SymbolImports;
+typedef std::map<std::string, std::map<std::string, std::set<Identifier>>>
+    SymbolImports;
 
 typedef std::map<std::string, types::Map> ParsedDataCtorsMap;
 typedef std::unordered_map<std::string, int> ParsedCtorIdMap;

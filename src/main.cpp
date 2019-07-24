@@ -944,9 +944,14 @@ Phase3 specialize(const Phase2 &phase_2) {
   if (user_error::errors_occurred()) {
     throw user_error(INTERNAL_LOC(), "quitting");
   }
+  std::string entry_point_name = phase_2.compilation->program_name + ".main";
+  if (phase_2.checked_defns.count(entry_point_name) == 0) {
+    throw user_error(INTERNAL_LOC(), "could not find a definition for %s",
+                     entry_point_name.c_str());
+  }
+
   CheckedDefinitionRef checked_defn_main =
-      phase_2.checked_defns.at(phase_2.compilation->program_name + ".main")
-          .back();
+      phase_2.checked_defns.at(entry_point_name).back();
   const Decl *program_main = checked_defn_main->decl;
   types::Ref program_type = checked_defn_main->scheme->type;
 
