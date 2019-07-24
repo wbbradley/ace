@@ -62,10 +62,6 @@ const std::vector<std::string> &get_zion_paths() {
 
 namespace compiler {
 
-std::string get_executable_filename() {
-  return "z.out";
-}
-
 std::string resolve_module_filename(Location location,
                                     std::string name,
                                     std::string extension) {
@@ -290,8 +286,7 @@ std::shared_ptr<Compilation> merge_compilation(
       new Program(program_decls, program_type_classes, program_instances,
                   new Application(new Var(make_iid("main")),
                                   {unit_expr(INTERNAL_LOC())})),
-      comments, link_ins, DataCtorsMap{data_ctors_map, ctor_id_map},
-      type_env);
+      comments, link_ins, DataCtorsMap{data_ctors_map, ctor_id_map}, type_env);
 }
 
 Compilation::ref parse_program(
@@ -321,30 +316,10 @@ Compilation::ref parse_program(
 
     debug_above(11, log(log_info, "parse_module of %s succeeded",
                         module_name.c_str(), false /*global*/));
-    for (auto module_names_map_pair : gps.symbol_imports) {
-      std::cout << "Module " << module_names_map_pair.first << " is importing:" << std::endl;
-      for (auto source_module_name_symbol_pair : module_names_map_pair.second) {
-        const auto &source_module_name = source_module_name_symbol_pair.first;
-        const auto &symbols = source_module_name_symbol_pair.second;
-        for (auto &symbol : symbols) {
-          std::cout << "\t" << source_module_name << ": " << symbol
-                    << std::endl;
-        }
-      }
-    }
-    for (auto module_names_map_pair : gps.symbol_exports) {
-      std::cout << "Module " << module_names_map_pair.first << " is exporting:" << std::endl;
-      for (auto symbols_pair : module_names_map_pair.second) {
-        const auto &exported_symbol = symbols_pair.first;
-        const auto &final_symbol = symbols_pair.second;
-        std::cout << "\t" << exported_symbol << ": " << final_symbol
-                  << std::endl;
-      }
-    }
 
     /* find the import rewriting rules */
-    RewriteImportRules rewriting_imports_rules = solve_rewriting_imports(gps.symbol_imports,
-                                                                         gps.symbol_exports);
+    RewriteImportRules rewriting_imports_rules = solve_rewriting_imports(
+        gps.symbol_imports, gps.symbol_exports);
 
     return merge_compilation(program_name, gps.modules, gps.comments,
                              gps.link_ins);
