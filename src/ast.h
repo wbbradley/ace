@@ -272,8 +272,8 @@ struct Lambda : public Expr {
          types::Refs param_types,
          types::Ref return_type,
          const Expr *body)
-      : vars(vars), param_types(param_types), return_type(return_type),
-        body(body) {
+      : vars(vars), body(body), param_types(param_types),
+        return_type(return_type) {
     assert(vars.size() != 0);
   }
   Location get_location() const override;

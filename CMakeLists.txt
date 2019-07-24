@@ -31,10 +31,10 @@ option(DEBUG "Build a Debug build" OFF)
 if(DEBUG)
 	message("Compiling in Debug mode...")
 	add_definitions(-DZION_DEBUG)
-	add_compile_options(-std=c++14 -g -O0 ${option_flags})
+	add_compile_options(-std=c++14 -g -O0 -Wall -Werror ${option_flags})
 else()
 	message("Compiling in Release mode...")
-	add_compile_options(-std=c++14 -g -O3 ${option_flags})
+	add_compile_options(-std=c++14 -g -O3 -Wall -Werror ${option_flags})
 endif()
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-rpath,${LLVM_INSTALL_PREFIX}/lib")
 
@@ -53,6 +53,7 @@ add_executable(zion
 	src/gen.cpp
 	src/host.cpp
 	src/identifier.cpp
+	src/import_rules.cpp
 	src/infer.cpp
 	src/lexer.cpp
 	src/link_ins.cpp

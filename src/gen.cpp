@@ -224,6 +224,8 @@ llvm::Value *get_env_var(llvm::IRBuilder<> &builder,
     }
     throw error;
   }
+
+#ifdef ZION_DEBUG
   debug_above(5, log("get_env_var(%s, %s) -> %s", id.str().c_str(),
                      type->str().c_str(), llvm_print(llvm_value).c_str()));
   if (auto arg = llvm::dyn_cast<llvm::Argument>(llvm_value)) {
@@ -236,6 +238,8 @@ llvm::Value *get_env_var(llvm::IRBuilder<> &builder,
     assert(arg->getParent() == llvm_get_function(builder));
   }
   assert(llvm_value != nullptr);
+#endif
+
   return llvm_value;
 }
 
@@ -252,7 +256,6 @@ void set_env_var(GenLocalEnv &gen_env,
   auto iter = gen_env.find(name);
   if (iter != gen_env.end()) {
     /* NB: this behavior is by design. we are allowed to shadow variables. */
-    llvm::Value *existing_value = iter->second;
     debug_above(4, log("found no value in the gen_env 0x%08llx for %s :: %s, "
                        "adding a new value",
                        (unsigned long long)&gen_env, name.c_str(),
@@ -494,7 +497,6 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
     /* scheme({}, {}, Unit) */
     auto llvm_module = llvm_get_module(builder);
 
-    llvm::Type *terms[] = {};
     assert(params.size() == 0);
 
     // libc dependency
@@ -699,8 +701,6 @@ void gen_lambda(std::string name,
 
   debug_above(4, log("created function type %s",
                      llvm_print(llvm_function_type).c_str()));
-  llvm::Type *llvm_return_type = llvm_function_type->getReturnType();
-  llvm::ArrayRef<llvm::Type *> llvm_param_types = llvm_function_type->params();
 
   llvm::Function *llvm_function = llvm::Function::Create(
       llvm_function_type, llvm::Function::ExternalLinkage, name,
@@ -753,6 +753,8 @@ void gen_lambda(std::string name,
    * */
   llvm::StructType *llvm_closure_type = llvm::StructType::get(
       llvm_function->getType(), builder.getInt8Ty()->getPointerTo());
+
+#ifdef ZION_DEBUG
   auto _llvm_closure_type = get_llvm_closure_type(builder, type_env,
                                                   type_terms);
   debug_above(
@@ -760,6 +762,7 @@ void gen_lambda(std::string name,
   debug_above(5, log("_llvm_closure_type = %s",
                      llvm_print(_llvm_closure_type).c_str()));
   assert(llvm_closure_type->getPointerTo() == _llvm_closure_type);
+#endif
 
   debug_above(5, log("llvm_dims count is %d", int(llvm_dims.size())));
 
@@ -1190,8 +1193,6 @@ ResolutionStatus gen(std::string name,
       builder.SetInsertPoint(else_block);
       return rs_cache_resolution;
     } else if (auto block = dcast<const ast::Block *>(expr)) {
-      size_t inst_counter = block->statements.size() - 1;
-
       llvm::Value *value = nullptr;
       for (auto statement : block->statements) {
         gen(builder, llvm_module, break_to_block, continue_to_block, statement,

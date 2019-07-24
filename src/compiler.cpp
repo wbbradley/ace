@@ -9,6 +9,7 @@
 
 #include "ast.h"
 #include "disk.h"
+#include "import_rules.h"
 #include "lexer.h"
 #include "link_ins.h"
 #include "parse_state.h"
@@ -340,6 +341,11 @@ Compilation::ref parse_program(
                   << std::endl;
       }
     }
+
+    /* find the import rewriting rules */
+    RewriteImportRules rewriting_imports_rules = solve_rewriting_imports(gps.symbol_imports,
+                                                                         gps.symbol_exports);
+
     return merge_compilation(program_name, gps.modules, gps.comments,
                              gps.link_ins);
 

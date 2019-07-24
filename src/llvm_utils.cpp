@@ -656,7 +656,7 @@ void destructure_closure(llvm::IRBuilder<> &builder,
                          llvm::Value *closure,
                          llvm::Value **llvm_function,
                          llvm::Value **llvm_closure_env) {
-  auto &context = closure->getContext();
+#ifdef ZION_DEBUG
   assert(closure->getType()->isPointerTy());
   auto inner_type = closure->getType()->getPointerElementType();
   auto struct_type = llvm::dyn_cast<llvm::StructType>(inner_type);
@@ -671,16 +671,16 @@ void destructure_closure(llvm::IRBuilder<> &builder,
   llvm::FunctionType *llvm_function_type = llvm::dyn_cast<llvm::FunctionType>(
       llvm_callable_type);
   assert(llvm_function_type != nullptr);
+
   auto params = llvm_function_type->params();
 
   // Must accept the closure env.
   assert(params.size() >= 1);
-  assert(params.back() == llvm::Type::getInt8Ty(context)->getPointerTo());
+  assert(params.back() == builder.getInt8Ty()->getPointerTo());
 
   // Second part of the tuple is the closure env pointer (i8*)
-  auto llvm_closure_env_type = struct_type->getElementType(1);
-  assert(llvm_closure_env_type ==
-         llvm::Type::getInt8Ty(context)->getPointerTo());
+  assert(struct_type->getElementType(1) == builder.getInt8Ty()->getPointerTo());
+#endif
 
   llvm::Value *gep_function_path[] = {builder.getInt32(0), builder.getInt32(0)};
   llvm::Value *gep_env_path[] = {builder.getInt32(0), builder.getInt32(1)};
