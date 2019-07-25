@@ -1,0 +1,2 @@
+import test_circular_exports {moonrocks}
+export {moonrocks}

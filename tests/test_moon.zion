@@ -1,8 +1,0 @@
-# test: skip
-
-import test_import_moon_moonrocks {moonrocks}
-export {moonrocks}
-
-fn moonrocks2() {
-    print("Moonrocks")
-}

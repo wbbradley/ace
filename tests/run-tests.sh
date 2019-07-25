@@ -36,7 +36,8 @@ declare -i passed runs
 passed=0
 runs=0
 failed_tests=()
-for test_file in "${test_dir}"/test_*.zion; do
+for test_file in tests/{*,}/test_*.zion
+do
 	if [ "$TEST_FILTER" != "" ]; then
 		if ! grep "$TEST_FILTER" <(echo "$test_file"); then
 			continue
@@ -45,13 +46,12 @@ for test_file in "${test_dir}"/test_*.zion; do
 	runs+=1
 	[[ "$DEBUG_TESTS" != "" ]] && echo "$0: Invoking run-test.sh on ${test_file}..."
 	if logged_run ZION_PATH="${ZION_PATH}:$(dirname "${test_file}")" \
-		"${run_test}" "${bin_dir}" "${source_dir}" "${test_file}"
-	then
+		"${run_test}" "${bin_dir}" "${source_dir}" "${test_file}"; then
 		passed+=1
 	else
 		failed_tests+=("$test_file")
 		echo "$0:$LINENO:1: error: test ${test_file} failed"
-		if [[ "${FAIL_FAST}" != "" ]]; then
+		if [ "${FAIL_FAST}" != "" ]; then
 			echo "FAIL_FAST was specified. Quitting..."
 			exit 1
 		fi
