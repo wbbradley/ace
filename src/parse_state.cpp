@@ -15,6 +15,14 @@ namespace zion {
 
 namespace parser {
 
+BoundVarLifetimeTracker::BoundVarLifetimeTracker(ParseState &ps)
+    : ps(ps), mutable_vars_saved(ps.mutable_vars) {
+}
+
+BoundVarLifetimeTracker::~BoundVarLifetimeTracker() {
+  ps.mutable_vars = mutable_vars_saved;
+}
+
 ParseState::ParseState(std::string filename,
                        std::string module_name,
                        Lexer &lexer,

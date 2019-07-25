@@ -5,10 +5,10 @@ fn queens(rows Int, columns Int) [[Int]] {
     var solutions = [[]]
 
     for row in range(rows) {
-        solutions = add_one_queen(row, columns, !solutions)
+        solutions = add_one_queen(row, columns, solutions)
     }
 
-    return !solutions
+    return solutions
 }
 
 fn copy_and_extend(solution, value) {

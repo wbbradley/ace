@@ -22,6 +22,21 @@ bool is_restricted_var_name(std::string x) {
   return false;
 }
 
+bool is_assignment_operator(token_kind tk) {
+  switch (tk) {
+  case tk_assign:
+  case tk_plus_eq:
+  case tk_minus_eq:
+  case tk_divide_by_eq:
+  case tk_mod_eq:
+  case tk_times_eq:
+  case tk_becomes:
+    return true;
+  default:
+    return false;
+  }
+}
+
 bool tkvisible(token_kind tk) {
   switch (tk) {
   default:
@@ -90,7 +105,6 @@ const char *tkstr(token_kind tk) {
     tk_case(shift_left);
     tk_case(shift_right);
     tk_case(plus_eq);
-    tk_case(maybe_eq);
     tk_case(rcurly);
     tk_case(rparen);
     tk_case(rsquare);
@@ -143,7 +157,6 @@ void ensure_space_before(token_kind prior_tk) {
   case tk_subtype:
   case tk_lt:
   case tk_lte:
-  case tk_maybe_eq:
   case tk_minus:
   case tk_backslash:
   case tk_minus_eq:

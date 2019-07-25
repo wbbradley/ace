@@ -33,8 +33,8 @@ fn main() {
             c := Complex(x, y)
             var z = c
             for i in [0..] {
-                z = (!z * !z) + c
-                Complex(a, b) := !z
+                z = (z * z) + c
+                Complex(a, b) := z
                 if a * a + b * b > 16.0 or i >= 100 {
                     if i != 0 {
                         String(sz, length) := str(i)

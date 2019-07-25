@@ -1,0 +1,7 @@
+# test: fail
+# expect: mutable vars are not allowed to be reassigned in destructuring assignment statements
+
+fn main() {
+    var x = 56
+    Ref(x) := Ref(4)
+}

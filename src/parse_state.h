@@ -48,6 +48,7 @@ struct ParseState {
   Token prior_token;
   std::string filename;
   std::string module_name;
+  std::unordered_set<std::string> mutable_vars;
 
   /* top-level term remapping from "get" statements */
   std::unordered_map<std::string, std::string> term_map;
@@ -75,6 +76,15 @@ struct ParseState {
 
 private:
   bool newline = false;
+};
+
+struct BoundVarLifetimeTracker {
+  BoundVarLifetimeTracker(ParseState &ps);
+  ~BoundVarLifetimeTracker();
+
+private:
+  ParseState &ps;
+  std::unordered_set<std::string> mutable_vars_saved;
 };
 
 } // namespace parser

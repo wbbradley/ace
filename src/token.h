@@ -72,7 +72,6 @@ enum token_kind {
 
   // Mutating binary ops
   tk_plus_eq,      /* += */
-  tk_maybe_eq,     /* ?= */
   tk_minus_eq,     /* -= */
   tk_times_eq,     /* *= */
   tk_divide_by_eq, /* /= */
@@ -138,5 +137,5 @@ struct Token {
 
 const char *tkstr(token_kind tk);
 int64_t parse_int_value(Token token);
-
+bool is_assignment_operator(token_kind tk);
 } // namespace zion
