@@ -9,7 +9,7 @@ fn main() {
     var product = 1
     for x in primes() {
         product *= x
-        if !product < 0 {
+        if product < 0 {
             break
         }
         print(product)

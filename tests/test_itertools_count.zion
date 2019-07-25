@@ -9,7 +9,7 @@ fn main() {
         if x >= 20 {
             break
         }
-        total = !total + x
+        total = total + x
     }
-    print(!total)
+    print(total)
 }

@@ -15,8 +15,8 @@ fn main() {
             break
         }
         var to_write = cb
-        while !to_write != 0 {
-            written := write(1, buffer, !to_write)
+        while to_write != 0 {
+            written := write(1, buffer, to_write)
             if written <= 0 {
                 break
             }

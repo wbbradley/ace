@@ -56,25 +56,6 @@ bool token_begins_type(const Token &token) {
   };
 }
 
-std::vector<std::pair<int, Identifier>> extract_ids(
-    const std::vector<const Expr *> &dims) {
-  std::vector<std::pair<int, Identifier>> refs;
-  int i = 0;
-  for (auto dim : dims) {
-    if (const Var *var = dcast<const Var *>(dim)) {
-      if (var->id.name != "_") {
-        refs.push_back({i, var->id});
-      }
-    } else {
-      throw user_error(dim->get_location(),
-                       "only reference expressions are allowed here");
-    }
-    ++i;
-  }
-  assert(refs.size() != 0);
-  return refs;
-}
-
 const Predicate *convert_tuple_into_predicate(const Tuple *tuple) {
   std::vector<const Predicate *> params;
   for (auto dim : tuple->dims) {
@@ -110,6 +91,15 @@ const Predicate *unfold_application_into_predicate(
     if (const Var *var = dcast<const Var *>(exprs[0])) {
       /* this may be a data constructor, treat it as such */
       auto ctor_name = var->id;
+      if (ctor_name.name == "std.load_value") {
+        // HACKHACK: don't allow mutable_vars to be overwritten in assignment
+        // destructuring.
+        throw user_error(
+            var->id.location,
+            "mutable vars are not allowed to be reassigned in destructuring "
+            "assignment statements. please use a different name than %s",
+            var->id.str().c_str());
+      }
       std::vector<const Predicate *> params;
       for (int i = 1; i < exprs.size(); ++i) {
         params.push_back(convert_expr_to_predicate(exprs[i]));
@@ -211,6 +201,9 @@ const Expr *parse_let(ParseState &ps, Identifier var_id, bool is_let) {
   if (!is_let) {
     auto ref_id = ps.id_mapped(Identifier{"Ref", location});
     initializer = new Application(new Var(ref_id), {initializer});
+    ps.mutable_vars.insert(var_id.name);
+  } else {
+    ps.mutable_vars.erase(var_id.name);
   }
 
   return new Let(var_id, initializer,
@@ -292,11 +285,6 @@ const Expr *parse_with_block(ParseState &ps) {
 #endif
 }
 
-const Expr *wrap_with_iter(ParseState &ps, const Expr *expr) {
-  return new Application(
-      new Var(ps.id_mapped(Identifier{"iter", expr->get_location()})), {expr});
-}
-
 const Expr *parse_for_block(ParseState &ps) {
   chomp_ident("for");
 
@@ -310,7 +298,12 @@ const Expr *parse_for_block(ParseState &ps) {
     auto in_token = ps.token;
     chomp_ident(K(in));
     auto iterable = parse_expr(ps);
+
+    BoundVarLifetimeTracker bvlt(ps);
+    ps.mutable_vars.erase(var.name);
+
     auto block = parse_block(ps, false /*expression_means_return*/);
+
     auto iterator_id = Identifier{fresh(), var.location};
     return new Let(
         iterator_id,
@@ -385,8 +378,7 @@ const Expr *parse_assert(ParseState &ps) {
                                                ps.token.location}),
                             {
                                 new Literal(Token{ps.token.location, tk_string,
-                                                  escape_json_quotes("writ"
-                                                                     "e")}),
+                                                  "\"write\""}),
                                 new Literal(Token{ps.token.location, tk_integer,
                                                   "2" /*stderr*/}),
                                 new Literal(
@@ -436,7 +428,13 @@ const Expr *parse_statement(ParseState &ps) {
   } else if (ps.token.is_ident(K(fn))) {
     ps.advance();
     if (ps.token.tk == tk_identifier) {
-      return new Let(Identifier::from_token(ps.token), parse_lambda(ps),
+      auto fn_id = Identifier::from_token(ps.token);
+
+      BoundVarLifetimeTracker bvlt(ps);
+      /* the function name is not a mutable value. */
+      ps.mutable_vars.erase(fn_id.name);
+
+      return new Let(fn_id, parse_lambda(ps),
                      parse_block(ps, false /*expression_means_return*/));
     } else {
       return parse_lambda(ps);
@@ -455,7 +453,6 @@ const Expr *parse_statement(ParseState &ps) {
 }
 
 const Expr *parse_var_ref(ParseState &ps) {
-  // TODO: if this name is a var, then treat it as a load
   if (ps.token.tk != tk_identifier) {
     throw user_error(ps.token.location, "expected an identifier");
   }
@@ -510,7 +507,21 @@ const Expr *parse_var_ref(ParseState &ps) {
                      "%s statements cannot be used as expressions",
                      ps.token.text.c_str());
   }
-  return new Var(ps.identifier_and_advance());
+  auto id = ps.identifier_and_advance();
+  const Expr *var_ref = new Var(id);
+  if (is_assignment_operator(ps.token.tk) ||
+      ps.mutable_vars.count(id.name) == 0) {
+    /* this is just a regular variable reference, we don't know if its a "Ref a"
+     * type or not, but we suspect not, based on the lexicographical information
+     * available */
+    return var_ref;
+  } else {
+    /* we know that this was declared as a "var", so let's just automatically
+     * load it for the user. if they want to treat is as a ref, then they need
+     * to preface it with & */
+    return new Application(new Var(Identifier{"std.load_value", id.location}),
+                           {var_ref});
+  }
 }
 
 const Expr *parse_base_expr(ParseState &ps) {
@@ -1115,6 +1126,8 @@ const Expr *parse_assignment(ParseState &ps) {
 }
 
 const Expr *parse_block(ParseState &ps, bool expression_means_return) {
+  BoundVarLifetimeTracker bvlt(ps);
+
   bool expression_block_syntax = false;
   Token expression_block_assign_token;
   bool finish_block = false;

@@ -5,6 +5,6 @@ fn main() {
     for i in [1..4] {
         x /= i
     }
-    assert(!x == 17)
+    assert(x == 17)
     print("PASS")
 }

@@ -3,7 +3,7 @@
 fn main() {
     var f = concat("", "hi")
     print(len(concat("a", "b")))
-    assert(2 == len(!f))
-    assert(!f == "hi")
+    assert(2 == len(f))
+    assert(f == "hi")
     print("PASS")
 }

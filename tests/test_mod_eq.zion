@@ -3,6 +3,6 @@
 fn main() {
     var x = 13
     x %= 4
-    assert(!x == 1)
+    assert(x == 1)
     print("PASS")
 }

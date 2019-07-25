@@ -91,30 +91,30 @@ fn join(delim_ String, xs) String {
     delim_len := len(delim_)
     var count = 0
     for x in xs {
-        count = !count + 1
+        count = count + 1
         s := str(x)
         append(results, s)
-        total = !total + len(s)
+        total = total + len(s)
         cur_delim_len = delim_len
     }
-    total = !total + len(delim_) * (!count - 1)
-    buf := alloc(!total + 1)
+    total = total + len(delim_) * (count - 1)
+    buf := alloc(total + 1)
     var i = 0
     for r in results {
-        if !i > 0 {
+        if i > 0 {
             for ch in StringIterable(delim_) {
-                buf[!i] = ch
-                i = !i + 1
+                buf[i] = ch
+                i = i + 1
             }
         }
         for ch in StringIterable(r) {
-            buf[!i] = ch
-            i = !i + 1
+            buf[i] = ch
+            i = i + 1
         }
     }
-    buf[!i] = from_int(0)
+    buf[i] = from_int(0)
 
-    return String(buf, !i)
+    return String(buf, i)
 }
 
 instance Show [a] {
@@ -517,11 +517,11 @@ instance Eq [a] {
         }
         size := !xs.size
         var i = 0
-        while !i < size {
-            if xs[!i] != ys[!i] {
+        while i < size {
+            if xs[i] != ys[i] {
                 return False
             }
-            i = !i + 1
+            i += 1
         }
         return True
     }
@@ -531,11 +531,11 @@ instance Eq [a] {
         }
         size := !(xs.size)
         var i = 0
-        while !i < size {
-            if xs[!i] != ys[!i] {
+        while i < size {
+            if xs[i] != ys[i] {
                 return True
             }
-            i = !i + 1
+            i += 1
         }
         return False
     }

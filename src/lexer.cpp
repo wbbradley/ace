@@ -183,14 +183,9 @@ bool Lexer::_get_tokens() {
       }
       break;
     case gts_maybe:
-      if (ch == '=') {
-        gts = gts_end;
-        tk = tk_maybe_eq;
-      } else {
-        scan_ahead = false;
-        gts = gts_end;
-        tk = tk_maybe;
-      }
+      scan_ahead = false;
+      gts = gts_end;
+      tk = tk_maybe;
       break;
     case gts_plus:
       if (ch == '=') {
