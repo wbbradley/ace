@@ -40,7 +40,6 @@ Compilation::ref parse_program(
     const std::map<std::string, int> &builtin_arities);
 
 /* parse a single module */
-ast::Module *parse_module(Location location, std::string module_name);
 std::string resolve_module_filename(Location location,
                                     std::string name,
                                     std::string extension);
