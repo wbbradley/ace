@@ -1,18 +1,26 @@
 #!/usr/bin/env bash
-if ! shellcheck "$0"; then
-		echo "$0: shellcheck $0 failed."
-		exit 1
-fi
+
+function logged_run() {
+	[ "$DEBUG_TESTS" != "" ] && echo "$@"
+	eval "$@"
+}
 
 if ! command -v mapfile 2>/dev/null 1>/dev/null; then
 		echo "$0:$LINENO:1: error: you need a newer version of bash (one that supports mapfile)"
 		exit 1
 fi
 
-run_test="$(dirname "$0")/run-test.sh"
-if ! shellcheck "$run_test"; then
-		echo "$0: shellcheck ${run_test} failed."
-		exit 1
+if command -v shellcheck; then
+	if ! logged_run shellcheck "$0"; then
+			echo "$0: shellcheck $0 failed."
+			exit 1
+	fi
+
+	run_test="$(dirname "$0")/run-test.sh"
+	if ! logged_run shellcheck "$run_test"; then
+			echo "$0: shellcheck ${run_test} failed."
+			exit 1
+	fi
 fi
 
 bin_dir=$1
@@ -36,7 +44,9 @@ for test_file in "${test_dir}"/test_*.zion; do
 	fi
 	runs+=1
 	[[ "$DEBUG_TESTS" != "" ]] && echo "$0: Invoking run-test.sh on ${test_file}..."
-	if "${run_test}" "${bin_dir}" "${source_dir}" "${test_file}"; then
+	if logged_run ZION_PATH="${ZION_PATH}:$(dirname "${test_file}")" \
+		"${run_test}" "${bin_dir}" "${source_dir}" "${test_file}"
+	then
 		passed+=1
 	else
 		failed_tests+=("$test_file")
