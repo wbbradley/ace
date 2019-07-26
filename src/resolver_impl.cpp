@@ -47,16 +47,24 @@ llvm::Value *LazyResolver::resolve_impl() {
     assert(value == nullptr);
     sort_color = sc_resolving;
     switch (callback(&value)) {
-    case rs_resolve_again:
+    case rs_resolve_again: {
       sort_color = sc_unresolved;
-      break;
-    case rs_cache_resolution:
-      sort_color = sc_resolved;
-      break;
+      assert(value != nullptr);
+      auto ret_value = value;
+      /* this is set to resolve again, so forget the value */
+      value = nullptr;
+      debug_above(
+          5, log("LazyResolver resolved %s", llvm_print(ret_value).c_str()));
+      return ret_value;
     }
-    assert(value != nullptr);
-    debug_above(5, log("LazyResolver resolved %s", llvm_print(value).c_str()));
-    return value;
+    case rs_cache_resolution: {
+      assert(value != nullptr);
+      sort_color = sc_resolved;
+      debug_above(5,
+                  log("LazyResolver resolved %s", llvm_print(value).c_str()));
+      return value;
+    }
+    }
   case sc_resolving:
     /* we are already resolving this object, but progress on that front got far
      * enough that we can give back a value to be used elsewhere */

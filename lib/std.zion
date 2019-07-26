@@ -47,7 +47,7 @@ instance Show Float {
     }
 }
 
-instance Show (Ref a) {
+instance Show (var a) {
     fn str(a) => str(!a)
 }
 
@@ -658,9 +658,9 @@ fn range(max Int) {
 
 instance Iterable Range {
     fn iter(ri) {
-        index := Ref(ri.range_min)
+        var index = ri.range_min
         return fn () {
-            cur_index := !index;
+            cur_index := index;
             if cur_index <= ri.range_max {
                 index = cur_index + ri.step_size
                 return Just(cur_index)

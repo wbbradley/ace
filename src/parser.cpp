@@ -199,7 +199,7 @@ const Expr *parse_let(ParseState &ps, Identifier var_id, bool is_let) {
   }
 
   if (!is_let) {
-    auto ref_id = ps.id_mapped(Identifier{"Ref", location});
+    auto ref_id = Identifier{"std.Ref", location};
     initializer = new Application(new Var(ref_id), {initializer});
     ps.mutable_vars.insert(var_id.name);
   } else {
@@ -507,9 +507,18 @@ const Expr *parse_var_ref(ParseState &ps) {
                      "%s statements cannot be used as expressions",
                      ps.token.text.c_str());
   }
+
+  bool allow_automatic_dereferencing = true;
+  if (ps.token.is_ident(K(var))) {
+    ps.advance();
+    allow_automatic_dereferencing = false;
+  }
+
   auto id = ps.identifier_and_advance();
   const Expr *var_ref = new Var(id);
-  if (is_assignment_operator(ps.token.tk) ||
+  if (!allow_automatic_dereferencing) {
+    return var_ref;
+  } else if (is_assignment_operator(ps.token.tk) ||
       ps.mutable_vars.count(id.name) == 0) {
     /* this is just a regular variable reference, we don't know if its a "Ref a"
      * type or not, but we suspect not, based on the lexicographical information
@@ -1419,44 +1428,39 @@ const Match *parse_match(ParseState &ps) {
 }
 
 std::pair<Identifier, types::Ref> parse_lambda_param_core(ParseState &ps) {
-  auto param_token = ps.token_and_advance();
-  return {iid(param_token),
-          (token_begins_type(ps.token))
-              ? parse_type(ps, true /*allow_top_level_application*/)
-              : type_variable(param_token.location)};
-}
+  /* parse a parameter declaration for a lambda. */
+  Token first_token = ps.token_and_advance();
+  if (first_token.is_ident(K(var))) {
+    expect_token(tk_identifier);
+    Token param_token = ps.token_and_advance();
 
-std::pair<Identifier, types::Ref> parse_lambda_param(ParseState &ps) {
-  if (ps.token.tk == tk_lparen) {
-    ps.advance();
-    if (ps.token.tk == tk_identifier) {
-      return parse_lambda_param_core(ps);
-    } else if (ps.token.tk == tk_rparen) {
-      return {Identifier{"_", ps.token.location}, type_unit(ps.token.location)};
-    }
-  } else if (ps.token.tk == tk_comma) {
-    ps.advance();
-    if (ps.token.tk == tk_identifier) {
-      return parse_lambda_param_core(ps);
-    }
+    /* add this param as a mutable var, since we know it's a Ref */
+    ps.mutable_vars.insert(param_token.text);
+
+    return {
+        iid(param_token),
+        type_operator(type_id({"std.Ref", param_token.location}),
+                      (token_begins_type(ps.token))
+                          ? parse_type(ps, true /*allow_top_level_application*/)
+                          : type_variable(param_token.location))};
+  } else {
+    return {iid(first_token),
+            (token_begins_type(ps.token))
+                ? parse_type(ps, true /*allow_top_level_application*/)
+                : type_variable(first_token.location)};
   }
-
-  throw user_error(ps.token.location, "missing parameter name");
 }
 
-// TODO: put type mappings into the scope
 const Expr *parse_lambda(ParseState &ps) {
   if (ps.token.tk == tk_identifier) {
     throw user_error(ps.token.location, "identifiers are unexpected here");
   }
 
-  if (ps.token.tk == tk_lsquare) {
-    throw user_error(ps.token.location, "not yet impl");
-  }
-
+  BoundVarLifetimeTracker bvlt(ps);
   std::vector<Identifier> param_ids;
   types::Refs param_types;
   chomp_token(tk_lparen);
+
 
   while (!maybe_chomp_token(tk_rparen)) {
     if (param_ids.size() != 0 && ps.token.tk != tk_rparen) {
@@ -1583,6 +1587,14 @@ types::Ref parse_type(ParseState &ps, bool allow_top_level_application) {
     } else if (ps.token.is_ident(K(fn))) {
       ps.advance();
       types.push_back(parse_function_type(ps));
+    } else if (ps.token.is_ident(K(var))) {
+      /* var syntax is a low-precedence unary type operator which applies the
+       * "Ref" type to its operand */
+      types::Ref ref_type_id = type_id(Identifier{"std.Ref", ps.token.location});
+      ps.advance();
+
+      types.push_back(type_operator(
+          {ref_type_id, parse_type(ps, true /*allow_top_level_application*/)}));
     } else if (ps.token.tk == tk_identifier) {
       types.push_back(parse_named_type(ps));
     } else if (ps.token.tk == tk_times) {

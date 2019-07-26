@@ -11,16 +11,19 @@
 namespace zion {
 struct Compilation {
   using ref = std::shared_ptr<Compilation>;
-  Compilation(std::string program_name,
+  Compilation(std::string program_filename,
+              std::string program_name,
               const ast::Program *program,
               std::vector<Token> comments,
               const std::set<LinkIn> &link_ins,
               const DataCtorsMap &data_ctors_map,
               const types::TypeEnv &type_env)
-      : program_name(program_name), program(program), comments(comments),
-        link_ins(link_ins), data_ctors_map(data_ctors_map), type_env(type_env) {
+      : program_filename(program_filename), program_name(program_name),
+        program(program), comments(comments), link_ins(link_ins),
+        data_ctors_map(data_ctors_map), type_env(type_env) {
   }
 
+  std::string const program_filename;
   std::string const program_name;
   const ast::Program *program;
   std::vector<Token> const comments;

@@ -1,0 +1,21 @@
+# test: fail
+# expect: type error
+
+class Update a {
+    fn update(var a, a)
+}
+
+instance Update Int {
+    # This test should fail because x is not decorated with 'var'
+    fn update(var x, y) {
+        # Int's version of update does an inc
+        x = x + y
+    }
+}
+
+fn main() {
+    var x = 1
+    let y = 12
+    update(x, y)
+    __builtin_print_int(x)
+}
