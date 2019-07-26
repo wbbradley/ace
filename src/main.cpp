@@ -946,7 +946,8 @@ Phase3 specialize(const Phase2 &phase_2) {
   }
   std::string entry_point_name = phase_2.compilation->program_name + ".main";
   if (phase_2.checked_defns.count(entry_point_name) == 0) {
-    throw user_error(INTERNAL_LOC(), "could not find a definition for %s",
+    throw user_error(Location{phase_2.compilation->program_filename, 1, 1},
+                     "could not find a definition for %s",
                      entry_point_name.c_str());
   }
 
@@ -1229,7 +1230,11 @@ int run_job(const Job &job) {
 
   std::map<std::string, std::function<int(const Job &, bool)>> cmd_map;
   cmd_map["help"] = [&](const Job &job, bool explain) {
-    std::cerr << "zion:" << std::endl;
+    std::cerr << "zion";
+#ifdef ZION_DEBUG
+    std::cerr << " (debug build)";
+#endif
+    std::cerr << ':' << std::endl;
     for (auto &cmd_pair : cmd_map) {
       if (cmd_pair.first != "help") {
         /* run the command in explain mode */

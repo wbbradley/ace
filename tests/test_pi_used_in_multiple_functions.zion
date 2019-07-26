@@ -1,0 +1,18 @@
+# test: pass
+# expect: 1.570796326794897
+# expect: 0.785398163397448
+
+import trigonometry {PI}
+
+fn pi_over_2() {
+    return PI / 2.0
+}
+
+fn pi_over_4() {
+    return PI / 4.0
+}
+
+fn main() {
+    print(pi_over_2())
+    print(pi_over_4())
+}

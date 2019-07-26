@@ -1,0 +1,23 @@
+# test: pass
+# expect: 13
+
+class Update a {
+    fn update(var a, a)
+}
+
+instance Update Int {
+    # This test should pass because x is properly decorated with 'var'
+    fn update(var x, y) {
+        # Int's version of update does an inc
+        x = x + y
+    }
+}
+
+fn main() {
+    var x = 1
+    let y = 12
+    # Also, this test should pass because the x argument below is properly
+    # decorated with 'var'.
+    update(var x, y)
+    __builtin_print_int(x)
+}

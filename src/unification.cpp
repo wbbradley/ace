@@ -140,7 +140,6 @@ Unification bind(std::string a, Ref type) {
 
   /* first do an occurs check */
   if (type->get_ftvs().count(a) != 0) {
-    dbg();
     /* this type exists within its own substitution. Fail. */
     return Unification{false,
                        type->get_location(),

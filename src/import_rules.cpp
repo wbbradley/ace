@@ -11,7 +11,7 @@ RewriteImportRules solve_rewriting_imports(
 
   for (auto &module_pair : symbol_exports) {
     for (auto &id_pair : module_pair.second) {
-      debug_above(3, log("%s: %s -> %s", module_name.c_str(),
+      debug_above(3, log("%s: %s -> %s", module_pair.first.c_str(),
                          id_pair.first.str().c_str(),
                          id_pair.second.str().c_str()));
       if (id_pair.second.name != id_pair.first.name) {

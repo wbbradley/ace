@@ -233,6 +233,7 @@ std::set<std::string> get_top_level_decls(
 }
 
 std::shared_ptr<Compilation> merge_compilation(
+    std::string program_filename,
     std::string program_name,
     std::vector<const Module *> modules,
     const std::vector<Token> &comments,
@@ -282,7 +283,7 @@ std::shared_ptr<Compilation> merge_compilation(
   }
 
   return std::make_shared<Compilation>(
-      program_name,
+      program_filename, program_name,
       new Program(program_decls, program_type_classes, program_instances,
                   new Application(new Var(make_iid("main")),
                                   {unit_expr(INTERNAL_LOC())})),
@@ -321,8 +322,10 @@ Compilation::ref parse_program(
     RewriteImportRules rewriting_imports_rules = solve_rewriting_imports(
         gps.symbol_imports, gps.symbol_exports);
 
-    return merge_compilation(program_name, gps.modules, gps.comments,
-                             gps.link_ins);
+    std::string program_filename = compiler::resolve_module_filename(
+        INTERNAL_LOC(), user_program_name, ".zion");
+    return merge_compilation(program_filename, program_name, gps.modules,
+                             gps.comments, gps.link_ins);
 
   } catch (user_error &e) {
     print_exception(e);
