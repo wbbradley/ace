@@ -4,7 +4,7 @@
 
 ## Quick Start
 
-To quickly play with Zion in Docker, try this.
+To play with Zion in Docker, try this.
 
 ```
 git clone https://github.com/zionlang/zion.git
@@ -33,7 +33,7 @@ man zion
 
 ## Description
 
-Zion is a statically typed procedural/functional language. It is a work in
+Zion is a statically typed procedural/funct onal language. It is a work in
 progress. Please reach out if you'd like to get involved.
 
 ### Syntax
@@ -44,9 +44,9 @@ fn main() {
 }
 ```
 
-The syntax loosely resembles C or Python (with braces.) The type system is
+The syntax resembles C or Python (with braces.) The type system is
 based on System F with extensions for Type Classes, newtypes and pattern
-matching. There is no macro system but there is a relatively rich syntax
+matching. There is no macro system but there is a rich syntax
 available via reader macros within the parser.
 
 ### Semantics
@@ -54,9 +54,12 @@ available via reader macros within the parser.
 The evaluation of Zion is strict, not lazy. The call-by-value method of passing
 arguments is used.
 
-There is no explicit notion of immutability, however it is implicit
-unless `Ref` is used. `var` declarations automatically wrap initialization
-values in a `Ref`. The primary way to maintain mutable state is to use `Ref`. 
+### Mutability
+
+There is no explicit notion of immutability, however it is implicit unless
+`var` is used. `var` declarations wrap initialization values in a mutable
+reference cell. Under the covers, this is the `std.Ref` type. The primary way
+to maintain mutable state is to use `var`.
 
 ### Encapsulation
 
@@ -66,27 +69,30 @@ functions.
 
 ### Type System
 
-Types are inferred but type annotations are also allowed/encouraged as documentation and occasionally
-necessary when types cannot be inferred. See [this StackOverflow post](https://stackoverflow.com/questions/54000708/how-does-the-haskell-compiler-emit-code-for-frominteger-0-frominteger-0) and to understand when it becomes necessary to annotate types. Zion does not support default type class instances by design (although, if a good enough design for that comes along, it might happen.)
+Types are inferred but type annotations are also allowed/encouraged as
+documentation and sometimes necessary when types cannot be inferred.  Zion
+does not support default type class instances by design (although, if a good
+design for that comes along, it might happen.)
 
 ### Polymorphism
 
 Polymorphism comes in two flavors.
 
 Type-based polymorphism exists at compile time in the ability to use type
-variables which can be bound differently per invocation of a function. At
-run-time, there are a couple different notions of polymorphism. First, Zion
-supports sum types by allowing the declaration of types with multiple different
-data constructors. This then relies on `match` statements (pattern matching) to
-branch on the run-time value. This form of polymorphism may feel unfamiliar to
-folks coming from "OOP" languages that rely on inheritance and "abstract"
-classes with any number of derived implementations.
+variables which are re-bound per function invocation. At run-time, there are a
+couple different notions of polymorphism. First, Zion supports sum types by
+allowing the declaration of types with multiple data constructors.  This then
+relies on `match` statements (pattern matching) to branch on the run-time
+value. This form of polymorphism may feel unfamiliar to folks coming from "OOP"
+languages that rely on inheritance and/or abstract classes with any number of
+derived implementations.
 
-Since Zion treats functions as values, and allows closure over `fn`
-definitions, you can `return` new behaviors as functions, and then the users of
-those functions will get statically checked run-time varying behavior (aka run-time polymorphism). For example, the `Iterable` type class requires a
-single function which will itself return a function which can be called
-repeatedly to iterate. It has a signature like
+Since Zion treats functions as values and allows closure over function
+definitions (`fn`), you can `return` new behaviors as functions. Users of those
+functions will get statically checked run-time varying behavior (aka run-time
+polymorphism). For example, the `Iterable` type class requires a single
+function which will itself return a function which can be called repeatedly to
+iterate. It has a signature like
 
 ```
 class Iterable a {
@@ -105,8 +111,7 @@ done iterating.
 All code that is reachable from `main` is specialized and monomorphized prior
 to the final code generation phase. Code generation creates LLVM IR, which is
 passed through clang to perform static linking, optimization, and lowering to
-the target host. There is no polymorphism at runtime outside of passing
-functions by value.
+the target host.
 
 The best way to learn more at this time is to read through the
 `tests/test_*.zion` code.
