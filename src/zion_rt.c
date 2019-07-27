@@ -45,7 +45,8 @@ char *zion_itoa(int64_t x) {
 
 char *zion_ftoa(double x) {
   char sz[128];
-  if (snprintf(sz, sizeof(sz), "%20.15f", x) < 1) {
+  /* IEEE double precision floats have about 15 decimal digits of precision */
+  if (snprintf(sz, sizeof(sz), "%.15f", x) < 1) {
     perror("Failed in zion_ftoa");
     exit(1);
   }

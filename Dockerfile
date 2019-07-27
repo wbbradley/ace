@@ -24,24 +24,24 @@ RUN apt-get update -y && apt-get install -y \
 
 
 RUN wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
-RUN echo "deb http://apt.llvm.org/stretch/ llvm-toolchain-stretch-7 main" >> /etc/apt/sources.list
-RUN echo "deb-src http://apt.llvm.org/stretch/ llvm-toolchain-stretch-7 main" >> /etc/apt/sources.list
+RUN echo "deb http://apt.llvm.org/stretch/ llvm-toolchain-stretch-8 main" >> /etc/apt/sources.list
+RUN echo "deb-src http://apt.llvm.org/stretch/ llvm-toolchain-stretch-8 main" >> /etc/apt/sources.list
 
 RUN apt-get update -y && apt-get install -y \
-	clang-7 \
-	clang-tools-7 \
-	libclang-7-dev \
-	libclang-common-7-dev \
+	clang-8 \
+	clang-tools-8 \
+	libclang-8-dev \
+	libclang-common-8-dev \
 	libllvm7 \
-	llvm-7 \
-	llvm-7-dev \
-	llvm-7-runtime \
-	llvm-7-tools
+	llvm-8 \
+	llvm-8-dev \
+	llvm-8-runtime \
+	llvm-8-tools
 
-RUN update-alternatives --install /usr/bin/llvm-link llvm-link /usr/bin/llvm-link-7 100 && \
-	update-alternatives --install /usr/bin/clang clang /usr/bin/clang-7 100 && \
-	update-alternatives --install /usr/bin/llvm-config llvm-config /usr/bin/llvm-config-7 100 && \
-	update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-7 100
+RUN update-alternatives --install /usr/bin/llvm-link llvm-link /usr/bin/llvm-link-8 100 && \
+	update-alternatives --install /usr/bin/clang clang /usr/bin/clang-8 100 && \
+	update-alternatives --install /usr/bin/llvm-config llvm-config /usr/bin/llvm-config-8 100 && \
+	update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-8 100
 
 ADD . /opt/zion
 WORKDIR /opt/zion
