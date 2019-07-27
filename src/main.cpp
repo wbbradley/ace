@@ -1409,11 +1409,15 @@ int run_job(const Job &job) {
       std::stringstream ss_c_flags;
       std::stringstream ss_lib_flags;
       for (auto link_in : phase_4.phase_3.phase_2.compilation->link_ins) {
-        std::string pkg_name = unescape_json_quotes(link_in.name.text);
         switch (link_in.lit) {
-        case lit_pkgconfig:
+        case lit_pkgconfig: {
+          std::string pkg_name = unescape_json_quotes(link_in.name.text);
           ss_c_flags << get_pkg_config("--cflags-only-I", pkg_name) << " ";
           ss_lib_flags << get_pkg_config("--libs --static", pkg_name) << " ";
+          break;
+        }
+        case lit_link:
+          ss_lib_flags << "-l\"" << link_in.name.text << "\" ";
           break;
         }
       }

@@ -2,6 +2,8 @@ import trigonometry {sin, cos, tan, acos, asin, sinh, cosh, tanh, atan, atan2}
 export {MinMax, min, max, even, odd, sqrt, sum, sin, cos, tan, acos, asin, sinh,
         cosh, tanh, atan, atan2}
 
+link "m"
+
 class MinMax a {
     # TODO: put this in std.Ord
     fn min(a, a) a

@@ -1,4 +1,4 @@
-FROM debian:stable
+FROM debian:stretch
 MAINTAINER William Bradley <williambbradley@gmail.com>
 
 # Install ripgrep
@@ -32,7 +32,7 @@ RUN apt-get update -y && apt-get install -y \
 	clang-tools-8 \
 	libclang-8-dev \
 	libclang-common-8-dev \
-	libllvm7 \
+	libllvm8 \
 	llvm-8 \
 	llvm-8-dev \
 	llvm-8-runtime \

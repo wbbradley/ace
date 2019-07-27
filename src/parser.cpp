@@ -2081,6 +2081,8 @@ const Module *parse_module(ParseState &ps,
     if (ps.token.is_ident(K(pkg))) {
       ps.advance();
       ps.link_ins.insert(LinkIn{lit_pkgconfig, ps.token_and_advance()});
+    } else if (ps.token.tk == tk_string) {
+      ps.link_ins.insert(LinkIn{lit_link, ps.token_and_advance()});
     } else {
       throw user_error(ps.token.location, "unexpected link directive");
     }

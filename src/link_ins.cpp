@@ -5,13 +5,6 @@
 
 namespace zion {
 
-const char *littostr(LinkInType lit) {
-  switch (lit) {
-  case lit_pkgconfig:
-    return "pkgconfig";
-  }
-}
-
 LinkIn::LinkIn(const LinkIn &link_in) : lit(link_in.lit), name(link_in.name) {
 }
 
