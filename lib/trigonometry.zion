@@ -12,6 +12,8 @@ export {
     tanh,
 }
 
+link "m"
+
 let PI = 3.141592653589793238
 
 fn sin(x Float) Float {

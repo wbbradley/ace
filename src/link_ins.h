@@ -7,9 +7,8 @@ namespace zion {
 
 enum LinkInType {
   lit_pkgconfig,
+  lit_link,
 };
-
-const char *littostr(LinkInType lit);
 
 struct LinkIn {
   LinkIn() = delete;
