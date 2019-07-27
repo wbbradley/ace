@@ -1,0 +1,22 @@
+# test: pass
+
+struct MutableVector {
+    x var Float
+    y var Float
+}
+
+instance Show MutableVector {
+    fn str(mv) {
+        return concat(concat(concat(concat("<", str(mv.x)), ", "), str(mv.y)), ">")
+    }
+}
+
+fn main() {
+    var x = 1.2
+    var y = 2.3
+    mv := MutableVector(var x, var y)
+    mv.x = 2.09
+    print(mv.x)
+    print(mv)
+    print("PASS")
+}
