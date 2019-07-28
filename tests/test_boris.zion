@@ -1,6 +1,6 @@
 # test: pass
+# expect: the type is Int
 
 fn main() {
     static_print(5)
-    __builtin_pass_test
 }
