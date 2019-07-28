@@ -38,6 +38,7 @@ RewriteImportRules solve_rewriting_imports(
     while (graph.count(resolved_id) == 1) {
       visited.insert(resolved_id);
       visited_list.push_back(resolved_id);
+
       /* advance to the next id */
       resolved_id = graph.at(resolved_id);
 
@@ -62,7 +63,7 @@ RewriteImportRules solve_rewriting_imports(
         pair.second.str().c_str());
   }
 
-  return {};
+  return rewriting;
 }
 
 } // namespace zion

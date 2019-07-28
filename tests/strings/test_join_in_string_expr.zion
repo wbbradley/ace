@@ -1,0 +1,5 @@
+# test: pass
+
+fn main() {
+    print("join(\", \", [1, 2, 3]) = ${join(", ", [1, 2, 3])}")
+}

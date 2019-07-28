@@ -40,6 +40,9 @@ enum token_kind {
   tk_integer, /* [0-9]+ */
   tk_string,  /* "string literal" */
   tk_about,   /* @ */
+  tk_string_expr_prefix, /* ".*[^\\]\${ */
+  tk_string_expr_continuation, /* }.*[^\\]\${ */
+  tk_string_expr_suffix, /* }.*" */
 
   // Operators
   tk_equal,          /* == */
@@ -120,7 +123,7 @@ K(while);
 bool is_restricted_var_name(std::string x);
 
 struct Token {
-  Token(const Location &location = {{""}, -1, -1},
+  Token(const Location &location = Location{{""}, -1, -1},
         token_kind tk = tk_none,
         std::string text = "")
       : location(location), tk(tk), text(text) {

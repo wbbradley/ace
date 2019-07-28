@@ -1,0 +1,7 @@
+# test: fail
+# expect: end-of-file encountered
+
+fn main() {
+    s := "PASS"
+    print("
+}

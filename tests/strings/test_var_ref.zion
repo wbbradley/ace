@@ -1,0 +1,4 @@
+fn main() {
+    s := "PASS"
+    print("${")
+}

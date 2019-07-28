@@ -643,6 +643,19 @@ const Expr *parse_array_literal(ParseState &ps) {
                  new Block(stmts));
 }
 
+const Expr *parse_string_literal(const Token &token) {
+  assert(token.tk == tk_string);
+  std::string str = unescape_json_quotes(token.text);
+  log_location(token.location,
+               "parsing string literal %s to see if it is going to expand",
+               str.c_str());
+  int string_len = str.size();
+  return new Application(
+      new Var(Identifier{"std.String", token.location}),
+      {new Literal(token), new Literal(Token{token.location, tk_integer,
+                                             std::to_string(string_len)})});
+}
+
 const Expr *parse_literal(ParseState &ps) {
   switch (ps.token.tk) {
   case tk_integer:
@@ -650,18 +663,12 @@ const Expr *parse_literal(ParseState &ps) {
   case tk_char:
   case tk_float:
     return new Literal(ps.token_and_advance());
-  case tk_string: {
-    auto token = ps.token_and_advance();
+  case tk_string:
     if (ps.sugar_literals) {
-      int string_len = unescape_json_quotes(token.text).size();
-      return new Application(
-          new Var(Identifier{"std.String", token.location}),
-          {new Literal(token), new Literal(Token{token.location, tk_integer,
-                                                 std::to_string(string_len)})});
+      return parse_string_literal(ps.token_and_advance());
     } else {
-      return new Literal(token);
+      return new Literal(ps.token_and_advance());
     }
-  }
   case tk_lsquare:
     if (ps.sugar_literals) {
       return parse_array_literal(ps);
@@ -2158,4 +2165,4 @@ const Module *parse_module(ParseState &ps,
 }
 
 } // namespace parser
-} // namespace zion
+  } // namespace zion

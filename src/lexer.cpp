@@ -141,6 +141,7 @@ bool Lexer::_get_tokens() {
     gts_plus,
     gts_quoted,
     gts_quoted_escape,
+    gts_quoted_dollar,
     gts_single_quoted,
     gts_single_quoted_escape,
     gts_single_quoted_got_char,
@@ -259,7 +260,8 @@ bool Lexer::_get_tokens() {
     case gts_multiline_comment:
       assert(multiline_comment_depth > 0);
       if (ch == EOF) {
-        gts = gts_error;
+        throw user_error(Location{m_filename, m_line, m_col},
+                         "end-of-file encountered within a multiline comment");
       } else if (ch == '*') {
         gts = gts_multiline_comment_star;
       } else if (ch == '/') {
@@ -459,6 +461,10 @@ bool Lexer::_get_tokens() {
         gts = gts_end;
         break;
       case '}':
+        if (nested_tks.size() != 0 && nested_tks.back().second == tk_string_expr_prefix) {
+          gts = gts_quoted;
+          break;
+        }
         tk = tk_rcurly;
         gts = gts_end;
         break;
@@ -578,7 +584,7 @@ bool Lexer::_get_tokens() {
         gts = gts_expon_symbol;
       } else if (ch == '.') {
         assert(tk != tk_char);
-        m_token_queue.enqueue({m_filename, line, col}, tk, token_text);
+        m_token_queue.enqueue(Location{m_filename, line, col}, tk, token_text);
         token_text.reset();
         col = m_col;
         gts = gts_start;
@@ -594,7 +600,7 @@ bool Lexer::_get_tokens() {
       if (ch == 'e') {
         gts = gts_expon_symbol;
       } else if (ch == '.') {
-        m_token_queue.enqueue({m_filename, line, col}, tk, token_text);
+        m_token_queue.enqueue(Location{m_filename, line, col}, tk, token_text);
         token_text.reset();
         col = m_col;
         gts = gts_start;
@@ -626,14 +632,17 @@ bool Lexer::_get_tokens() {
 
     case gts_quoted:
       if (ch == EOF) {
-        gts = gts_error;
+        throw user_error(
+            Location{m_filename, m_line, m_col},
+            "end-of-file encountered in the middle of a quoted string");
       } else if (sequence_length > 0) {
         --sequence_length;
       } else if (ch == '\\') {
         gts = gts_quoted_escape;
       } else if (ch == '"') {
-        tk = tk_string;
         gts = gts_end_quoted;
+      } else if (ch == '$') {
+        gts = gts_quoted_dollar;
       } else {
         sequence_length = utf8_sequence_length(ch);
         if (sequence_length != 0)
@@ -641,11 +650,36 @@ bool Lexer::_get_tokens() {
       }
       break;
     case gts_end_quoted:
+      if (nested_tks.size() != 0 &&
+          nested_tks.back().second == tk_string_expr_prefix &&
+          token_text[0] == '}') {
+        tk = tk_string_expr_suffix;
+      } else {
+        tk = tk_string;
+      }
       gts = gts_end;
       scan_ahead = false;
       break;
     case gts_quoted_escape:
       gts = gts_quoted;
+      break;
+    case gts_quoted_dollar:
+      if (ch == '{') {
+        if (token_text[0] == '"') {
+          tk = tk_string_expr_prefix;
+        } else {
+          assert(token_text[0] == '}');
+          tk = tk_string_expr_continuation;
+        }
+        gts = gts_end;
+      } else if (ch == '\\') {
+        gts = gts_quoted_escape;
+      } else if (ch == '"') {
+        gts = gts_end_quoted;
+        tk = tk_string;
+      } else {
+        gts = gts_quoted;
+      }
       break;
     case gts_single_quoted:
       if (sequence_length > 0) {
@@ -759,7 +793,7 @@ bool Lexer::_get_tokens() {
   handle_nests(tk);
 
   if (gts != gts_error && tk != tk_error) {
-    m_token_queue.enqueue({m_filename, line, col}, tk, token_text);
+    m_token_queue.enqueue(Location{m_filename, line, col}, tk, token_text);
     return true;
   }
 
@@ -770,6 +804,13 @@ bool Lexer::handle_nests(token_kind tk) {
   bool was_empty = nested_tks.empty();
 
   switch (tk) {
+  case tk_string_expr_continuation:
+    if (was_empty || nested_tks.back().second != tk_string_expr_prefix) {
+      throw user_error(Location{m_filename, m_line, m_col},
+                       "misplaced string expression continuation");
+    }
+    break;
+  case tk_string_expr_prefix:
   case tk_lsquare:
   case tk_lparen:
   case tk_lcurly:
@@ -783,6 +824,9 @@ bool Lexer::handle_nests(token_kind tk) {
     break;
   case tk_rcurly:
     pop_nested(tk_lcurly);
+    break;
+  case tk_string_expr_suffix:
+    pop_nested(tk_string_expr_prefix);
     break;
   default:
     break;

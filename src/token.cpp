@@ -111,71 +111,14 @@ const char *tkstr(token_kind tk) {
     tk_case(semicolon);
     tk_case(space);
     tk_case(string);
+    tk_case(string_expr_prefix);
+    tk_case(string_expr_continuation);
+    tk_case(string_expr_suffix);
     tk_case(times);
     tk_case(times_eq);
     tk_case(about);
   }
   return "";
-}
-
-void ensure_space_before(token_kind prior_tk) {
-  switch (prior_tk) {
-  case tk_none:
-  case tk_char:
-  case tk_colon:
-  case tk_comment:
-  case tk_dot:
-  case tk_double_dot:
-  case tk_lcurly:
-  case tk_lparen:
-  case tk_lsquare:
-  case tk_newline:
-  case tk_rcurly:
-  case tk_float:
-  case tk_rparen:
-  case tk_rsquare:
-  case tk_space:
-  case tk_maybe:
-  case tk_bang:
-  case tk_about:
-    break;
-  case tk_assign:
-  case tk_expr_block:
-  case tk_becomes:
-  case tk_comma:
-  case tk_divide_by:
-  case tk_divide_by_eq:
-  case tk_equal:
-  case tk_binary_equal:
-  case tk_error:
-  case tk_gt:
-  case tk_gte:
-  case tk_identifier:
-  case tk_inequal:
-  case tk_binary_inequal:
-  case tk_integer:
-  case tk_subtype:
-  case tk_lt:
-  case tk_lte:
-  case tk_minus:
-  case tk_backslash:
-  case tk_minus_eq:
-  case tk_mod:
-  case tk_mod_eq:
-  case tk_plus:
-  case tk_pipe:
-  case tk_hat:
-  case tk_shift_left:
-  case tk_shift_right:
-  case tk_plus_eq:
-  case tk_semicolon:
-  case tk_string:
-  case tk_times:
-  case tk_ampersand:
-  case tk_times_eq:
-    printf(" ");
-    break;
-  }
 }
 
 void ensure_indented_line(bool &indented_line, int indent_level) {
