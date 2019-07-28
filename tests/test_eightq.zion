@@ -56,5 +56,5 @@ fn main() {
         print(solution)
     }
 
-    print(concat("Number of solutions is ", str(len(solutions))))
+    print("Number of solutions is ${len(solutions)}")
 }

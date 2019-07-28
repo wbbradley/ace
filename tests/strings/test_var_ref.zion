@@ -1,4 +1,6 @@
+# test: pass
+
 fn main() {
     s := "PASS"
-    print("${")
+    print("${s} hey this is ${4 + 4}")
 }

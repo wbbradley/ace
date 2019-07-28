@@ -123,7 +123,7 @@ instance Show [a] {
         for x in xs {
             append(strs, str(x))
         }
-        return concat(concat("[", join(", ", strs)), "]")
+        return "[${join(", ", strs)}]"
     }
 }
 
@@ -401,15 +401,9 @@ data Maybe t {
 }
 
 instance Show (Maybe a) {
-    fn str(ma) {
-        match ma {
-            Just(a) {
-                return concat(concat("Just(", str(a)), ")")
-            }
-            Nothing {
-                return "Nothing"
-            }
-        }
+    fn str(ma) => match ma {
+        Just(a) => "Just(${a})"
+        Nothing => "Nothing"
     }
 }
 
@@ -631,19 +625,6 @@ fn id(x) => x
 fn panic(x) {
     print(x)
     __builtin_ffi_1("exit", 1)
-}
-
-class MutatingConcat a {
-    fn mutating_concat(a, a) ()
-}
-
-instance MutatingConcat [a] {
-    fn mutating_concat(xs [a], ys [a]) {
-        # resize(xs, len(xs) + len(ys))
-        for y in ys {
-            append(xs, y)
-        }
-    }
 }
 
 struct Range a {

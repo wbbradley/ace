@@ -99,12 +99,12 @@ instance Show Life {
         for y in range(l.life_height) {
             for x in range(l.life_width) {
                 if Alive(!l.a, x, y) {
-                    buf = concat(!buf, "*")
+                    buf = "${buf}*"
                 } else {
-                    buf = concat(!buf, " ")
+                    buf = "${buf} "
                 }
             }
-            buf = concat(!buf, "\n")
+            buf = "${buf}\n"
         }
         return !buf
     }

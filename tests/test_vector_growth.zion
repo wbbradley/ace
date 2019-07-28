@@ -8,7 +8,7 @@ fn main() {
         append(rg, i)
         assert(len(rg) == i + 1)
         for j in [0..i] {
-            print(concat(concat(str(i), ", "), str(j)))
+            print("${i}, ${j}")
             assert(rg[j] == j)
         }
     }

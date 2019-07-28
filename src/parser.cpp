@@ -519,7 +519,7 @@ const Expr *parse_var_ref(ParseState &ps) {
   if (!allow_automatic_dereferencing) {
     return var_ref;
   } else if (is_assignment_operator(ps.token.tk) ||
-      ps.mutable_vars.count(id.name) == 0) {
+             ps.mutable_vars.count(id.name) == 0) {
     /* this is just a regular variable reference, we don't know if its a "Ref a"
      * type or not, but we suspect not, based on the lexicographical information
      * available */
@@ -552,6 +552,40 @@ const Expr *parse_base_expr(ParseState &ps) {
   } else {
     return parse_literal(ps);
   }
+}
+
+const Expr *build_array_literal(Location location,
+                                const std::vector<const Expr *> &exprs) {
+  auto array_var = new Var(Identifier(fresh(), location));
+
+  /* take all the exprs from the array, and turn them into statements to fill
+   * out a vector */
+  std::vector<const Expr *> stmts;
+
+  /* we know how many items we'll need space for, so we might as well reserve
+   * that space ahead of time */
+  stmts.push_back(
+      new Application(new Var(Identifier{"std.reserve", location}),
+                      {new Var(array_var->id),
+                       new Literal(Token{location, tk_integer,
+                                         std::to_string(exprs.size())})}));
+  for (auto expr : exprs) {
+    stmts.push_back(
+        new Application(new Var(Identifier{"std.append", expr->get_location()}),
+                        {array_var, expr}));
+  }
+
+  const auto array_size_to_reserve = string_format("%d", exprs.size());
+
+  /* now, add another item just for the actual array value to be returned */
+  stmts.push_back(array_var);
+
+  return new Let(
+      array_var->id,
+      new As(new Application(new Var(Identifier{"std.new", location}),
+                             {unit_expr(location)}),
+             type_vector_type(type_variable(location)), false /*force_cast*/),
+      new Block(stmts));
 }
 
 const Expr *parse_array_literal(ParseState &ps) {
@@ -618,42 +652,103 @@ const Expr *parse_array_literal(ParseState &ps) {
   }
   chomp_token(tk_rsquare);
 
-  auto array_var = new Var(Identifier(fresh(), ps.token.location));
-
-  /* take all the exprs from the array, and turn them into statements to fill
-   * out a vector */
-  std::vector<const Expr *> stmts;
-  for (auto expr : exprs) {
-    stmts.push_back(new Application(
-        new Var(ps.id_mapped(Identifier{"append", ps.token.location})),
-        {array_var, expr}));
-  }
-
-  const auto array_size_to_reserve = string_format("%d", exprs.size());
-
-  /* now, add another item just for the actual array value to be returned */
-  stmts.push_back(array_var);
-
-  return new Let(array_var->id,
-                 new As(new Application(new Var(ps.id_mapped(
-                                            {"new", ps.prior_token.location})),
-                                        {unit_expr(ps.token.location)}),
-                        type_vector_type(type_variable(ps.token.location)),
-                        false /*force_cast*/),
-                 new Block(stmts));
+  return build_array_literal(location, exprs);
 }
 
 const Expr *parse_string_literal(const Token &token) {
   assert(token.tk == tk_string);
   std::string str = unescape_json_quotes(token.text);
-  log_location(token.location,
-               "parsing string literal %s to see if it is going to expand",
-               str.c_str());
   int string_len = str.size();
   return new Application(
       new Var(Identifier{"std.String", token.location}),
       {new Literal(token), new Literal(Token{token.location, tk_integer,
                                              std::to_string(string_len)})});
+}
+
+const Expr *parse_string_expr_prefix(const Token &token) {
+  if (token.text.size() > 3 /* "${ is the minimal string_expr_prefix */) {
+    Token token_fixed = Token(token.location, tk_string,
+                              token.text.substr(0, token.text.size() - 2) +
+                                  "\"");
+    return parse_string_literal(token_fixed);
+  } else {
+    return nullptr;
+  }
+}
+
+const Expr *parse_string_expr_continuation(const Token &token) {
+  assert(token.text.size() >= 3);
+  assert(token.text[0] == '}');
+  assert(token.text[token.text.size() - 2] == '$');
+  assert(token.text[token.text.size() - 1] == '{');
+
+  if (token.text.size() > 3 /* }${ is the minimal string_expr_continuation */) {
+    Token token_fixed = Token(
+        token.location, tk_string,
+        "\"" + token.text.substr(1, token.text.size() - 3) + "\"");
+    return parse_string_literal(token_fixed);
+  } else {
+    return nullptr;
+  }
+}
+
+const Expr *parse_string_expr_suffix(const Token &token) {
+  assert(token.text.size() >= 2);
+  assert(token.text[0] == '}');
+  assert(token.text[token.text.size() - 1] == '\"');
+
+  if (token.text.size() > 2 /* }" is the minimal string_expr_suffix */) {
+    Token token_fixed = Token(token.location, tk_string,
+                              "\"" +
+                                  token.text.substr(1, token.text.size() - 1));
+    return parse_string_literal(token_fixed);
+  } else {
+    return nullptr;
+  }
+}
+
+const Expr *parse_string_expr(ParseState &ps) {
+  /* parse string interpolation like "x = ${x}, y = ${y}, x + y = ${x + y}" */
+  assert(ps.token.tk == tk_string_expr_prefix);
+  Location location = ps.token.location;
+
+  std::vector<const Expr *> exprs;
+
+  const Expr *string_expr_prefix = parse_string_expr_prefix(
+      ps.token_and_advance());
+  if (string_expr_prefix != nullptr) {
+    exprs.push_back(string_expr_prefix);
+  }
+
+  while (ps.token.tk != tk_string_expr_suffix) {
+    if (ps.token.tk == tk_string_expr_continuation) {
+      throw user_error(ps.token.location, "found empty string expression");
+    }
+
+    const Expr *expr = parse_expr(ps);
+    exprs.push_back(new Application(
+        new Var(Identifier{"std.str", expr->get_location()}), {expr}));
+
+    if (ps.token.tk == tk_string_expr_continuation) {
+      const Expr *string_expr_continuation = parse_string_expr_continuation(
+          ps.token_and_advance());
+      if (string_expr_continuation != nullptr) {
+        exprs.push_back(string_expr_continuation);
+      }
+    }
+  }
+  const Expr *string_expr_suffix = parse_string_expr_suffix(
+      ps.token_and_advance());
+  if (string_expr_suffix != nullptr) {
+    exprs.push_back(string_expr_suffix);
+  }
+
+  /* for now, just call join on all of these exprs, after ensuring that they are
+   * stringified. */
+  const Expr *str_array = build_array_literal(location, exprs);
+  return new Application(
+      new Var(ps.id_mapped(Identifier{"join", location})),
+      {parse_string_literal(Token{location, tk_string, "\"\""}), str_array});
 }
 
 const Expr *parse_literal(ParseState &ps) {
@@ -668,6 +763,13 @@ const Expr *parse_literal(ParseState &ps) {
       return parse_string_literal(ps.token_and_advance());
     } else {
       return new Literal(ps.token_and_advance());
+    }
+  case tk_string_expr_prefix:
+    if (!ps.sugar_literals) {
+      throw user_error(ps.token.location,
+                       "sugared literals are not allowed here");
+    } else {
+      return parse_string_expr(ps);
     }
   case tk_lsquare:
     if (ps.sugar_literals) {
@@ -1468,7 +1570,6 @@ const Expr *parse_lambda(ParseState &ps) {
   types::Refs param_types;
   chomp_token(tk_lparen);
 
-
   while (!maybe_chomp_token(tk_rparen)) {
     if (param_ids.size() != 0 && ps.token.tk != tk_rparen) {
       /* chomp any delimiting commas */
@@ -1597,7 +1698,8 @@ types::Ref parse_type(ParseState &ps, bool allow_top_level_application) {
     } else if (ps.token.is_ident(K(var))) {
       /* var syntax is a low-precedence unary type operator which applies the
        * "Ref" type to its operand */
-      types::Ref ref_type_id = type_id(Identifier{"std.Ref", ps.token.location});
+      types::Ref ref_type_id = type_id(
+          Identifier{"std.Ref", ps.token.location});
       ps.advance();
 
       types.push_back(type_operator(
@@ -2165,4 +2267,4 @@ const Module *parse_module(ParseState &ps,
 }
 
 } // namespace parser
-  } // namespace zion
+} // namespace zion
