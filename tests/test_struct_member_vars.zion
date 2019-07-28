@@ -7,7 +7,7 @@ struct MutableVector {
 
 instance Show MutableVector {
     fn str(mv) {
-        return concat(concat(concat(concat("<", str(mv.x)), ", "), str(mv.y)), ">")
+        return "<${mv.x}, ${mv.y}>"
     }
 }
 

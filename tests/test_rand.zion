@@ -8,7 +8,7 @@ fn main() {
     for i in [0..] {
         x := rand()
         if len(str(x)) <= wait_for {
-            print(concat("found it after ", str(i)))
+            print("found it after ${i}")
             print(x)
             break
         }

@@ -2,7 +2,6 @@
 # expect: 222335543222
 
 import complex {Complex}
-import math {PI}
 
 struct Rect {
    x0 Float
@@ -26,7 +25,7 @@ fn lerp2d(rect, x, max_x, y, max_y) (Float, Float) {
 fn main() {
     window_x := 50
     window_y := 50
-    frustrum := Rect(-PI, -2.5, 5.0, 5.0)
+    frustrum := Rect(-3.14159265, -2.5, 5.0, 5.0)
 
     for y in [0..window_y-1] {
         for x in [0..window_x-1] {

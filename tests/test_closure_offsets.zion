@@ -9,9 +9,9 @@ fn main() {
     c := 'c'
 
     f := fn () {
-        print(concat("a == ", str(a)))
-        print(concat("one == ", str(one)))
-        print(concat("c == ", str(c)))
+        print("a == ${a}")
+        print("one == ${one}")
+        print("c == ${c}")
     }
 
     f()

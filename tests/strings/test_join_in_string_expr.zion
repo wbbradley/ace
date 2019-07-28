@@ -1,5 +1,7 @@
 # test: pass
+# test: pass
+# expect: join.*1.*2.*3.*1.*2.*3
 
 fn main() {
-    print("join(\", \", [1, 2, 3]) = ${join(", ", [1, 2, 3])}")
+    print("join(\", \", [1, 2, 3]) = [${join(", ", [1, 2, 3])}]")
 }
