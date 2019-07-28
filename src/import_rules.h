@@ -8,8 +8,7 @@
 
 namespace zion {
 
-typedef std::map<std::string, std::map<Identifier, Identifier>>
-    RewriteImportRules;
+typedef std::map<Identifier, Identifier> RewriteImportRules;
 
 RewriteImportRules solve_rewriting_imports(
     const parser::SymbolImports &symbol_imports,

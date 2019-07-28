@@ -52,6 +52,12 @@ template <size_t MAX_STRLEN> struct StackString {
     return strcmp(str, c_str()) == 0;
   }
 
+  int operator[](int i) const {
+    assert(i < size());
+    assert(i >= 0);
+    return buffer[i];
+  }
+
   char buffer[MAX_STRLEN + 1];
   size_t length;
 };

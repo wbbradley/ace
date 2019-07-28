@@ -13,7 +13,7 @@ struct Location {
   template <typename T> Location(T t) = delete;
 
   Location();
-  Location(std::string filename, int line, int col);
+  explicit Location(std::string filename, int line, int col);
 
   std::string str() const;
   std::string repr() const;
