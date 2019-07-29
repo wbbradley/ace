@@ -198,7 +198,7 @@ const Expr *prefix(const std::set<std::string> &bindings,
   } else if (auto while_ = dcast<const While *>(value)) {
     return new While(prefix(bindings, pre, while_->condition),
                      prefix(bindings, pre, while_->block));
-  } else if (auto literal = dcast<const Literal *>(value)) {
+  } else if (dcast<const Literal *>(value)) {
     return value;
   } else if (auto tuple = dcast<const Tuple *>(value)) {
     return new Tuple(tuple->location, prefix(bindings, pre, tuple->dims));

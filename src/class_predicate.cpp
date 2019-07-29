@@ -50,7 +50,7 @@ bool ClassPredicate::operator==(const ClassPredicate &rhs) const {
     return false;
   }
 
-  for (int i = 0; i < params.size(); ++i) {
+  for (size_t i = 0; i < params.size(); ++i) {
     if (!type_equality(params[i], rhs.params[i])) {
       return false;
     }

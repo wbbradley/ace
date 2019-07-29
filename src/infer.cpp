@@ -152,7 +152,7 @@ types::Ref infer_core(const Expr *expr,
     return type_unit(while_->get_location());
   } else if (auto block = dcast<const Block *>(expr)) {
     types::Ref last_expr_type = type_unit(block->get_location());
-    for (int i = 0; i < block->statements.size(); ++i) {
+    for (size_t i = 0; i < block->statements.size(); ++i) {
       auto expr = block->statements[i];
       auto t1 = infer(expr, data_ctors_map, return_type, scheme_resolver,
                       tracked_types, constraints, instance_requirements);
@@ -361,7 +361,7 @@ types::Ref CtorPredicate::tracking_infer(
   }
 
   types::Ref result_type;
-  for (int i = 0; i < params.size(); ++i) {
+  for (size_t i = 0; i < params.size(); ++i) {
     auto tp = params[i]->tracking_infer(data_ctors_map, return_type,
                                         scheme_resolver, tracked_types,
                                         constraints, instance_requirements);

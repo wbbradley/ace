@@ -34,15 +34,15 @@ enum token_kind {
   tk_semicolon, /* ; */
 
   // Literals
-  tk_char,    /* char literal */
-  tk_error,   /* error literal */
-  tk_float,   /* 3.1415e20 */
-  tk_integer, /* [0-9]+ */
-  tk_string,  /* "string literal" */
-  tk_about,   /* @ */
-  tk_string_expr_prefix, /* ".*[^\\]\${ */
+  tk_char,                     /* char literal */
+  tk_error,                    /* error literal */
+  tk_float,                    /* 3.1415e20 */
+  tk_integer,                  /* [0-9]+ */
+  tk_string,                   /* "string literal" */
+  tk_about,                    /* @ */
+  tk_string_expr_prefix,       /* ".*[^\\]\${ */
   tk_string_expr_continuation, /* }.*[^\\]\${ */
-  tk_string_expr_suffix, /* }.*" */
+  tk_string_expr_suffix,       /* }.*" */
 
   // Operators
   tk_equal,          /* == */

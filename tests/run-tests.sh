@@ -10,13 +10,14 @@ if ! command -v mapfile 2>/dev/null 1>/dev/null; then
 		exit 1
 fi
 
+run_test="$(dirname "$0")/run-test.sh"
+
 if command -v shellcheck; then
 	if ! logged_run shellcheck "$0"; then
 			echo "$0: shellcheck $0 failed."
 			exit 1
 	fi
 
-	run_test="$(dirname "$0")/run-test.sh"
 	if ! logged_run shellcheck "$run_test"; then
 			echo "$0: shellcheck ${run_test} failed."
 			exit 1

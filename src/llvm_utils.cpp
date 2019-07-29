@@ -478,7 +478,7 @@ llvm::FunctionType *get_llvm_arrow_function_type(llvm::IRBuilder<> &builder,
                                                  const types::TypeEnv &type_env,
                                                  const types::Refs &terms) {
   std::vector<llvm::Type *> llvm_param_types;
-  for (int i = 0; i < terms.size() - 1; ++i) {
+  for (size_t i = 0; i < terms.size() - 1; ++i) {
     auto &term = terms[i];
     llvm_param_types.push_back(get_llvm_type(builder, type_env, term));
   }
@@ -623,7 +623,7 @@ llvm::Value *llvm_tuple_alloc(llvm::IRBuilder<> &builder,
         llvm::Type::getInt32Ty(builder.getContext()), 0);
 
     /* actually copy the dims into the allocated space */
-    for (int i = 0; i < llvm_dims.size(); ++i) {
+    for (size_t i = 0; i < llvm_dims.size(); ++i) {
       llvm::Value *llvm_index = llvm::ConstantInt::get(
           llvm::Type::getInt32Ty(builder.getContext()), i);
       llvm::Value *llvm_gep_args[] = {llvm_zero, llvm_index};

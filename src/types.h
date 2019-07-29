@@ -218,7 +218,6 @@ std::string gensym_name();
 Identifier gensym(Location location);
 
 /* type data ctors */
-types::Ref type_bottom();
 types::Ref type_bool(Location location);
 types::Ref type_bool(Location location);
 types::Ref type_string(Location location);

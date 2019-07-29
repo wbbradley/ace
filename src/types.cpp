@@ -20,7 +20,6 @@ const char *NULL_TYPE = "null";
 const char *STD_MANAGED_TYPE = "Var";
 const char *STD_MAP_TYPE = "map.Map";
 const char *VOID_TYPE = "void";
-const char *BOTTOM_TYPE = "⊥";
 
 int next_generic = 1;
 
@@ -152,12 +151,6 @@ TypeId::TypeId(Identifier id) : id(id) {
   if (islower(id.name[dot_index])) {
     throw zion::user_error(
         id.location, "type identifiers must begin with an upper-case letter");
-  }
-
-  static bool seen_bottom = false;
-  if (id.name.find(BOTTOM_TYPE) != std::string::npos) {
-    assert(!seen_bottom);
-    seen_bottom = true;
   }
 }
 
@@ -568,11 +561,6 @@ std::ostream &TypeLambda::emit(std::ostream &os,
 
 void TypeLambda::compute_ftvs() const {
   assert(false);
-#if 0
-		Map bindings;
-		bindings[binding.name] = type_bottom();
-		return body->rebind(bindings)->get_predicate_map();
-#endif
 }
 
 Ref TypeLambda::rebind(const Map &bindings_) const {
@@ -698,12 +686,6 @@ types::Ref type_unit(Location location) {
   return std::make_shared<types::TypeTuple>(location, types::Refs{});
 }
 
-types::Ref type_bottom() {
-  static auto bottom_type = std::make_shared<types::TypeId>(
-      make_iid(BOTTOM_TYPE));
-  return bottom_type;
-}
-
 types::Ref type_bool(Location location) {
   return std::make_shared<types::TypeId>(Identifier{BOOL_TYPE, location});
 }
@@ -736,7 +718,7 @@ types::Ref type_operator(types::Ref operator_, types::Ref operand) {
 types::Ref type_operator(const types::Refs &xs) {
   assert(xs.size() >= 2);
   types::Ref result = type_operator(xs[0], xs[1]);
-  for (int i = 2; i < xs.size(); ++i) {
+  for (size_t i = 2; i < xs.size(); ++i) {
     result = type_operator(result, xs[i]);
   }
   return result;
@@ -943,7 +925,7 @@ types::Ref tuple_deref_type(Location location,
                             const types::Ref &tuple_,
                             int index) {
   auto tuple = safe_dyncast<const types::TypeTuple>(tuple_);
-  if (tuple->dimensions.size() < index || index < 0) {
+  if (int(tuple->dimensions.size()) < index || index < 0) {
     auto error = zion::user_error(
         location,
         "attempt to access type of element at index %d which is out of range",

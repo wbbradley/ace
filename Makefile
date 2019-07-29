@@ -25,11 +25,11 @@ debug:
 .PHONY: zion
 zion:
 	make clean
-	make -j8 install
+	make install
 
 .PHONY: $(BUILT_BINARY)
 $(BUILT_BINARY): $(BUILD_DIR)/Makefile
-	@(cd $(BUILD_DIR) && make -j8 $(PN))
+	@(cd $(BUILD_DIR) && make $(PN))
 
 $(BUILD_DIR)/Makefile: $(LLVM_DIR)/LLVMConfig.cmake CMakeLists.txt
 	-mkdir -p $(BUILD_DIR)
