@@ -23,21 +23,21 @@ fn lerp2d(rect, x, max_x, y, max_y) (Float, Float) {
 }
 
 fn main() {
-    window_x := 50
-    window_y := 50
-    frustrum := Rect(-3.14159265, -2.5, 5.0, 5.0)
+    let window_x = 50
+    let window_y = 50
+    let frustrum = Rect(-3.14159265, -2.5, 5.0, 5.0)
 
     for y in [0..window_y-1] {
         for x in [0..window_x-1] {
-            (x, y) := lerp2d(frustrum, x, window_x, y, window_y)
-            c := Complex(x, y)
+            let (x, y) = lerp2d(frustrum, x, window_x, y, window_y)
+            let c = Complex(x, y)
             var z = c
             for i in [0..] {
                 z = (z * z) + c
-                Complex(a, b) := z
+                let Complex(a, b) = z
                 if a * a + b * b > 16.0 or i >= 100 {
                     if i != 0 {
-                        String(sz, length) := str(i)
+                        let String(sz, length) = str(i)
                         putch(sz[0])
                     } else {
                         putch(' ')

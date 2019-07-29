@@ -4,9 +4,9 @@
 import random {rand}
 
 fn main() {
-    wait_for := len(str(0xffffffffffffffff)) - 3
+    let wait_for = len(str(0xffffffffffffffff)) - 3
     for i in [0..] {
-        x := rand()
+        let x = rand()
         if len(str(x)) <= wait_for {
             print("found it after ${i}")
             print(x)

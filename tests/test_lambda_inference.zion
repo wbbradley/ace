@@ -9,7 +9,7 @@ instance Getter Int {
 }
 
 fn main() {
-    x := getter() 
+    let x = getter() 
     if x == 1 {
         print("PASS")
     }

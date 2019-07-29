@@ -18,7 +18,7 @@ fn print_int(f Int) {
 }
 
 fn main() {
-    h := c(3.0)
+    let h = c(3.0)
     print_int(h)
     static_print(h)
 }

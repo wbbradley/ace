@@ -2,7 +2,7 @@
 # expect: 4
 
 fn main() {
-    g := match True {
+    let g = match True {
         True {
             while False {
             }

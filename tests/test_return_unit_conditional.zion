@@ -14,7 +14,7 @@ fn foo() {
 }
 
 fn main() {
-    g := foo()
+    let g = foo()
     static_print(g)
     print("PASS")
 }

@@ -1,6 +1,6 @@
 # test: pass
 
 fn main() {
-    s := "PASS"
+    let s = "PASS"
     print("${s} hey this is ${4 + 4}")
 }

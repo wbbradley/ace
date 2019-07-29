@@ -3,7 +3,7 @@
 fn ignore(x) => ()
 
 fn main() {
-    g := fn (a) {
+    let g = fn (a) {
         __builtin_pass_test
         return a
     }

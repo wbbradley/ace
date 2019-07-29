@@ -4,11 +4,10 @@
 # expect: c == c
 
 fn main() {
-    a := 'a'
-    one := 1
-    c := 'c'
-
-    f := fn () {
+    let a = 'a'
+    let one = 1
+    let c = 'c'
+    let f = fn () {
         print("a == ${a}")
         print("one == ${one}")
         print("c == ${c}")

@@ -2,6 +2,6 @@
 # expect: end-of-file encountered
 
 fn main() {
-    s := "PASS"
+    let s = "PASS"
     print("
 }

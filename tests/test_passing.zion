@@ -10,7 +10,7 @@ fn g() {
 }
 
 fn main() {
-    x := g()
+    let x = g()
     static_print(x)
     print(3)
 }

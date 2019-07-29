@@ -2,7 +2,7 @@
 # expect: 100, 100
 
 fn main() {
-    rg := []
+    let rg = []
     assert(len(rg) == 0)
     for i in [0..100] {
         append(rg, i)

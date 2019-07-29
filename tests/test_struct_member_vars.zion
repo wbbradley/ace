@@ -14,7 +14,7 @@ instance Show MutableVector {
 fn main() {
     var x = 1.2
     var y = 2.3
-    mv := MutableVector(var x, var y)
+    let mv = MutableVector(var x, var y)
     mv.x = 2.09
     print(mv.x)
     print(mv)

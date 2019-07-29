@@ -10,7 +10,7 @@ fn h(x) Int {
 }
 
 fn main() {
-    x := g()
+    let x = g()
     static_print(x)
 }
 

@@ -3,5 +3,5 @@
 
 fn main() {
     var x = 56
-    Ref(x) := Ref(4)
+    let Ref(x) = Ref(4)
 }

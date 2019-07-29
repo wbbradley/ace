@@ -30,49 +30,49 @@ let S_IXOTH = __host_int(S_IXOTH) as! CreateMode /* others have execute permissi
 
 instance Bitwise OpenFlags {
     fn &(a, b) {
-        OpenFlags(a_) := a
-        OpenFlags(b_) := b
+        let OpenFlags(a_) = a
+        let OpenFlags(b_) = b
         return OpenFlags(__builtin_int_bitwise_and(a_, b_))
     }
     fn |(a, b) {
-        OpenFlags(a) := a
-        OpenFlags(b) := b
+        let OpenFlags(a) = a
+        let OpenFlags(b) = b
         return OpenFlags(__builtin_int_bitwise_or(a, b))
     }
     fn ^(a, b) {
-        OpenFlags(a) := a
-        OpenFlags(b) := b
+        let OpenFlags(a) = a
+        let OpenFlags(b) = b
         return OpenFlags(__builtin_int_bitwise_xor(a, b))
     }
 }
 
 instance Bitwise CreateMode {
     fn &(a, b) {
-        CreateMode(a_) := a
-        CreateMode(b_) := b
+        let CreateMode(a_) = a
+        let CreateMode(b_) = b
         return CreateMode(__builtin_int_bitwise_and(a_, b_))
     }
     fn |(a, b) {
-        CreateMode(a) := a
-        CreateMode(b) := b
+        let CreateMode(a) = a
+        let CreateMode(b) = b
         return CreateMode(__builtin_int_bitwise_or(a, b))
     }
     fn ^(a, b) {
-        CreateMode(a) := a
-        CreateMode(b) := b
+        let CreateMode(a) = a
+        let CreateMode(b) = b
         return CreateMode(__builtin_int_bitwise_xor(a, b))
     }
 }
 
 fn open(filename, flags OpenFlags, mode CreateMode) Int {
-    String(filename, _) := filename
-    OpenFlags(flags) := flags
-    CreateMode(mode) := mode
+    let String(filename, _) = filename
+    let OpenFlags(flags) = flags
+    let CreateMode(mode) = mode
     return __builtin_ffi_3("open", filename, flags, mode)
 }
 
 fn unlink(filename String) Int {
-    String(filename, _) := filename
+    let String(filename, _) = filename
     return __builtin_ffi_1("unlink", filename)
 }
 
@@ -81,8 +81,8 @@ fn close(fd Int) Int {
 }
 
 fn creat(filename, mode CreateMode) Int {
-    String(filename, _) := filename
-    CreateMode(mode) := mode
+    let String(filename, _) = filename
+    let CreateMode(mode) = mode
     return __builtin_ffi_2("creat", filename, mode)
 }
 
