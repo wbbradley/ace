@@ -165,7 +165,7 @@ const Expr *texpr(const types::DefnId &for_defn_id,
                      needed_defns, returns);
       std::vector<const Expr *> new_params;
       assert(operand_types.size() == application->params.size());
-      for (int i = 0; i < application->params.size(); ++i) {
+      for (size_t i = 0; i < application->params.size(); ++i) {
         /* translate all the parameters */
         auto &param = application->params[i];
         new_params.push_back(

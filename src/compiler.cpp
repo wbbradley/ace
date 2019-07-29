@@ -1,9 +1,9 @@
 #include "compiler.h"
 
+#include <cstdarg>
 #include <fstream>
 #include <iostream>
 #include <set>
-#include <stdarg.h>
 #include <sys/stat.h>
 #include <vector>
 

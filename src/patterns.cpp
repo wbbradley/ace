@@ -26,7 +26,7 @@ const Expr *build_patterns(const types::DefnId &for_defn_id,
                            Identifier scrutinee_id,
                            types::Ref scrutinee_type,
                            types::Ref expected_type) {
-  if (index == pattern_blocks.size()) {
+  if (index == int(pattern_blocks.size())) {
     auto last_block = unit_expr(INTERNAL_LOC());
     typing[last_block] = type_unit(INTERNAL_LOC());
     return last_block;
@@ -43,7 +43,7 @@ const Expr *build_patterns(const types::DefnId &for_defn_id,
 
     /* because we have coverage analysis for the patterns, we know we can
      * sometimes skip the checks, and just do the destructuring. */
-    bool do_checks = (index != pattern_blocks.size() - 1);
+    bool do_checks = (index != int(pattern_blocks.size() - 1));
 
     auto scrutinee = new Var(scrutinee_id);
     typing[scrutinee] = scrutinee_type;
@@ -76,7 +76,7 @@ const Expr *build_patterns(const types::DefnId &for_defn_id,
                 const types::TypeEnv &type_env, TrackedTypes &typing,
                 types::NeededDefns &needed_defns,
                 bool &returns) -> const Expr * {
-              if (index + 1 < pattern_blocks.size()) {
+              if (index + 1 < int(pattern_blocks.size())) {
                 return build_patterns(
                     for_defn_id, pattern_blocks, index + 1, data_ctors_map,
                     bound_vars, tracked_types, type_env, typing, needed_defns,
@@ -259,7 +259,7 @@ const Expr *translate_next(const types::DefnId &for_defn_id,
                               const types::TypeEnv &type_env,
                               TrackedTypes &typing,
                               types::NeededDefns &needed_defns, bool &returns) {
-    if (param_index + 1 < params.size()) {
+    if (param_index + 1 < int(params.size())) {
       return translate_next(
           for_defn_id, scrutinee_id, scrutinee_type, param_types, do_checks,
           data_ctors_map, bound_vars, tracked_types, params, param_index + 1,

@@ -34,7 +34,7 @@ types::Ref get_data_ctor_type(const DataCtorsMap &data_ctors_map,
   debug_above(7, log("starting with ctor_type as %s and type_terms as %s",
                      ctor_type->str().c_str(), ::str(type_terms).c_str()));
 
-  for (int i = 1; i < type_terms.size(); ++i) {
+  for (size_t i = 1; i < type_terms.size(); ++i) {
     ctor_type = ctor_type->apply(type_terms[i]);
   }
   debug_above(7, log("resolved ctor_type as %s", ctor_type->str().c_str()));
@@ -65,7 +65,7 @@ std::map<std::string, types::Ref> get_data_ctors_types(
     debug_above(7, log("starting with ctor_type as %s and type_terms as %s",
                        ctor_type->str().c_str(), ::str(type_terms).c_str()));
 
-    for (int i = 1; i < type_terms.size(); ++i) {
+    for (size_t i = 1; i < type_terms.size(); ++i) {
       ctor_type = ctor_type->apply(type_terms[i]);
     }
     debug_above(7, log("resolved ctor_type as %s", ctor_type->str().c_str()));

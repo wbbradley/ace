@@ -79,6 +79,8 @@ llvm::Value *LazyResolver::resolve_impl() {
     assert(value != nullptr);
     return value;
   }
+  assert(false);
+  return nullptr;
 }
 
 std::string LazyResolver::str() const {
@@ -101,6 +103,8 @@ std::string LazyResolver::str() const {
     return string_format("resolved " c_id("%s") " :: %s to %s", name.c_str(),
                          type->str().c_str(), llvm_print(value).c_str());
   }
+  assert(false);
+  return {};
 }
 
 Location LazyResolver::get_location() const {

@@ -1,5 +1,7 @@
 #include "context.h"
 
+#include <cstdarg>
+
 #include "utils.h"
 
 Context make_context(Location location, const char *format, ...) {

@@ -461,7 +461,8 @@ bool Lexer::_get_tokens() {
         gts = gts_end;
         break;
       case '}':
-        if (nested_tks.size() != 0 && nested_tks.back().second == tk_string_expr_prefix) {
+        if (nested_tks.size() != 0 &&
+            nested_tks.back().second == tk_string_expr_prefix) {
           gts = gts_quoted;
           break;
         }

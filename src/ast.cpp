@@ -458,7 +458,7 @@ ast::Expr *unit_expr(Location location) {
 tarjan::Vertices get_free_vars(
     const ast::Expr *expr,
     const std::unordered_set<std::string> &bound_vars) {
-  if (auto literal = dcast<const ast::Literal *>(expr)) {
+  if (dcast<const ast::Literal *>(expr)) {
     return {};
   } else if (auto static_print = dcast<const ast::StaticPrint *>(expr)) {
     return get_free_vars(static_print->expr, bound_vars);
@@ -492,9 +492,9 @@ tarjan::Vertices get_free_vars(
     set_merge(free_vars, get_free_vars(condition->truthy, bound_vars));
     set_merge(free_vars, get_free_vars(condition->falsey, bound_vars));
     return free_vars;
-  } else if (auto break_ = dcast<const ast::Break *>(expr)) {
+  } else if (dcast<const ast::Break *>(expr)) {
     return {};
-  } else if (auto continue_ = dcast<const ast::Continue *>(expr)) {
+  } else if (dcast<const ast::Continue *>(expr)) {
     return {};
   } else if (auto while_ = dcast<const ast::While *>(expr)) {
     tarjan::Vertices free_vars = get_free_vars(while_->condition, bound_vars);
@@ -518,7 +518,7 @@ tarjan::Vertices get_free_vars(
     return get_free_vars(tuple_deref->expr, bound_vars);
   } else if (auto as = dcast<const ast::As *>(expr)) {
     return get_free_vars(as->expr, bound_vars);
-  } else if (auto sizeof_ = dcast<const ast::Sizeof *>(expr)) {
+  } else if (dcast<const ast::Sizeof *>(expr)) {
     return {};
   } else if (auto builtin = dcast<const ast::Builtin *>(expr)) {
     tarjan::Vertices free_vars;

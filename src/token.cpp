@@ -139,7 +139,7 @@ bool Token::operator<(const Token &rhs) const {
 }
 
 bool Token::follows_after(const Token &a) const {
-  return location.col == a.location.col + a.text.size() &&
+  return location.col == int(a.location.col + a.text.size()) &&
          location.line == a.location.line;
 }
 

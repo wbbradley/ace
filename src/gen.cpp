@@ -71,8 +71,8 @@ void get_free_vars(const ast::Expr *expr,
                    const std::unordered_set<std::string> &globals,
                    const std::unordered_set<std::string> &locals,
                    FreeVars &free_vars) {
-  if (auto literal = dcast<const ast::Literal *>(expr)) {
-  } else if (auto static_print = dcast<const ast::StaticPrint *>(expr)) {
+  if (dcast<const ast::Literal *>(expr)) {
+  } else if (dcast<const ast::StaticPrint *>(expr)) {
   } else if (auto var = dcast<const ast::Var *>(expr)) {
     if (!in(var->id.name, globals) && !in(var->id.name, locals)) {
       /* we need to capture this variable in order to put it into our closure */
@@ -125,8 +125,8 @@ void get_free_vars(const ast::Expr *expr,
     get_free_vars(condition->cond, typing, globals, locals, free_vars);
     get_free_vars(condition->truthy, typing, globals, locals, free_vars);
     get_free_vars(condition->falsey, typing, globals, locals, free_vars);
-  } else if (auto break_ = dcast<const ast::Break *>(expr)) {
-  } else if (auto break_ = dcast<const ast::Continue *>(expr)) {
+  } else if (dcast<const ast::Break *>(expr)) {
+  } else if (dcast<const ast::Continue *>(expr)) {
   } else if (auto while_ = dcast<const ast::While *>(expr)) {
     get_free_vars(while_->condition, typing, globals, locals, free_vars);
     get_free_vars(while_->block, typing, globals, locals, free_vars);
@@ -144,12 +144,12 @@ void get_free_vars(const ast::Expr *expr,
     get_free_vars(tuple_deref->expr, typing, globals, locals, free_vars);
   } else if (auto as = dcast<const ast::As *>(expr)) {
     get_free_vars(as->expr, typing, globals, locals, free_vars);
-  } else if (auto sizeof_ = dcast<const ast::Sizeof *>(expr)) {
+  } else if (dcast<const ast::Sizeof *>(expr)) {
   } else if (auto builtin = dcast<const ast::Builtin *>(expr)) {
     for (auto expr : builtin->exprs) {
       get_free_vars(expr, typing, globals, locals, free_vars);
     }
-  } else if (auto match = dcast<const ast::Match *>(expr)) {
+  } else if (dcast<const ast::Match *>(expr)) {
     /* by this point, all match expressions should have been transformed into
      * conditionals */
     assert(false);
@@ -644,7 +644,7 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
       throw user_error(id.location, "invalid arity for ffi");
     }
 
-    int arity = atoi(arity_str.c_str());
+    size_t arity = atoi(arity_str.c_str());
 
     if (params.size() != arity) {
       throw user_error(id.location, "wrong number of parameters sent to %s",
@@ -653,7 +653,7 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
 
     auto llvm_module = llvm_get_module(builder);
     std::vector<llvm::Type *> terms;
-    for (int i = 0; i < params.size(); ++i) {
+    for (size_t i = 0; i < params.size(); ++i) {
       terms.push_back(params[i]->getType());
     }
 
@@ -812,7 +812,7 @@ void gen_lambda(std::string name,
 
     assert(type_terms.size() - 1 == lambda->vars.size());
     auto args_iter = llvm_function->args().begin();
-    for (int i = 0; i < type_terms.size() - 1; ++i) {
+    for (size_t i = 0; i < type_terms.size() - 1; ++i) {
       set_env_var(new_env_locals, lambda->vars[i].name, type_terms[i],
                   &*args_iter++);
     }
@@ -988,7 +988,7 @@ ResolutionStatus gen(std::string name,
                             type->str().c_str()));
     if (auto literal = dcast<const ast::Literal *>(expr)) {
       return gen_literal(name, builder, literal, type, publisher);
-    } else if (auto static_print = dcast<const ast::StaticPrint *>(expr)) {
+    } else if (dcast<const ast::StaticPrint *>(expr)) {
       assert(false);
     } else if (auto var = dcast<const ast::Var *>(expr)) {
       auto value = get(gen_env_locals, var->id.name,
@@ -1149,11 +1149,11 @@ ResolutionStatus gen(std::string name,
         }
       }
       return rs_cache_resolution;
-    } else if (auto break_ = dcast<const ast::Break *>(expr)) {
+    } else if (dcast<const ast::Break *>(expr)) {
       assert(break_to_block != nullptr);
       builder.CreateBr(break_to_block);
       return rs_cache_resolution;
-    } else if (auto continue_ = dcast<const ast::Continue *>(expr)) {
+    } else if (dcast<const ast::Continue *>(expr)) {
       assert(continue_to_block != nullptr);
       builder.CreateBr(continue_to_block);
       return rs_cache_resolution;
@@ -1269,9 +1269,9 @@ ResolutionStatus gen(std::string name,
         publish(builder.CreateBitOrPointerCast(expr_value, cast_type));
       }
       return rs_cache_resolution;
-    } else if (auto sizeof_ = dcast<const ast::Sizeof *>(expr)) {
+    } else if (dcast<const ast::Sizeof *>(expr)) {
       assert(false);
-    } else if (auto match = dcast<const ast::Match *>(expr)) {
+    } else if (dcast<const ast::Match *>(expr)) {
       assert(false);
     } else if (auto builtin = dcast<const ast::Builtin *>(expr)) {
       std::vector<llvm::Value *> llvm_values;

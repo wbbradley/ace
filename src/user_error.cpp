@@ -1,7 +1,7 @@
 #include "user_error.h"
 
+#include <cstdarg>
 #include <exception>
-#include <stdarg.h>
 
 #include "ast.h"
 #include "dbg.h"

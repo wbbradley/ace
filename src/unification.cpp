@@ -101,7 +101,7 @@ bool type_equality(types::Ref a, types::Ref b) {
       if (tpa_a->dimensions.size() != tpa_b->dimensions.size()) {
         return false;
       }
-      for (int i = 0; i < tpa_a->dimensions.size(); ++i) {
+      for (size_t i = 0; i < tpa_a->dimensions.size(); ++i) {
         if (!type_equality(tpa_a->dimensions[i], tpa_b->dimensions[i])) {
           return false;
         }
@@ -113,7 +113,7 @@ bool type_equality(types::Ref a, types::Ref b) {
       if (tup_a->dimensions.size() != tup_b->dimensions.size()) {
         return false;
       }
-      for (int i = 0; i < tup_a->dimensions.size(); ++i) {
+      for (size_t i = 0; i < tup_a->dimensions.size(); ++i) {
         if (!type_equality(tup_a->dimensions[i], tup_b->dimensions[i])) {
           return false;
         }
@@ -235,7 +235,7 @@ std::vector<Ref> rebind_tails(const std::vector<Ref> &types,
                               const Map &bindings) {
   assert(1 <= types.size());
   std::vector<Ref> new_types;
-  for (int i = 1; i < types.size(); ++i) {
+  for (size_t i = 1; i < types.size(); ++i) {
     new_types.push_back(types[i]->rebind(bindings));
   }
   return new_types;

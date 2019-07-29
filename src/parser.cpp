@@ -101,7 +101,7 @@ const Predicate *unfold_application_into_predicate(
             var->id.str().c_str());
       }
       std::vector<const Predicate *> params;
-      for (int i = 1; i < exprs.size(); ++i) {
+      for (size_t i = 1; i < exprs.size(); ++i) {
         params.push_back(convert_expr_to_predicate(exprs[i]));
       }
       return new CtorPredicate(ctor_name.location, params, ctor_name,
@@ -1094,7 +1094,7 @@ const Expr *parse_bitwise_or(ParseState &ps) {
 }
 
 const Expr *fold_and_exprs(std::vector<const Expr *> exprs, int index) {
-  if (index < exprs.size() - 1) {
+  if (index < int(exprs.size() - 1)) {
     Identifier term_id = make_iid(fresh());
     return new Let(term_id, exprs[index],
                    new Conditional(new Var(term_id),
@@ -1106,7 +1106,7 @@ const Expr *fold_and_exprs(std::vector<const Expr *> exprs, int index) {
 }
 
 const Expr *fold_or_exprs(std::vector<const Expr *> exprs, int index) {
-  if (index < exprs.size() - 1) {
+  if (index < int(exprs.size() - 1)) {
     Identifier term_id = make_iid(fresh());
     return new Let(term_id, exprs[index],
                    new Conditional(new Var(term_id),
@@ -1774,7 +1774,7 @@ const Expr *create_ctor(Location location,
       new Literal({location, tk_integer, string_format("%d", ctor_id)}));
 
   std::vector<Identifier> params;
-  for (int i = 0; i < param_types.size(); ++i) {
+  for (size_t i = 0; i < param_types.size(); ++i) {
     /* enumerate the nested lambda variables */
     params.push_back(Identifier{fresh(), param_types[i]->get_location()});
     dims.push_back(new Var(params.back()));
@@ -1825,7 +1825,7 @@ DataTypeDecl parse_struct_decl(ParseState &ps, types::Map &data_ctors) {
   }
 
   /* create accessor functions */
-  for (int i = 1 /*skip the ctor_id*/; i < dims.size(); ++i) {
+  for (size_t i = 1 /*skip the ctor_id*/; i < dims.size(); ++i) {
     decls.push_back(new Decl(
         /* accessor function names look like __.x */
         make_accessor_id(member_ids[i]),
@@ -1883,7 +1883,7 @@ DataTypeDecl parse_newtype_decl(ParseState &ps,
     ctor_parts = tuple_type->dimensions;
     std::vector<Identifier> dim_names;
     std::vector<const Expr *> dims;
-    for (int i = 0; i < tuple_type->dimensions.size(); ++i) {
+    for (size_t i = 0; i < tuple_type->dimensions.size(); ++i) {
       dim_names.push_back(
           Identifier{ast::fresh(), tuple_type->dimensions[i]->get_location()});
       dims.push_back(new Var(dim_names.back()));

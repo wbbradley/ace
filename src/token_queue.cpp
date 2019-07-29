@@ -35,7 +35,8 @@ Token TokenQueue::pop() {
     Token next_token = m_queue.front();
     if (token.tk == tk_integer && next_token.tk == tk_float &&
         token.location.line == next_token.location.line &&
-        token.location.col + token.text.size() == next_token.location.col &&
+        int(token.location.col + token.text.size()) ==
+            next_token.location.col &&
         starts_with(next_token.text, ".")) {
       /* combine these two tokens into a single float */
       m_queue.pop_front();
