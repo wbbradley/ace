@@ -3,20 +3,20 @@
 import sys {open, read, write, O_RDONLY, CreateMode}
 
 fn main() {
-    fd := open(str(__filename__), O_RDONLY, CreateMode(0))
+    let fd = open(str(__filename__), O_RDONLY, CreateMode(0))
 
     /* This is allocating a small buffer size just to test the
      * looping behavior and that we aren't off by one, etc... */
-    buffer := alloc(14)
+    let buffer = alloc(14)
 
     while True {
-        cb := read(fd, buffer, 14)
+        let cb = read(fd, buffer, 14)
         if cb <= 0 {
             break
         }
         var to_write = cb
         while to_write != 0 {
-            written := write(1, buffer, to_write)
+            let written = write(1, buffer, to_write)
             if written <= 0 {
                 break
             }

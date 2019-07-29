@@ -2,7 +2,7 @@ newtype WaitTimes a = WaitTimes([a])
 
 instance Iterable WaitTimes {
     fn iter(wait_times) {
-        WaitTimes(wait_times) := wait_times
+        let WaitTimes(wait_times) = wait_times
         var i = 0
         return fn() {
             print("Hey" as String)
@@ -13,8 +13,8 @@ instance Iterable WaitTimes {
                 # print(wait_times[)
                 # return Just(wait_times[len(wait_times)-1])
             } else {
-                cur := !i
-                i = !i + 1
+                let cur = i
+                i += 1
                 return Just(wait_times[cur])
             }
         }

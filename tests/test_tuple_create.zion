@@ -3,8 +3,8 @@
 # test creating tuples
 
 fn main() {
-    x := (1,)
-    (p,) := x
+    let x = (1,)
+    let (p,) = x
     assert(p == 1)
     print("PASS")
 }

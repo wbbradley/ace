@@ -1228,6 +1228,8 @@ const Expr *parse_assignment(ParseState &ps) {
                           {new Var(copy_value), rhs}))});
   }
   case tk_becomes:
+    assert(false);
+#if 0
     if (const Var *var = dcast<const Var *>(lhs)) {
       return parse_let(ps, var->id, true /* is_let */);
     } else if (auto tuple = dcast<const Tuple *>(lhs)) {
@@ -1238,6 +1240,7 @@ const Expr *parse_assignment(ParseState &ps) {
       throw user_error(ps.token.location,
                        ":= may only come after a new symbol name");
     }
+#endif
   default:
     return lhs;
   }

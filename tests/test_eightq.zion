@@ -12,7 +12,7 @@ fn queens(rows Int, columns Int) [[Int]] {
 }
 
 fn copy_and_extend(solution, value) {
-    ret := []
+    let ret = []
     for x in solution {
         append(ret, x)
     }
@@ -21,7 +21,7 @@ fn copy_and_extend(solution, value) {
 }
 
 fn add_one_queen(new_row Int, columns Int, prev_solutions [[Int]]) [[Int]] {
-    solutions := []
+    let solutions = []
 
     for solution in prev_solutions {
         for new_column in range(columns) {
@@ -36,7 +36,7 @@ fn add_one_queen(new_row Int, columns Int, prev_solutions [[Int]]) [[Int]] {
 
 fn no_conflict(new_row Int, new_column Int, solution [Int]) bool {
     for row in range(new_row) {
-        condition := (
+        let condition = (
             solution[row]       != new_column           and
             solution[row] + row != new_column + new_row and
             solution[row] - row != new_column - new_row)
@@ -50,7 +50,7 @@ fn no_conflict(new_row Int, new_column Int, solution [Int]) bool {
 }
 
 fn main() {
-    solutions := queens(8, 8)
+    let solutions = queens(8, 8)
 
     for solution in solutions {
         print(solution)

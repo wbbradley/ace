@@ -10,11 +10,11 @@ struct FibonacciIterator {
 }
 
 fn fibonacci_sequence() {
-    fs := FibonacciIterator(Ref(0), Ref(1), Ref(1))
+    let fs = FibonacciIterator(Ref(0), Ref(1), Ref(1))
     return Iterator(fn () {
         fs.index += 1
         if !fs.index > 2 {
-            next := !fs.prior + !fs.cur
+            let next = !fs.prior + !fs.cur
             fs.prior = !fs.cur
             fs.cur = next
         }

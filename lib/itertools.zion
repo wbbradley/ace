@@ -11,18 +11,18 @@ fn count_up_by(inc Int) {
 }
 
 fn repeat(x) {
-    jx := Just(x)
+    let jx = Just(x)
     return Iterator(fn () => jx)
 }
 
 fn take(n, iterable) {
-    iterator := iter(iterable)
+    let iterator = iter(iterable)
     var i = n
     return Iterator(fn() {
         if i <= 0 {
             return Nothing
         }
-        val := iterator()
+        let val = iterator()
         match val {
             Just(x) {
                 i = i - 1
@@ -36,9 +36,9 @@ fn take(n, iterable) {
 }
 
 fn takewhile(predicate, iterable) {
-    iterator := iter(iterable)
+    let iterator = iter(iterable)
     return Iterator(fn() {
-        val := iterator()
+        let val = iterator()
         match val {
             Just(x) {
                 if predicate(x) {
@@ -55,11 +55,11 @@ fn takewhile(predicate, iterable) {
 }
 
 fn dropwhile(predicate, iterable) {
-    iterator := iter(iterable)
+    let iterator = iter(iterable)
     var dropping = True
     return Iterator(fn () {
         while dropping {
-            val := iterator()
+            let val = iterator()
             match val {
                 Just(x) {
                     if predicate(x) {
@@ -82,12 +82,12 @@ fn dropwhile(predicate, iterable) {
 
 fn cycle(xs_input) {
     var xs = Just(iter(xs_input))
-    recording := []
+    let recording = []
     var index = 0
     return Iterator(fn () {
         match! xs {
             Just(iterator) {
-                step := iterator()
+                let step = iterator()
                 match! step {
                     Just(x) {
                         append(recording, step)
@@ -96,9 +96,9 @@ fn cycle(xs_input) {
                 }
             }
         }
-        num_recordings := len(recording)
+        let num_recordings = len(recording)
         if index < num_recordings {
-            ret := recording[index]
+            let ret = recording[index]
             index = index + 1
             return ret
         } else if num_recordings == 0 {

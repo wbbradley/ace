@@ -3,9 +3,9 @@
 newtype H a = H(a)
 
 fn main() {
-    g := 34
-    f := H(g)
-    H(f) := f
+    let g = 34
+    let f = H(g)
+    let H(f) = f
     static_print(f)
     print(f)
     assert(f == 34)

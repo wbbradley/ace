@@ -7,7 +7,7 @@ data Wow {
 }
 
 fn main() {
-    Wow(s, i) := Wow("Hello", 12)
+    let Wow(s, i) = Wow("Hello", 12)
     print(s)
     print(i)
 }

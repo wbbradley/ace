@@ -3,9 +3,9 @@
 newtype Fn a = Fn(fn () a)
 
 fn main() {
-    g := fn () { return 2 }
-    f := Fn(g)
-    Fn(f) := f
+    let g = fn () { return 2 }
+    let f = Fn(g)
+    let Fn(f) = f
     assert(f() == 2)
     print("PASS")
 }

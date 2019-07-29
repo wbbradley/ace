@@ -33,22 +33,22 @@ instance Show () {
 
 instance Show Int {
     fn str(x) {
-        sz := __builtin_ffi_1("zion_itoa", x)
-        length := __builtin_ffi_1("zion_strlen", sz)
+        let sz = __builtin_ffi_1("zion_itoa", x)
+        let length = __builtin_ffi_1("zion_strlen", sz)
         return String(sz, length)
     }
 }
 
 instance Show Float {
     fn str(x) {
-        sz := __builtin_ffi_1("zion_ftoa", x)
-        length := __builtin_ffi_1("zion_strlen", sz)
+        let sz = __builtin_ffi_1("zion_ftoa", x)
+        let length = __builtin_ffi_1("zion_strlen", sz)
         return String(sz, length)
     }
 }
 
 instance Show (var a) {
-    fn str(a) => str(!a)
+    fn str(var a) => str(a)
 }
 
 instance Show String {
@@ -60,20 +60,20 @@ instance Show (* Char) {
 }
 
 fn has_substring(haystack String, needle String) Bool {
-    String(haystack, _) := haystack
-    String(needle, _) := needle
+    let String(haystack, _) = haystack
+    let String(needle, _) = needle
     return __builtin_ffi_2("strstr", haystack, needle) != null as *Char
 }
 
 fn has_prefix(haystack String, needle String) Bool {
-    String(haystack, _) := haystack
-    String(needle, len) := needle
+    let String(haystack, _) = haystack
+    let String(needle, len) = needle
     return __builtin_ffi_3("strncmp", haystack, needle, len) == 0
 }
 
 fn has_suffix(haystack String, needle String) Bool {
-    String(haystack, len_haystack) := haystack
-    String(needle, len_needle) := needle
+    let String(haystack, len_haystack) = haystack
+    let String(needle, len_needle) = needle
     if len_haystack < len_needle {
         return False
     }
@@ -85,20 +85,20 @@ fn has_suffix(haystack String, needle String) Bool {
 }
 
 fn join(delim_ String, xs) String {
-    results := []
+    let results = []
     var total = 0
     var cur_delim_len = 0
-    delim_len := len(delim_)
+    let delim_len = len(delim_)
     var count = 0
     for x in xs {
-        count = count + 1
-        s := str(x)
+        count += 1
+        let s = str(x)
         append(results, s)
         total = total + len(s)
         cur_delim_len = delim_len
     }
-    total = total + len(delim_) * (count - 1)
-    buf := alloc(total + 1)
+    total += len(delim_) * (count - 1)
+    let buf = alloc(total + 1)
     var i = 0
     for r in results {
         if i > 0 {
@@ -119,7 +119,7 @@ fn join(delim_ String, xs) String {
 
 instance Show [a] {
     fn str(xs) {
-        strs := []
+        let strs = []
         for x in xs {
             append(strs, str(x))
         }
@@ -128,13 +128,13 @@ instance Show [a] {
 }
 
 fn putch(ch Char) () {
-    _ := __builtin_ffi_2("zion_write_char", 1, ch) as Int
+    let _ = __builtin_ffi_2("zion_write_char", 1, ch) as Int
 }
 
 fn print(x) () {
-    String(sz, length) := str(x)
-    _ := __builtin_ffi_3("write", 1, sz, length) as Int
-    _ := __builtin_ffi_2("zion_write_char", 1, '\n') as Int
+    let String(sz, length) = str(x)
+    let _ = __builtin_ffi_3("write", 1, sz, length) as Int
+    let _ = __builtin_ffi_2("zion_write_char", 1, '\n') as Int
 }
 
 data Ref a {
@@ -152,7 +152,7 @@ class StorableValue g {
 
 instance LoadableValue Ref {
     fn load_value(a) {
-        Ref(x) := a
+        let Ref(x) = a
         return x
     }
 }
@@ -216,8 +216,8 @@ instance Eq Char {
 
 instance Eq String {
     fn ==(a, b) {
-        String(a, alen) := a
-        String(b, blen) := b
+        let String(a, alen) = a
+        let String(b, blen) = b
 
         if alen != blen {
             return False
@@ -230,16 +230,16 @@ instance Eq String {
 }
 
 fn concat(a, b) {
-    String(xs, xlen) := a
-    String(ys, ylen) := b
+    let String(xs, xlen) = a
+    let String(ys, ylen) = b
 
-    zlen := xlen + ylen
+    let zlen = xlen + ylen
     if xlen == 0 {
         return b
     } else if ylen == 0 {
         return a
     } else {
-        zs := __builtin_calloc(zlen) as *Char
+        let zs = __builtin_calloc(zlen) as *Char
         __builtin_memcpy(zs, xs, xlen)
         __builtin_memcpy(__builtin_ptr_add(zs, xlen), ys, ylen)
         return String(zs, zlen)
@@ -418,9 +418,9 @@ data Either a b {
 
 struct Vector a {
     # TODO: make sure offset in struct is correct RE dim_offset
-    array Ref (*a)
-    size Ref Int
-    capacity Ref Int
+    array var (*a)
+    size var Int
+    capacity var Int
 }
 
 fn resize(xs [a], new_len Int) () {
@@ -435,7 +435,7 @@ fn resize(xs [a], new_len Int) () {
 
 instance Show Char {
     fn str(ch) {
-        ys := __builtin_calloc(1)
+        let ys = __builtin_calloc(1)
         ys[0] = ch
         return String(ys, 1)
     }
@@ -451,7 +451,7 @@ instance HasLength [a] {
 
 instance HasLength String {
     fn len(s) {
-        String(_, l) := s
+        let String(_, l) = s
         return l
     }
 }
@@ -509,7 +509,7 @@ instance Eq [a] {
         if !xs.size != !ys.size {
             return False
         }
-        size := !xs.size
+        let size = !xs.size
         var i = 0
         while i < size {
             if xs[i] != ys[i] {
@@ -523,7 +523,7 @@ instance Eq [a] {
         if !xs.size != !ys.size {
             return True
         }
-        size := !(xs.size)
+        let size = !(xs.size)
         var i = 0
         while i < size {
             if xs[i] != ys[i] {
@@ -562,7 +562,7 @@ fn reserve(vec [a], new_capacity Int) {
     if !vec.capacity >= new_capacity {
         return
     }
-    new_array := alloc(new_capacity)
+    let new_array = alloc(new_capacity)
     __builtin_memcpy(
         new_array as! *Char,
         (!vec.array) as! *Char,
@@ -583,20 +583,20 @@ newtype Iterator a = Iterator(fn () Maybe a)
 
 instance Iterable Iterator {
     fn iter(i) {
-        Iterator(f) := i
+        let Iterator(f) = i
         return f
     }
 }
 
 instance Iterable Vector {
     fn iter(vec Vector a) {
-        index := Ref(-1)
+        var index = -1
         return fn() {
-            index = !index + 1
-            if !index >= len(vec) {
+            index += 1
+            if index >= len(vec) {
                 return Nothing
             } else {
-                return Just(vec[!index])
+                return Just(vec[index])
             }
         }
     }
@@ -606,14 +606,14 @@ newtype StringIterable a = StringIterable(String)
 
 instance Iterable StringIterable {
     fn iter(s) {
-        index := Ref(-1)
-        StringIterable(String(buf, length)) := s
+        var index = -1
+        let StringIterable(String(buf, length)) = s
         return fn() {
-            index = !index + 1
-            if !index >= length {
+            index += 1
+            if index >= length {
                 return Nothing
             } else {
-                return Just(buf[!index])
+                return Just(buf[index])
             }
         }
     }
@@ -641,7 +641,7 @@ instance Iterable Range {
     fn iter(ri) {
         var index = ri.range_min
         return fn () {
-            cur_index := index;
+            let cur_index = index;
             if cur_index <= ri.range_max {
                 index = cur_index + ri.step_size
                 return Just(cur_index)
@@ -655,7 +655,7 @@ instance Iterable Range {
 fn compose(f, g) => fn (x) => f(g(x))
 
 fn map(f fn (a) b, iterable) Iterator b {
-    iterator := iter(iterable)
+    let iterator = iter(iterable)
     return Iterator(fn () => match iterator() {
         Just(x) => Just(f(x))
         Nothing => Nothing
@@ -663,7 +663,7 @@ fn map(f fn (a) b, iterable) Iterator b {
 }
 
 fn filter(f fn (a) Bool, xs_input) Iterator a {
-    xs := iter(xs_input)
+    let xs = iter(xs_input)
     return Iterator(fn() {
         while match xs() {
             Just(a) {

@@ -2,6 +2,6 @@
 # expect: type error
 
 fn main() {
-    x := 13
+    let x = 13
     x %= 4
 }

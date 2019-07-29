@@ -6,13 +6,13 @@ import argparse {parse, Parser, Some, Option}
 fn main() int {
     var options [str: Option]
     options["-a"] = Option("append", false /*has_arg*/, false)
-    parser := Parser("tee", options, Some(0, 1))
+    let parser = Parser("tee", options, Some(0, 1))
 
-    with args := parse(parser, sys.args[1:len(sys.args)]) {
-        newline := "\n"
+    with args = parse(parser, sys.args[1:len(sys.args)]) {
+        let newline = "\n"
         if len(args.positionals) != 0 {
             # There was a filename given, so check whether we need to append or create.
-            with f := open(args.positionals[0], "-a" in args.options ? "a" : "w") {
+            with f = open(args.positionals[0], "-a" in args.options ? "a" : "w") {
                 # Now pipe to both the file and stdout.
                 for line in readlines() {
                     print(line)

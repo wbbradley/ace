@@ -7,8 +7,8 @@ fn get_int() => 3
 fn get_char() => '3'
 
 fn main() {
-    add := get_int()
-    add := 4
+    let add = get_int()
+    let add = 4
     print(add)
     static_print(add)
 }

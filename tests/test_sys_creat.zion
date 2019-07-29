@@ -3,16 +3,16 @@
 import sys {unlink, open, write, close, O_CREAT, O_WRONLY, S_IRUSR, S_IWUSR, CreateMode}
 
 fn main() {
-    filename := "/var/tmp/junk.testfile"
-    _ := unlink(filename)
-    fd := open(filename,
+    let filename = "/var/tmp/junk.testfile"
+    let _ = unlink(filename)
+    let fd = open(filename,
         O_CREAT|O_WRONLY, S_IRUSR|S_IWUSR)
     if fd < 0 {
-        _ := __builtin_ffi_1("perror", "open") as Int
+        let _ = __builtin_ffi_1("perror", "open") as Int
         return
     }
-    String(buf, len) := "test"
-    s := write(fd, buf, len)
-    q := close(fd)
+    let String(buf, len) = "test"
+    let s = write(fd, buf, len)
+    let q = close(fd)
     print("PASS")
 }

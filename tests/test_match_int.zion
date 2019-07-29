@@ -1,7 +1,7 @@
 # test: pass
 
 fn main() {
-    s := 3
+    let s = 3
     match s {
         3 => print("PASS")
     } else => print("FAIL")

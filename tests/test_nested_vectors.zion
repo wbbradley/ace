@@ -2,6 +2,6 @@
 # expect: the type is \[Int\]
 
 fn main() {
-    rg := (new [any]) as [Int]
+    let rg = (new [any]) as [Int]
     static_print(rg)
 }

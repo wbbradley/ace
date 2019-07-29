@@ -17,8 +17,8 @@ instance Pushable (List a) a {
 }
 
 fn main() {
-    h := Nil
-    g := push(h, 2)
+    let h = Nil
+    let g = push(h, 2)
     static_print(g)
     __builtin_pass_test
 }
