@@ -1,0 +1,13 @@
+# test: pass
+# expect: 2
+# expect: the type is std.Ref Int
+
+newtype N = N(var Int)
+
+fn main() {
+    let N(var y) = N(Ref(2))
+    static_print(var y)
+    print(y)
+}
+
+
