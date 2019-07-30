@@ -446,7 +446,10 @@ class HasLength a {
 }
 
 instance HasLength [a] {
-    fn len(v) => !v.size
+    fn len(v) {
+        let Vector(_, var size, _) = v
+        return size
+    }
 }
 
 instance HasLength String {
@@ -462,7 +465,8 @@ class HasCapacity a {
 
 instance HasCapacity [a] {
     fn cap(a) {
-        return !a.capacity
+        let Vector(_, _, var capacity) = a
+        return capacity
     }
 }
 
@@ -482,9 +486,10 @@ instance HasIndexableItems * {
 
 instance HasIndexableItems Vector {
     fn get_indexed_item(vec Vector a, index Int) a {
-        assert(!vec.size > index)
-        assert(!vec.array != null)
-        return (!vec.array)[index]
+        let Vector(var array, var size, _) = vec
+        assert(size > index)
+        assert(array != null)
+        return array[index]
     }
 }
 
@@ -500,19 +505,21 @@ instance HasAssignableIndexableItems * {
 
 instance HasAssignableIndexableItems Vector {
     fn set_indexed_item(v Vector a, index Int, a a) {
-        (!v.array)[index] = a
+        let Vector(var array, _, _) = v
+        array[index] = a
     }
 }
 
 instance Eq [a] {
     fn ==(xs, ys) {
-        if !xs.size != !ys.size {
+        let Vector(var xs_array, var xs_size, _) = xs
+        let Vector(var ys_array, var ys_size, _) = ys
+        if xs_size != ys_size {
             return False
         }
-        let size = !xs.size
         var i = 0
-        while i < size {
-            if xs[i] != ys[i] {
+        while i < xs_size {
+            if xs_array[i] != ys_array[i] {
                 return False
             }
             i += 1
@@ -520,13 +527,14 @@ instance Eq [a] {
         return True
     }
     fn !=(xs, ys) {
-        if !xs.size != !ys.size {
+        let Vector(var xs_array, var xs_size, _) = xs
+        let Vector(var ys_array, var ys_size, _) = ys
+        if xs_size != ys_size {
             return True
         }
-        let size = !(xs.size)
         var i = 0
-        while i < size {
-            if xs[i] != ys[i] {
+        while i < xs_size {
+            if xs_array[i] != ys_array[i] {
                 return True
             }
             i += 1
@@ -536,39 +544,40 @@ instance Eq [a] {
 }
 
 fn append(vec [a], val a) {
-    if !vec.array == null {
-        vec.array = alloc(4)
-        vec.size = 1
-        vec.capacity = 4
-        vec[0] = val
+    let Vector(var array, var size, var capacity) = vec
+    if array == null {
+        array = alloc(4)
+        size = 1
+        capacity = 4
+        array[0] = val
         return
-        # __builtin_store_ptr(__builtin_ptr_add(!vec.array, 0), val)
     }
 
-    if !vec.capacity <= !vec.size {
-        reserve(vec, !vec.capacity * 2)
+    if capacity <= size {
+        reserve(vec, capacity * 2)
     }
 
-    if !vec.capacity == 0 {
+    if capacity == 0 {
         __builtin_goodbye
     }
 
-    __builtin_store_ptr(__builtin_ptr_add(!vec.array, !vec.size), val)
-    vec.size = !vec.size + 1
-    assert(!vec.size <= !vec.capacity)
+    __builtin_store_ptr(__builtin_ptr_add(array, size), val)
+    size = size + 1
+    assert(size <= capacity)
 }
 
 fn reserve(vec [a], new_capacity Int) {
-    if !vec.capacity >= new_capacity {
+    let Vector(var array, var size, var capacity) = vec
+    if capacity >= new_capacity {
         return
     }
     let new_array = alloc(new_capacity)
     __builtin_memcpy(
         new_array as! *Char,
-        (!vec.array) as! *Char,
-        sizeof(a) * !vec.size)
-    vec.capacity = new_capacity
-    vec.array = new_array
+        array as! *Char,
+        sizeof(a) * size)
+    capacity = new_capacity
+    array = new_array
 }
 
 instance HasDefault [a] {
