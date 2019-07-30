@@ -16,11 +16,12 @@ namespace zion {
 namespace parser {
 
 BoundVarLifetimeTracker::BoundVarLifetimeTracker(ParseState &ps)
-    : ps(ps), mutable_vars_saved(ps.mutable_vars) {
+    : ps(ps), mutable_vars_saved(ps.mutable_vars), term_map_saved(ps.term_map) {
 }
 
 BoundVarLifetimeTracker::~BoundVarLifetimeTracker() {
   ps.mutable_vars = mutable_vars_saved;
+  ps.term_map = term_map_saved;
 }
 
 ParseState::ParseState(std::string filename,
@@ -54,9 +55,10 @@ Token ParseState::token_and_advance() {
 }
 
 Identifier ParseState::identifier_and_advance() {
-  assert(token.tk == tk_identifier);
+  if (token.tk != tk_identifier) {
+    throw user_error(token.location, "expected an identifier here");
+  }
   advance();
-  assert(prior_token.tk == tk_identifier);
   return id_mapped(Identifier{prior_token.text, prior_token.location});
 }
 
@@ -67,15 +69,6 @@ Identifier ParseState::id_mapped(Identifier id) {
   } else {
     return id;
   }
-}
-
-bool ParseState::is_mutable_var(std::string name) {
-  for (auto iter = scopes.rbegin(); iter != scopes.rend(); ++iter) {
-    if ((*iter).id.name == name) {
-      return (*iter).is_let;
-    }
-  }
-  return false;
 }
 
 void ParseState::error(const char *format, ...) {

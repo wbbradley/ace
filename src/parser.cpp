@@ -56,123 +56,28 @@ bool token_begins_type(const Token &token) {
   };
 }
 
-const Predicate *convert_tuple_into_predicate(const Tuple *tuple) {
-  std::vector<const Predicate *> params;
-  for (auto dim : tuple->dims) {
-    params.push_back(convert_expr_to_predicate(dim));
-  }
-  return new TuplePredicate(tuple->get_location(), params, maybe<Identifier>{});
-}
-
-const Predicate *convert_var_to_predicate(const Var *var) {
-  return new IrrefutablePredicate(var->id.location, maybe<Identifier>(var->id));
-}
-
-const Predicate *convert_expr_to_predicate(const Expr *expr) {
-  if (auto application = dcast<const Application *>(expr)) {
-    return unfold_application_into_predicate(application);
-  } else if (auto tuple = dcast<const Tuple *>(expr)) {
-    return convert_tuple_into_predicate(tuple);
-  } else if (auto var = dcast<const Var *>(expr)) {
-    return convert_var_to_predicate(var);
-  } else {
-    throw user_error(expr->get_location(),
-                     "zion parser is unsure how to rewrite this destructuring");
-  }
-}
-
-const Predicate *unfold_application_into_predicate(
-    const Application *application) {
-  std::vector<const Expr *> exprs;
-  exprs.push_back(application->a);
-  std::copy(application->params.begin(), application->params.end(),
-            std::back_inserter(exprs));
-  if (exprs.size() >= 1) {
-    if (const Var *var = dcast<const Var *>(exprs[0])) {
-      /* this may be a data constructor, treat it as such */
-      auto ctor_name = var->id;
-      if (ctor_name.name == "std.load_value") {
-        // HACKHACK: don't allow mutable_vars to be overwritten in assignment
-        // destructuring.
-        throw user_error(
-            var->id.location,
-            "mutable vars are not allowed to be reassigned in destructuring "
-            "assignment statements. please use a different name than %s",
-            var->id.str().c_str());
-      }
-      std::vector<const Predicate *> params;
-      for (size_t i = 1; i < exprs.size(); ++i) {
-        params.push_back(convert_expr_to_predicate(exprs[i]));
-      }
-      return new CtorPredicate(ctor_name.location, params, ctor_name,
-                               maybe<Identifier>{});
-    } else {
-      log_location(exprs[0]->get_location(), "found %s not sure what do",
-                   exprs[0]->str().c_str());
-      assert(false);
-    }
-  } else {
-    throw user_error(
-        exprs[0]->get_location(),
-        "invalid syntax. you can't destructure an application here");
-  }
-  assert(false);
-  return nullptr;
-}
-
-const Expr *parse_assign_ctor_destructure(ParseState &ps,
-                                          const Application *application) {
-  chomp_token(tk_becomes);
-
-  // See if the application can be reversed into a ctor_predicate
-  const Predicate *predicate = unfold_application_into_predicate(application);
-  const Expr *rhs = parse_expr(ps);
-  const Expr *body = parse_block(ps, false /*expression_means_return*/);
-  return new Match(rhs, {new PatternBlock(predicate, body)});
-}
-
-const Expr *parse_assign_tuple_destructure(ParseState &ps, const Tuple *tuple) {
-  eat_token();
-
-  const Predicate *predicate = convert_tuple_into_predicate(tuple);
-  const Expr *rhs = parse_expr(ps);
-  const Expr *body = parse_block(ps, false /*expression_means_return*/);
-  return new Match(rhs, {new PatternBlock(predicate, body)});
-}
-
 const Expr *parse_var_decl(ParseState &ps,
                            bool is_let,
-                           bool allow_tuple_destructuring) {
-  if (ps.token.tk == tk_lparen) {
-    if (!is_let) {
-      throw user_error(
-          ps.token.location,
-          "mutable destructuring design needs work... please log an issue");
-    }
-    if (!allow_tuple_destructuring) {
+                           bool allow_destructuring) {
+  if (ps.token.tk == tk_lparen ||
+      (ps.token.tk == tk_identifier && isupper(ps.token.text[0]))) {
+    /* this looks like a destructuring declaration */
+    if (!allow_destructuring) {
       throw user_error(ps.token.location, "destructuring is not allowed here");
     }
 
+    BoundVarLifetimeTracker bvlt(ps);
     auto prior_token = ps.token;
-    auto tuple = dcast<const Tuple *>(parse_tuple_expr(ps));
-    if (tuple == nullptr) {
-      throw user_error(
-          prior_token.location,
-          "tuple destructuring detected an invalid expression on the lhs");
-    }
-
-    if (ps.token.tk == tk_assign) {
-      return parse_assign_tuple_destructure(ps, tuple);
-    } else {
-      throw user_error(ps.token.location,
-                       "destructured tuples must be assigned to an rhs");
-    }
+    const Predicate *predicate = parse_predicate(ps, false /*allow_else*/,
+                                                 maybe<Identifier>());
+    chomp_token(tk_assign);
+    const Expr *rhs = parse_expr(ps);
+    const Expr *body = parse_block(ps, false /*expression_means_return*/);
+    return new Match(rhs, {new PatternBlock(predicate, body)});
   } else {
     expect_token(tk_identifier);
-
-    Identifier var_id = Identifier::from_token(ps.token);
-    ps.advance();
-    return parse_let(ps, var_id, is_let);
+    assert(!isupper(ps.token.text[0]));
+    return parse_let(ps, iid(ps.token_and_advance()), is_let);
   }
 }
 
@@ -180,9 +85,8 @@ const Expr *parse_let(ParseState &ps, Identifier var_id, bool is_let) {
   auto location = ps.token.location;
   const Expr *initializer = nullptr;
 
-  if (!ps.line_broke() &&
-      (ps.token.tk == tk_assign || ps.token.tk == tk_becomes)) {
-    eat_token();
+  if (!ps.line_broke() && (ps.token.tk == tk_assign)) {
+    ps.advance();
     initializer = parse_expr(ps);
   } else {
     initializer = new Application(
@@ -190,6 +94,7 @@ const Expr *parse_let(ParseState &ps, Identifier var_id, bool is_let) {
         {unit_expr(INTERNAL_LOC())});
   }
 
+#if 0
   if (ps.token.is_ident(K(as))) {
     /* allow type specifications in decls to help with inference */
     ps.advance();
@@ -197,6 +102,13 @@ const Expr *parse_let(ParseState &ps, Identifier var_id, bool is_let) {
                          parse_type(ps, true /*allow_top_level_application*/),
                          false /*force_cast*/);
   }
+#else
+  assert(!ps.token.is_ident(K(as)));
+#endif
+
+  BoundVarLifetimeTracker bvlt(ps);
+
+  ps.term_map.erase(var_id.name);
 
   if (!is_let) {
     auto ref_id = Identifier{"std.Ref", location};
@@ -405,12 +317,10 @@ const Expr *parse_statement(ParseState &ps) {
 
   if (ps.token.is_ident(K(var))) {
     ps.advance();
-    return parse_var_decl(ps, false /*is_let*/,
-                          true /*allow_tuple_destructuring*/);
+    return parse_var_decl(ps, false /*is_let*/, false /*allow_destructuring*/);
   } else if (ps.token.is_ident(K(let))) {
     ps.advance();
-    return parse_var_decl(ps, true /*is_let*/,
-                          true /*allow_tuple_destructuring*/);
+    return parse_var_decl(ps, true /*is_let*/, true /*allow_destructuring*/);
   } else if (ps.token.is_ident(K(if))) {
     return parse_if(ps);
   } else if (ps.token.is_ident(K(assert))) {
@@ -458,10 +368,12 @@ const Expr *parse_var_ref(ParseState &ps) {
   }
 
   if (ps.token.is_ident(K(__filename__))) {
+    /* special case: inject the current filename as a raw string */
     auto token = ps.token_and_advance();
     return new Literal(Token{token.location, tk_string,
                              escape_json_quotes(token.location.filename)});
   } else if (in(ps.token.text, ps.builtin_arities)) {
+    /* special case: this is a __builtin */
     RawParseMode rpm(ps);
     const int builtin_arity = get(ps.builtin_arities, ps.token.text, -1);
 
@@ -490,6 +402,8 @@ const Expr *parse_var_ref(ParseState &ps) {
 
     return new Builtin(new Var(iid(builtin_token)), exprs);
   } else if (ps.token.text == "__host_int") {
+    /* special case: __host_int is another special-case of builtin to access
+     * target host OS constants */
     RawParseMode rpm(ps);
     ps.advance();
     chomp_token(tk_lparen);
@@ -499,15 +413,18 @@ const Expr *parse_var_ref(ParseState &ps) {
     chomp_token(tk_rparen);
     return new Literal(Token{location, tk_integer, std::to_string(value)});
   } else if (ps.token.is_ident(K(if))) {
+    /* special case: helpful error */
     throw user_error(ps.token.location,
                      "if statements cannot be used as expressions. use the "
                      "ternary operator ?:");
   } else if (ps.token.is_ident(K(while))) {
+    /* special case: helpful error */
     throw user_error(ps.token.location,
                      "%s statements cannot be used as expressions",
                      ps.token.text.c_str());
   }
 
+  /* normal case of a variable reference */
   bool allow_automatic_dereferencing = true;
   if (ps.token.is_ident(K(var))) {
     ps.advance();
@@ -1227,20 +1144,6 @@ const Expr *parse_assignment(ParseState &ps) {
                               {op_token.text.substr(0, 1), op_token.location})),
                           {new Var(copy_value), rhs}))});
   }
-  case tk_becomes:
-    assert(false);
-#if 0
-    if (const Var *var = dcast<const Var *>(lhs)) {
-      return parse_let(ps, var->id, true /* is_let */);
-    } else if (auto tuple = dcast<const Tuple *>(lhs)) {
-      return parse_assign_tuple_destructure(ps, tuple);
-    } else if (auto application = dcast<const Application *>(lhs)) {
-      return parse_assign_ctor_destructure(ps, application);
-    } else {
-      throw user_error(ps.token.location,
-                       ":= may only come after a new symbol name");
-    }
-#endif
   default:
     return lhs;
   }
@@ -1400,7 +1303,8 @@ const Predicate *parse_tuple_predicate(ParseState &ps,
 
 const Predicate *parse_predicate(ParseState &ps,
                                  bool allow_else,
-                                 maybe<Identifier> name_assignment) {
+                                 maybe<Identifier> name_assignment,
+                                 bool allow_var_refs) {
   if (ps.token.is_ident(K(else))) {
     if (!allow_else) {
       throw user_error(
@@ -1408,7 +1312,8 @@ const Predicate *parse_predicate(ParseState &ps,
           "illegal keyword " c_type("%s") " in a pattern match context",
           ps.token.text.c_str());
     }
-  } else if (is_restricted_var_name(ps.token.text)) {
+  } else if (!ps.token.is_ident(K(var)) &&
+             is_restricted_var_name(ps.token.text)) {
     throw user_error(
         ps.token.location,
         "irrefutable predicates are restricted to non-keyword symbols");
@@ -1417,6 +1322,7 @@ const Predicate *parse_predicate(ParseState &ps,
   if (ps.token.tk == tk_lparen) {
     return parse_tuple_predicate(ps, name_assignment);
   } else if (ps.token.tk == tk_identifier) {
+    /* match anything and give it a name */
     if (isupper(ps.token.text[0])) {
       /* match a ctor */
       return parse_ctor_predicate(ps, name_assignment);
@@ -1425,20 +1331,43 @@ const Predicate *parse_predicate(ParseState &ps,
         throw user_error(
             ps.token.location,
             "pattern name assignment is only allowed once per term");
-      } else {
-        /* match anything */
-        auto symbol = Identifier::from_token(ps.token);
+      }
+      if (ps.token.is_ident(K(var))) {
+        /* user is declaring this variable as mutable */
         ps.advance();
-        if (ps.token.tk == tk_about) {
-          ps.advance();
-
-          return parse_predicate(ps, allow_else, maybe<Identifier>(symbol));
-        } else {
-          return new IrrefutablePredicate(symbol.location, symbol);
+        expect_token(tk_identifier);
+        /* check symbol validity again */
+        if (isupper(ps.token.text[0])) {
+          throw user_error(ps.token.location,
+                           "constructor predicates cannot be 'var'");
+        } else if (is_restricted_var_name(ps.token.text)) {
+          throw user_error(
+              ps.token.location,
+              "irrefutable predicates are restricted to non-keyword symbols");
         }
+        /* this will be a var ref */
+        ps.mutable_vars.insert(ps.token.text);
+      } else {
+        /* this will NOT be a var ref */
+        ps.mutable_vars.erase(ps.token.text);
+      }
+
+      /* allow this variable to shadow anything in the term map */
+      ps.term_map.erase(ps.token.text);
+
+      /* match anything */
+      Identifier symbol = iid(ps.token);
+      ps.advance();
+      if (ps.token.tk == tk_about) {
+        ps.advance();
+
+        return parse_predicate(ps, allow_else, maybe<Identifier>(symbol));
+      } else {
+        return new IrrefutablePredicate(symbol.location, symbol);
       }
     }
   } else {
+    /* match a literal */
     if (name_assignment.valid) {
       throw user_error(ps.token.location,
                        "pattern name assignment is only allowed for data "
@@ -1488,6 +1417,8 @@ const Predicate *parse_predicate(ParseState &ps,
 }
 
 const PatternBlock *parse_pattern_block(ParseState &ps) {
+  BoundVarLifetimeTracker bvlt(ps);
+
   return new PatternBlock(
       parse_predicate(ps, true /*allow_else*/,
                       maybe<Identifier>() /*name_assignment*/),
@@ -1548,6 +1479,7 @@ std::pair<Identifier, types::Ref> parse_lambda_param_core(ParseState &ps) {
 
     /* add this param as a mutable var, since we know it's a Ref */
     ps.mutable_vars.insert(param_token.text);
+    ps.term_map.erase(param_token.text);
 
     return {
         iid(param_token),
@@ -1556,6 +1488,8 @@ std::pair<Identifier, types::Ref> parse_lambda_param_core(ParseState &ps) {
                           ? parse_type(ps, true /*allow_top_level_application*/)
                           : type_variable(param_token.location))};
   } else {
+    /* remove this param from the outer term_map */
+    ps.term_map.erase(first_token.text);
     return {iid(first_token),
             (token_begins_type(ps.token))
                 ? parse_type(ps, true /*allow_top_level_application*/)

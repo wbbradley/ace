@@ -53,7 +53,7 @@ template <size_t MAX_STRLEN> struct StackString {
   }
 
   int operator[](int i) const {
-    assert(i < size());
+    assert(i < int(size()));
     assert(i >= 0);
     return buffer[i];
   }

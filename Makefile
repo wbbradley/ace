@@ -4,6 +4,7 @@ SRCDIR = $(shell pwd)
 LLVM_DIR ?= $(shell llvm-config --prefix)/share/llvm/cmake
 prefix ?= /usr/local
 BUILT_BINARY = $(BUILD_DIR)/zion
+MAKEFLAGS=--no-print-directory
 
 # Installation-related directories
 installdir = $(DESTDIR)/$(prefix)

@@ -50,7 +50,7 @@ struct ParseState {
   std::string module_name;
   std::unordered_set<std::string> mutable_vars;
 
-  /* top-level term remapping from "get" statements */
+  /* top-level term remapping from "import" statements */
   std::unordered_map<std::string, std::string> term_map;
 
   const std::map<std::string, int> &builtin_arities;
@@ -62,11 +62,6 @@ struct ParseState {
   ParsedCtorIdMap ctor_id_map;
   ParsedDataCtorsMap data_ctors_map;
   types::TypeEnv type_env;
-
-  /* scoped expression contexts */
-  std::list<Scope> scopes;
-
-  bool is_mutable_var(std::string name);
 
   /* keep track of the current function declaration parameter position */
   int argument_index;
@@ -85,6 +80,7 @@ struct BoundVarLifetimeTracker {
 private:
   ParseState &ps;
   std::unordered_set<std::string> mutable_vars_saved;
+  std::unordered_map<std::string, std::string> term_map_saved;
 };
 
 } // namespace parser

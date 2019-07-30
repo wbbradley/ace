@@ -1,7 +1,15 @@
-# test: fail
-# expect: mutable vars are not allowed to be reassigned in destructuring assignment statements
+# test: pass
+# expect: 23 is 23
+
+import math {sum}
+
+fn f(sum Int) {
+    print("${sum} is 23")
+}
 
 fn main() {
-    var x = 56
-    let Ref(x) = Ref(4)
+    var x = 20
+    x += 3
+    let Ref(x) = var x
+    f(x)
 }
