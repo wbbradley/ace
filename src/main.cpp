@@ -107,7 +107,7 @@ types::Map resolve_free_type_after_specialization_inference(
                                 join_str(referenced_predicates, ", ").c_str()));
 
     types::Map bindings;
-    types::ClassPredicates found_instances;
+    types::ClassPredicates found_instances = instance_predicates;
 
     /* just out of curiosity, see when there are more referenced
      * predicates in a single expression type */
@@ -151,7 +151,10 @@ types::Map resolve_free_type_after_specialization_inference(
         } else {
           /* uh-oh, we found some ambiguity */
           auto error = user_error(expr->get_location(),
-                                  "ambiguous type instance here");
+                                  "ambiguous instances exist here for type %s "
+                                  "(which eventually was rebound to %s)",
+                                  type->str().c_str(),
+                                  type->rebind(bindings)->str().c_str());
           for (auto &predicate : found_instances) {
             error.add_info(predicate->get_location(), "could be %s",
                            predicate->str().c_str());

@@ -1,24 +1,40 @@
 data List x {
-    Cons(x, Ref (List x))
+    Cons(x, var (List x))
     Nil
 }
 
 fn nth(l List x, index Int) Maybe x {
     var rl = l
-    while index >= 0 {
-        match !rl {
-            Cons(x, Ref(next)) {
-                if index == 0 {
-                    return Just(x)
-                } else {
-                    rl = next
-                }
+    var i = 0
+    while match rl {
+        Cons(x, var next) {
+            if i == index {
+                return Just(x)
+            } else {
+                rl = next
+                i += 1
             }
-            Nil {
-                return Nothing
-            }
+        }
+        Nil {
+            return Nothing
         }
     }
     return Nothing
 }
 
+instance Iterable List {
+    fn iter(list List a) {
+        var list = list
+        return fn () Maybe a {
+            match list {
+                Cons(x, var next) {
+                    list = next
+                    return Just(x)
+                }
+                Nil {
+                    return Nothing
+                }
+            }
+        }
+    }
+}

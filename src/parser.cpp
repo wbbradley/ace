@@ -200,7 +200,8 @@ const Expr *parse_with_block(ParseState &ps) {
 const Expr *parse_for_block(ParseState &ps) {
   chomp_ident("for");
 
-  if (ps.token.tk == tk_lparen) {
+  if ((ps.token.tk == tk_identifier && isupper(ps.token.text[0])) ||
+      (ps.token.tk == tk_lparen)) {
     // TODO: handle destructuring tuples
     assert(false);
     return nullptr;
