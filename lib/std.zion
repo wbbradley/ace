@@ -112,7 +112,7 @@ fn join(delim_ String, xs) String {
             i = i + 1
         }
     }
-    buf[i] = from_int(0)
+    buf[i] = '\0'
 
     return String(buf, i)
 }
@@ -493,17 +493,17 @@ instance HasIndexableItems (Vector a) Int a {
     }
 }
 
-class HasAssignableIndexableItems f {
-    fn set_indexed_item(f a, Int, a) ()
+class HasAssignableIndexableItems collection index value {
+    fn set_indexed_item(collection, index, value) ()
 }
 
-instance HasAssignableIndexableItems * {
-    fn set_indexed_item(p *a, index Int, a a) {
+instance HasAssignableIndexableItems (* a) Int a {
+    fn set_indexed_item(p *a, index Int, a) {
         __builtin_store_ptr(__builtin_ptr_add(p, index), a)
     }
 }
 
-instance HasAssignableIndexableItems Vector {
+instance HasAssignableIndexableItems (Vector a) Int a {
     fn set_indexed_item(v Vector a, index Int, a a) {
         let Vector(var array, _, _) = v
         array[index] = a

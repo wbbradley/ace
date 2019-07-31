@@ -98,12 +98,13 @@ types::Map resolve_free_type_after_specialization_inference(
                                           nullptr /*overlapping_ftvs*/);
     /* resolve overloads when they are ambiguous by looking at available
      * instances */
-    log_location(expr->get_location(),
-                 "%s :: %s has free variables that are bound to predicates "
-                 "{%s}. let's try to match this scheme to "
-                 "a known type class instance...",
-                 expr->str().c_str(), type->str().c_str(),
-                 join_str(referenced_predicates, ", ").c_str());
+    debug_above(2, log_location(expr->get_location(),
+                                "%s :: %s has free variables that are bound to "
+                                "predicates "
+                                "{%s}. let's try to match this scheme to "
+                                "a known type class instance...",
+                                expr->str().c_str(), type->str().c_str(),
+                                join_str(referenced_predicates, ", ").c_str()));
 
     types::Map bindings;
     types::ClassPredicates found_instances;
@@ -114,9 +115,9 @@ types::Map resolve_free_type_after_specialization_inference(
       assert(referenced_predicates.size() == 1);
 
       for (auto &referenced_predicate : referenced_predicates) {
-        log("we need to solve %s against {%s}",
-            referenced_predicate->str().c_str(),
-            join_str(instance_predicates, ", ").c_str());
+        debug_above(2, log("we need to solve %s against {%s}",
+                           referenced_predicate->str().c_str(),
+                           join_str(instance_predicates, ", ").c_str()));
 
         for (auto &instance_predicate : instance_predicates) {
           if (instance_predicate->classname.name ==
