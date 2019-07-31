@@ -1,0 +1,104 @@
+# Implement a map type (like a dict in Python) in Zion
+
+import list {List, Cons, Nil}
+import hash {hash}
+
+newtype MapKeyValueCell key value = MapKeyValueCell(Int, key, var value)
+newtype MapStorage key value = MapStorage([List (MapKeyValueCell key value)])
+newtype Map key value = Map(MapStorage key value, var size)
+
+instance HasDefault (Map key value) {
+    fn new() => Map(MapStorage([]), Ref(0))
+}
+
+fn find_key_value(map_storage MapStorage key value, var size, map_key_hash Int, key key) {
+    let MapStorage(storage) = map_storage
+    if size <= 0 {
+        assert(size == 0)
+        return Nothing
+    }
+
+    let index = map_key_hash % size
+    for key_value_cell in storage[index] {
+        # TODO: implement list iteration
+        # TODO: add destructuring to the above line so that this next
+        # line is inline.
+        let MapKeyValueCell(
+            existing_key_hash,
+            existing_key,
+            var existing_value) = key_value_cell
+
+        if existing_key_hash == map_key_hash and existing_key == key {
+            return Just(key_value_cell)
+        }
+    }
+    return Nothing
+}
+
+fn needs_to_grow(map) {
+    let Map(MapStorage(storage), var size) = map
+    return size + 1 > len(storage)
+}
+
+fn grow_storage(map_storage MapStorage key value, new_size) {
+    let MapStorage(storage) = map_storage
+    assert(len(storage) < new_size)
+    let new_storage = []
+    reserve(new_storage, new_size)
+    for i in [0..new_size-1] {
+        append(new_storage, Nil)
+    }
+    for key_value_cell_list in storage {
+        for key_value_cell in key_value_cell_list {
+            # TODO: implement static print after compilation (not just after
+            # specialization)
+            # static_print(key_value_cell)
+            let MapKeyValueCell(key_hash, _, _) = key_value_cell
+            let index = key_hash % new_size
+            new_storage[index] = Cons(key_value_cell, Ref(new_storage[index]))
+        }
+    }
+    let Vector(var array, var size, var capacity) = storage
+    let Vector(var new_array, var new_size, var new_capacity) = new_storage
+    array = new_array
+    size = new_size
+    capacity = new_capacity
+}
+
+instance HasAssignableIndexableItems (Map key value) key value {
+    # NB: instance predicates (aka requirements) are discovered during
+    # specialization. So, "has Hashable key" is not necessary (or even
+    # parsed correctly.)
+    fn set_indexed_item(map Map key value, key, value) {
+        # get access to the inside of the map
+        let Map(map_storage, var size) = map
+        # compute the given key's hash
+        let map_key_hash = hash(key)
+
+        # See if this key already exists
+        # otherwise, we'll need to deal with growing the storage.
+        match find_key_value(map_storage, var size, map_key_hash, key) {
+            Just(MapKeyValueCell(_, _, var old_value)) {
+                # It exists, so just update the value
+                old_value = value
+                return
+            }
+        } else {
+            if needs_to_grow(map) {
+                # We need to grow to efficently hold another element.
+                grow_storage(map_storage, size == 0 ? 4 : size * 2)
+            }
+            let MapStorage(storage) = map_storage
+            assert(len(storage) > 0)
+            let index = map_key_hash % len(storage)
+            storage[index] = Cons(MapKeyValueCell(map_key_hash, key, Ref(value)),
+                                  Ref(storage[index]))
+            size += 1
+        }
+    }
+}
+
+fn main() {
+    let map = new Map String Int
+    map["test"] = 1
+}

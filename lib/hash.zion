@@ -1,0 +1,22 @@
+link pkg "libsodium"
+
+class Hashable a {
+    fn hash(a) Int # NB: probably should be an uint but we don't have
+                   # those yet.
+}
+
+instance Hashable String {
+    fn hash(s) {
+        # TODO: hook this up to libsodium's crypto_hash function via
+        # __builtin_ffi...
+        return 1
+    }
+}
+
+instance Hashable Int {
+    fn hash(i) {
+        # TODO: hook this up to libsodium's crypto_hash function via
+        # __builtin_ffi...
+        return 2
+    }
+}
