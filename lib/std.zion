@@ -474,17 +474,17 @@ fn alloc(count Int) *a {
     return __builtin_calloc(sizeof(a) * count)
 }
 
-class HasIndexableItems f {
-    fn get_indexed_item(f a, Int) a
+class HasIndexableItems collection index value {
+    fn get_indexed_item(collection, index) value
 }
 
-instance HasIndexableItems * {
-    fn get_indexed_item(p *a, index Int) a {
+instance HasIndexableItems (* a) Int a {
+    fn get_indexed_item(p, index) {
         return !__builtin_ptr_add(p, index)
     }
 }
 
-instance HasIndexableItems Vector {
+instance HasIndexableItems (Vector a) Int a {
     fn get_indexed_item(vec Vector a, index Int) a {
         let Vector(var array, var size, _) = vec
         assert(size > index)
