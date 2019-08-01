@@ -248,10 +248,16 @@ void set_env_var(GenLocalEnv &gen_env,
                  types::Ref type,
                  llvm::Value *llvm_value) {
   assert(name.size() != 0);
-  debug_above(4, log("gen::set_env_var(0x%08llx, %s, %s)",
+  debug_above(4, log_location(
+                     type->get_location(), "gen::set_env_var(0x%08llx, %s, %s)",
                      (unsigned long long)(&gen_env), name.c_str(),
                      type->str().c_str(), llvm_print(llvm_value).c_str()));
-  assert(type->ftv_count() == 0);
+  if (type->ftv_count() != 0) {
+    throw user_error(type->get_location(),
+                     "type %s has free type variables %s",
+                     type->str().c_str(),
+                     str(type->get_ftvs()).c_str());
+  }
 
   auto iter = gen_env.find(name);
   if (iter != gen_env.end()) {

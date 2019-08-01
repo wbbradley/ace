@@ -102,12 +102,12 @@ fn join(delim_ String, xs) String {
     var i = 0
     for r in results {
         if i > 0 {
-            for ch in StringIterable(delim_) {
+            for ch in delim_ {
                 buf[i] = ch
                 i = i + 1
             }
         }
-        for ch in StringIterable(r) {
+        for ch in r {
             buf[i] = ch
             i = i + 1
         }
@@ -484,7 +484,7 @@ instance HasIndexableItems (* a) Int a {
     }
 }
 
-instance HasIndexableItems (Vector a) Int a {
+instance HasIndexableItems [a] Int a {
     fn get_indexed_item(vec Vector a, index Int) a {
         let Vector(var array, var size, _) = vec
         assert(size > index)
@@ -584,20 +584,20 @@ instance HasDefault [a] {
     fn new() => Vector(Ref(null), Ref(0), Ref(0))
 }
 
-class Iterable f {
-    fn iter(f a) fn () Maybe a
+class Iterable collection item {
+    fn iter(collection) fn () Maybe item
 }
 
 newtype Iterator a = Iterator(fn () Maybe a)
 
-instance Iterable Iterator {
+instance Iterable (Iterator a) a {
     fn iter(i) {
         let Iterator(f) = i
         return f
     }
 }
 
-instance Iterable Vector {
+instance Iterable [a] a {
     fn iter(vec Vector a) {
         var index = -1
         return fn() {
@@ -611,12 +611,10 @@ instance Iterable Vector {
     }
 }
 
-newtype StringIterable a = StringIterable(String)
-
-instance Iterable StringIterable {
+instance Iterable String Char {
     fn iter(s) {
         var index = -1
-        let StringIterable(String(buf, length)) = s
+        let String(buf, length) = s
         return fn() {
             index += 1
             if index >= length {
@@ -646,7 +644,7 @@ fn range(max Int) {
     return Range(0, 1, max-1)
 }
 
-instance Iterable Range {
+instance Iterable (Range a) a {
     fn iter(ri) {
         var index = ri.range_min
         return fn () {

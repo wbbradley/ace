@@ -91,6 +91,8 @@ types::Map resolve_free_type_after_specialization_inference(
     types::Ref type,
     const types::ClassPredicates &instance_requirements,
     const types::ClassPredicates &instance_predicates) {
+  debug_above(7, log_location(expr->get_location(), "rftasi ::: %s :: %s",
+                              expr->str().c_str(), type->str().c_str()));
   if (type->ftv_count() != 0) {
     const types::ClassPredicates referenced_predicates =
         types::get_overlapping_predicates(instance_requirements,
@@ -98,79 +100,94 @@ types::Map resolve_free_type_after_specialization_inference(
                                           nullptr /*overlapping_ftvs*/);
     /* resolve overloads when they are ambiguous by looking at available
      * instances */
-    debug_above(2, log_location(expr->get_location(),
-                                "%s :: %s has free variables that are bound to "
-                                "predicates "
-                                "{%s}. let's try to match this scheme to "
-                                "a known type class instance...",
-                                expr->str().c_str(), type->str().c_str(),
-                                join_str(referenced_predicates, ", ").c_str()));
-
-    types::Map bindings;
-    types::ClassPredicates found_instances = instance_predicates;
+    // debug_above( 2,
+    log_location(expr->get_location(),
+                 "%s :: %s has free variables that are bound to "
+                 "predicates {%s}. let's try to match this scheme to "
+                 "a known type class instance...",
+                 expr->str().c_str(), type->str().c_str(),
+                 join_str(referenced_predicates, ", ").c_str());
+    //);
 
     /* just out of curiosity, see when there are more referenced
      * predicates in a single expression type */
-    if (referenced_predicates.size() >= 1) {
-      assert(referenced_predicates.size() == 1);
+    for (auto &referenced_predicate : referenced_predicates) {
+      debug_above(2, log("we need to solve %s against {%s}",
+                         referenced_predicate->str().c_str(),
+                         join_str(instance_predicates, ", ").c_str()));
 
-      for (auto &referenced_predicate : referenced_predicates) {
-        debug_above(2, log("we need to solve %s against {%s}",
-                           referenced_predicate->str().c_str(),
-                           join_str(instance_predicates, ", ").c_str()));
-
-        for (auto &instance_predicate : instance_predicates) {
-          if (instance_predicate->classname.name ==
-              referenced_predicate->classname.name) {
-            /* we are referring to the same type class. now, let's unify the
-             * instance parameters in an attempt to resolve any functional
-             * dependencies between the associated types. */
-            types::Unification unification = types::unify_many(
-                instance_predicate->params, referenced_predicate->params);
-            if (unification.result) {
-              /* unification was successful. now check whether we've already
-               * found a matching instance or not */
-              /* this is the only instance which unifies so far. that's good */
-              found_instances.insert(instance_predicate);
-              std::swap(bindings, unification.bindings);
-            }
-          }
+      types::Map bindings;
+      types::ClassPredicates found_instances;
+      for (auto &instance_predicate_ : instance_predicates) {
+        /* let's freshen the instance_predicate */
+        std::map<std::string, std::string> new_ftvs;
+        for (auto &ftv : instance_predicate_->get_ftvs()) {
+          new_ftvs[ftv] = gensym_name();
         }
-        if (found_instances.size() == 1) {
-          /* this is good, it means that we found a single type class
-           * instance that satisfies our requirements. go ahead and return
-           * the bindings that will map the ftvs in the given type to some
-           * concrete type. */
-          assert(bindings.size() != 0);
-          assert(type->rebind(bindings)->ftv_count() == 0);
-          return bindings;
-        } else if (found_instances.size() == 0) {
-          throw user_error(expr->get_location(),
-                           "could not resolve the type of expr %s :: %s",
-                           expr->str().c_str(), type->str().c_str());
-        } else {
-          /* uh-oh, we found some ambiguity */
-          auto error = user_error(expr->get_location(),
-                                  "ambiguous instances exist here for type %s "
-                                  "(which eventually was rebound to %s)",
-                                  type->str().c_str(),
-                                  type->rebind(bindings)->str().c_str());
-          for (auto &predicate : found_instances) {
-            error.add_info(predicate->get_location(), "could be %s",
-                           predicate->str().c_str());
+        auto instance_predicate = instance_predicate_->remap_vars(new_ftvs);
+
+        if (instance_predicate->classname.name ==
+            referenced_predicate->classname.name) {
+          /* we are referring to the same type class. now, let's unify the
+           * instance parameters in an attempt to resolve any functional
+           * dependencies between the associated types. */
+          debug_above(3, log("Attempting to unify %s with %s",
+              instance_predicate->str().c_str(),
+              referenced_predicate->str().c_str()));
+          types::Unification unification = types::unify_many(
+              instance_predicat e->params, referenced_predicate->params);
+          if (unification.result) {
+            debug_above(3, log("%s unified with %s with bindings %s",
+                               instance_predicate->str().c_str(),
+                               referenced_predicate->str().c_str(),
+                               str(unification.bindings).c_str()));
+            /* unification was successful. now check whether we've already
+             * found a matching instance or not */
+            /* this is the only instance which unifies so far. that's good */
+            found_instances.insert(instance_predicate);
+            std::swap(bindings, unification.bindings);
           }
-          throw error;
         }
       }
-    } else {
-      /* here there are unbound type variables */
-      // TODO: consider unitization here...
-      return {};
+
+      if (found_instances.size() == 1) {
+        /* this is good, it means that we found a single type class
+         * instance that satisfies our requirements. go ahead and return
+         * the bindings that will map the ftvs in the given type to some
+         * concrete type. */
+        assert(bindings.size() != 0);
+        // assert(type->rebind(bindings)->ftv_count() == 0);
+        return bindings;
+      }
+#if 0
+          /* we were unable to make progress on this type, but perhaps with
+           * further refinement, we'll be able to make progress. */
+          /* uh-oh, we found some ambiguity */
+          log_location(expr->get_location(),
+                       "ambiguous instances exist here for type %s "
+                       "(which eventually was rebound to %s)",
+                       type->str().c_str(),
+                       type->rebind(bindings)->str().c_str());
+          for (auto &predicate : found_instances) {
+            log_location(predicate->get_location(), "could be %s",
+                         predicate->str().c_str());
+          }
+        }
+#endif
     }
   }
 
   /* nothing to do */
   return {};
+}
+
+bool tracked_types_have_ftvs(const TrackedTypes &tracked_types) {
+  for (auto pair : tracked_types) {
+    if (pair.second->ftv_count() != 0) {
+      return true;
+    }
+  }
+  return false;
 }
 
 CheckedDefinitionRef check_decl(
@@ -206,18 +223,36 @@ CheckedDefinitionRef check_decl(
   if (instance_predicates.size() != 0) {
     // TODO: clean up where this code is sitting.
 
-    for (auto pair : tracked_types) {
-      const ast::Expr *expr = pair.first;
-      const types::Ref &type = pair.second;
+    // TODO: only iterate over the ftvs
+    while (tracked_types_have_ftvs(tracked_types)) {
+      int count_bindings = 0;
+      for (auto pair : tracked_types) {
+        const ast::Expr *expr = pair.first;
+        const types::Ref &type = pair.second;
 
-      types::Map bindings = resolve_free_type_after_specialization_inference(
-          expr, type, instance_requirements, instance_predicates);
+        types::Map bindings = resolve_free_type_after_specialization_inference(
+            expr, type, instance_requirements, instance_predicates);
 
-      // REVIEW: this may be too sketchy to update the tracked_types while we
-      // are looping over them
-      rebind_tracked_types(tracked_types, bindings);
+        rebind_tracked_types(tracked_types, bindings);
+        instance_requirements = types::rebind(instance_requirements, bindings);
+        count_bindings += bindings.size();
+      }
+      if (count_bindings == 0) {
+        break;
+      }
     }
+#if 0
+    /* do one final check */
+    for (auto pair : tracked_types) {
+      if (pair.second->ftv_count() != 0) {
+        throw user_error(pair.first->get_location(),
+                         "unable to resolve the free variables within type %s",
+                         pair.second->str().c_str());
+      }
+    }
+#endif
   }
+
   return std::make_shared<CheckedDefinition>(scheme, decl, tracked_types);
 }
 

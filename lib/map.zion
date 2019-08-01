@@ -5,7 +5,7 @@ import hash {hash}
 
 newtype MapKeyValueCell key value = MapKeyValueCell(Int, key, var value)
 newtype MapStorage key value = MapStorage([List (MapKeyValueCell key value)])
-newtype Map key value = Map(MapStorage key value, var size)
+newtype Map key value = Map(MapStorage key value, var Int)
 
 instance HasDefault (Map key value) {
     fn new() => Map(MapStorage([]), Ref(0))
@@ -19,16 +19,14 @@ fn find_key_value(map_storage MapStorage key value, var size, map_key_hash Int, 
     }
 
     let index = map_key_hash % size
-    for key_value_cell in storage[index] {
+    let storage_foo = storage
+    for key_value_cell in storage_foo[index] {
         # TODO: implement list iteration
         # TODO: add destructuring to the above line so that this next
         # line is inline.
-        let MapKeyValueCell(
-            existing_key_hash,
-            existing_key,
-            var existing_value) = key_value_cell
+        let MapKeyValueCell(existing_key_hash, existing_key, var existing_value) = key_value_cell
 
-        if existing_key_hash == map_key_hash and existing_key == key {
+        if /*(existing_key_hash == map_key_hash) and (existing_key == key)*/ True {
             return Just(key_value_cell)
         }
     }
@@ -73,7 +71,7 @@ instance HasAssignableIndexableItems (Map key value) key value {
         # get access to the inside of the map
         let Map(map_storage, var size) = map
         # compute the given key's hash
-        let map_key_hash = hash(key)
+        let map_key_hash = hash(key) as Int
 
         # See if this key already exists
         # otherwise, we'll need to deal with growing the storage.
