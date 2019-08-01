@@ -1,0 +1,11 @@
+# test: pass
+
+fn main() {
+    let a = "hey"
+    let b = "hey"
+    let c = 3
+    let d = 3
+    if a == b and c == d {
+        print("PASS")
+    }
+}

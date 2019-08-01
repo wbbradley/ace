@@ -22,7 +22,7 @@ fn nth(l List x, index Int) Maybe x {
     return Nothing
 }
 
-instance Iterable List {
+instance Iterable (List a) a {
     fn iter(list List a) {
         var list = list
         return fn () Maybe a {
