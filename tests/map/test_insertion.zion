@@ -1,0 +1,11 @@
+# test: pass
+# expect: job
+
+import map {Map}
+
+fn main() {
+    let map = new Map String String
+    map["play"] = "piano"
+    map["work"] = "job"
+    print(match map["work"] { Just(a) => a } else { "?" })
+}

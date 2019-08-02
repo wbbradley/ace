@@ -992,6 +992,12 @@ ResolutionStatus gen(std::string name,
 
     INDENT(2, string_format("gen(..., %s, ..., ...) :: %s", expr->str().c_str(),
                             type->str().c_str()));
+#if 0
+    debug_above(2, log_location(expr->get_location(),
+                                "generating ssa for %s :: %s",
+                                expr->str().c_str(), type->str().c_str()));
+#endif
+
     if (auto literal = dcast<const ast::Literal *>(expr)) {
       return gen_literal(name, builder, literal, type, publisher);
     } else if (dcast<const ast::StaticPrint *>(expr)) {

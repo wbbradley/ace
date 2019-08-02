@@ -643,6 +643,7 @@ Refs rebind(const Refs &types, const Map &bindings) {
 Ref unitize(Ref type) {
   Map bindings;
   for (auto &ftv : type->get_ftvs()) {
+    assert(false);
     bindings[ftv] = type_unit(INTERNAL_LOC());
   }
   return type->rebind(bindings);

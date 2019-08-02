@@ -2061,7 +2061,8 @@ const Module *parse_module(ParseState &ps,
   while (ps.token.is_ident(K(import))) {
     ps.advance();
     expect_token(tk_identifier);
-    Identifier module_name = ps.identifier_and_advance();
+    Identifier module_name = iid(ps.token);
+    ps.advance();
 
     if (ps.token.tk == tk_lcurly) {
       ps.advance();
