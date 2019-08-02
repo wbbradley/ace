@@ -4,6 +4,7 @@
 
 #include "constraint.h"
 #include "identifier.h"
+#include "import_rules.h"
 #include "infer.h"
 #include "match.h"
 #include "patterns.h"
@@ -102,6 +103,8 @@ struct Predicate {
       bool &returns,
       TranslateContinuationFn &matched,
       TranslateContinuationFn &failed) const = 0;
+  virtual const Predicate *rewrite(
+      const RewriteImportRules &rewrite_import_rules) const = 0;
   std::string str() const;
 };
 
@@ -138,6 +141,7 @@ struct TuplePredicate : public Predicate {
                         bool &returns,
                         TranslateContinuationFn &matched,
                         TranslateContinuationFn &failed) const override;
+  const Predicate *rewrite(const RewriteImportRules &rewrite_import_rules) const override;
   Location get_location() const override;
 
   Location location;
@@ -176,6 +180,7 @@ struct IrrefutablePredicate : public Predicate {
                         bool &returns,
                         TranslateContinuationFn &matched,
                         TranslateContinuationFn &failed) const override;
+  const Predicate *rewrite(const RewriteImportRules &rewrite_import_rules) const override;
   Location get_location() const override;
 
   Location location;
@@ -217,6 +222,8 @@ struct CtorPredicate : public Predicate {
                         bool &returns,
                         TranslateContinuationFn &matched,
                         TranslateContinuationFn &failed) const override;
+  const Predicate *rewrite(
+      const RewriteImportRules &rewrite_import_rules) const override;
   Location get_location() const override;
 
   Location location;
@@ -367,6 +374,7 @@ struct Literal : public Expr, public Predicate {
                         bool &returns,
                         TranslateContinuationFn &matched,
                         TranslateContinuationFn &failed) const override;
+  const Predicate *rewrite(const RewriteImportRules &) const override;
   Location get_location() const override;
 
   Token token;
@@ -475,7 +483,7 @@ struct Instance {
 struct Module {
   Module(std::string name,
          const std::vector<const Decl *> &decls,
-         const std::vector<TypeDecl> &type_decls,
+         const std::vector<const TypeDecl> &type_decls,
          const std::vector<const TypeClass *> &type_classes,
          const std::vector<const Instance *> &instances,
          const ParsedCtorIdMap &ctor_id_map,
@@ -489,7 +497,7 @@ struct Module {
 
   std::string const name;
   std::vector<const Decl *> decls;
-  std::vector<TypeDecl> type_decls;
+  std::vector<const TypeDecl> type_decls;
   std::vector<const TypeClass *> type_classes;
   std::vector<const Instance *> instances;
   ParsedCtorIdMap ctor_id_map;
