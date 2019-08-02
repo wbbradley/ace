@@ -118,6 +118,10 @@ ClassPredicate::Ref ClassPredicate::remap_vars(
 }
 
 ClassPredicate::Ref ClassPredicate::rebind(const types::Map &bindings) const {
+  if (bindings.size() == 0) {
+    return shared_from_this();
+  }
+
   /* rebind all the types in a ClassPredicate. */
   Refs new_params;
   new_params.reserve(params.size());

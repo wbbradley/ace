@@ -1,6 +1,7 @@
 #include "tracked_types.h"
 
 #include "ast.h"
+#include "dbg.h"
 #include "logger_decls.h"
 
 namespace zion {
@@ -26,7 +27,12 @@ void rebind_tracked_types(TrackedTypes &tracked_types,
   }
 
   for (auto pair : tracked_types) {
-    tracked_types[pair.first] = pair.second->rebind(bindings);
+    if (pair.second->ftv_count() != 0) {
+      debug_above(7, log("changing tracked_types[%s] from %s to %s",
+                         pair.first->str().c_str(), pair.second->str().c_str(),
+                         pair.second->rebind(bindings)->str().c_str()));
+      tracked_types[pair.first] = pair.second->rebind(bindings);
+    }
   }
 }
 

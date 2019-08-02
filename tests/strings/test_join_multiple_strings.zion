@@ -1,0 +1,10 @@
+# test: pass
+# expect: 3
+
+fn main() {
+    let a = 2
+    let b = 3.4
+    var c = Nothing as Maybe Int
+    let d = 3
+    print("${a}, ${b}, ${c}, ${d}")
+}

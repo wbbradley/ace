@@ -100,14 +100,13 @@ types::Map resolve_free_type_after_specialization_inference(
                                           nullptr /*overlapping_ftvs*/);
     /* resolve overloads when they are ambiguous by looking at available
      * instances */
-    // debug_above( 2,
-    log_location(expr->get_location(),
-                 "%s :: %s has free variables that are bound to "
-                 "predicates {%s}. let's try to match this scheme to "
-                 "a known type class instance...",
-                 expr->str().c_str(), type->str().c_str(),
-                 join_str(referenced_predicates, ", ").c_str());
-    //);
+    debug_above(
+        2, log_location(expr->get_location(),
+                        "%s :: %s has free variables that are bound to "
+                        "predicates {%s}. let's try to match this scheme to "
+                        "a known type class instance...",
+                        expr->str().c_str(), type->str().c_str(),
+                        join_str(referenced_predicates, ", ").c_str()));
 
     /* just out of curiosity, see when there are more referenced
      * predicates in a single expression type */
@@ -132,10 +131,10 @@ types::Map resolve_free_type_after_specialization_inference(
            * instance parameters in an attempt to resolve any functional
            * dependencies between the associated types. */
           debug_above(3, log("Attempting to unify %s with %s",
-              instance_predicate->str().c_str(),
-              referenced_predicate->str().c_str()));
+                             instance_predicate->str().c_str(),
+                             referenced_predicate->str().c_str()));
           types::Unification unification = types::unify_many(
-              instance_predicat e->params, referenced_predicate->params);
+              instance_predicate->params, referenced_predicate->params);
           if (unification.result) {
             debug_above(3, log("%s unified with %s with bindings %s",
                                instance_predicate->str().c_str(),
@@ -181,13 +180,12 @@ types::Map resolve_free_type_after_specialization_inference(
   return {};
 }
 
-bool tracked_types_have_ftvs(const TrackedTypes &tracked_types) {
+void tracked_types_have_ftvs(const TrackedTypes &tracked_types, types::Ftvs &ftvs) {
   for (auto pair : tracked_types) {
-    if (pair.second->ftv_count() != 0) {
-      return true;
+    for (auto ftv : pair.second->get_ftvs()) {
+      ftvs.insert(ftv);
     }
   }
-  return false;
 }
 
 CheckedDefinitionRef check_decl(
@@ -221,11 +219,17 @@ CheckedDefinitionRef check_decl(
   types::SchemeRef scheme = ty->generalize(instance_requirements)->normalize();
 
   if (instance_predicates.size() != 0) {
-    // TODO: clean up where this code is sitting.
+    int ftv_count = 0;
+    while (true) {
+      types::Ftvs ftvs;
+      tracked_types_have_ftvs(tracked_types, ftvs);
+      if (int(ftvs.size()) == ftv_count) {
+        /* we're not making progress anymore */
+        break;
+      } else {
+        ftv_count = ftvs.size();
+      }
 
-    // TODO: only iterate over the ftvs
-    while (tracked_types_have_ftvs(tracked_types)) {
-      int count_bindings = 0;
       for (auto pair : tracked_types) {
         const ast::Expr *expr = pair.first;
         const types::Ref &type = pair.second;
@@ -235,22 +239,37 @@ CheckedDefinitionRef check_decl(
 
         rebind_tracked_types(tracked_types, bindings);
         instance_requirements = types::rebind(instance_requirements, bindings);
-        count_bindings += bindings.size();
-      }
-      if (count_bindings == 0) {
-        break;
       }
     }
-#if 0
+
     /* do one final check */
     for (auto pair : tracked_types) {
       if (pair.second->ftv_count() != 0) {
-        throw user_error(pair.first->get_location(),
-                         "unable to resolve the free variables within type %s",
-                         pair.second->str().c_str());
+        // TODO: normalize the types and predicates in here for cleanliness in
+        // errors
+        auto expr = pair.first;
+        auto type = pair.second;
+        const types::ClassPredicates referenced_predicates =
+            types::get_overlapping_predicates(instance_requirements,
+                                              type->get_ftvs(),
+                                              nullptr /*overlapping_ftvs*/);
+        if (referenced_predicates.size() != 0) {
+          auto error = user_error(
+              expr->get_location(),
+              "type inference was unable to resolve a fully bound type "
+              "for %s :: %s",
+              expr->str().c_str(), type->str().c_str());
+          error.add_info(type->get_location(),
+                         "this type must conform to the following predicate%s",
+                         referenced_predicates.size() == 1 ? "" : "s");
+          for (auto &referenced_predicate : referenced_predicates) {
+            error.add_info(referenced_predicate->get_location(), "%s",
+                           referenced_predicate->str().c_str());
+          }
+          throw error;
+        }
       }
     }
-#endif
   }
 
   return std::make_shared<CheckedDefinition>(scheme, decl, tracked_types);

@@ -6,7 +6,9 @@ fn main() {
     let birds = [Bird("Larry", 0),
                  Bird("Curly", 9001),
                  Bird("Moe", 12)]
-    for Bird(name, age) in birds {
+    for bird /* Bird(name, age) */ in birds {
+        let Bird(name, age) = bird
         print("${name} is ${age} year${age == 1 ? "" : "s"} old.")
     }
+    print("PASS")
 }
