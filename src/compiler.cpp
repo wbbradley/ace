@@ -204,7 +204,7 @@ struct GlobalParserState {
 
 std::set<std::string> get_top_level_decls(
     const std::vector<const Decl *> &decls,
-    const std::vector<TypeDecl> &type_decls,
+    const std::vector<const TypeDecl> &type_decls,
     const std::vector<const TypeClass *> &type_classes) {
   std::map<std::string, Location> module_decls;
   for (const Decl *decl : decls) {
@@ -324,8 +324,10 @@ Compilation::ref parse_program(
 
     std::string program_filename = compiler::resolve_module_filename(
         INTERNAL_LOC(), user_program_name, ".zion");
-    return merge_compilation(program_filename, program_name, gps.modules,
-                             gps.comments, gps.link_ins);
+    return merge_compilation(
+        program_filename, program_name,
+        rewrite_modules(rewriting_imports_rules, gps.modules), gps.comments,
+        gps.link_ins);
 
   } catch (user_error &e) {
     print_exception(e);

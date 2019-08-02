@@ -1,4 +1,2 @@
-# test: skip
-
 import moon2 {moonrocks}
 export {moonrocks}

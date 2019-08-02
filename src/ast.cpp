@@ -238,6 +238,10 @@ Identifier Literal::instantiate_name_assignment() const {
   return Identifier{fresh(), token.location};
 }
 
+const Predicate *Literal::rewrite(const RewriteImportRules &) const {
+  return this;
+}
+
 Location Tuple::get_location() const {
   return location;
 }
@@ -339,6 +343,13 @@ Identifier CtorPredicate::instantiate_name_assignment() const {
   }
 }
 
+const Predicate *CtorPredicate::rewrite(
+    const RewriteImportRules &rewrite_import_rules) const {
+  return new CtorPredicate(
+      location, rewrite_predicates(rewrite_import_rules, params),
+      rewrite_identifier(rewrite_import_rules, ctor_name), name_assignment);
+}
+
 std::ostream &TuplePredicate::render(std::ostream &os) const {
   os << "(";
   const char *delim = "";
@@ -348,6 +359,13 @@ std::ostream &TuplePredicate::render(std::ostream &os) const {
     delim = ", ";
   }
   return os << ")";
+}
+
+const Predicate *TuplePredicate::rewrite(
+    const RewriteImportRules &rewrite_import_rules) const {
+  return new TuplePredicate(location,
+                            rewrite_predicates(rewrite_import_rules, params),
+                            name_assignment);
 }
 
 Location TuplePredicate::get_location() const {
@@ -377,6 +395,11 @@ Identifier IrrefutablePredicate::instantiate_name_assignment() const {
   } else {
     return Identifier{fresh(), location};
   }
+}
+
+const Predicate *IrrefutablePredicate::rewrite(
+    const RewriteImportRules &rewrite_import_rules) const {
+  return this;
 }
 
 types::Ref TypeDecl::get_type() const {

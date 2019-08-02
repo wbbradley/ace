@@ -14,10 +14,10 @@ struct Type;
 typedef std::set<std::string> Ftvs;
 typedef std::map<std::string, int> NameIndex;
 
-typedef std::map<std::string, std::shared_ptr<const Type>> TypeEnv;
 typedef std::shared_ptr<const Type> Ref;
 typedef std::vector<Ref> Refs;
 typedef std::map<std::string, Ref> Map;
+typedef Map TypeEnv;
 typedef std::pair<Ref, Ref> Pair;
 
 } // namespace types
@@ -62,6 +62,8 @@ struct Type : public std::enable_shared_from_this<Type> {
   virtual Ref rebind(const Map &bindings) const = 0;
   virtual Ref remap_vars(
       const std::map<std::string, std::string> &map) const = 0;
+  virtual Ref rewrite_ids(
+      const std::map<Identifier, Identifier> &rewrite_rules) const = 0;
   virtual Ref prefix_ids(const std::set<std::string> &bindings,
                          const std::string &pre) const = 0;
   virtual Ref apply(Ref type) const;
@@ -96,6 +98,8 @@ struct TypeVariable final : public Type {
   Ref eval(const TypeEnv &type_env) const override;
   Ref rebind(const Map &bindings) const override;
   Ref remap_vars(const std::map<std::string, std::string> &map) const override;
+  types::Ref rewrite_ids(
+      const std::map<Identifier, Identifier> &rewrite_rules) const override;
   Ref prefix_ids(const std::set<std::string> &bindings,
                  const std::string &pre) const override;
   Location get_location() const override;
@@ -112,6 +116,8 @@ struct TypeId final : public Type {
   Ref eval(const TypeEnv &type_env) const override;
   Ref rebind(const Map &bindings) const override;
   Ref remap_vars(const std::map<std::string, std::string> &map) const override;
+  types::Ref rewrite_ids(
+      const std::map<Identifier, Identifier> &rewrite_rules) const override;
   Ref prefix_ids(const std::set<std::string> &bindings,
                  const std::string &pre) const override;
   Location get_location() const override;
@@ -133,6 +139,8 @@ struct TypeOperator final : public Type {
   Ref eval(const TypeEnv &type_env) const override;
   Ref rebind(const Map &bindings) const override;
   Ref remap_vars(const std::map<std::string, std::string> &map) const override;
+  types::Ref rewrite_ids(
+      const std::map<Identifier, Identifier> &rewrite_rules) const override;
   Ref prefix_ids(const std::set<std::string> &bindings,
                  const std::string &pre) const override;
   Location get_location() const override;
@@ -151,6 +159,8 @@ struct TypeTuple final : public Type {
   types::Ref rebind(const Map &bindings) const override;
   types::Ref remap_vars(
       const std::map<std::string, std::string> &map) const override;
+  types::Ref rewrite_ids(
+      const std::map<Identifier, Identifier> &rewrite_rules) const override;
   types::Ref prefix_ids(const std::set<std::string> &bindings,
                         const std::string &pre) const override;
   Location get_location() const override;
@@ -172,6 +182,8 @@ struct TypeParams final : public Type {
   types::Ref rebind(const Map &bindings) const override;
   types::Ref remap_vars(
       const std::map<std::string, std::string> &map) const override;
+  types::Ref rewrite_ids(
+      const std::map<Identifier, Identifier> &rewrite_rules) const override;
   types::Ref prefix_ids(const std::set<std::string> &bindings,
                         const std::string &pre) const override;
   Location get_location() const override;
@@ -195,6 +207,8 @@ struct TypeLambda final : public Type {
   Ref eval(const TypeEnv &type_env) const override;
   Ref rebind(const Map &bindings) const override;
   Ref remap_vars(const std::map<std::string, std::string> &map) const override;
+  types::Ref rewrite_ids(
+      const std::map<Identifier, Identifier> &rewrite_rules) const override;
   Ref prefix_ids(const std::set<std::string> &bindings,
                  const std::string &pre) const override;
   Ref apply(types::Ref type) const override;

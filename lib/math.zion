@@ -1,6 +1,7 @@
-import trigonometry {PI, sin, cos, tan, acos, asin, sinh, cosh, tanh, atan, atan2}
-export {MinMax, PI, min, max, even, odd, sqrt, sum, sin, cos, tan, acos, asin, sinh,
-        cosh, tanh, atan, atan2}
+import trigonometry {PI, sin, cos, tan, acos, asin, sinh, cosh, tanh, atan,
+                     atan2}
+export {MinMax, PI, min, max, even, odd, sqrt, sum, sin, cos, tan, acos, asin,
+        sinh, cosh, tanh, atan, atan2}
 
 link "m"
 
@@ -30,5 +31,3 @@ fn sum(xs) {
     }
     return s
 }
-
-

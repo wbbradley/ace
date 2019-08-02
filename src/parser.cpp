@@ -2054,7 +2054,7 @@ const Module *parse_module(ParseState &ps,
   }
 
   std::vector<const Decl *> decls;
-  std::vector<TypeDecl> type_decls;
+  std::vector<const TypeDecl> type_decls;
   std::vector<const TypeClass *> type_classes;
   std::vector<const Instance *> instances;
 

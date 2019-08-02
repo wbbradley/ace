@@ -7,6 +7,7 @@
 #include "builtins.h"
 #include "class_predicate.h"
 #include "dbg.h"
+#include "import_rules.h"
 #include "parens.h"
 #include "prefix.h"
 #include "ptr.h"
@@ -177,6 +178,15 @@ Ref TypeId::remap_vars(const std::map<std::string, std::string> &map) const {
   return shared_from_this();
 }
 
+types::Ref TypeId::rewrite_ids(
+    const std::map<Identifier, Identifier> &rewrite_rules) const {
+  if (in(id, rewrite_rules)) {
+    return type_id(zion::rewrite_identifier(rewrite_rules, id));
+  } else {
+    return shared_from_this();
+  }
+}
+
 Ref TypeId::prefix_ids(const std::set<std::string> &bindings,
                        const std::string &pre) const {
   if (in(id.name, bindings)) {
@@ -233,6 +243,11 @@ Ref TypeVariable::remap_vars(
   } else {
     return shared_from_this();
   }
+}
+
+types::Ref TypeVariable::rewrite_ids(
+    const std::map<Identifier, Identifier> &rewrite_rules) const {
+  return shared_from_this();
 }
 
 Ref TypeVariable::prefix_ids(const std::set<std::string> &bindings,
@@ -308,6 +323,12 @@ Ref TypeOperator::rebind(const Map &bindings) const {
 Ref TypeOperator::remap_vars(
     const std::map<std::string, std::string> &map) const {
   return ::type_operator(oper->remap_vars(map), operand->remap_vars(map));
+}
+
+types::Ref TypeOperator::rewrite_ids(
+    const std::map<Identifier, Identifier> &rewrite_rules) const {
+  return ::type_operator(oper->rewrite_ids(rewrite_rules),
+                         operand->rewrite_ids(rewrite_rules));
 }
 
 Ref TypeOperator::prefix_ids(const std::set<std::string> &bindings,
@@ -406,6 +427,11 @@ Ref TypeTuple::remap_vars(const std::map<std::string, std::string> &map) const {
   } else {
     return shared_from_this();
   }
+}
+
+types::Ref TypeTuple::rewrite_ids(
+    const std::map<Identifier, Identifier> &rewrite_rules) const {
+  return ::type_tuple(location, zion::rewrite_types(rewrite_rules, dimensions));
 }
 
 Ref TypeTuple::prefix_ids(const std::set<std::string> &bindings,
@@ -517,6 +543,11 @@ Ref TypeParams::remap_vars(
   }
 }
 
+types::Ref TypeParams::rewrite_ids(
+    const std::map<Identifier, Identifier> &rewrite_rules) const {
+  return ::type_params(zion::rewrite_types(rewrite_rules, dimensions));
+}
+
 Ref TypeParams::prefix_ids(const std::set<std::string> &bindings,
                            const std::string &pre) const {
   bool anything_was_rebound = false;
@@ -600,6 +631,11 @@ Ref TypeLambda::remap_vars(
   return ::type_lambda(binding, body->remap_vars(map_));
 }
 
+types::Ref TypeLambda::rewrite_ids(
+    const std::map<Identifier, Identifier> &rewrite_rules) const {
+  return ::type_lambda(binding, body->rewrite_ids(rewrite_rules));
+}
+
 Ref TypeLambda::prefix_ids(const std::set<std::string> &bindings,
                            const std::string &pre) const {
   return type_lambda(binding,
@@ -643,7 +679,6 @@ Refs rebind(const Refs &types, const Map &bindings) {
 Ref unitize(Ref type) {
   Map bindings;
   for (auto &ftv : type->get_ftvs()) {
-    assert(false);
     bindings[ftv] = type_unit(INTERNAL_LOC());
   }
   return type->rebind(bindings);

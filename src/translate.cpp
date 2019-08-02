@@ -57,11 +57,7 @@ const Expr *texpr(const types::DefnId &for_defn_id,
                         type->str().c_str()),
           typing);
 
-  if (type->ftv_count() != 0) {
-    log_location(expr->get_location(), "unitizing expression %s :: %s",
-                 expr->str().c_str(), type->str().c_str());
-    type = types::unitize(type);
-  }
+  type = types::unitize(type);
 
   bool starts_already_returned = returns;
   try {
