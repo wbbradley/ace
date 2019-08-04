@@ -228,6 +228,7 @@ std::vector<const Decl *> rewrite_decls(
   return new_decls;
 }
 
+#if 0
 std::vector<const TypeDecl> rewrite_type_decls(
     const RewriteImportRules &rewrite_import_rules,
     const std::vector<const TypeDecl> &type_decls) {
@@ -241,6 +242,7 @@ std::vector<const TypeDecl> rewrite_type_decls(
 #endif
   return type_decls;
 }
+#endif
 
 types::ClassPredicate::Ref rewrite_class_predicate(
     const RewriteImportRules &rewrite_import_rules,
@@ -328,7 +330,7 @@ const Module *rewrite_module(const RewriteImportRules &rewrite_import_rules,
                              const Module *module) {
   return new Module(
       module->name, rewrite_decls(rewrite_import_rules, module->decls),
-      rewrite_type_decls(rewrite_import_rules, module->type_decls),
+      module->type_decls,
       rewrite_type_classes(rewrite_import_rules, module->type_classes),
       rewrite_instances(rewrite_import_rules, module->instances),
       module->ctor_id_map,

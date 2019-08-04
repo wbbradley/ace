@@ -89,10 +89,10 @@ const Decl *prefix(const std::set<std::string> &bindings,
                   prefix(bindings, pre, value->value));
 }
 
-TypeDecl prefix(const std::set<std::string> &bindings,
+const TypeDecl *prefix(const std::set<std::string> &bindings,
                 std::string pre,
-                const TypeDecl &type_decl) {
-  return TypeDecl{prefix(bindings, pre, type_decl.id), type_decl.params};
+                const TypeDecl *type_decl) {
+  return new TypeDecl{prefix(bindings, pre, type_decl->id), type_decl->params};
 }
 
 std::set<std::string> only_uppercase_bindings(

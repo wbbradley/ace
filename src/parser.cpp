@@ -1664,7 +1664,7 @@ types::Ref parse_type(ParseState &ps, bool allow_top_level_application) {
   }
 }
 
-TypeDecl parse_type_decl(ParseState &ps) {
+const TypeDecl *parse_type_decl(ParseState &ps) {
   expect_token(tk_identifier);
 
   auto class_id = ps.id_mapped(iid(ps.token_and_advance()));
@@ -1686,25 +1686,25 @@ TypeDecl parse_type_decl(ParseState &ps) {
       break;
     }
   }
-  return TypeDecl{class_id, params};
+  return new TypeDecl{class_id, params};
 }
 
 types::Ref create_ctor_type(Location location,
-                            const TypeDecl &type_decl,
+                            const TypeDecl *type_decl,
                             types::Refs param_types) {
   /* push the return type on as the final type */
-  param_types.push_back(type_decl.get_type());
+  param_types.push_back(type_decl->get_type());
   auto type = type_arrows(param_types);
 
-  for (int i = type_decl.params.size() - 1; i >= 0; --i) {
-    type = type_lambda(type_decl.params[i], type);
+  for (int i = type_decl->params.size() - 1; i >= 0; --i) {
+    type = type_lambda(type_decl->params[i], type);
   }
   return type;
 }
 
 const Expr *create_ctor(Location location,
                         int ctor_id,
-                        const TypeDecl &type_decl,
+                        const TypeDecl *type_decl,
                         types::Refs param_types) {
   std::vector<const Expr *> dims;
   /* add the ctor's id value as the first element in the tuple */
@@ -1718,7 +1718,7 @@ const Expr *create_ctor(Location location,
     dims.push_back(new Var(params.back()));
   }
 
-  const Expr *expr = new As(new Tuple(location, dims), type_decl.get_type(),
+  const Expr *expr = new As(new Tuple(location, dims), type_decl->get_type(),
                             true /*force_cast*/);
 
   if (params.size() > 0) {
@@ -1732,12 +1732,12 @@ const Expr *create_ctor(Location location,
 }
 
 struct DataTypeDecl {
-  TypeDecl type_decl;
+  const TypeDecl *type_decl;
   std::vector<const Decl *> decls;
 };
 
 DataTypeDecl parse_struct_decl(ParseState &ps, types::Map &data_ctors) {
-  TypeDecl type_decl = parse_type_decl(ps);
+  const TypeDecl *type_decl = parse_type_decl(ps);
   std::vector<const Decl *> decls;
   types::Refs dims;
   Identifiers member_ids;
@@ -1768,7 +1768,7 @@ DataTypeDecl parse_struct_decl(ParseState &ps, types::Map &data_ctors) {
         /* accessor function names look like __.x */
         make_accessor_id(member_ids[i]),
         new Lambda(
-            {Identifier{"obj", member_ids[i].location}}, {type_decl.get_type()},
+            {Identifier{"obj", member_ids[i].location}}, {type_decl->get_type()},
             dims[i],
             new ReturnStatement(new TupleDeref(
                 new As(new Var(Identifier{"obj", member_ids[i].location}),
@@ -1782,7 +1782,7 @@ DataTypeDecl parse_struct_decl(ParseState &ps, types::Map &data_ctors) {
   dims = vec_slice(dims, 1, dims.size());
 
   /* there is only one ctor for structs which are just product types */
-  auto ctor_id = type_decl.id;
+  auto ctor_id = type_decl->id;
 
   data_ctors[ctor_id.name] = create_ctor_type(ctor_id.location, type_decl,
                                               dims);
@@ -1801,7 +1801,7 @@ DataTypeDecl parse_newtype_decl(ParseState &ps,
                                 ParsedCtorIdMap &ctor_id_map) {
   expect_token(tk_identifier);
   Token type_name = ps.token;
-  TypeDecl type_decl = parse_type_decl(ps);
+  const TypeDecl *type_decl = parse_type_decl(ps);
 
   chomp_token(tk_assign);
   if (ps.token.tk != tk_identifier || ps.token.text != type_name.text) {
@@ -1828,42 +1828,42 @@ DataTypeDecl parse_newtype_decl(ParseState &ps,
     }
 
     decl = new Decl(
-        type_decl.id,
+        type_decl->id,
         new Lambda(dim_names, tuple_type->dimensions,
                    type_variable(INTERNAL_LOC()),
                    new ReturnStatement(
                        new As(new Tuple(tuple_type->get_location(), dims),
-                              type_decl.get_type(), true /*force_cast*/))));
+                              type_decl->get_type(), true /*force_cast*/))));
   } else {
     ctor_parts.push_back(rhs_type);
     Identifier param_iid = Identifier{ast::fresh(), rhs_type->get_location()};
-    decl = new Decl(type_decl.id,
-                    new Lambda({param_iid}, {rhs_type}, type_decl.get_type(),
+    decl = new Decl(type_decl->id,
+                    new Lambda({param_iid}, {rhs_type}, type_decl->get_type(),
                                new ReturnStatement(new As(
-                                   new Var(param_iid), type_decl.get_type(),
+                                   new Var(param_iid), type_decl->get_type(),
                                    true /*force_cast*/))));
   }
-  data_ctors[type_decl.id.name] = create_ctor_type(type_decl.id.location,
+  data_ctors[type_decl->id.name] = create_ctor_type(type_decl->id.location,
                                                    type_decl, ctor_parts);
-  assert(!in(type_decl.id.name, ps.type_env));
+  assert(!in(type_decl->id.name, ps.type_env));
   /* because this is a newtype, we need to remember the type mapping within the
    * type environment for reference later in pattern matching, and in code
    * generation. */
   types::Ref body = rhs_type;
-  for (auto param : type_decl.params) {
+  for (auto param : type_decl->params) {
     body = type_lambda(param, body);
   }
-  debug_above(4, log_location(type_decl.id.location,
+  debug_above(4, log_location(type_decl->id.location,
                               "adding %s to the type_env as %s",
-                              type_decl.id.name.c_str(), body->str().c_str()));
-  ps.type_env[type_decl.id.name] = body;
+                              type_decl->id.name.c_str(), body->str().c_str()));
+  ps.type_env[type_decl->id.name] = body;
   return {type_decl, {decl}};
 }
 
 DataTypeDecl parse_data_type_decl(ParseState &ps,
                                   types::Map &data_ctors,
                                   ParsedCtorIdMap &ctor_id_map) {
-  TypeDecl type_decl = parse_type_decl(ps);
+  const TypeDecl *type_decl = parse_type_decl(ps);
 
   chomp_token(tk_lcurly);
   struct DataCtorParts {
@@ -1911,7 +1911,7 @@ DataTypeDecl parse_data_type_decl(ParseState &ps,
   std::vector<const Decl *> decls;
   if (param_types_count == 0) {
     /* this is just an ENUM. this type can be simplified to just an Int */
-    ps.type_env[type_decl.id.name] = type_id(make_iid(INT_TYPE));
+    ps.type_env[type_decl->id.name] = type_id(make_iid(INT_TYPE));
 
     /* build the decls for the various values */
     int i = 0;
@@ -1919,11 +1919,11 @@ DataTypeDecl parse_data_type_decl(ParseState &ps,
       auto ctor_id = iid(data_ctor_parts->ctor_token);
       debug_above(3, log_location(ctor_id.location, "creating enum type for %s",
                                   ctor_id.str().c_str()));
-      data_ctors[ctor_id.name] = type_decl.get_type();
+      data_ctors[ctor_id.name] = type_decl->get_type();
       decls.push_back(new Decl(
           ctor_id, new As(new Literal(Token{ctor_id.location, tk_integer,
                                             std::to_string(i)}),
-                          type_decl.get_type(), true /*force_cast*/)));
+                          type_decl->get_type(), true /*force_cast*/)));
       ctor_id_map[ctor_id.name] = i++;
     }
   } else {
@@ -1991,18 +1991,18 @@ const Instance *parse_type_class_instance(ParseState &ps) {
 }
 
 const TypeClass *parse_type_class(ParseState &ps) {
-  TypeDecl type_decl = parse_type_decl(ps);
+  const TypeDecl *type_decl = parse_type_decl(ps);
 
-  if (type_decl.params.size() == 0) {
+  if (type_decl->params.size() == 0) {
     throw user_error(
-        type_decl.id.location,
+        type_decl->id.location,
         "type classes must be parameterized over at least one type variable");
   }
 
   /* Check for duplicate type class params */
   {
     std::unordered_set<std::string> params;
-    for (auto &param : type_decl.params) {
+    for (auto &param : type_decl->params) {
       if (in(param.name, params)) {
         throw user_error(param.location,
                          "type class parameter " c_type("%s") " is repeated",
@@ -2031,7 +2031,7 @@ const TypeClass *parse_type_class(ParseState &ps) {
     }
   }
 
-  return new TypeClass(type_decl.id, type_decl.params, class_predicates,
+  return new TypeClass(type_decl->id, type_decl->params, class_predicates,
                        overloads);
 }
 
@@ -2054,7 +2054,7 @@ const Module *parse_module(ParseState &ps,
   }
 
   std::vector<const Decl *> decls;
-  std::vector<const TypeDecl> type_decls;
+  std::vector<const TypeDecl *> type_decls;
   std::vector<const TypeClass *> type_classes;
   std::vector<const Instance *> instances;
 
@@ -2157,7 +2157,7 @@ const Module *parse_module(ParseState &ps,
       for (auto &decl : data_type.decls) {
         decls.push_back(decl);
       }
-      ps.data_ctors_map[data_type.type_decl.id.name] = data_ctors;
+      ps.data_ctors_map[data_type.type_decl->id.name] = data_ctors;
     } else if (ps.token.is_ident(K(newtype))) {
       /* module-level newtypes */
       ps.advance();
@@ -2168,7 +2168,7 @@ const Module *parse_module(ParseState &ps,
       for (auto &decl : data_type.decls) {
         decls.push_back(decl);
       }
-      ps.data_ctors_map[data_type.type_decl.id.name] = data_ctors;
+      ps.data_ctors_map[data_type.type_decl->id.name] = data_ctors;
     } else if (ps.token.is_ident(K(data))) {
       /* module-level data types */
       ps.advance();
@@ -2179,7 +2179,7 @@ const Module *parse_module(ParseState &ps,
       for (auto &decl : data_type.decls) {
         decls.push_back(decl);
       }
-      ps.data_ctors_map[data_type.type_decl.id.name] = data_ctors;
+      ps.data_ctors_map[data_type.type_decl->id.name] = data_ctors;
     } else if (ps.token.is_ident(K(let))) {
       /* module-level constants */
       ps.advance();

@@ -44,3 +44,41 @@ instance Show (List a) {
         return join(", ", list)
     }
 }
+
+# Removes items where pred(item) returns True.
+# Returns the new list, as well as the number of items removed.
+fn remove_if(list List a, pred fn (a) Bool) (List a, Int) {
+    var removed = 0
+    var starting_list = Nil
+    var cur_node = list
+    var prev_node = Nil
+    while match cur_node {
+        Cons(a, var next) {
+            if pred(a) {
+                removed += 1
+                match prev_node {
+                    Cons(_, var prev_next) {
+                        # Remove this node from the list
+                        prev_next = next
+                    }
+                    Nil {}
+                }
+                cur_node = next
+                continue
+            } else {
+                match! starting_list {
+                    Nil {
+                        starting_list = cur_node
+                    }
+                }
+                prev_node = cur_node
+                cur_node = next
+                continue
+            }
+        }
+        Nil {
+            return (starting_list, removed)
+        }
+    }
+    return (Nil, 0)
+}
