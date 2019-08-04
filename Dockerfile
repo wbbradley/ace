@@ -20,6 +20,7 @@ RUN apt-get update -y && apt-get install -y \
 	shellcheck \
 	time \
 	vim \
+	libsodium-dev \
 	wget
 
 

@@ -1,8 +1,8 @@
 # Implement a map type (like a dict in Python) in Zion
 
-import list {List, Cons, Nil}
+import list {List, Cons, Nil, remove_if}
 import hash {hash}
-export {Map}
+export {Map, get}
 
 newtype MapKeyValueCell key value = MapKeyValueCell(Int, key, var value)
 newtype MapStorage key value = MapStorage([List (MapKeyValueCell key value)])
@@ -20,6 +20,13 @@ instance HasDefault (Map key value) {
     fn new() => Map(MapStorage([]), Ref(0))
 }
 
+instance HasLength (Map key value) {
+    fn len(map) Int {
+        let Map(_, var size) = map
+        return size
+    }
+}
+
 instance HasIndexableItems (Map key value) key (Maybe value) {
     fn get_indexed_item(map, key) {
         let Map(map_storage, var size) = map
@@ -30,8 +37,38 @@ instance HasIndexableItems (Map key value) key (Maybe value) {
     }
 }
 
+instance HasIndexableItems (MapStorage key value) Int (List (MapKeyValueCell key value)) {
+    fn get_indexed_item(map_storage, index) {
+        let MapStorage(map_storage) = map_storage
+        assert(len(map_storage) > index)
+        return map_storage[index]
+    }
+}
 
-fn find_key_value(map_storage MapStorage key value, size, map_key_hash Int, key key) Maybe (MapKeyValueCell key value) {
+instance HasRemovableItems (Map key value) key {
+    fn remove(map, key) {
+        let Map(map_storage, var size) = map
+        if size == 0 {
+            return
+        }
+        let hash_key = hash(key)
+        let index = hash_key % size
+        let (new_list, removed_count) = remove_if(map_storage[index], fn (key_value_cell MapKeyValueCell key value) Bool {
+            let MapKeyValueCell(existing_key_hash, existing_key, _) = key_value_cell
+            return existing_key_hash == hash_key and existing_key == key
+        })
+        map_storage[index] = new_list
+        assert(size >= removed_count)
+        size -= removed_count
+    }
+}
+
+fn get(map Map key value, key key, default value) value => match map[key] {
+    Just(a) => a
+    Nothing => default
+}
+
+fn find_key_value(map_storage MapStorage key value, size Int, map_key_hash Int, key key) Maybe (MapKeyValueCell key value) {
     let MapStorage(storage) = map_storage
     if size <= 0 {
         assert(size == 0)
@@ -41,12 +78,11 @@ fn find_key_value(map_storage MapStorage key value, size, map_key_hash Int, key 
     let index = map_key_hash % size
     let storage_foo = storage
     for key_value_cell in storage_foo[index] {
-        # TODO: implement list iteration
         # TODO: add destructuring to the above line so that this next
         # line is inline.
         let MapKeyValueCell(existing_key_hash, existing_key, var existing_value) = key_value_cell
 
-        if /*(existing_key_hash == map_key_hash) and (existing_key == key)*/ True {
+        if existing_key_hash == map_key_hash and existing_key == key {
             return Just(key_value_cell)
         }
     }
@@ -81,6 +117,13 @@ fn grow_storage(map_storage MapStorage key value, new_size) {
     array = new_array
     size = new_size
     capacity = new_capacity
+}
+
+instance HasAssignableIndexableItems (MapStorage key value) Int (List (MapKeyValueCell key value)) {
+    fn set_indexed_item(map_storage, index, bucket) {
+        let MapStorage(map_storage) = map_storage
+        map_storage[index] = bucket
+    }
 }
 
 instance HasAssignableIndexableItems (Map key value) key value {

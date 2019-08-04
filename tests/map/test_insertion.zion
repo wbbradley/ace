@@ -1,11 +1,23 @@
 # test: pass
+# expect: the type is map.Map std.String std.String
 # expect: job
+# expect: empty
+# expect: gone
 
-import map {Map}
+import map {Map, get}
 
 fn main() {
-    let map = new Map String String
+    let map
+    static_print(map)
+    assert(len(map) == 0)
     map["play"] = "piano"
+    assert(len(map) == 1)
     map["work"] = "job"
-    print(match map["work"] { Just(a) => a } else { "?" })
+    assert(len(map) == 2)
+    print(get(map, "work", ""))
+    print(get(map, "nope", "empty"))
+    assert(len(map) == 2)
+    remove(map, "work")
+    print(get(map, "work", "gone"))
+    assert(len(map) == 1)
 }

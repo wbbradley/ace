@@ -496,6 +496,11 @@ instance HasIndexableItems [a] Int a {
     }
 }
 
+class HasRemovableItems collection key {
+    # Remove an item idempotently
+    fn remove(collection, key) ()
+}
+
 class HasAssignableIndexableItems collection index value {
     fn set_indexed_item(collection, index, value) ()
 }
