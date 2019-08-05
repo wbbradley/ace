@@ -16,7 +16,7 @@ fn nth(l List x, index Int) Maybe x {
             }
         }
         Nil {
-            return Nothing
+            break
         }
     }
     return Nothing
