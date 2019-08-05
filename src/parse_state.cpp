@@ -24,6 +24,21 @@ BoundVarLifetimeTracker::~BoundVarLifetimeTracker() {
   ps.term_map = term_map_saved;
 }
 
+void BoundVarLifetimeTracker::escaped_parse(std::function<void()> action) {
+  /* pop out of the current parsing scope to allow the parser to harken back to
+   * prior scopes */
+  auto mutable_vars = ps.mutable_vars;
+  ps.mutable_vars = mutable_vars_saved;
+
+  auto term_map = ps.term_map;
+  ps.term_map = term_map_saved;
+
+  action();
+
+  ps.term_map = term_map;
+  ps.mutable_vars = mutable_vars;
+}
+
 ParseState::ParseState(std::string filename,
                        std::string module_name,
                        Lexer &lexer,

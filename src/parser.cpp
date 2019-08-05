@@ -71,7 +71,9 @@ const Expr *parse_var_decl(ParseState &ps,
     const Predicate *predicate = parse_predicate(ps, false /*allow_else*/,
                                                  maybe<Identifier>());
     chomp_token(tk_assign);
-    const Expr *rhs = parse_expr(ps);
+    const Expr *rhs;
+    /* parse the initializer in the context before the left-hand side */
+    bvlt.escaped_parse([&ps, &rhs]() { rhs = parse_expr(ps); });
     const Expr *body = parse_block(ps, false /*expression_means_return*/);
     return new Match(rhs, {new PatternBlock(predicate, body)});
   } else {

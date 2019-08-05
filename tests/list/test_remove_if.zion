@@ -1,0 +1,12 @@
+# test: pass
+# expect: [4, 5, 3, 7]
+# expect: [5, 7]
+
+import list {Cons, Nil, remove_if}
+
+fn main() {
+    var g = Cons(4, Ref(Cons(5, Ref(Cons(3, Ref(Cons(7, Ref(Nil))))))))
+    print("[${g}]")
+    let (g, _) = remove_if(g, fn (x) => x < 5)
+    print("[${g}]")
+}
