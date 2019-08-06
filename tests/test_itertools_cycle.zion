@@ -11,7 +11,7 @@ fn main() {
             break
         } else {
             i = i + 1
-            total = total + x
+            total += x
         }
     }
     print(total)

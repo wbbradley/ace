@@ -59,9 +59,8 @@ fn dropwhile(predicate, iterable) {
     var dropping = True
     return Iterator(fn () {
         while dropping {
-            let val = iterator()
-            match val {
-                Just(x) {
+            match iterator() {
+                val@Just(x) {
                     if predicate(x) {
                         continue
                     } else {
@@ -87,11 +86,13 @@ fn cycle(xs_input) {
     return Iterator(fn () {
         match! xs {
             Just(iterator) {
-                let step = iterator()
-                match! step {
-                    Just(x) {
+                match iterator() {
+                    step@Just(x) {
                         append(recording, step)
                         return step
+                    }
+                    Nothing {
+                        xs = Nothing
                     }
                 }
             }
@@ -108,5 +109,29 @@ fn cycle(xs_input) {
             index = 1
             return recording[0]
         }
+    })
+}
+
+fn chain2(a, b) {
+    var outer_iter = iter([iter(a), iter(b)])
+    var cur_iterable = outer_iter()
+    return Iterator(fn () {
+        while match cur_iterable {
+            Just(iterable_nested) {
+                let value = iterable_nested()
+                match value {
+                    j@Just(_) {
+                        return j
+                    }
+                    Nothing {
+                        cur_iterable = outer_iter()
+                    }
+                }
+            }
+            Nothing {
+                return Nothing
+            }
+        }
+        return Nothing
     })
 }

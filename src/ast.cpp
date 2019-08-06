@@ -317,6 +317,9 @@ std::string Predicate::str() const {
 }
 
 std::ostream &CtorPredicate::render(std::ostream &os) const {
+  if (name_assignment.valid) {
+    os << C_ID << name_assignment.t << C_RESET << "@";
+  }
   os << C_ID << ctor_name.name << C_RESET;
   if (params.size() != 0) {
     os << "(";
@@ -351,6 +354,9 @@ const Predicate *CtorPredicate::rewrite(
 }
 
 std::ostream &TuplePredicate::render(std::ostream &os) const {
+  if (name_assignment.valid) {
+    os << C_ID << name_assignment.t << C_RESET << "@";
+  }
   os << "(";
   const char *delim = "";
   for (auto predicate : params) {

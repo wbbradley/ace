@@ -91,12 +91,15 @@ types::Map resolve_free_type_after_specialization_inference(
     types::Ref type,
     const types::ClassPredicates &instance_requirements,
     const types::ClassPredicates &instance_predicates) {
-  debug_above(7, log_location(expr->get_location(), "rftasi ::: %s :: %s",
-                              expr->str().c_str(), type->str().c_str()));
   if (type->ftv_count() != 0) {
+#ifdef ZION_DEBUG
+    INDENT(2, "--resolve_free_type_after_specialization_inference--");
+    debug_above(7, log_location(expr->get_location(), "rftasi ::: %s :: %s",
+                                expr->str().c_str(), type->str().c_str()));
+#endif
+    const types::Ftvs ftvs = type->get_ftvs();
     const types::ClassPredicates referenced_predicates =
-        types::get_overlapping_predicates(instance_requirements,
-                                          type->get_ftvs(),
+        types::get_overlapping_predicates(instance_requirements, ftvs,
                                           nullptr /*overlapping_ftvs*/);
     /* resolve overloads when they are ambiguous by looking at available
      * instances */
@@ -150,13 +153,22 @@ types::Map resolve_free_type_after_specialization_inference(
       }
 
       if (found_instances.size() == 1) {
-        /* this is good, it means that we found a single type class
-         * instance that satisfies our requirements. go ahead and return
-         * the bindings that will map the ftvs in the given type to some
-         * concrete type. */
         assert(bindings.size() != 0);
-        // assert(type->rebind(bindings)->ftv_count() == 0);
-        return bindings;
+
+        /* this is good, it means that we found a single type class
+         * instance for this type class that satisfies our requirements. but, it
+         * may not help. the class instance may be more general than necessary
+         * to help us resolve our free variable. let's check. */
+
+        for (auto ftv : ftvs) {
+          if (in(ftv, bindings)) {
+            /* Hooray! This set of bindings actually helped remap us from one of
+             * our free variables to something probably more concrete. */
+            return bindings;
+          } else {
+            /* meh, this is more general, and not solving the problem */
+          }
+        }
       }
 #if 0
           /* we were unable to make progress on this type, but perhaps with
@@ -180,7 +192,8 @@ types::Map resolve_free_type_after_specialization_inference(
   return {};
 }
 
-void tracked_types_have_ftvs(const TrackedTypes &tracked_types, types::Ftvs &ftvs) {
+void tracked_types_have_ftvs(const TrackedTypes &tracked_types,
+                             types::Ftvs &ftvs) {
   for (auto pair : tracked_types) {
     for (auto ftv : pair.second->get_ftvs()) {
       ftvs.insert(ftv);
@@ -219,15 +232,15 @@ CheckedDefinitionRef check_decl(
   types::SchemeRef scheme = ty->generalize(instance_requirements)->normalize();
 
   if (instance_predicates.size() != 0) {
-    int ftv_count = 0;
+    types::Ftvs last_seen_ftvs;
     while (true) {
       types::Ftvs ftvs;
       tracked_types_have_ftvs(tracked_types, ftvs);
-      if (int(ftvs.size()) == ftv_count) {
+      if (ftvs == last_seen_ftvs) {
         /* we're not making progress anymore */
         break;
       } else {
-        ftv_count = ftvs.size();
+        last_seen_ftvs = ftvs;
       }
 
       for (auto pair : tracked_types) {
@@ -237,8 +250,11 @@ CheckedDefinitionRef check_decl(
         types::Map bindings = resolve_free_type_after_specialization_inference(
             expr, type, instance_requirements, instance_predicates);
 
-        rebind_tracked_types(tracked_types, bindings);
-        instance_requirements = types::rebind(instance_requirements, bindings);
+        if (bindings.size() != 0) {
+          rebind_tracked_types(tracked_types, bindings);
+          instance_requirements = types::rebind(instance_requirements,
+                                                bindings);
+        }
       }
     }
 
@@ -265,6 +281,11 @@ CheckedDefinitionRef check_decl(
           for (auto &referenced_predicate : referenced_predicates) {
             error.add_info(referenced_predicate->get_location(), "%s",
                            referenced_predicate->str().c_str());
+          }
+          error.add_info(INTERNAL_LOC(), "amongst all these instances:");
+          for (auto &predicate : instance_predicates) {
+            error.add_info(predicate->get_location(), "%s",
+                           predicate->str().c_str());
           }
           throw error;
         }
@@ -765,15 +786,14 @@ struct Phase2 {
   const DataCtorsMap data_ctors_map;
 
   std::ostream &dump(std::ostream &os) {
-    assert(false);
-#if 0
-    for (auto pair : checked.decl_map) {
-      types::SchemeRef scheme = scheme_resolver->lookup_scheme(
-          Identifier{pair.first, INTERNAL_LOC()});
-      os << pair.first << " = " << pair.second->str() << " :: " << scheme->str()
-         << std::endl;
+    for (auto pair : checked_defns) {
+      const std::string &name = pair.first;
+      const std::list<CheckedDefinitionRef> &checked_defns_list = pair.second;
+      for (auto &checked_defn : checked_defns_list) {
+        os << name << " :: " << checked_defn->scheme->str() << " = "
+           << checked_defn->decl->str() << std::endl;
+      }
     }
-#endif
     return os;
   }
 };

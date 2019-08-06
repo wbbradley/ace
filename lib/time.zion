@@ -1,0 +1,24 @@
+export {time, sleep, TimeDelta, Minutes, Nanoseconds, Microseconds,
+        Milliseconds, Seconds, Hours, Days, Weeks}
+
+data TimeDelta {
+    Nanoseconds(Int)
+    Microseconds(Int)
+    Milliseconds(Int)
+    Seconds(Int)
+    Minutes(Int)
+    Hours(Int)
+    Days(Int)
+    Weeks(Int)
+}
+
+newtype EpochMilliseconds = EpochMilliseconds(Int)
+
+fn time() => EpochMilliseconds(__builtin_ffi_0("zion_epoch_millis"))
+
+instance Show EpochMilliseconds {
+    fn str(e) {
+        let EpochMilliseconds(t) = e
+        return "${t}"
+    }
+}

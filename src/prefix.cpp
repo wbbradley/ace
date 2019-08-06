@@ -90,8 +90,8 @@ const Decl *prefix(const std::set<std::string> &bindings,
 }
 
 const TypeDecl *prefix(const std::set<std::string> &bindings,
-                std::string pre,
-                const TypeDecl *type_decl) {
+                       std::string pre,
+                       const TypeDecl *type_decl) {
   return new TypeDecl{prefix(bindings, pre, type_decl->id), type_decl->params};
 }
 

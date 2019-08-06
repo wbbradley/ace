@@ -1,0 +1,17 @@
+# test: pass
+# expect: 4
+# expect: 100
+# reject: 5
+
+data Thing {
+    Foo
+    Bar(Int)
+    Baz(Int)
+}
+
+fn main() {
+    let things = [Foo, Bar(5), Baz(4), Baz(100)]
+    for match Baz(x) in things {
+        print(x)
+    }
+}

@@ -1,0 +1,17 @@
+# test: pass
+# expect: 15
+
+import itertools {chain2, cycle, take}
+import time {time, sleep, Minutes}
+
+fn wait(minutes Int) {
+    print("Time is now ${time()}, waiting ${minutes} minutes...")
+    # sleep(Minutes(minutes))
+}
+
+fn main() {
+    let wait_times = chain2([7, 12], cycle([15]))
+    for i in take(15, wait_times) {
+        wait(i)
+    }
+}
