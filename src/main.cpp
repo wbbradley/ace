@@ -1518,7 +1518,7 @@ int run_job(const Job &job) {
           // probably something like /usr/share/zion/rt
           "${ZION_RT}/zion_rt.c "
           // Add linker flags
-          "%s "
+          "-lm %s "
           // Don't forget the built .ll file from our frontend here.
           "%s "
           // Give the binary a name.
