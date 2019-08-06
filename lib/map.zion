@@ -68,7 +68,10 @@ fn get(map Map key value, key key, default value) value => match map[key] {
     Nothing => default
 }
 
-fn find_key_value(map_storage MapStorage key value, size Int, map_key_hash Int, key key) Maybe (MapKeyValueCell key value) {
+fn find_key_value(map_storage MapStorage key value,
+                  size Int,
+                  map_key_hash Int,
+                  key key) Maybe (MapKeyValueCell key value) {
     let MapStorage(storage) = map_storage
     if size <= 0 {
         assert(size == 0)
@@ -77,13 +80,9 @@ fn find_key_value(map_storage MapStorage key value, size Int, map_key_hash Int, 
 
     let index = map_key_hash % size
     let storage_foo = storage
-    for key_value_cell in storage_foo[index] {
-        # TODO: add destructuring to the above line so that this next
-        # line is inline.
-        let MapKeyValueCell(existing_key_hash, existing_key, var existing_value) = key_value_cell
-
-        if existing_key_hash == map_key_hash and existing_key == key {
-            return Just(key_value_cell)
+    for kvc@MapKeyValueCell(key_hash, existing_key, _) in storage_foo[index] {
+        if key_hash == map_key_hash and existing_key == key {
+            return Just(kvc)
         }
     }
     return Nothing

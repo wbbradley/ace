@@ -71,9 +71,8 @@ const Expr *parse_var_decl(ParseState &ps,
     const Predicate *predicate = parse_predicate(ps, false /*allow_else*/,
                                                  maybe<Identifier>());
     chomp_token(tk_assign);
-    const Expr *rhs;
     /* parse the initializer in the context before the left-hand side */
-    bvlt.escaped_parse([&ps, &rhs]() { rhs = parse_expr(ps); });
+    const Expr *rhs = bvlt.escaped_parse_expr();
     const Expr *body = parse_block(ps, false /*expression_means_return*/);
     return new Match(rhs, {new PatternBlock(predicate, body)});
   } else {
@@ -202,49 +201,58 @@ const Expr *parse_with_block(ParseState &ps) {
 const Expr *parse_for_block(ParseState &ps) {
   chomp_ident("for");
 
-  if ((ps.token.tk == tk_identifier && isupper(ps.token.text[0])) ||
-      (ps.token.tk == tk_lparen)) {
-    // TODO: handle destructuring tuples
-    assert(false);
-    return nullptr;
-  } else {
-    expect_token(tk_identifier);
-    auto var = iid(ps.token_and_advance());
-    auto in_token = ps.token;
-    chomp_ident(K(in));
-    auto iterable = parse_expr(ps);
-
-    BoundVarLifetimeTracker bvlt(ps);
-    ps.mutable_vars.erase(var.name);
-
-    auto block = parse_block(ps, false /*expression_means_return*/);
-
-    auto iterator_id = Identifier{fresh(), var.location};
-    return new Let(
-        iterator_id,
-        new Application(
-            new Var(ps.id_mapped(Identifier{"iter", in_token.location})),
-            {iterable}),
-        new While(
-            new Var(ps.id_mapped(Identifier{"True", in_token.location})),
-            new Match(
-                new Application(new Var(iterator_id),
-                                {unit_expr(iterator_id.location)}),
-                {new PatternBlock(
-                     new CtorPredicate(
-                         iterator_id.location,
-                         {new IrrefutablePredicate(var.location,
-                                                   maybe<Identifier>(var))},
-                         ps.id_mapped(Identifier{"Just", iterator_id.location}),
-                         maybe<Identifier>()),
-                     block),
-                 new PatternBlock(
-                     new CtorPredicate(iterator_id.location, {},
-                                       ps.id_mapped(Identifier{
-                                           "Nothing", iterator_id.location}),
-                                       maybe<Identifier>()),
-                     new Break(in_token.location))})));
+  bool filtered_matching = ps.token.is_ident(K(match));
+  if (filtered_matching) {
+    ps.advance();
   }
+
+  BoundVarLifetimeTracker bvlt(ps);
+  const Predicate *for_var_predicate = parse_predicate(
+      ps, false /* allow_else */, maybe<Identifier>(), true /*allow_var_refs*/);
+
+  auto in_token = ps.token;
+  chomp_ident(K(in));
+
+  const Expr *iterable = bvlt.escaped_parse_expr();
+  const Expr *block = parse_block(ps, false /*expression_means_return*/);
+
+  auto iterator_id = Identifier{fresh(), for_var_predicate->get_location()};
+  PatternBlocks pattern_blocks;
+  pattern_blocks.push_back(new PatternBlock(
+      new CtorPredicate(iterator_id.location, {for_var_predicate},
+                        ps.id_mapped(Identifier{"Just", iterator_id.location}),
+                        maybe<Identifier>()),
+      block));
+
+  if (filtered_matching) {
+    /* allow for loops to only handle matching patterns */
+    pattern_blocks.push_back(new PatternBlock(
+        new CtorPredicate(
+            iterator_id.location,
+            {new IrrefutablePredicate(
+                iterator_id.location,
+                Identifier{fresh(), iterator_id.location})},
+            ps.id_mapped(Identifier{"Just", iterator_id.location}),
+            maybe<Identifier>()),
+        new Continue(in_token.location)));
+  }
+
+  pattern_blocks.push_back(new PatternBlock(
+      new CtorPredicate(
+          iterator_id.location, {},
+          ps.id_mapped(Identifier{"Nothing", iterator_id.location}),
+          maybe<Identifier>()),
+      new Break(in_token.location)));
+
+  return new Let(
+      iterator_id,
+      new Application(
+          new Var(ps.id_mapped(Identifier{"iter", in_token.location})),
+          {iterable}),
+      new While(new Var(ps.id_mapped(Identifier{"True", in_token.location})),
+                new Match(new Application(new Var(iterator_id),
+                                          {unit_expr(iterator_id.location)}),
+                          pattern_blocks)));
 }
 
 const Expr *parse_defer(ParseState &ps) {
@@ -663,12 +671,17 @@ const Expr *parse_string_expr(ParseState &ps) {
     exprs.push_back(string_expr_suffix);
   }
 
-  /* for now, just call join on all of these exprs, after ensuring that they are
-   * stringified. */
-  const Expr *str_array = build_array_literal(location, exprs);
-  return new Application(
-      new Var(ps.id_mapped(Identifier{"join", location})),
-      {parse_string_literal(Token{location, tk_string, "\"\""}), str_array});
+  if (exprs.size() == 1) {
+    /* don't bother joining if it's just a single expr in a string */
+    return exprs[0];
+  } else {
+    /* for now, just call join on all of these exprs, after ensuring that they
+     * are stringified. */
+    const Expr *str_array = build_array_literal(location, exprs);
+    return new Application(
+        new Var(ps.id_mapped(Identifier{"join", location})),
+        {parse_string_literal(Token{location, tk_string, "\"\""}), str_array});
+  }
 }
 
 const Expr *parse_literal(ParseState &ps) {
@@ -1668,8 +1681,12 @@ types::Ref parse_type(ParseState &ps, bool allow_top_level_application) {
 
 const TypeDecl *parse_type_decl(ParseState &ps) {
   expect_token(tk_identifier);
-
-  auto class_id = ps.id_mapped(iid(ps.token_and_advance()));
+  auto token = ps.token_and_advance();
+  auto class_id = ps.id_mapped(iid(token));
+  if (class_id.name.find(".") != std::string::npos) {
+    throw user_error(class_id.location, "name %s is already defined as %s",
+                     token.text.c_str(), class_id.str().c_str());
+  }
   if (!isupper(class_id.name[0])) {
     throw user_error(
         class_id.location,
@@ -1770,8 +1787,8 @@ DataTypeDecl parse_struct_decl(ParseState &ps, types::Map &data_ctors) {
         /* accessor function names look like __.x */
         make_accessor_id(member_ids[i]),
         new Lambda(
-            {Identifier{"obj", member_ids[i].location}}, {type_decl->get_type()},
-            dims[i],
+            {Identifier{"obj", member_ids[i].location}},
+            {type_decl->get_type()}, dims[i],
             new ReturnStatement(new TupleDeref(
                 new As(new Var(Identifier{"obj", member_ids[i].location}),
                        type_tuple(dims), true /*force_cast*/),
@@ -1846,10 +1863,10 @@ DataTypeDecl parse_newtype_decl(ParseState &ps,
                                    true /*force_cast*/))));
   }
   data_ctors[type_decl->id.name] = create_ctor_type(type_decl->id.location,
-                                                   type_decl, ctor_parts);
+                                                    type_decl, ctor_parts);
   assert(!in(type_decl->id.name, ps.type_env));
-  /* because this is a newtype, we need to remember the type mapping within the
-   * type environment for reference later in pattern matching, and in code
+  /* because this is a newtype, we need to remember the type mapping within
+   * the type environment for reference later in pattern matching, and in code
    * generation. */
   types::Ref body = rhs_type;
   for (auto param : type_decl->params) {
@@ -1889,7 +1906,8 @@ DataTypeDecl parse_data_type_decl(ParseState &ps,
         data_ctor_parts->param_types.push_back(
             parse_type(ps, true /*allow_top_level_application*/));
         /* keep track of whether any of the values in this data type require
-         * extra storage. NB: Bool only being 1 word in size relies on this. */
+         * extra storage. NB: Bool only being 1 word in size relies on this.
+         */
         if (ps.token.tk == tk_comma) {
           ps.advance();
         } else {
@@ -2115,8 +2133,8 @@ const Module *parse_module(ParseState &ps,
     chomp_token(tk_rcurly);
   }
 
-  /* for now we will only allow exports at the top. trying to be draconian with
-   * module layout */
+  /* for now we will only allow exports at the top. trying to be draconian
+   * with module layout */
   for (auto &id : exports) {
     auto fully_qualified_id = Identifier{ps.module_name + "." + id.name,
                                          id.location};

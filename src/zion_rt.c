@@ -1,8 +1,12 @@
+#define _POSIX_C_SOURCE 200809L
+
 #include <inttypes.h>
+#include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <gc/gc.h>
@@ -65,4 +69,20 @@ int zion_puts(char *sz) {
   write(1, sz, zion_strlen(sz));
   write(1, "\n", 1);
   return 0;
+}
+
+int64_t zion_epoch_millis() {
+  long ms;  // Milliseconds
+  time_t s; // Seconds
+  struct timespec spec;
+
+  clock_gettime(CLOCK_REALTIME, &spec);
+
+  s = spec.tv_sec;
+  ms = lround(spec.tv_nsec / 1.0e6); // Convert nanoseconds to milliseconds
+  if (ms > 999) {
+    s++;
+    ms = 0;
+  }
+  return (int64_t)s * 1000 + ms;
 }

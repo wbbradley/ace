@@ -321,7 +321,11 @@ types::Ref TuplePredicate::tracking_infer(
                                           scheme_resolver, tracked_types,
                                           constraints, instance_requirements));
   }
-  return type_tuple(types);
+  auto type = type_tuple(types);
+  if (name_assignment.valid) {
+    scheme_resolver.insert_scheme(name_assignment.t.name, scheme({}, {}, type));
+  }
+  return type;
 }
 
 types::Ref IrrefutablePredicate::tracking_infer(
@@ -373,6 +377,10 @@ types::Ref CtorPredicate::tracking_infer(
 
   debug_above(8, log("CtorPredicate::infer(...) -> %s",
                      ctor_terms.back()->str().c_str()));
+  if (name_assignment.valid) {
+    scheme_resolver.insert_scheme(name_assignment.t.name,
+                                  scheme({}, {}, ctor_terms.back()));
+  }
   return ctor_terms.back();
 }
 

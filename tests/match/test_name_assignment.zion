@@ -1,0 +1,13 @@
+# test: noprelude,pass
+# expect: the type is .*Maybe Float
+
+data Maybe a { Just(a) Nothing }
+
+fn main() {
+    match Just(4.5) {
+        jf@Just(x) {
+            static_print(jf)
+        }
+        Nothing
+    }
+}

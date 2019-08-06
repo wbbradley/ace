@@ -253,10 +253,8 @@ void set_env_var(GenLocalEnv &gen_env,
                      (unsigned long long)(&gen_env), name.c_str(),
                      type->str().c_str(), llvm_print(llvm_value).c_str()));
   if (type->ftv_count() != 0) {
-    throw user_error(type->get_location(),
-                     "type %s has free type variables %s",
-                     type->str().c_str(),
-                     str(type->get_ftvs()).c_str());
+    throw user_error(type->get_location(), "type %s has free type variables %s",
+                     type->str().c_str(), str(type->get_ftvs()).c_str());
   }
 
   auto iter = gen_env.find(name);

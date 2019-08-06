@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 
+#include "ast_decls.h"
 #include "identifier.h"
 #include "lexer.h"
 #include "link_ins.h"
@@ -77,7 +78,8 @@ struct BoundVarLifetimeTracker {
   BoundVarLifetimeTracker(ParseState &ps);
   ~BoundVarLifetimeTracker();
 
-  void escaped_parse(std::function<void()> action);
+  const ast::Expr *escaped_parse_expr();
+
 private:
   ParseState &ps;
   std::unordered_set<std::string> mutable_vars_saved;

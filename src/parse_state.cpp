@@ -2,6 +2,7 @@
 
 #include <cstdarg>
 
+#include "ast.h"
 #include "builtins.h"
 #include "compiler.h"
 #include "dbg.h"
@@ -24,7 +25,7 @@ BoundVarLifetimeTracker::~BoundVarLifetimeTracker() {
   ps.term_map = term_map_saved;
 }
 
-void BoundVarLifetimeTracker::escaped_parse(std::function<void()> action) {
+const ast::Expr *BoundVarLifetimeTracker::escaped_parse_expr() {
   /* pop out of the current parsing scope to allow the parser to harken back to
    * prior scopes */
   auto mutable_vars = ps.mutable_vars;
@@ -33,10 +34,10 @@ void BoundVarLifetimeTracker::escaped_parse(std::function<void()> action) {
   auto term_map = ps.term_map;
   ps.term_map = term_map_saved;
 
-  action();
-
+  const ast::Expr *expr = parse_expr(ps);
   ps.term_map = term_map;
   ps.mutable_vars = mutable_vars;
+  return expr;
 }
 
 ParseState::ParseState(std::string filename,

@@ -30,8 +30,8 @@ const ast::Decl *prefix(const std::set<std::string> &bindings,
                         std::string pre,
                         const ast::Decl *value);
 const ast::TypeDecl *prefix(const std::set<std::string> &bindings,
-                     std::string pre,
-                     const ast::TypeDecl *type_decl);
+                            std::string pre,
+                            const ast::TypeDecl *type_decl);
 const ast::TypeClass *prefix(const std::set<std::string> &bindings,
                              std::string pre,
                              const ast::TypeClass *type_class);

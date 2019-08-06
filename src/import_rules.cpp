@@ -1,7 +1,7 @@
 #include "import_rules.h"
 
-#include "user_error.h"
 #include "ast.h"
+#include "user_error.h"
 
 namespace zion {
 

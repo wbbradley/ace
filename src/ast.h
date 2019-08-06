@@ -141,7 +141,8 @@ struct TuplePredicate : public Predicate {
                         bool &returns,
                         TranslateContinuationFn &matched,
                         TranslateContinuationFn &failed) const override;
-  const Predicate *rewrite(const RewriteImportRules &rewrite_import_rules) const override;
+  const Predicate *rewrite(
+      const RewriteImportRules &rewrite_import_rules) const override;
   Location get_location() const override;
 
   Location location;
@@ -180,7 +181,8 @@ struct IrrefutablePredicate : public Predicate {
                         bool &returns,
                         TranslateContinuationFn &matched,
                         TranslateContinuationFn &failed) const override;
-  const Predicate *rewrite(const RewriteImportRules &rewrite_import_rules) const override;
+  const Predicate *rewrite(
+      const RewriteImportRules &rewrite_import_rules) const override;
   Location get_location() const override;
 
   Location location;

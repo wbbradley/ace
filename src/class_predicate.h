@@ -31,7 +31,8 @@ typedef std::unordered_set<ClassPredicateRef,
 
 namespace types {
 
-struct ClassPredicate final : public std::enable_shared_from_this<ClassPredicate> {
+struct ClassPredicate final
+    : public std::enable_shared_from_this<ClassPredicate> {
   typedef std::shared_ptr<const ClassPredicate> Ref;
 
   ClassPredicate() = delete;
