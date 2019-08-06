@@ -47,4 +47,6 @@ RUN update-alternatives --install /usr/bin/llvm-link llvm-link /usr/bin/llvm-lin
 ADD . /opt/zion
 WORKDIR /opt/zion
 
+RUN make DEBUG=
+
 CMD bash
