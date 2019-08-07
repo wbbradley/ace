@@ -1,0 +1,15 @@
+# test: pass
+# expect: 100: 100
+# expect: 99: 99
+# expect: 3: 3
+
+import map {Map}
+
+fn main() {
+    let m = new Map a b
+    for i in [0..100] {
+        m[i] = i
+    }
+    assert(len(m) == 101)
+    print(m)
+}

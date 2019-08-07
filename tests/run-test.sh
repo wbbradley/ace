@@ -65,7 +65,7 @@ else
 fi
 
 if [[ "${test_flags[*]}" =~ "skip" ]]; then
-	$ECHO "run-test.sh: $(basename "${test_file}") ${C_YELLOW}SKIPPED${C_RESET}!\n"
+	$ECHO "run-test.sh: ${C_YELLOW}SKIPPED${C_RESET} $(basename "${test_file}")!\n"
 	exit 0
 fi
 
@@ -85,32 +85,32 @@ trap 'rm -f $output' EXIT
 # The next line is intended to ease the path from seeing a bunch of failing tests, to narrowing in
 # on reproducible test failure. This should save future humans time in trying to reproduce the
 # test-run in their debugger.
-[[ "$DEBUG_TESTS" != "" ]] && $ECHO ZION_PATH="\"${ZION_PATH}\"" "'${bin_dir}/zion'" run "'${test_file}'\n"
+[ "$DEBUG_TESTS" != "" ] && $ECHO ZION_PATH="\"${ZION_PATH}\"" "'${bin_dir}/zion'" run "'${test_file}'\n"
 
 ("${bin_dir}/zion" run "${test_file}" 2>&1) > "$output"
 res=$?
 
-if [[ $res -eq 0 ]]; then
+if [ $res -eq 0 ]; then
 	passed=true
 else
 	passed=false
 fi
 
-if [[ $passed != "${should_pass}" ]]; then
+if [ $passed != "${should_pass}" ]; then
 	$ECHO "run-test.sh: $(basename "${test_file}") output was:\n"
 	cat "$output"
-	$ECHO "run-test.sh: ${test_file} ${C_RED}FAILED${C_RESET}!\n"
+	$ECHO "run-test.sh: ${C_RED}FAILED${C_RESET} ${test_file}!\n"
 	exit 1
 fi
 
 for ((i=0;i < ${#expects[*]}; ++i)); do
 	expect="${expects[$i]}"
 	# $ECHO "Expecting \"${expect}\"..."
-	if ! grep -E "$expect" "$output"; then
+	if ! grep -E "$expect" "$output" >/dev/null; then
 		$ECHO "run-test.sh: $(basename "${test_file}") output was:\n"
 		cat "$output"
 		$ECHO "$0:$LINENO:1: error: Could not find '$expect' in output.\n"
-		$ECHO "run-test.sh: ${test_file} ${C_RED}FAILED${C_RESET}!\n"
+		$ECHO "run-test.sh: ${C_RED}FAILED${C_RESET} ${test_file}!\n"
 		exit 1
 	fi
 done
@@ -119,13 +119,13 @@ for ((i=0;i < ${#rejects[*]}; ++i)); do
 	reject="${rejects[$i]}"
 	# $ECHO "Expecting \"${reject}\"..."
 	if grep -E "$reject" "$output"; then
-		$ECHO "run-test.sh: $(basename "${test_file}") output was:"
+		$ECHO "run-test.sh: $(basename "${test_file}") output was:\n"
 		cat "$output"
-		$ECHO "$0:$LINENO:1: error: Found '$reject' in output."
-		$ECHO "run-test.sh: ${test_file} FAILED!"
+		$ECHO "$0:$LINENO:1: error: Found '$reject' in output.\n"
+		$ECHO "run-test.sh: ${C_RED}FAILED${C_RESET} ${test_file}!\n"
 		exit 1
 	fi
 done
 
-$ECHO "run-test.sh: $(basename "${test_file}") ${C_GREEN}PASSED!${C_RESET}\n"
+$ECHO "run-test.sh: ${C_GREEN}PASSED!${C_RESET} $(basename "${test_file}")\n"
 exit 0
