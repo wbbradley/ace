@@ -8,6 +8,26 @@ newtype MapKeyValueCell key value = MapKeyValueCell(Int, key, var value)
 newtype MapStorage key value = MapStorage([List (MapKeyValueCell key value)])
 newtype Map key value = Map(MapStorage key value, var Int)
 
+instance Show (Map key value) {
+    fn str(map) {
+        let Map(MapStorage(storage), _) = map
+        let results = []
+        for match Cons(MapKeyValueCell(_, key, var value), var next) in storage {
+            append(results, "${key}: ${value}")
+            while match next {
+                Cons(MapKeyValueCell(_, key, var value), var next_next) {
+                    append(results, "${key}: ${value}")
+                    next = next_next
+                }
+                Nil {
+                    break
+                }
+            }
+        }
+        return "{${join(", ", results)}}"
+    }
+}
+
 instance Show (MapKeyValueCell key value) {
     fn str(key_value_cell) String {
         let MapKeyValueCell(hash_value, key, var value) = key_value_cell
