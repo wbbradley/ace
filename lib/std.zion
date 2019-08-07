@@ -1,5 +1,7 @@
-# import map {Map}
-# export {Map}
+import map {Map}
+import set {Set}
+export {Map, Set}
+
 
 link pkg "bdw-gc"
 
@@ -22,6 +24,13 @@ class HasDefault a {
 
 instance HasDefault Int {
     fn new() => 0
+}
+
+class HasDefaultGet collection key value {
+    # Get an item from the collection, falling back to the
+    # default if the key does not allow the implementation to
+    # resolve the value otherwise.
+    fn get(collection, key, value) value
 }
 
 newtype String = String(*Char, Int)
@@ -501,6 +510,15 @@ class HasRemovableItems collection key {
     fn remove(collection, key) ()
 }
 
+class HasSetMembership collection value {
+    fn in(value, collection) Bool
+    fn not_in(value, collection) Bool
+}
+
+class HasInsertableItems collection value {
+    fn insert(collection, value) ()
+}
+
 class HasAssignableIndexableItems collection index value {
     fn set_indexed_item(collection, index, value) ()
 }
@@ -692,4 +710,20 @@ fn filter(f fn (a) Bool, xs_input) Iterator a {
          * "not all control paths return a value" */
         return Nothing
     })
+}
+
+fn enumerate(xs) {
+    var i = -1
+    let iterator = iter(xs)
+    return Iterator(fn () {
+       match iterator() {
+           Just(x) {
+               i += 1
+               return Just((i, x))
+           }
+           Nothing {
+               return Nothing
+           }
+       }
+   })
 }

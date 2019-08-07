@@ -1,8 +1,8 @@
-# Implement a map type (like a dict in Python) in Zion
+# Implements the default Map type in Zion
 
 import list {List, Cons, Nil, remove_if}
 import hash {hash}
-export {Map, get}
+export {Map}
 
 newtype MapKeyValueCell key value = MapKeyValueCell(Int, key, var value)
 newtype MapStorage key value = MapStorage([List (MapKeyValueCell key value)])
@@ -14,10 +14,11 @@ instance Show (Map key value) {
         let results = []
         for match Cons(MapKeyValueCell(_, key, var value), var next) in storage {
             append(results, "${key}: ${value}")
-            while match next {
+            var next_list = next
+            while match next_list {
                 Cons(MapKeyValueCell(_, key, var value), var next_next) {
                     append(results, "${key}: ${value}")
-                    next = next_next
+                    next_list = next_next
                 }
                 Nil {
                     break
@@ -25,6 +26,19 @@ instance Show (Map key value) {
             }
         }
         return "{${join(", ", results)}}"
+    }
+}
+
+instance HasSetMembership (Map key value) key {
+    fn in(key, map) Bool {
+        let Map(map_storage, var size) = map
+        return match find_key_value(map_storage, hash(key), key) {
+            Just(_) => True
+            Nothing => False
+        }
+    }
+    fn not_in(key, map) Bool {
+        return not (key in map)
     }
 }
 
@@ -50,9 +64,13 @@ instance HasLength (Map key value) {
 instance HasIndexableItems (Map key value) key (Maybe value) {
     fn get_indexed_item(map, key) {
         let Map(map_storage, var size) = map
-        return match find_key_value(map_storage, size, hash(key), key) {
-            Just(MapKeyValueCell(_, _, var value)) => Just(value)
-            Nothing => Nothing
+        print("looking for ${key}...")
+        match find_key_value(map_storage, hash(key), key) {
+            Just(MapKeyValueCell(_, _, var value)) {
+                print(value)
+                return Just(value)
+            }
+            Nothing { return Nothing }
         }
     }
 }
@@ -67,13 +85,13 @@ instance HasIndexableItems (MapStorage key value) Int (List (MapKeyValueCell key
 
 instance HasRemovableItems (Map key value) key {
     fn remove(map, key) {
-        let Map(map_storage, var size) = map
+        let Map(map_storage@MapStorage(storage), var size) = map
         if size == 0 {
             return
         }
         let hash_key = hash(key)
-        let index = hash_key % size
-        let (new_list, removed_count) = remove_if(map_storage[index], fn (key_value_cell MapKeyValueCell key value) Bool {
+        let index = hash_key % len(storage)
+        let (new_list, removed_count) = remove_if(storage[index], fn (key_value_cell MapKeyValueCell key value) Bool {
             let MapKeyValueCell(existing_key_hash, existing_key, _) = key_value_cell
             return existing_key_hash == hash_key and existing_key == key
         })
@@ -83,24 +101,28 @@ instance HasRemovableItems (Map key value) key {
     }
 }
 
-fn get(map Map key value, key key, default value) value => match map[key] {
-    Just(a) => a
-    Nothing => default
+instance HasDefaultGet (Map key value) key value {
+    fn get(map Map key value, key key, default value) value => match map[key] {
+        Just(a) => a
+        Nothing => default
+    }
 }
 
 fn find_key_value(map_storage MapStorage key value,
-                  size Int,
                   map_key_hash Int,
                   key key) Maybe (MapKeyValueCell key value) {
     let MapStorage(storage) = map_storage
-    if size <= 0 {
-        assert(size == 0)
+    if len(storage) == 0 {
         return Nothing
     }
 
-    let index = map_key_hash % size
-    let storage_foo = storage
-    for kvc@MapKeyValueCell(key_hash, existing_key, _) in storage_foo[index] {
+    for (i, l) in enumerate(storage) {
+        print("len of storage[${i}] is ${len(storage[i])}")
+    }
+
+    let index = map_key_hash % len(storage)
+    print("len of storage[index] is ${len(storage[index])}")
+    for kvc@MapKeyValueCell(key_hash, existing_key, _) in storage[index] {
         if key_hash == map_key_hash and existing_key == key {
             return Just(kvc)
         }
@@ -157,7 +179,7 @@ instance HasAssignableIndexableItems (Map key value) key value {
 
         # See if this key already exists
         # otherwise, we'll need to deal with growing the storage.
-        match find_key_value(map_storage, size, map_key_hash, key) {
+        match find_key_value(map_storage, map_key_hash, key) {
             Just(MapKeyValueCell(_, _, var old_value)) {
                 # It exists, so just update the value
                 old_value = value

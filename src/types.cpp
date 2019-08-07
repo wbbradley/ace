@@ -731,6 +731,17 @@ types::Ref type_vector_type(types::Ref element) {
       type_id(Identifier{VECTOR_TYPE, element->get_location()}), element);
 }
 
+types::Ref type_map_type(types::Ref key, types::Ref value) {
+  return type_operator(
+      type_operator(type_id(Identifier{MAP_TYPE, key->get_location()}), key),
+      value);
+}
+
+types::Ref type_set_type(types::Ref value) {
+  return type_operator(type_id(Identifier{SET_TYPE, value->get_location()}),
+                       value);
+}
+
 types::Ref type_string(Location location) {
   return type_id(Identifier{STRING_TYPE, location});
 }

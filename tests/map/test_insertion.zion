@@ -4,7 +4,7 @@
 # expect: empty
 # expect: gone
 
-import map {Map, get}
+import map {Map}
 
 fn main() {
     let map

@@ -503,8 +503,6 @@ const Expr *build_array_literal(Location location,
                         {array_var, expr}));
   }
 
-  const auto array_size_to_reserve = string_format("%d", exprs.size());
-
   /* now, add another item just for the actual array value to be returned */
   stmts.push_back(array_var);
 
@@ -684,6 +682,87 @@ const Expr *parse_string_expr(ParseState &ps) {
   }
 }
 
+const Expr *build_associative_array_literal(
+    Location location,
+    const std::vector<std::pair<const Expr *, const Expr *>> &exprs,
+    bool is_set) {
+  auto map_var = new Var(Identifier(fresh(), location));
+
+  /* take all the exprs from the array, and turn them into statements to fill
+   * out the structure */
+  std::vector<const Expr *> stmts;
+
+  for (auto expr : exprs) {
+    if (is_set) {
+      assert(expr.second == nullptr);
+      stmts.push_back(new Application(
+          new Var(Identifier{"std.insert", expr.first->get_location()}),
+          {map_var, expr.first}));
+    } else {
+      stmts.push_back(
+          new Application(new Var(Identifier{"std.set_indexed_item",
+                                             expr.first->get_location()}),
+                          {map_var, expr.first, expr.second}));
+    }
+  }
+
+  /* now, add another item just for the actual array value to be returned */
+  stmts.push_back(map_var);
+
+  return new Let(
+      map_var->id,
+      new As(new Application(new Var(Identifier{"std.new", location}),
+                             {unit_expr(location)}),
+             is_set ? type_set_type(type_variable(location))
+                    : type_map_type(type_variable(location),
+                                    type_variable(location)),
+             false /*force_cast*/),
+      new Block(stmts));
+}
+
+const Expr *parse_associative_array_literal(ParseState &ps) {
+  auto start_curly_token = ps.token;
+  chomp_token(tk_lcurly);
+  /////
+  std::vector<std::pair<const Expr *, const Expr *>> exprs;
+
+  bool is_set = false;
+  int i = 0;
+  while (ps.token.tk != tk_rcurly && ps.token.tk != tk_none) {
+    if (i != 0) {
+      chomp_token(tk_comma);
+    }
+    ++i;
+
+    const Expr *lhs = parse_expr(ps);
+    if (ps.token.tk == tk_colon) {
+      if (is_set) {
+        throw user_error(ps.token.location,
+                         "looks like you are mixing set literal syntax with "
+                         "map literal syntax");
+      }
+      ps.advance();
+      exprs.push_back({lhs, parse_expr(ps)});
+    } else if (ps.token.tk == tk_comma) {
+      if (i > 1 && !is_set) {
+        throw user_error(ps.token.location,
+                         "looks like you are mixing set literal syntax with "
+                         "map literal syntax");
+      }
+      is_set = true;
+      exprs.push_back({lhs, nullptr});
+    } else if (ps.token.tk == tk_double_dot) {
+      throw user_error(start_curly_token.location,
+                       "range syntax is not allowed here");
+    }
+  }
+
+  chomp_token(tk_rcurly);
+
+  return build_associative_array_literal(start_curly_token.location, exprs,
+                                         is_set);
+}
+
 const Expr *parse_literal(ParseState &ps) {
   switch (ps.token.tk) {
   case tk_integer:
@@ -712,8 +791,8 @@ const Expr *parse_literal(ParseState &ps) {
                        "array literals are not implemented in "
                        "this parse context");
     }
-    // case tk_lcurly:
-    //	return assoc_array_expr_t::parse(ps);
+  case tk_lcurly:
+    return parse_associative_array_literal(ps);
 
   case tk_identifier:
     throw user_error(ps.token.location,
@@ -982,7 +1061,7 @@ const Expr *parse_eq_expr(ParseState &ps) {
   }
 
   Identifier op = ps.id_mapped(
-      {not_in ? "not-in" : ps.token.text, ps.token.location});
+      {not_in ? "not_in" : ps.token.text, ps.token.location});
   ps.advance();
 
   return new Application(new Var(op), {lhs, parse_ineq_expr(ps)});
