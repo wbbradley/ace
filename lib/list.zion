@@ -3,6 +3,23 @@ data List x {
     Nil
 }
 
+instance HasLength (List a) {
+    fn len(list) {
+        var p = list
+        var i = 0
+        while match p {
+            Cons(_, var next) {
+                i += 1
+                p = next
+            }
+            Nil {
+                break
+            }
+        }
+        return i
+    }
+}
+
 fn nth(l List x, index Int) Maybe x {
     var rl = l
     var i = 0

@@ -257,6 +257,8 @@ types::Ref type_params(const types::Refs &parameters);
 types::Ref type_ptr(types::Ref raw);
 types::Ref type_lambda(Identifier binding, types::Ref body);
 types::Ref type_vector_type(types::Ref element);
+types::Ref type_map_type(types::Ref key, types::Ref value);
+types::Ref type_set_type(types::Ref value);
 types::Ref type_tuple_accessor(int i,
                                int max,
                                const std::vector<std::string> &vars);

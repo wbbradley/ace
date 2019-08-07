@@ -1,15 +1,25 @@
 # test: pass
-# expect: 100: 100
-# expect: 99: 99
-# expect: 3: 3
+# expect: 1: 10
+# expect: 2: 15
+# expect: 8: 16
+# expect: 9: 18
+# expect: 10: 20
 
 import map {Map}
 
 fn main() {
-    let m = new Map a b
-    for i in [0..100] {
-        m[i] = i
+    let m = {1: 10, 2: 15}
+    for i in [1..10] {
+        if i not in m {
+            m[i] = i * 2
+        } else {
+            assert(i in m)
+        }
     }
-    assert(len(m) == 101)
+
+    assert(len(m) == 10)
+    assert(m[1] == Just(10))
+    assert(m[2] == Just(15))
+    assert(get(m, 234, 33) == 33)
     print(m)
 }

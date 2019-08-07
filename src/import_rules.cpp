@@ -59,10 +59,12 @@ RewriteImportRules solve_rewriting_imports(
     rewriting.insert({symbol_id, resolved_id});
   }
 
+#ifdef ZION_DEBUG
   for (auto &pair : rewriting) {
-    log("rewriting %s -> %s", pair.first.str().c_str(),
-        pair.second.str().c_str());
+    debug_above(1, log("rewriting %s -> %s", pair.first.str().c_str(),
+                       pair.second.str().c_str()));
   }
+#endif
 
   return rewriting;
 }
