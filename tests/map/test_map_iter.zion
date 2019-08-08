@@ -1,0 +1,10 @@
+# test: pass
+# expect: a: alligator
+# expect: b: bottom
+
+fn main() {
+    let dict = {"a": "alligator", "b": "bottom"}
+    for (k, v) in dict {
+        print("${k}: ${v}")
+    }
+}

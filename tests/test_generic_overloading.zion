@@ -1,0 +1,42 @@
+# test: noprelude,pass
+# expect: inequal
+# expect: equal
+
+data Bool {
+    True
+    False
+}
+
+class Equal a {
+    fn is_equal(a, a) Bool
+}
+
+instance Equal Bool {
+    fn is_equal(a, b) => match (a, b) {
+        (True, True) => True
+        (False, False) => True
+        _ => False
+    }
+}
+
+instance Equal Int {
+    fn is_equal(a, b) {
+        return __builtin_int_eq(a, b) ? True : False
+    }
+}
+
+fn p(a, b) {
+    match is_equal(a, b) {
+        True {
+            __builtin_ffi_1("puts", "equal")
+        }
+        False {
+            __builtin_ffi_1("puts", "inequal")
+        }
+    }
+}
+
+fn main() {
+    p(True, False)
+    p(3, 3)
+}

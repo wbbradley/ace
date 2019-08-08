@@ -247,9 +247,15 @@ Unification unify_many(const types::Refs &as, const types::Refs &bs) {
   if (as.size() == 0 && bs.size() == 0) {
     return Unification{true, INTERNAL_LOC(), "", {}};
   } else if (as.size() != bs.size()) {
+    return Unification{false, INTERNAL_LOC(), "unification mismatch", {}};
+    /*
     throw zion::user_error(
-        as[0]->get_location(), "unification mismatch %s != %s",
-        join_str(as, " -> ").c_str(), join_str(bs, " -> ").c_str());
+        as.size() != 0
+            ? as[0]->get_location()
+            : (bs.size() != 0 ? bs[0]->get_location() : INTERNAL_LOC()),
+        "unification mismatch %s != %s", join_str(as, " -> ").c_str(),
+        join_str(bs, " -> ").c_str());
+        */
   }
 
   auto u1 = unify(as[0], bs[0]);

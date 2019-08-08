@@ -105,6 +105,28 @@ instance HasDefaultGet (Map key value) key value {
     }
 }
 
+instance Iterable (Map key value) (key, value) {
+    fn iter(map) {
+        let Map(MapStorage(storage), var size) = map
+        let results = [] as [(key, value)]
+        reserve(results, size)
+        for match Cons(MapKeyValueCell(_, key, var value), var next) in storage {
+            append(results, (key, value))
+            var next_list = next
+            while match next_list {
+                Cons(MapKeyValueCell(_, key, var value), var next_next) {
+                    append(results, (key, value))
+                    next_list = next_next
+                }
+                Nil {
+                    break
+                }
+            }
+        }
+        return iter(results)
+    }
+}
+
 fn find_key_value(map_storage MapStorage key value,
                   map_key_hash Int,
                   key key) Maybe (MapKeyValueCell key value) {
@@ -114,9 +136,9 @@ fn find_key_value(map_storage MapStorage key value,
     }
 
     let index = map_key_hash % len(storage)
-    for kvc@MapKeyValueCell(key_hash, existing_key, _) in storage[index] {
+    for mkvc@MapKeyValueCell(key_hash, existing_key, ss) in storage[index] {
         if key_hash == map_key_hash and existing_key == key {
-            return Just(kvc)
+            return Just(mkvc)
         }
     }
     return Nothing
@@ -163,7 +185,7 @@ instance HasAssignableIndexableItems (Map key value) key value {
     # NB: instance predicates (aka requirements) are discovered during
     # specialization. So, "has Hashable key" is not necessary (or even
     # parsed correctly.)
-    fn set_indexed_item(map Map key value, key, value) {
+    fn set_indexed_item(map Map key value, key key, value value) {
         # get access to the inside of the map
         let Map(map_storage, var size) = map
         # compute the given key's hash

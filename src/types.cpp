@@ -165,8 +165,8 @@ void TypeId::compute_ftvs() const {
 }
 
 Ref TypeId::eval(const TypeEnv &type_env) const {
-  debug_above(5, log("trying to get %s from type_env {%s}", id.name.c_str(),
-                     ::str(type_env).c_str()));
+  debug_above(10, log("trying to get %s from type_env {%s}", id.name.c_str(),
+                      ::str(type_env).c_str()));
   return get(type_env, id.name, shared_from_this());
 }
 

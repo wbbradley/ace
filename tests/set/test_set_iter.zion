@@ -1,0 +1,18 @@
+# test: pass
+# expect: dog
+# expect: dinosaur
+# expect: penguin
+
+import set {Set}
+
+fn main() {
+    let set = {
+        "penguin",
+        "dinosaur",
+        "penguin",
+        "dog",
+    }
+    assert(len(set) == 3)
+    print("{${join(", ", set)}}")
+    assert(len(set) == 3)
+}
