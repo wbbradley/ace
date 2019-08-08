@@ -35,12 +35,20 @@ class HasDefaultGet collection key value {
 
 newtype String = String(*Char, Int)
 
+class Repr a {
+    fn repr(a) String
+}
+
 class Show a {
     fn str(a) String
 }
 
 instance Show () {
     fn str(a) => "()"
+}
+
+instance Repr () {
+    fn repr(a) => "()"
 }
 
 instance Show Int {
@@ -51,12 +59,20 @@ instance Show Int {
     }
 }
 
+instance Repr Int {
+    repr = str
+}
+
 instance Show Float {
     fn str(x) {
         let sz = __builtin_ffi_1("zion_ftoa", x)
         let length = __builtin_ffi_1("zion_strlen", sz)
         return String(sz, length)
     }
+}
+
+instance Repr Float {
+    repr = str
 }
 
 instance Show (var a) {
@@ -67,6 +83,30 @@ instance Show String {
     str = id
 }
 
+instance Repr String {
+    fn repr(s) {
+        # TODO: maybe make this a DFA or something
+        let text = (
+            replace(
+                replace(
+                    replace(
+                        replace(
+                            replace(
+                                replace(s, "\"", "\\\""),
+                                "\n",
+                                "\\n"),
+                            "\t",
+                            "\\t"),
+                        "\b",
+                        "\\b"),
+                    "\r",
+                    "\\r"),
+                "\f",
+                "\\f"))
+        return "\"${text}\""
+    }
+}
+
 instance Show (* Char) {
     fn str(a) => String(a, __builtin_ffi_1("zion_strlen", a))
 }
@@ -75,6 +115,15 @@ fn has_substring(haystack String, needle String) Bool {
     let String(haystack, _) = haystack
     let String(needle, _) = needle
     return __builtin_ffi_2("strstr", haystack, needle) != null as *Char
+}
+
+fn strstr_index(haystack *Char, haystack_len Int, needle *Char, needle_len Int) Int {
+    if haystack_len < needle_len {
+        return -1
+    }
+
+    let pos = __builtin_ffi_2("strstr", haystack, needle) as *Char
+    return pos != null ? (pos as! Int) - (haystack as! Int) : -1
 }
 
 fn has_prefix(haystack String, needle String) Bool {
@@ -94,6 +143,31 @@ fn has_suffix(haystack String, needle String) Bool {
         __builtin_ptr_add(haystack, len_haystack - len_needle),
         needle,
         len_needle) == 0
+}
+
+fn replace(source String, term String, new_term String) String {
+    let String(sz, len) = source
+    let String(needle, needle_len) = term
+    var i = 0
+    var start_span = 0
+    let result = []
+    while i < len {
+        let cur_start = __builtin_ptr_add(sz, i)
+        let next_index = strstr_index(cur_start, len - i, needle, needle_len)
+        if next_index == -1 {
+            append(result, String(cur_start, len - i))
+            i += len - i
+        } else {
+            if next_index > 0 {
+                append(result, String(cur_start, next_index))
+                i += next_index
+            }
+            append(result, new_term)
+            i += needle_len
+        }
+    }
+    assert(i == len)
+    return join("", result)
 }
 
 fn join(delim_ String, xs) String {
@@ -144,6 +218,8 @@ fn putch(ch Char) () {
 }
 
 fn print(x) () {
+    # TODO: this is not great because it is two syscalls, instead of one. This
+    # could lead to interleaved writes.
     let String(sz, length) = str(x)
     let _ = __builtin_ffi_3("write", 1, sz, length) as Int
     let _ = __builtin_ffi_2("zion_write_char", 1, '\n') as Int

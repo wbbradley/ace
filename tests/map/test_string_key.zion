@@ -1,0 +1,6 @@
+# test: pass
+# expect: "Hello": "\\"Wor\\nld\\"."
+
+fn main() {
+    print({"Hello": "\"Wor\nld\".", "This": "Might be working"})
+}

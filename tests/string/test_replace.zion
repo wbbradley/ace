@@ -1,0 +1,6 @@
+# test: pass
+# expect: The quick brown fox jumps over the lazy white poodle. And another fox.
+
+fn main() {
+    print(replace("The quick brown dog jumps over the lazy white poodle. And another dog.", "dog", "fox"))
+}
