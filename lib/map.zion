@@ -13,11 +13,11 @@ instance Show (Map key value) {
         let Map(MapStorage(storage), _) = map
         let results = []
         for match Cons(MapKeyValueCell(_, key, var value), var next) in storage {
-            append(results, "${key}: ${value}")
+            append(results, "${repr(key)}: ${repr(value)}")
             var next_list = next
             while match next_list {
                 Cons(MapKeyValueCell(_, key, var value), var next_next) {
-                    append(results, "${key}: ${value}")
+                    append(results, "${repr(key)}: ${repr(value)}")
                     next_list = next_next
                 }
                 Nil {
@@ -45,7 +45,6 @@ instance HasSetMembership (Map key value) key {
 instance Show (MapKeyValueCell key value) {
     fn str(key_value_cell) String {
         let MapKeyValueCell(hash_value, key, var value) = key_value_cell
-        static_print(key)
         return "MapKeyValueCell(${hash_value}, ${key}, ${value})"
     }
 }
@@ -64,10 +63,8 @@ instance HasLength (Map key value) {
 instance HasIndexableItems (Map key value) key (Maybe value) {
     fn get_indexed_item(map, key) {
         let Map(map_storage, var size) = map
-        print("looking for ${key}...")
         match find_key_value(map_storage, hash(key), key) {
             Just(MapKeyValueCell(_, _, var value)) {
-                print(value)
                 return Just(value)
             }
             Nothing { return Nothing }
@@ -116,12 +113,7 @@ fn find_key_value(map_storage MapStorage key value,
         return Nothing
     }
 
-    for (i, l) in enumerate(storage) {
-        print("len of storage[${i}] is ${len(storage[i])}")
-    }
-
     let index = map_key_hash % len(storage)
-    print("len of storage[index] is ${len(storage[index])}")
     for kvc@MapKeyValueCell(key_hash, existing_key, _) in storage[index] {
         if key_hash == map_key_hash and existing_key == key {
             return Just(kvc)
