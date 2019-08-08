@@ -490,13 +490,16 @@ const Expr *build_array_literal(Location location,
    * out a vector */
   std::vector<const Expr *> stmts;
 
-  /* we know how many items we'll need space for, so we might as well reserve
-   * that space ahead of time */
-  stmts.push_back(
-      new Application(new Var(Identifier{"std.reserve", location}),
-                      {new Var(array_var->id),
-                       new Literal(Token{location, tk_integer,
-                                         std::to_string(exprs.size())})}));
+  if (exprs.size() != 0) {
+    /* we know how many items we'll need space for, so we might as well reserve
+     * that space ahead of time */
+    stmts.push_back(
+        new Application(new Var(Identifier{"std.reserve", location}),
+                        {new Var(array_var->id),
+                         new Literal(Token{location, tk_integer,
+                                           std::to_string(exprs.size())})}));
+  }
+
   for (auto expr : exprs) {
     stmts.push_back(
         new Application(new Var(Identifier{"std.append", expr->get_location()}),
@@ -691,19 +694,38 @@ const Expr *build_associative_array_literal(
   /* take all the exprs from the array, and turn them into statements to fill
    * out the structure */
   std::vector<const Expr *> stmts;
+  types::Ref key_type;
+  types::Ref value_type;
 
   for (auto expr : exprs) {
+    if (value_type == nullptr) {
+      value_type = type_variable(expr.second ? expr.second->get_location()
+                                             : expr.first->get_location());
+    }
+
     if (is_set) {
       assert(expr.second == nullptr);
       stmts.push_back(new Application(
           new Var(Identifier{"std.insert", expr.first->get_location()}),
-          {map_var, expr.first}));
+          {map_var, new As(expr.first, value_type, false /*force_cast*/)}));
     } else {
-      stmts.push_back(
-          new Application(new Var(Identifier{"std.set_indexed_item",
-                                             expr.first->get_location()}),
-                          {map_var, expr.first, expr.second}));
+      if (key_type == nullptr) {
+        key_type = type_variable(expr.first->get_location());
+      }
+      stmts.push_back(new Application(
+          new Var(
+              Identifier{"std.set_indexed_item", expr.first->get_location()}),
+          {map_var, new As(expr.first, key_type, false /*force_cast*/),
+           new As(expr.second, value_type, false /*force_cast*/)}));
     }
+  }
+
+  if (value_type == nullptr) {
+    value_type = type_variable(location);
+  }
+
+  if (!is_set && key_type == nullptr) {
+    key_type = type_variable(location);
   }
 
   /* now, add another item just for the actual array value to be returned */
@@ -713,9 +735,8 @@ const Expr *build_associative_array_literal(
       map_var->id,
       new As(new Application(new Var(Identifier{"std.new", location}),
                              {unit_expr(location)}),
-             is_set ? type_set_type(type_variable(location))
-                    : type_map_type(type_variable(location),
-                                    type_variable(location)),
+             is_set ? type_set_type(value_type)
+                    : type_map_type(key_type, value_type),
              false /*force_cast*/),
       new Block(stmts));
 }
@@ -731,6 +752,9 @@ const Expr *parse_associative_array_literal(ParseState &ps) {
   while (ps.token.tk != tk_rcurly && ps.token.tk != tk_none) {
     if (i != 0) {
       chomp_token(tk_comma);
+      if (ps.token.tk == tk_rcurly) {
+        break;
+      }
     }
     ++i;
 
@@ -1948,7 +1972,9 @@ DataTypeDecl parse_newtype_decl(ParseState &ps,
    * the type environment for reference later in pattern matching, and in code
    * generation. */
   types::Ref body = rhs_type;
-  for (auto param : type_decl->params) {
+  for (auto param_iter = type_decl->params.rbegin();
+       param_iter != type_decl->params.rend(); ++param_iter) {
+    auto param = *param_iter;
     body = type_lambda(param, body);
   }
   debug_above(4, log_location(type_decl->id.location,

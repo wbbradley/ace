@@ -688,6 +688,14 @@ void destructure_closure(llvm::IRBuilder<> &builder,
   if (llvm_function != nullptr) {
     *llvm_function = builder.CreateLoad(builder.CreateInBoundsGEP(
         closure, llvm::ArrayRef<llvm::Value *>(gep_function_path)));
+#ifdef ZION_DEBUG
+    if (llvm_function_type !=
+        (*llvm_function)->getType()->getPointerElementType()) {
+      log("why does %s != %s", llvm_print(llvm_function_type).c_str(),
+          llvm_print((*llvm_function)->getType()).c_str());
+      dbg();
+    }
+#endif
   }
   if (llvm_closure_env != nullptr) {
     *llvm_closure_env = builder.CreateLoad(builder.CreateInBoundsGEP(
