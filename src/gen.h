@@ -12,6 +12,7 @@ namespace zion {
 
 namespace gen {
 
+struct DeferGuard;
 typedef std::unordered_map<
     std::string,
     std::map<types::Ref, std::shared_ptr<Resolver>, types::CompareType>>
@@ -33,6 +34,7 @@ llvm::Value *get_env_var(llvm::IRBuilder<> &builder,
 ResolutionStatus gen(std::string name,
                      llvm::IRBuilder<> &builder,
                      llvm::Module *llvm_module,
+                     DeferGuard *defer_guard,
                      llvm::BasicBlock *break_to_block,
                      llvm::BasicBlock *continue_to_block,
                      const ast::Expr *expr,

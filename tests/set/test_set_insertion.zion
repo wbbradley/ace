@@ -1,7 +1,7 @@
-# test: skip
+# test: pass
 
 fn main() {
     let s = {"1", "2", "3"}
-    # assert(2 in s)
+    assert("2" in s)
     print("PASS")
 }

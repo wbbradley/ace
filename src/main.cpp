@@ -1246,10 +1246,11 @@ Phase4 ssa_gen(llvm::LLVMContext &context, const Phase3 &phase_3) {
               llvm::IRBuilderBase::InsertPointGuard ipg(builder);
 
               return gen::gen(
-                  name, builder, llvm_module, nullptr /*break_to_block*/,
-                  nullptr /*continue_to_block*/, translation->expr,
-                  translation->typing, phase_3.phase_2.compilation->type_env,
-                  gen_env, {}, globals, &publishable);
+                  name, builder, llvm_module, nullptr /*defer_guard*/,
+                  nullptr /*break_to_block*/, nullptr /*continue_to_block*/,
+                  translation->expr, translation->typing,
+                  phase_3.phase_2.compilation->type_env, gen_env, {}, globals,
+                  &publishable);
             });
 
         resolvers.push_back(resolver);

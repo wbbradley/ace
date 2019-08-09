@@ -135,9 +135,9 @@ void explain(llvm::Type *llvm_type);
 std::vector<llvm::Type *> llvm_get_types(
     const std::vector<llvm::Value *> &llvm_values);
 
-void destructure_closure(llvm::IRBuilder<> &builder,
-                         llvm::Value *closure,
-                         llvm::Value **llvm_function,
-                         llvm::Value **llvm_closure_env);
+llvm::Value *llvm_create_closure_callsite(Location location,
+                                          llvm::IRBuilder<> &builder,
+                                          llvm::Value *closure,
+                                          std::vector<llvm::Value *> args);
 
 } // namespace zion

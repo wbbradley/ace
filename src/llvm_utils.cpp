@@ -704,4 +704,23 @@ void destructure_closure(llvm::IRBuilder<> &builder,
   dbg_when(llvm_print(*llvm_function).find("badref") != std::string::npos);
 }
 
+llvm::Value *llvm_create_closure_callsite(Location location,
+                                          llvm::IRBuilder<> &builder,
+                                          llvm::Value *closure,
+                                          std::vector<llvm::Value *> args) {
+  llvm::Value *llvm_function_to_call = nullptr;
+  destructure_closure(builder, closure, &llvm_function_to_call, nullptr);
+
+  args.push_back(builder.CreateBitCast(
+      closure, builder.getInt8Ty()->getPointerTo(), "closure_cast"));
+
+  debug_above(4, log("calling builder.CreateCall(%s, {%s, %s})",
+                     llvm_print(llvm_function_to_call->getType()).c_str(),
+                     llvm_print(args[0]->getType()).c_str(),
+                     llvm_print(args[1]->getType()).c_str()));
+  return builder.CreateCall(
+      llvm_function_to_call, llvm::ArrayRef<llvm::Value *>(args),
+      string_format("call{%s}", location.repr().c_str()));
+}
+
 } // namespace zion
