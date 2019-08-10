@@ -1,0 +1,24 @@
+# test: pass
+# expect: 0: Making deferred closure.
+# expect: 1: Done making deferred closure.
+# expect: 2: Not yet.
+# expect: 3: PASS
+
+fn pass() {
+    print("PASS")
+}
+
+fn main() {
+    var i = 0
+    defer fn () {
+        defer fn () { print("${i}: Done making deferred closure.") i += 1 }()
+        print("${i}: Making deferred closure.")
+        i += 1
+        return fn () { 
+            print("${i}: PASS")
+            i += 1
+        }
+    }()()
+    print("${i}: Not yet.")
+    i += 1
+}

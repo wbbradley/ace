@@ -127,6 +127,15 @@ std::ostream &Break::render(std::ostream &os, int parent_precedence) const {
   return os << "(" C_CONTROL "break!" C_RESET ")";
 }
 
+Location Defer::get_location() const {
+  return application->get_location();
+}
+
+std::ostream &Defer::render(std::ostream &os, int parent_precedence) const {
+  os << C_CONTROL "defer " C_RESET;
+  return application->render(os, 0);
+}
+
 Location ReturnStatement::get_location() const {
   return value->get_location();
 }
@@ -564,6 +573,8 @@ tarjan::Vertices get_free_vars(
                 get_free_vars(pattern_block->result, new_bound_vars));
     }
     return free_vars;
+  } else if (auto defer = dcast<const ast::Defer *>(expr)) {
+    return get_free_vars(defer->application, bound_vars);
   } else {
     assert(false);
     return {};

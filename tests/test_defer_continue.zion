@@ -1,0 +1,16 @@
+# test: pass
+# expect: 0: yay
+# expect: 1: yay
+# expect: 2: yay
+# expect: 903: hey
+
+fn main() {
+    var x = 0
+    defer fn () { print("${x}: hey") }()
+    for i in range(3) {
+        defer fn () { print("${i}: yay") }()
+        x += 1
+        continue
+    }
+    x += 900
+}

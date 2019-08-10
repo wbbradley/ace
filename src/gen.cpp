@@ -22,8 +22,8 @@ typedef std::vector<llvm::Value *> DeferClosures;
 
 enum DeferType {
   dt_function = 0,
-  dt_block    = 1,
-  dt_loop     = 2,
+  dt_block = 1,
+  dt_loop = 2,
 };
 
 struct DeferGuard {
@@ -31,7 +31,7 @@ struct DeferGuard {
       : parent(parent), defer_type(defer_type) {
   }
   ~DeferGuard() {
-    assert(called);
+    assert_implies(!std::uncaught_exception(), called);
   }
 
   void call_deferred(llvm::IRBuilder<> &builder, DeferType dt) {
@@ -42,10 +42,12 @@ struct DeferGuard {
     }
 
     /* emit calls to deferred closures */
-    for (auto closure : defer_closures) {
+    for (auto closure_iter = defer_closures.rbegin();
+         closure_iter != defer_closures.rend(); ++closure_iter) {
       std::vector<llvm::Value *> args{
           llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo())};
-      llvm_create_closure_callsite(INTERNAL_LOC(), builder, closure, args);
+      llvm_create_closure_callsite(INTERNAL_LOC(), builder, *closure_iter,
+                                   args);
     }
 
     called = true;
@@ -54,6 +56,10 @@ struct DeferGuard {
       assert(parent != nullptr);
       parent->call_deferred(builder, dt);
     }
+  }
+
+  void add_deferred(llvm::Value *llvm_closure) {
+    defer_closures.push_back(llvm_closure);
   }
 
   DeferGuard *parent;
@@ -193,6 +199,8 @@ void get_free_vars(const ast::Expr *expr,
     for (auto expr : builtin->exprs) {
       get_free_vars(expr, typing, globals, locals, free_vars);
     }
+  } else if (auto defer = dcast<const ast::Defer *>(expr)) {
+    get_free_vars(defer->application, typing, globals, locals, free_vars);
   } else if (dcast<const ast::Match *>(expr)) {
     /* by this point, all match expressions should have been transformed into
      * conditionals */
@@ -1334,6 +1342,18 @@ ResolutionStatus gen(std::string name,
       assert(false);
     } else if (dcast<const ast::Match *>(expr)) {
       assert(false);
+    } else if (auto defer = dcast<const ast::Defer *>(expr)) {
+      assert(llvm_get_function(builder) != nullptr);
+      llvm::Value *llvm_closure = gen(builder, llvm_module, defer_guard,
+                                      break_to_block, continue_to_block,
+                                      defer->application->a, typing, type_env,
+                                      gen_env_globals, gen_env_locals, globals);
+
+      /* this is the critical part where we add this closure to the list of
+       * deferred operations */
+      defer_guard->add_deferred(llvm_closure);
+
+      return rs_cache_resolution;
     } else if (auto builtin = dcast<const ast::Builtin *>(expr)) {
       std::vector<llvm::Value *> llvm_values;
       types::Refs types;

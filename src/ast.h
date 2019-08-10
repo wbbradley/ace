@@ -419,6 +419,14 @@ struct Break : public Expr {
   Location location;
 };
 
+struct Defer : public Expr {
+  Defer(const Application *application) : application(application) {
+  }
+  Location get_location() const override;
+  std::ostream &render(std::ostream &os, int parent_precedence) const override;
+  const Application *application;
+};
+
 struct While : public Expr {
   While(const Expr *condition, const Expr *block)
       : condition(condition), block(block) {
