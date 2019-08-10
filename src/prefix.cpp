@@ -161,6 +161,13 @@ std::set<std::string> without(const std::set<std::string> &s,
   return c;
 }
 
+const Application *prefix_application(const std::set<std::string> &bindings,
+                                      std::string pre,
+                                      const Application *application) {
+  return new Application(prefix(bindings, pre, application->a),
+                         prefix(bindings, pre, application->params));
+}
+
 const Expr *prefix(const std::set<std::string> &bindings,
                    std::string pre,
                    const Expr *value) {
@@ -178,8 +185,7 @@ const Expr *prefix(const std::set<std::string> &bindings,
     return new As(prefix(bindings, pre, as->expr),
                   prefix(bindings, pre, as->type), as->force_cast);
   } else if (auto application = dcast<const Application *>(value)) {
-    return new Application(prefix(bindings, pre, application->a),
-                           prefix(bindings, pre, application->params));
+    return prefix_application(bindings, pre, application);
   } else if (auto lambda = dcast<const Lambda *>(value)) {
     return new Lambda(
         lambda->vars, prefix(bindings, pre, lambda->param_types),
@@ -217,6 +223,8 @@ const Expr *prefix(const std::set<std::string> &bindings,
       exprs.push_back(prefix(bindings, pre, expr));
     }
     return new Builtin(new Var(builtin->var->id), exprs);
+  } else if (auto defer = dcast<const Defer *>(value)) {
+    return new Defer(prefix_application(bindings, pre, defer->application));
   } else {
     std::cerr << "What should I do with " << value->str() << "?" << std::endl;
     assert(false);

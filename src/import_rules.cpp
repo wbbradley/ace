@@ -125,6 +125,14 @@ PatternBlocks rewrite_pattern_blocks(
   return new_pattern_blocks;
 }
 
+const Application *rewrite_application(
+    const RewriteImportRules &rewrite_import_rules,
+    const Application *application) {
+  return new Application(
+      rewrite_expr(rewrite_import_rules, application->a),
+      rewrite_exprs(rewrite_import_rules, application->params));
+}
+
 const Expr *rewrite_expr(const RewriteImportRules &rewrite_import_rules,
                          const Expr *expr) {
   if (dcast<const Literal *>(expr)) {
@@ -143,9 +151,7 @@ const Expr *rewrite_expr(const RewriteImportRules &rewrite_import_rules,
             : nullptr,
         rewrite_expr(rewrite_import_rules, lambda->body));
   } else if (auto application = dcast<const Application *>(expr)) {
-    return new Application(
-        rewrite_expr(rewrite_import_rules, application->a),
-        rewrite_exprs(rewrite_import_rules, application->params));
+    return rewrite_application(rewrite_import_rules, application);
   } else if (auto let = dcast<const Let *>(expr)) {
     return new Let(let->var, rewrite_expr(rewrite_import_rules, let->value),
                    rewrite_expr(rewrite_import_rules, let->body));
@@ -198,6 +204,9 @@ const Expr *rewrite_expr(const RewriteImportRules &rewrite_import_rules,
     return new Match(
         rewrite_expr(rewrite_import_rules, match->scrutinee),
         rewrite_pattern_blocks(rewrite_import_rules, match->pattern_blocks));
+  } else if (auto defer = dcast<const Defer *>(expr)) {
+    return new Defer(
+        rewrite_application(rewrite_import_rules, defer->application));
   } else {
     assert(false);
     return {};

@@ -135,6 +135,36 @@ types::Ref infer_core(const Expr *expr,
                      "both branches of conditionals must match types with "
                      "each other"));
     return t2;
+  } else if (auto defer = dcast<const Defer *>(expr)) {
+    auto t1 = infer(defer->application->a, data_ctors_map, return_type,
+                    scheme_resolver, tracked_types, constraints,
+                    instance_requirements);
+    append_to_constraints(constraints, t1,
+                          type_arrows({type_unit(defer->get_location()),
+                                       type_unit(defer->get_location())}),
+                          make_context(defer->get_location(),
+                                       "defer must call nullary function"));
+
+    if (defer->application->params.size() != 1) {
+      throw user_error(defer->get_location(),
+                       "incorrect number of arguments passed to deferred call");
+    }
+    auto param_type = infer(defer->application->params[0], data_ctors_map,
+                            return_type, scheme_resolver, tracked_types,
+                            constraints, instance_requirements);
+    auto t2 = type_params({param_type});
+    append_to_constraints(
+        constraints, t1,
+        type_arrow(defer->application->get_location(), t2,
+                   type_unit(INTERNAL_LOC())),
+        make_context(defer->application->get_location(),
+                     "deferred application should have type () -> ()"));
+    append_to_constraints(
+        constraints, param_type, type_unit(INTERNAL_LOC()),
+        make_context(defer->application->get_location(),
+                     "only () may be applied at a deferred callsite"));
+    tracked_types[defer->application] = type_unit(INTERNAL_LOC());
+    return type_unit(defer->get_location());
   } else if (auto break_ = dcast<const Break *>(expr)) {
     return type_unit(break_->get_location());
   } else if (auto continue_ = dcast<const Continue *>(expr)) {

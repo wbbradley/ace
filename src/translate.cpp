@@ -320,6 +320,13 @@ const Expr *texpr(const types::DefnId &for_defn_id,
           tuple_deref->index, tuple_deref->max);
       typing[new_tuple_deref] = type;
       return new_tuple_deref;
+    } else if (auto defer = dcast<const Defer *>(expr)) {
+      auto new_deref = new Defer(safe_dcast<const Application>(texpr(
+          for_defn_id, defer->application, data_ctors_map, bound_vars,
+          tracked_types, get_tracked_type(tracked_types, defer->application),
+          type_env, typing, needed_defns, returns)));
+      typing[new_deref] = type;
+      return new_deref;
     }
   } catch (user_error &e) {
     auto type = get_tracked_type(tracked_types, expr);

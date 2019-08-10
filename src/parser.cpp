@@ -255,16 +255,6 @@ const Expr *parse_for_block(ParseState &ps) {
                           pattern_blocks)));
 }
 
-const Expr *parse_defer(ParseState &ps) {
-  return unit_expr(INTERNAL_LOC());
-#if 0
-	auto defer = create<defer_t>(ps.token);
-	ps.advance();
-	defer->callable = expression_t::parse(ps);
-	return defer;
-#endif
-}
-
 const Expr *parse_new_expr(ParseState &ps) {
   ps.advance();
   return new As(
@@ -323,6 +313,19 @@ const Expr *parse_assert(ParseState &ps) {
   return assertion;
 }
 
+const Expr *parse_defer(ParseState &ps) {
+  chomp_ident(K(defer));
+  const Expr *expr = parse_expr(ps);
+  if (const Application *application = dcast<const Application *>(expr)) {
+    return new Defer(application);
+  } else {
+    throw user_error(expr->get_location(),
+                     "defer statements must be function callsites");
+  }
+  assert(false);
+  return nullptr;
+}
+
 const Expr *parse_statement(ParseState &ps) {
   assert(ps.token.tk != tk_rcurly);
 
@@ -336,9 +339,11 @@ const Expr *parse_statement(ParseState &ps) {
     return parse_if(ps);
   } else if (ps.token.is_ident(K(assert))) {
     return parse_assert(ps);
-  } else if (ps.token.is_ident("while")) {
+  } else if (ps.token.is_ident(K(defer))) {
+    return parse_defer(ps);
+  } else if (ps.token.is_ident(K(while))) {
     return parse_while(ps);
-  } else if (ps.token.is_ident("for")) {
+  } else if (ps.token.is_ident(K(for))) {
     return parse_for_block(ps);
   } else if (ps.token.is_ident(K(match))) {
     return parse_match(ps);

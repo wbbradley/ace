@@ -718,9 +718,9 @@ llvm::Value *llvm_create_closure_callsite(Location location,
                      llvm_print(llvm_function_to_call->getType()).c_str(),
                      llvm_print(args[0]->getType()).c_str(),
                      llvm_print(args[1]->getType()).c_str()));
-  return builder.CreateCall(
-      llvm_function_to_call, llvm::ArrayRef<llvm::Value *>(args),
-      string_format("call{%s}", location.repr().c_str()));
+  return builder.CreateCall(llvm_function_to_call,
+                            llvm::ArrayRef<llvm::Value *>(args),
+                            string_format("call{%s}", location.repr().c_str()));
 }
 
 } // namespace zion

@@ -32,6 +32,7 @@ mapfile -t test_flags < <((grep '^# test: ' "${test_file}" |
 
 if [[ ${#test_flags[*]} == 0 ]]; then
 	$ECHO "${test_file}:1:1: missing test flags directive (# test: pass, or # test: fail, etc...)\n"
+	$ECHO "run-test.sh: ${C_RED}FAILED${C_RESET} ${test_file}!\n"
 	exit 1
 fi
 
