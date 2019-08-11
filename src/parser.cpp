@@ -326,6 +326,100 @@ const Expr *parse_defer(ParseState &ps) {
   return nullptr;
 }
 
+const Expr *parse_with(ParseState &ps) {
+  chomp_ident(K(with));
+  const Predicate *predicate = nullptr;
+  BoundVarLifetimeTracker bvlt(ps);
+
+  if (ps.token.is_ident(K(let))) {
+    ps.advance();
+    predicate = parse_predicate(ps, false /*allow_else*/,
+                                maybe<Identifier>() /*name_assignment*/);
+    chomp_token(tk_assign);
+  } else {
+    predicate = new IrrefutablePredicate(
+        ps.token.location, Identifier{fresh(), ps.token.location});
+  }
+
+  /* the context manager expression should be parsed in the prior context */
+  const Expr *context_manager_expr = bvlt.escaped_parse_expr();
+  /* parse the success block */
+  const Expr *block = parse_block(ps, false /*expression_means_return*/);
+
+  const Expr *else_block = nullptr;
+  const Predicate *error_predicate = nullptr;
+  if (ps.token.is_ident(K(else))) {
+    ps.advance();
+    /* we are in a MaybeResourceLifetime */
+    /*
+      match context_manager_expr {
+        ResourceAcquired(resource, defer_closure) {
+          defer defer_closure()
+          block
+        }
+        ResourceFailure(error) {
+          else block
+        }
+      }
+    */
+    if (ps.token.tk == tk_identifier || ps.token.tk == tk_lparen) {
+      error_predicate = parse_predicate(
+          ps, false /*allow_else*/, maybe<Identifier>() /*name_assignment*/);
+    } else {
+      error_predicate = new IrrefutablePredicate(
+          ps.token.location, Identifier{fresh(), ps.token.location});
+    }
+    else_block = parse_block(ps, false /*expression_means_return*/);
+    Identifier defer_id{fresh(), ps.token.location};
+    /* construct the defer statement prior to the evaluation of the success
+     * block */
+    std::vector<const Expr *> statements = {
+        new Defer(
+            new Application(new Var(defer_id), {unit_expr(defer_id.location)})),
+        block};
+    return new Match(
+        context_manager_expr,
+        PatternBlocks{
+            new PatternBlock(
+                new CtorPredicate(
+                    predicate->get_location(),
+                    {new CtorPredicate(
+                        predicate->get_location(),
+                        {predicate,
+                         new IrrefutablePredicate(defer_id.location, defer_id)},
+                        Identifier{"std.ResourceLifetime",
+                                   predicate->get_location()},
+                        maybe<Identifier>{})},
+                    Identifier{"std.ResourceAcquired",
+                               predicate->get_location()},
+                    maybe<Identifier>{}),
+                new Block(statements)),
+            new PatternBlock(
+                new CtorPredicate(predicate->get_location(), {error_predicate},
+                                  Identifier{"std.ResourceFailure",
+                                             else_block->get_location()},
+                                  maybe<Identifier>{}),
+                else_block)});
+  } else {
+    Identifier defer_id{fresh(), ps.token.location};
+    /* construct the defer statement prior to the evaluation of the block */
+    std::vector<const Expr *> statements = {
+        new Defer(
+            new Application(new Var(defer_id), {unit_expr(defer_id.location)})),
+        block};
+    return new Match(
+        context_manager_expr,
+        PatternBlocks{new PatternBlock(
+            new CtorPredicate(
+                predicate->get_location(),
+                {predicate,
+                 new IrrefutablePredicate(defer_id.location, defer_id)},
+                Identifier{"std.ResourceLifetime", predicate->get_location()},
+                maybe<Identifier>{}),
+            new Block(statements))});
+  }
+}
+
 const Expr *parse_statement(ParseState &ps) {
   assert(ps.token.tk != tk_rcurly);
 
@@ -341,6 +435,8 @@ const Expr *parse_statement(ParseState &ps) {
     return parse_assert(ps);
   } else if (ps.token.is_ident(K(defer))) {
     return parse_defer(ps);
+  } else if (ps.token.is_ident(K(with))) {
+    return parse_with(ps);
   } else if (ps.token.is_ident(K(while))) {
     return parse_while(ps);
   } else if (ps.token.is_ident(K(for))) {
@@ -1310,7 +1406,7 @@ const Expr *parse_block(ParseState &ps, bool expression_means_return) {
           !ps.line_broke()) {
         throw user_error(ps.token.location,
                          "this looks hard to read. you should have a line "
-                         "break after = blocks, unless they are immediately "
+                         "break after => blocks, unless they are immediately "
                          "followed by one of these: )]}");
       }
       return statement;

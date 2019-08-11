@@ -4,14 +4,14 @@
 import math {even}
 
 struct FibonacciIterator {
-    index Ref Int
-    prior Ref Int
-    cur Ref Int
+    index var Int
+    prior var Int
+    cur var Int
 }
 
 fn fibonacci_sequence() {
     let fs = FibonacciIterator(Ref(0), Ref(1), Ref(1))
-    return Iterator(fn () {
+    return fn () {
         fs.index += 1
         if !fs.index > 2 {
             let next = !fs.prior + !fs.cur
@@ -19,7 +19,7 @@ fn fibonacci_sequence() {
             fs.cur = next
         }
         return Just(!fs.cur)
-    })
+    }
 }
 
 fn main() {

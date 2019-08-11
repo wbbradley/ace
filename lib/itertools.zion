@@ -10,15 +10,15 @@ fn count_up_by(inc Int) {
     return [0..]
 }
 
-fn repeat(x) {
+fn repeat(x) fn () Maybe a {
     let jx = Just(x)
-    return Iterator(fn () => jx)
+    return fn () => jx
 }
 
 fn take(n, iterable) {
     let iterator = iter(iterable)
     var i = n
-    return Iterator(fn() {
+    return fn() {
         if i <= 0 {
             return Nothing
         }
@@ -32,12 +32,12 @@ fn take(n, iterable) {
                 return Nothing
             }
         }
-    })
+    }
 }
 
 fn takewhile(predicate, iterable) {
     let iterator = iter(iterable)
-    return Iterator(fn() {
+    return fn() {
         let val = iterator()
         match val {
             Just(x) {
@@ -51,13 +51,13 @@ fn takewhile(predicate, iterable) {
                 return Nothing
             }
         }
-    })
+    }
 }
 
 fn dropwhile(predicate, iterable) {
     let iterator = iter(iterable)
     var dropping = True
-    return Iterator(fn () {
+    return fn () {
         while dropping {
             match iterator() {
                 val@Just(x) {
@@ -74,7 +74,7 @@ fn dropwhile(predicate, iterable) {
             }
         }
         return iterator()
-    })
+    }
 }
 
 
@@ -83,7 +83,7 @@ fn cycle(xs_input) {
     var xs = Just(iter(xs_input))
     let recording = []
     var index = 0
-    return Iterator(fn () {
+    return fn () {
         match! xs {
             Just(iterator) {
                 match iterator() {
@@ -109,13 +109,13 @@ fn cycle(xs_input) {
             index = 1
             return recording[0]
         }
-    })
+    }
 }
 
 fn chain2(a, b) {
     var outer_iter = iter([iter(a), iter(b)])
     var cur_iterable = outer_iter()
-    return Iterator(fn () {
+    return fn () {
         while match cur_iterable {
             Just(iterable_nested) {
                 let value = iterable_nested()
@@ -133,5 +133,5 @@ fn chain2(a, b) {
             }
         }
         return Nothing
-    })
+    }
 }

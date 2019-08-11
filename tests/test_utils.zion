@@ -1,0 +1,9 @@
+# test: skip
+
+fn make_indexed_logger() fn (String) () {
+    var index = 0
+    return fn (s String) () {
+        print("${index}: ${s}")
+        index += 1
+    }
+}

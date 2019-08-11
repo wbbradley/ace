@@ -244,10 +244,17 @@ std::vector<Ref> rebind_tails(const std::vector<Ref> &types,
 Unification unify_many(const types::Refs &as, const types::Refs &bs) {
   debug_above(8, log("unify_many([%s], [%s])", join_str(as, ", ").c_str(),
                      join_str(bs, ", ").c_str()));
+  Location location = as.size() != 0
+                          ? (bs.size() != 0
+                                 ? best_location(as[0]->get_location(),
+                                                 bs[0]->get_location())
+                                 : as[0]->get_location())
+                          : (bs.size() != 0 ? bs[0]->get_location()
+                                            : INTERNAL_LOC());
   if (as.size() == 0 && bs.size() == 0) {
-    return Unification{true, INTERNAL_LOC(), "", {}};
+    return Unification{true, location, "", {}};
   } else if (as.size() != bs.size()) {
-    return Unification{false, INTERNAL_LOC(), "unification mismatch", {}};
+    return Unification{false, location, "unification mismatch", {}};
     /*
     throw zion::user_error(
         as.size() != 0

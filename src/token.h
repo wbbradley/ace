@@ -118,6 +118,7 @@ K(struct);
 K(unreachable);
 K(var);
 K(while);
+K(with);
 #undef K
 #define K(x) K_##x
 

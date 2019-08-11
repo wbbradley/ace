@@ -690,13 +690,8 @@ class Iterable collection item {
     fn iter(collection) fn () Maybe item
 }
 
-newtype Iterator a = Iterator(fn () Maybe a)
-
-instance Iterable (Iterator a) a {
-    fn iter(i) {
-        let Iterator(f) = i
-        return f
-    }
+instance Iterable (fn () Maybe a) a {
+    iter = id
 }
 
 instance Iterable [a] a {
@@ -763,17 +758,17 @@ instance Iterable (Range a) a {
 
 fn compose(f, g) => fn (x) => f(g(x))
 
-fn map(f fn (a) b, iterable) Iterator b {
+fn map(f fn (a) b, iterable) fn () Maybe b {
     let iterator = iter(iterable)
-    return Iterator(fn () => match iterator() {
+    return fn () => match iterator() {
         Just(x) => Just(f(x))
         Nothing => Nothing
-    })
+    }
 }
 
-fn filter(f fn (a) Bool, xs_input) Iterator a {
+fn filter(f fn (a) Bool, xs_input) fn () Maybe a {
     let xs = iter(xs_input)
-    return Iterator(fn() {
+    return fn() {
         while match xs() {
             Just(a) {
                 if f(a) {
@@ -785,13 +780,13 @@ fn filter(f fn (a) Bool, xs_input) Iterator a {
         /* TODO: make it so that we don't get a
          * "not all control paths return a value" */
         return Nothing
-    })
+    }
 }
 
-fn enumerate(xs) {
+fn enumerate(xs) fn () Maybe (Int, a) {
     var i = -1
     let iterator = iter(xs)
-    return Iterator(fn () {
+    return fn () {
        match iterator() {
            Just(x) {
                i += 1
@@ -801,5 +796,17 @@ fn enumerate(xs) {
                return Nothing
            }
        }
-   })
+   }
 }
+
+newtype ResourceLifetime resource = ResourceLifetime(resource, fn () ())
+
+data MaybeResourceLifetime resource error {
+    ResourceAcquired(ResourceLifetime resource)
+    ResourceFailure(error)
+}
+
+fn resource_acquired(resource, cleanup fn () ()) {
+    return ResourceAcquired(ResourceLifetime(resource, cleanup))
+}
+
