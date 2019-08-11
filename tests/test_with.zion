@@ -1,0 +1,31 @@
+# test: pass
+# expect: 0: setting up test object
+# expect: 1: doing stuff with test object
+# expect: 2: cleaning up test object
+# expect: 3: setting up test object
+# expect: 4: doing stuff with test object
+# expect: 5: cleaning up test object
+# expect: 6: setting up test object
+# expect: 7: cleaning up test object
+
+import test_utils {make_indexed_logger}
+
+fn context_manager(log, str) {
+    log("setting up ${str}")
+    return resource_acquired(str, fn () {
+        log("cleaning up ${str}")
+    })
+}
+
+fn main() {
+    let log = make_indexed_logger()
+    for j in range(3) {
+        with let object = context_manager(log, "test object") {
+            if j == 2 {
+                break
+            }
+            log("doing stuff with ${object}.")
+        } else {
+        }
+    }
+}
