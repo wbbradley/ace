@@ -1,4 +1,4 @@
-# test: pass
+# test: skip
 
 import sys {open, read, write, O_RDONLY, CreateMode}
 

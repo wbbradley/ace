@@ -22,7 +22,11 @@ types::Ref get_data_ctor_type(const DataCtorsMap &data_ctors_map,
                      id->str().c_str(),
                      int(data_ctors_map.data_ctors_type_map.size())));
   debug_above(8, log("%s", ::str(data_ctors_map).c_str()));
-  assert(data_ctors_map.data_ctors_type_map.count(id->id.name) != 0);
+  if (data_ctors_map.data_ctors_type_map.count(id->id.name) == 0) {
+    throw user_error(id->get_location(),
+                     "could not find a data ctor type for %s",
+                     id->str().c_str());
+  }
   auto &data_ctors = data_ctors_map.data_ctors_type_map.at(id->id.name);
 
   auto ctor_type = get(data_ctors, ctor_id.name, {});
@@ -78,6 +82,7 @@ std::map<std::string, types::Ref> get_data_ctors_types(
 int get_ctor_id(const DataCtorsMap &data_ctors_map, std::string ctor_name) {
   auto iter = data_ctors_map.ctor_id_map.find(ctor_name);
   if (iter == data_ctors_map.ctor_id_map.end()) {
+    dbg();
     throw user_error(INTERNAL_LOC(),
                      "bad ctor name requested during translation (%s)",
                      ctor_name.c_str());

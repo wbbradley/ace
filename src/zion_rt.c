@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/errno.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -14,6 +15,10 @@ void zion_init() {
 	GC_INIT();
 
 	/* start mutator ... */
+}
+
+int64_t zion_errno() {
+	return (int64_t)errno;
 }
 
 void *zion_malloc(uint64_t cb) {

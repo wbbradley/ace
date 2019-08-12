@@ -1,4 +1,4 @@
-# test: pass
+# test: skip
 
 import sys {unlink, open, write, close, O_CREAT, O_WRONLY, S_IRUSR, S_IWUSR, CreateMode}
 

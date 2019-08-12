@@ -1,6 +1,10 @@
 # __host_int relies on the compiler being built on the target platform. So,
 # this is only as portable as the compiler build, for now.
 
+newtype FileDescriptor = FileDescriptor(Int)
+
+newtype Errno = Errno(Int)
+
 newtype OpenFlags = OpenFlags(Int)
 let O_RDONLY   =  __host_int(O_RDONLY) as! OpenFlags  /* open for reading only */
 let O_WRONLY   =  __host_int(O_WRONLY) as! OpenFlags  /* open for writing only */
@@ -64,11 +68,22 @@ instance Bitwise CreateMode {
     }
 }
 
-fn open(filename, flags OpenFlags, mode CreateMode) Int {
-    let String(filename, _) = filename
-    let OpenFlags(flags) = flags
-    let CreateMode(mode) = mode
-    return __builtin_ffi_3("open", filename, flags, mode)
+class FileOpen params error {
+    fn open(params) MaybeResourceLifetime FileDescriptor error
+}
+
+newtype File = File(String, OpenFlags, CreateMode)
+
+instance FileOpen File Int {
+    fn open(params) {
+        let File(String(sz_filename, _), OpenFlags(flags), CreateMode(mode)) = params
+        return match __builtin_ffi_3("open", sz_filename, flags, mode) {
+            -1 => ResourceFailure(__builtin_ffi_0("zion_errno"))
+            fd => ResourceAcquired(ResourceLifetime(FileDescriptor(fd), fn () {
+                let _ = __builtin_ffi_1("close", fd) as Int
+            }))
+        }
+    }
 }
 
 fn unlink(filename String) Int {

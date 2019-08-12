@@ -336,7 +336,16 @@ const Expr *CtorPredicate::translate(
   assert(ctor_terms.size() >= 1);
   ctor_terms = vec_slice(ctor_terms, 0, ctor_terms.size() - 1);
 
-  types::Ref resolved_scrutinee_type = scrutinee_type->eval(type_env);
+  types::Ref resolved_scrutinee_type = scrutinee_type->eval(type_env,
+                                                            true /*shallow*/);
+
+  debug_above(
+      2,
+      log_location(get_location(),
+                   "in ctor %s scrutinee type %s resolved to %s with terms %s",
+                   ctor_name.str().c_str(), scrutinee_type->str().c_str(),
+                   resolved_scrutinee_type->str().c_str(),
+                   ::str(ctor_terms).c_str()));
 
   debug_above(4,
               log_location(get_location(), "scrutinee type %s resolved to %s",
@@ -344,46 +353,51 @@ const Expr *CtorPredicate::translate(
                            resolved_scrutinee_type->str().c_str()));
 
   bool just_compare_ints = false;
+
   if (!type_equality(resolved_scrutinee_type, scrutinee_type)) {
-    /* we found a newtype? */
+    debug_above(2, log("we found a newtype or an enum perhaps? (%s vs. %s)",
+                       scrutinee_type->str().c_str(),
+                       resolved_scrutinee_type->str().c_str()));
+    /* we found an enum? */
     if (params.size() == 0) {
       /* if there are zero parameters, then we are comparing enums */
       just_compare_ints = true;
-    } else if (params.size() == 1) {
+    } else {
       auto scrutinee = new Var(scrutinee_id);
       typing[scrutinee] = scrutinee_type;
       auto casted_scrutinee = new As(scrutinee, resolved_scrutinee_type,
                                      true /*force_cast*/);
       typing[casted_scrutinee] = resolved_scrutinee_type;
 
-      Identifier param_id = params[0]->instantiate_name_assignment();
       auto new_bound_vars = bound_vars;
-      new_bound_vars.insert(param_id.name);
-      auto let_body = params[0]->translate(
-          for_defn_id, param_id, resolved_scrutinee_type, do_checks,
-          data_ctors_map, new_bound_vars, tracked_types, type_env, typing,
-          needed_defns, returns, matched, failed);
-      auto casted_pattern_match = new Let(param_id, casted_scrutinee, let_body);
-      typing[casted_pattern_match] = typing.at(let_body);
-      debug_above(4, log("emitting newtype pattern match %s",
-                         casted_pattern_match->str().c_str()));
-      return casted_pattern_match;
-    } else {
-      debug_above(3,
-                  log_location(
-                      get_location(),
-                      "while translating a ctor_predicate. %s != %s and [%s]. "
-                      "treating as a newtype tuple",
-                      resolved_scrutinee_type->str().c_str(),
-                      scrutinee_type->str().c_str(), join_str(params).c_str()));
-      auto tuple_type = safe_dyncast<const types::TypeTuple>(
-          resolved_scrutinee_type);
 
-      return translate_next(for_defn_id, scrutinee_id, resolved_scrutinee_type,
-                            tuple_type->dimensions, do_checks, data_ctors_map,
-                            bound_vars, tracked_types, params, 0,
-                            0 /*dim_offset*/, type_env, typing, needed_defns,
-                            returns, matched, failed);
+      if (params.size() == 1) {
+        Identifier param_id = params[0]->instantiate_name_assignment();
+        new_bound_vars.insert(param_id.name);
+        auto let_body = params[0]->translate(
+            for_defn_id, param_id, resolved_scrutinee_type, do_checks,
+            data_ctors_map, new_bound_vars, tracked_types, type_env, typing,
+            needed_defns, returns, matched, failed);
+        auto casted_pattern_match = new Let(param_id, casted_scrutinee,
+                                            let_body);
+        typing[casted_pattern_match] = typing.at(let_body);
+        debug_above(4, log("emitting newtype pattern match %s",
+                           casted_pattern_match->str().c_str()));
+        return casted_pattern_match;
+      } else {
+        Identifier resolved_scrutinee_id{fresh(), scrutinee_id.location};
+        new_bound_vars.insert(resolved_scrutinee_id.name);
+
+        auto translation = translate_next(
+            for_defn_id, resolved_scrutinee_id, resolved_scrutinee_type,
+            ctor_terms, do_checks, data_ctors_map, new_bound_vars,
+            tracked_types, params, 0, 0 /*dim_offset*/, type_env, typing,
+            needed_defns, returns, matched, failed);
+        const Let *let = new Let(resolved_scrutinee_id, casted_scrutinee,
+                                 translation);
+        typing[let] = typing.at(translation);
+        return let;
+      }
     }
   }
 
@@ -398,6 +412,7 @@ const Expr *CtorPredicate::translate(
     typing[scrutinee] = scrutinee_type;
 
     if (just_compare_ints) {
+      assert(params.size() == 0);
       auto casted_scrutinee = new As(scrutinee, resolved_scrutinee_type,
                                      true /*force_cast*/);
       typing[casted_scrutinee] = resolved_scrutinee_type;

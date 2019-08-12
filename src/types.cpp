@@ -164,7 +164,7 @@ std::ostream &TypeId::emit(std::ostream &os,
 void TypeId::compute_ftvs() const {
 }
 
-Ref TypeId::eval(const TypeEnv &type_env) const {
+Ref TypeId::eval(const TypeEnv &type_env, bool shallow) const {
   debug_above(10, log("trying to get %s from type_env {%s}", id.name.c_str(),
                       ::str(type_env).c_str()));
   return get(type_env, id.name, shared_from_this());
@@ -227,7 +227,7 @@ void TypeVariable::compute_ftvs() const {
   ftvs_.insert(id.name);
 }
 
-Ref TypeVariable::eval(const TypeEnv &type_env) const {
+Ref TypeVariable::eval(const TypeEnv &type_env, bool shallow) const {
   return shared_from_this();
 }
 
@@ -300,14 +300,15 @@ void TypeOperator::compute_ftvs() const {
   set_concat(ftvs_, operand->get_ftvs());
 }
 
-Ref TypeOperator::eval(const TypeEnv &type_env) const {
+Ref TypeOperator::eval(const TypeEnv &type_env, bool shallow) const {
   if (type_env.size() == 0) {
     return shared_from_this();
   }
 
-  auto new_oper = oper->eval(type_env);
+  auto new_oper = oper->eval(type_env, shallow);
   if (new_oper != oper) {
-    return new_oper->apply(operand->eval(type_env));
+    return new_oper->apply(shallow ? operand
+                                   : operand->eval(type_env, shallow));
   }
   return shared_from_this();
 }
@@ -367,15 +368,15 @@ void TypeTuple::compute_ftvs() const {
   }
 }
 
-Ref TypeTuple::eval(const TypeEnv &type_env) const {
-  if (type_env.size() == 0) {
+Ref TypeTuple::eval(const TypeEnv &type_env, bool shallow) const {
+  if (shallow || type_env.size() == 0) {
     return shared_from_this();
   }
 
   bool anything_affected = false;
   Refs type_dimensions;
   for (auto dimension : dimensions) {
-    auto new_dim = dimension->eval(type_env);
+    auto new_dim = dimension->eval(type_env, shallow);
     if (new_dim != dimension) {
       anything_affected = true;
     }
@@ -480,15 +481,15 @@ void TypeParams::compute_ftvs() const {
   }
 }
 
-Ref TypeParams::eval(const TypeEnv &type_env) const {
-  if (type_env.size() == 0) {
+Ref TypeParams::eval(const TypeEnv &type_env, bool shallow) const {
+  if (shallow || type_env.size() == 0) {
     return shared_from_this();
   }
 
   bool anything_affected = false;
   Refs type_dimensions;
   for (auto dimension : dimensions) {
-    auto new_dim = dimension->eval(type_env);
+    auto new_dim = dimension->eval(type_env, shallow);
     if (new_dim != dimension) {
       anything_affected = true;
     }
@@ -607,8 +608,11 @@ Ref TypeLambda::rebind(const Map &bindings_) const {
   return ::type_lambda(binding, body->rebind(bindings));
 }
 
-Ref TypeLambda::eval(const TypeEnv &type_env) const {
-  auto new_body = body->eval(type_env);
+Ref TypeLambda::eval(const TypeEnv &type_env, bool shallow) const {
+  if (shallow) {
+    return shared_from_this();
+  }
+  auto new_body = body->eval(type_env, shallow);
   if (new_body != body) {
     return ::type_lambda(binding, new_body);
   } else {
