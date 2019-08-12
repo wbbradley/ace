@@ -44,7 +44,7 @@ struct Type : public std::enable_shared_from_this<Type> {
 
   virtual void compute_ftvs() const = 0;
 
-  virtual Ref eval(const TypeEnv &type_env) const = 0;
+  virtual Ref eval(const TypeEnv &type_env, bool shallow = false) const = 0;
   SchemeRef generalize(const types::ClassPredicates &pm) const;
   std::string repr(const Map &bindings) const;
   std::string repr() const {
@@ -95,7 +95,7 @@ struct TypeVariable final : public Type {
                      const Map &bindings,
                      int parent_precedence) const override;
   void compute_ftvs() const override;
-  Ref eval(const TypeEnv &type_env) const override;
+  Ref eval(const TypeEnv &type_env, bool shallow) const override;
   Ref rebind(const Map &bindings) const override;
   Ref remap_vars(const std::map<std::string, std::string> &map) const override;
   types::Ref rewrite_ids(
@@ -113,7 +113,7 @@ struct TypeId final : public Type {
                      const Map &bindings,
                      int parent_precedence) const override;
   void compute_ftvs() const override;
-  Ref eval(const TypeEnv &type_env) const override;
+  Ref eval(const TypeEnv &type_env, bool shallow) const override;
   Ref rebind(const Map &bindings) const override;
   Ref remap_vars(const std::map<std::string, std::string> &map) const override;
   types::Ref rewrite_ids(
@@ -136,7 +136,7 @@ struct TypeOperator final : public Type {
                      const Map &bindings,
                      int parent_precedence) const override;
   void compute_ftvs() const override;
-  Ref eval(const TypeEnv &type_env) const override;
+  Ref eval(const TypeEnv &type_env, bool shallow) const override;
   Ref rebind(const Map &bindings) const override;
   Ref remap_vars(const std::map<std::string, std::string> &map) const override;
   types::Ref rewrite_ids(
@@ -155,7 +155,7 @@ struct TypeTuple final : public Type {
                      const Map &bindings,
                      int parent_precedence) const override;
   void compute_ftvs() const override;
-  types::Ref eval(const TypeEnv &type_env) const override;
+  types::Ref eval(const TypeEnv &type_env, bool shallow) const override;
   types::Ref rebind(const Map &bindings) const override;
   types::Ref remap_vars(
       const std::map<std::string, std::string> &map) const override;
@@ -178,7 +178,7 @@ struct TypeParams final : public Type {
                      const Map &bindings,
                      int parent_precedence) const override;
   void compute_ftvs() const override;
-  types::Ref eval(const TypeEnv &type_env) const override;
+  types::Ref eval(const TypeEnv &type_env, bool shallow) const override;
   types::Ref rebind(const Map &bindings) const override;
   types::Ref remap_vars(
       const std::map<std::string, std::string> &map) const override;
@@ -204,7 +204,7 @@ struct TypeLambda final : public Type {
                      const Map &bindings,
                      int parent_precedence) const override;
   void compute_ftvs() const override;
-  Ref eval(const TypeEnv &type_env) const override;
+  Ref eval(const TypeEnv &type_env, bool shallow) const override;
   Ref rebind(const Map &bindings) const override;
   Ref remap_vars(const std::map<std::string, std::string> &map) const override;
   types::Ref rewrite_ids(

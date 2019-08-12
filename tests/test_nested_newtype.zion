@@ -1,0 +1,9 @@
+# test: pass
+# expect: PASS: 1
+
+newtype Holder a = Holder(a)
+
+fn main() {
+    let Holder(Holder(x)) = Holder(Holder(1))
+    print("PASS: ${x}")
+}

@@ -220,9 +220,8 @@ fn putch(ch Char) () {
 fn print(x) () {
     # TODO: this is not great because it is two syscalls, instead of one. This
     # could lead to interleaved writes.
-    let String(sz, length) = str(x)
+    let String(sz, length) = "${str(x)}\n"
     let _ = __builtin_ffi_3("write", 1, sz, length) as Int
-    let _ = __builtin_ffi_2("zion_write_char", 1, '\n') as Int
 }
 
 data Ref a {
@@ -809,4 +808,3 @@ data MaybeResourceLifetime resource error {
 fn resource_acquired(resource, cleanup fn () ()) {
     return ResourceAcquired(ResourceLifetime(resource, cleanup))
 }
-

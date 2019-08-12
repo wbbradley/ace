@@ -1,0 +1,13 @@
+# test: pass
+
+import sys {File, open, O_RDWR, O_TRUNC, O_CREAT, S_IWUSR, S_IRUSR, FileDescriptor}
+
+fn main() {
+    with let FileDescriptor(fd) = open(File("/var/tmp/newfile.txt", O_RDWR|O_TRUNC|O_CREAT, S_IWUSR|S_IRUSR)) {
+        let _ = __builtin_ffi_3("write", fd, "Hello\n", 6) as Int
+    } else errno {
+        __builtin_ffi_1("perror", "failed to open file")
+        print("errno = ${errno}")
+    }
+    print("PASS")
+}
