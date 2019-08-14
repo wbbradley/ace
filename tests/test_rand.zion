@@ -1,5 +1,5 @@
-# need to ensure libsodium is installed
-# test: skip
+# test: pass
+# expect: found it after
 
 import random {rand}
 

@@ -328,6 +328,12 @@ const Expr *parse_defer(ParseState &ps) {
 
 const Expr *parse_with(ParseState &ps) {
   chomp_ident(K(with));
+  bool unwritten_else = false;
+  if (ps.token.tk == tk_bang && ps.token.follows_after(ps.prior_token)) {
+    unwritten_else = true;
+    ps.advance();
+  }
+
   const Predicate *predicate = nullptr;
   BoundVarLifetimeTracker bvlt(ps);
 
@@ -346,11 +352,20 @@ const Expr *parse_with(ParseState &ps) {
   /* parse the success block */
   const Expr *block = parse_block(ps, false /*expression_means_return*/);
 
-  const Expr *else_block = nullptr;
+  const Expr *else_block = unwritten_else ? unit_expr(ps.token.location)
+                                          : nullptr;
   const Predicate *error_predicate = nullptr;
-  if (ps.token.is_ident(K(else))) {
-    ps.advance();
-    /* we are in a MaybeResourceLifetime */
+  if (unwritten_else || ps.token.is_ident(K(else))) {
+    if (ps.token.is_ident(K(else)) && unwritten_else) {
+      throw user_error(ps.token.location,
+                       "prior 'with!' prevents the usage of 'else' here. "
+                       "remove the 'else' or remove the '!'");
+    }
+    if (!unwritten_else) {
+      ps.advance();
+    }
+
+    /* we are in a WithElseResource */
     /*
       match context_manager_expr {
         ResourceAcquired(resource, defer_closure) {
@@ -362,14 +377,20 @@ const Expr *parse_with(ParseState &ps) {
         }
       }
     */
-    if (ps.token.tk == tk_identifier || ps.token.tk == tk_lparen) {
+    if (!unwritten_else &&
+        (ps.token.tk == tk_identifier || ps.token.tk == tk_lparen)) {
       error_predicate = parse_predicate(
           ps, false /*allow_else*/, maybe<Identifier>() /*name_assignment*/);
     } else {
       error_predicate = new IrrefutablePredicate(
           ps.token.location, Identifier{fresh(), ps.token.location});
     }
-    else_block = parse_block(ps, false /*expression_means_return*/);
+    if (!unwritten_else) {
+      else_block = parse_block(ps, false /*expression_means_return*/);
+    } else {
+      assert(else_block != nullptr);
+    }
+
     Identifier defer_id{fresh(), ps.token.location};
     /* construct the defer statement prior to the evaluation of the success
      * block */
@@ -387,7 +408,7 @@ const Expr *parse_with(ParseState &ps) {
                         predicate->get_location(),
                         {predicate,
                          new IrrefutablePredicate(defer_id.location, defer_id)},
-                        Identifier{"std.ResourceLifetime",
+                        Identifier{"std.WithResource",
                                    predicate->get_location()},
                         maybe<Identifier>{})},
                     Identifier{"std.ResourceAcquired",
@@ -414,7 +435,7 @@ const Expr *parse_with(ParseState &ps) {
                 predicate->get_location(),
                 {predicate,
                  new IrrefutablePredicate(defer_id.location, defer_id)},
-                Identifier{"std.ResourceLifetime", predicate->get_location()},
+                Identifier{"std.WithResource", predicate->get_location()},
                 maybe<Identifier>{}),
             new Block(statements))});
   }
@@ -948,8 +969,12 @@ const Expr *parse_postfix_expr(ParseState &ps) {
 
   while (!ps.line_broke() &&
          (ps.token.tk == tk_lsquare || ps.token.tk == tk_lparen ||
-          ps.token.tk == tk_dot)) {
+          ps.token.tk == tk_dot || ps.token.tk == tk_bang)) {
     switch (ps.token.tk) {
+    case tk_bang:
+      expr = new As(expr, type_unit(ps.token_and_advance().location),
+                    true /*force_cast*/);
+      break;
     case tk_lparen: {
       /* function call */
       auto location = ps.token.location;

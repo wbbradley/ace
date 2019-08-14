@@ -10,7 +10,7 @@ data Bool {
     True
 }
 
-fn not(x) {
+fn not(x Bool) {
     if x {
         return False
     } else {
@@ -51,11 +51,12 @@ instance Repr () {
     fn repr(a) => "()"
 }
 
+fn strlen(sz *Char) Int => __builtin_ffi_1("zion_strlen", sz)
+
 instance Show Int {
-    fn str(x) {
+    fn str(x Int) {
         let sz = __builtin_ffi_1("zion_itoa", x)
-        let length = __builtin_ffi_1("zion_strlen", sz)
-        return String(sz, length)
+        return String(sz, strlen(sz))
     }
 }
 
@@ -214,14 +215,14 @@ instance Show [a] {
 }
 
 fn putch(ch Char) () {
-    let _ = __builtin_ffi_2("zion_write_char", 1, ch) as Int
+    (__builtin_ffi_2("zion_write_char", 1, ch) as Int)!
 }
 
 fn print(x) () {
     # TODO: this is not great because it is two syscalls, instead of one. This
     # could lead to interleaved writes.
     let String(sz, length) = "${str(x)}\n"
-    let _ = __builtin_ffi_3("write", 1, sz, length) as Int
+    (__builtin_ffi_3("write", 1, sz, length) as Int)!
 }
 
 data Ref a {
@@ -798,13 +799,37 @@ fn enumerate(xs) fn () Maybe (Int, a) {
    }
 }
 
-newtype ResourceLifetime resource = ResourceLifetime(resource, fn () ())
+# WithResources are expected by `with` blocks without `else` blocks. In other
+# words, `with` blocks without follow-up `else` blocks cannot fail to provide
+# the resource.
+newtype WithResource resource = WithResource(resource, fn () ())
 
-data MaybeResourceLifetime resource error {
-    ResourceAcquired(ResourceLifetime resource)
+# `WithElseResource`s are expected by `with` blocks that have `else` blocks. The
+# input to a `with` block can fail to acquire the resource, and thus pass
+# control to the `else` block.
+data WithElseResource resource error {
+    ResourceAcquired(WithResource resource)
     ResourceFailure(error)
 }
 
 fn resource_acquired(resource, cleanup fn () ()) {
-    return ResourceAcquired(ResourceLifetime(resource, cleanup))
+    return ResourceAcquired(WithResource(resource, cleanup))
 }
+
+newtype Buffer = Buffer(*Char, Int)
+class Serializeable a {
+    fn serialize(a) Buffer
+}
+
+instance Serializeable Buffer {
+    serialize = id
+}
+
+instance Serializeable String {
+    fn serialize(str) {
+        let String(sz, l) = str
+        # Assume utf-8 here.
+        return Buffer(sz, l)
+    }
+}
+
