@@ -1,5 +1,19 @@
 #!/usr/bin/env bash
 
+if [[ -t 1 ]] && [[ -t 2 ]] && [[ "$VIMRUNTIME" == "" ]]; then
+	export WMAKE_INTERACTIVE="1"
+	export C_RED="\e[1;31m"
+	export C_GREEN="\e[1;32m"
+	export C_YELLOW="\e[1;33m"
+	export C_RESET="\e[0m"
+else
+	export WMAKE_INTERACTIVE="0"
+	export C_RED=""
+	export C_GREEN=""
+	export C_YELLOW=""
+	export C_RESET=""
+fi
+
 function logged_run() {
 	[ "$DEBUG_TESTS" != "" ] && echo "$@"
 	eval "$@"
@@ -61,9 +75,7 @@ done
 
 if [[ ${#failed_tests[*]} != 0 ]]; then
 		echo "$0:$LINENO:1: Tests failed ($((runs-passed))/${runs}):"
-		for failed_test in ${failed_tests[*]}; do
-				printf "\t%s\n" "$failed_test"
-		done
+		printf "\t${C_RED}%s${C_RESET}\n" "${failed_tests[@]}"
 		exit 1
 else
 		echo "Tests passed (${passed}/${runs})!"

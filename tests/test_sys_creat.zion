@@ -1,18 +1,17 @@
-# test: skip
+# test: pass
 
-import sys {unlink, open, write, close, O_CREAT, O_WRONLY, S_IRUSR, S_IWUSR, CreateMode}
+import sys {File, unlink, open, write, close, O_CREAT, O_WRONLY, S_IRUSR,
+            S_IWUSR, CreateMode}
 
 fn main() {
-    let filename = "/var/tmp/junk.testfile"
-    let _ = unlink(filename)
-    let fd = open(filename,
-        O_CREAT|O_WRONLY, S_IRUSR|S_IWUSR)
-    if fd < 0 {
-        let _ = __builtin_ffi_1("perror", "open") as Int
-        return
+    let filename = "/var/tmp/test_sys_creat.txt"
+    unlink(filename)!
+    defer fn () { unlink(filename)! }()
+
+    with let fd = open(File(filename, O_CREAT|O_WRONLY, S_IRUSR|S_IWUSR)) {
+        write(fd, "test")!
+    } else errno {
+        print("Failed with ${errno}")
     }
-    let String(buf, len) = "test"
-    let s = write(fd, buf, len)
-    let q = close(fd)
     print("PASS")
 }

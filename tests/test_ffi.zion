@@ -1,26 +1,23 @@
 # test: skip
 
-import sys {open, read, write, O_RDONLY, CreateMode}
+import sys {stdout, File, open, read, write, O_RDONLY, CreateMode}
 
 fn main() {
-    let fd = open(str(__filename__), O_RDONLY, CreateMode(0))
+    with! let fd = open(File(str(__filename__), O_RDONLY, CreateMode(0))) {
+        /* This is allocating a small buffer size just to test the
+         * looping behavior and that we aren't off by one, etc... */
+        let buffer = alloc(14)
 
-    /* This is allocating a small buffer size just to test the
-     * looping behavior and that we aren't off by one, etc... */
-    let buffer = alloc(14)
-
-    while True {
-        let cb = read(fd, buffer, 14)
-        if cb <= 0 {
-            break
-        }
-        var to_write = cb
-        while to_write != 0 {
-            let written = write(1, buffer, to_write)
-            if written <= 0 {
+        while True {
+            let cb = read(fd, buffer, 14)
+            if cb <= 0 {
                 break
             }
-            to_write -= written
+            match! write(stdout, Buffer(buffer, cb)) {
+                Right(errno) {
+                    panic("Failed to write to stdout with ${errno}")
+                }
+            }
         }
     }
 }

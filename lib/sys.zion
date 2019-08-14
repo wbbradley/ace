@@ -3,7 +3,27 @@
 
 newtype FileDescriptor = FileDescriptor(Int)
 
+let stdin = 0 as! FileDescriptor
+let stdout = 1 as! FileDescriptor
+let stderr = 2 as! FileDescriptor
+
+instance Repr FileDescriptor {
+    fn repr(fd) {
+        let FileDescriptor(fd) = fd
+        return repr(fd)
+    }
+}
+
 newtype Errno = Errno(Int)
+
+instance Show Errno {
+    fn str(errno) {
+        let Errno(errno) = errno
+        let buffer = alloc(1024) as *Char
+        let res = __builtin_ffi_3("strerror_r", errno, buffer, 1024) as *Char
+        return String(res, strlen(res))
+    }
+}
 
 newtype OpenFlags = OpenFlags(Int)
 let O_RDONLY   =  __host_int(O_RDONLY) as! OpenFlags  /* open for reading only */
@@ -69,18 +89,18 @@ instance Bitwise CreateMode {
 }
 
 class FileOpen params error {
-    fn open(params) MaybeResourceLifetime FileDescriptor error
+    fn open(params) WithElseResource FileDescriptor error
 }
 
 newtype File = File(String, OpenFlags, CreateMode)
 
-instance FileOpen File Int {
+instance FileOpen File Errno {
     fn open(params) {
         let File(String(sz_filename, _), OpenFlags(flags), CreateMode(mode)) = params
         return match __builtin_ffi_3("open", sz_filename, flags, mode) {
-            -1 => ResourceFailure(__builtin_ffi_0("zion_errno"))
-            fd => ResourceAcquired(ResourceLifetime(FileDescriptor(fd), fn () {
-                let _ = __builtin_ffi_1("close", fd) as Int
+            -1 => ResourceFailure(Errno(__builtin_ffi_0("zion_errno")))
+            fd => ResourceAcquired(WithResource(FileDescriptor(fd), fn () {
+                (__builtin_ffi_1("close", fd) as Int)!
             }))
         }
     }
@@ -101,10 +121,38 @@ fn creat(filename, mode CreateMode) Int {
     return __builtin_ffi_2("creat", filename, mode)
 }
 
-fn read(fd Int, buffer *Char, nbyte Int) Int {
+fn read(fd FileDescriptor, buffer *Char, nbyte Int) Int {
+    let FileDescriptor(fd) = fd
     return __builtin_ffi_3("read", fd, buffer, nbyte)
 }
 
-fn write(fd Int, buffer *Char, nbyte Int) Int {
-    return __builtin_ffi_3("write", fd, buffer, nbyte)
+# For now all writes are blocking
+fn write(file, buffer) Either () Errno {
+    let Buffer(pb, cb) = serialize(buffer)
+    var cur = 0
+    while cur < cb {
+        match write_buffer(file, __builtin_ptr_add(pb, cur), cb - cur) {
+            Right(errno) {
+                return Right(errno)
+            }
+            Left(bytes_written) {
+                cur += bytes_written
+            }
+        }
+    }
+    return Left()
+}
+
+class WriteBuffer file {
+    fn write_buffer(file, *Char, Int) Either Int Errno
+}
+
+instance WriteBuffer FileDescriptor {
+    fn write_buffer(fd, pb, cb) {
+        let FileDescriptor(fd) = fd
+        return match __builtin_ffi_3("write", fd, pb, cb) {
+            -1 => Right(Errno(__builtin_ffi_0("zion_errno")))
+            cb => Left(cb)
+        }
+    }
 }
