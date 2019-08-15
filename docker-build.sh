@@ -1,6 +1,6 @@
-#!/bin/sh
-IMAGE=zionlang/zion
-VERSION=`cat VERSION`
+#!/bin/bash
+IMAGE="zionlang/zion"
+VERSION="$(cat VERSION)"
 
-docker build -t $IMAGE:$VERSION .
-docker tag $IMAGE:$VERSION $IMAGE:latest
+docker build -t "${IMAGE}:${VERSION}" .
+docker tag "${IMAGE}:${VERSION}" "${IMAGE}:latest"

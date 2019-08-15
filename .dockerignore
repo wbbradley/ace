@@ -1,9 +1,14 @@
 **/build-*
 **/build
 **/docs
-**/*.llir
+**/*.ll
 **/*.ir
 **/zion
 **/*.o
 **/logs
+lib    # Gets mounted using -v in docker-run.sh
+tests  # Gets mounted using -v in docker-run.sh
+*.out
+*.jpg
+test_*
 .git
