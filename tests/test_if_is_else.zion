@@ -1,0 +1,16 @@
+# test: fail
+# error: this pattern is already covered
+
+data DonutKind {
+    Glazed
+    Maple
+    OldFashioned
+}
+
+newtype Donut = Donut(DonutKind)
+
+fn main() {
+    if Donut(Maple) is Donut(donut_kind) {
+        print("What are you talking about!?")
+    }
+}
