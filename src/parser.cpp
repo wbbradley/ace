@@ -1249,7 +1249,7 @@ const Expr *parse_comparison_expr(ParseState &ps) {
   /* all comparison operators have the same operator precedence and are left
    * associative */
   static const std::set<std::string> comparisons{
-      "<", ">", "<=", ">=", "==", "!=", "is", "in",
+      "<", ">", "<=", ">=", "==", "!=", "in",
   };
   std::list<const Expr *> terms;
   std::list<Identifier> operands;
@@ -1485,7 +1485,16 @@ const Expr *parse_block(ParseState &ps, bool expression_means_return) {
   }
 }
 
-const Conditional *parse_if(ParseState &ps) {
+const PatternBlock *parse_pattern_block(ParseState &ps,
+                                        bool allow_else = true) {
+  BoundVarLifetimeTracker bvlt(ps);
+
+  return new PatternBlock(
+      parse_predicate(ps, allow_else, maybe<Identifier>() /*name_assignment*/),
+      parse_block(ps, false /*expression_means_return*/));
+}
+
+const Expr *parse_if(ParseState &ps) {
   if (ps.token.is_ident(K(if))) {
     ps.advance();
   } else {
@@ -1494,24 +1503,47 @@ const Conditional *parse_if(ParseState &ps) {
 
   Token condition_token = ps.token;
   const Expr *condition = parse_expr(ps);
-  const Expr *block = parse_block(ps, false /*expression_means_return*/);
-  const Expr *else_ = nullptr;
-  /* check the successive instructions for "else if" or else */
-  if (ps.token.is_ident(K(else))) {
+  if (ps.token.is_ident(K(is))) {
+    /* if ... is is a special form */
+    Token is_token = ps.token;
     ps.advance();
-    if (ps.token.is_ident(K(if))) {
-      if (ps.line_broke()) {
-        throw user_error(ps.token.location, "else if must be on the same line");
-      }
-      else_ = parse_if(ps);
+    PatternBlocks pattern_blocks{parse_pattern_block(ps)};
+    if (ps.token.is_ident(K(else))) {
+      Token else_token = ps.token_and_advance();
+      const Expr *else_block = ps.token.is_ident(K(if))
+                                   ? parse_if(ps)
+                                   : parse_block(
+                                         ps, false /*expression_means_return*/);
+      pattern_blocks.push_back(new PatternBlock(
+          new IrrefutablePredicate(else_token.location, maybe<Identifier>()),
+          else_block));
     } else {
-      else_ = parse_block(ps, false /*expression_means_return*/);
+      pattern_blocks.push_back(new PatternBlock(
+          new IrrefutablePredicate(is_token.location, maybe<Identifier>()),
+          unit_expr(is_token.location)));
     }
-  }
+    return new Match(condition, pattern_blocks);
+  } else {
+    const Expr *block = parse_block(ps, false /*expression_means_return*/);
+    const Expr *else_ = nullptr;
+    /* check the successive instructions for "else if" or else */
+    if (ps.token.is_ident(K(else))) {
+      ps.advance();
+      if (ps.token.is_ident(K(if))) {
+        if (ps.line_broke()) {
+          throw user_error(ps.token.location,
+                           "else if must be on the same line");
+        }
+        else_ = parse_if(ps);
+      } else {
+        else_ = parse_block(ps, false /*expression_means_return*/);
+      }
+    }
 
-  return new Conditional(condition, block,
-                         else_ != nullptr ? else_
-                                          : unit_expr(ps.token.location));
+    return new Conditional(condition, block,
+                           else_ != nullptr ? else_
+                                            : unit_expr(ps.token.location));
+  }
 }
 
 const While *parse_while(ParseState &ps) {
@@ -1683,15 +1715,6 @@ const Predicate *parse_predicate(ParseState &ps,
   }
 }
 
-const PatternBlock *parse_pattern_block(ParseState &ps) {
-  BoundVarLifetimeTracker bvlt(ps);
-
-  return new PatternBlock(
-      parse_predicate(ps, true /*allow_else*/,
-                      maybe<Identifier>() /*name_assignment*/),
-      parse_block(ps, false /*expression_means_return*/));
-}
-
 const Match *parse_match(ParseState &ps) {
   chomp_ident(K(match));
   bool auto_else = false;
@@ -1710,7 +1733,7 @@ const Match *parse_match(ParseState &ps) {
                        "place else patterns outside of the match block. (match "
                        "... { ... } else { ... })");
     }
-    pattern_blocks.push_back(parse_pattern_block(ps));
+    pattern_blocks.push_back(parse_pattern_block(ps, false /*allow_else*/));
   }
   chomp_token(tk_rcurly);
   if (auto_else) {

@@ -1,0 +1,32 @@
+# test: pass
+# expect: Your MetaSandwich fillers are Onion and 3 Cookies.
+
+data Filler {
+    Lettuce
+    Cheese
+    Onion
+    Cookies(Int)
+}
+
+instance Show Filler {
+    fn str(filler) => match filler {
+        Lettuce => "Lettuce"
+        Cheese => "Cheese"
+        Onion => "Onion"
+        Cookies(count) => "${count} Cookies"
+    }
+}
+
+data Sandwich {
+    HotDog([Filler])
+    Hamburger([Filler])
+    MetaSandwich(Sandwich, [Filler], Sandwich)
+    Crepe
+}
+
+fn main() {
+    let crazy_sandwich = MetaSandwich(Hamburger([Lettuce, Cheese]), [Onion, Cookies(3)], Crepe)
+    if crazy_sandwich is MetaSandwich(Hamburger(_), fillers, Crepe) {
+        print("Your MetaSandwich fillers are ${join(" and ", fillers)}.")
+    }
+}

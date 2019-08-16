@@ -66,7 +66,7 @@ const ast::Expr *parse_assignment(ParseState &ps);
 const ast::Expr *parse_tuple_expr(ParseState &ps);
 const ast::Expr *parse_let(ParseState &ps, Identifier var_id, bool is_let);
 const ast::Expr *parse_block(ParseState &ps, bool expression_means_return);
-const ast::Conditional *parse_if(ParseState &ps);
+const ast::Expr *parse_if(ParseState &ps);
 const ast::While *parse_while(ParseState &ps);
 const ast::Expr *parse_lambda(ParseState &ps);
 const ast::Match *parse_match(ParseState &ps);

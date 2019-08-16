@@ -12,10 +12,8 @@ RUN apt-get update -y && apt-get install -y \
 	gnupg2 \
 	less \
 	libgc-dev \
-	libgc-dev \
 	make \
 	man \
-	ninja-build \
 	pkg-config \
 	shellcheck \
 	time \

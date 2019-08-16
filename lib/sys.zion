@@ -3,6 +3,37 @@
 
 newtype FileDescriptor = FileDescriptor(Int)
 
+/*
+instance Iterable FileDescriptor String {
+    # Readlines.
+    fn iter(fd) {
+        let chunk_iter = iter(ChunkedReader(fd))
+        var cur_chunk Maybe Buffer
+        var cur_chunk_index = 0
+        var cur_index = 0
+        let working_spans = []
+        let remaining_span = fn() String {
+            let ret = join("", working_spans)
+            resize(working_spans, 0)
+            return ret
+        }
+        return fn () {
+            if cur_chunk is Nothing {
+                cur_chunk = chunk_iter()
+                chunk_index = 0
+            }
+            while match cur_chunk {
+                Nothing {
+                    return remaining_span()
+                }
+
+
+                Just(buffer) =>
+        }
+    }
+}
+*/
+
 let stdin = 0 as! FileDescriptor
 let stdout = 1 as! FileDescriptor
 let stderr = 2 as! FileDescriptor
@@ -20,7 +51,7 @@ instance Show Errno {
     fn str(errno) {
         let Errno(errno) = errno
         let buffer = alloc(1024) as *Char
-        let res = __builtin_ffi_3("strerror_r", errno, buffer, 1024) as *Char
+        let res = __builtin_ffi_3("zion_strerror", errno, buffer, 1024) as *Char
         return String(res, strlen(res))
     }
 }
@@ -51,6 +82,8 @@ let S_IRWXO = __host_int(S_IRWXO) as! CreateMode /* others have read, write, and
 let S_IROTH = __host_int(S_IROTH) as! CreateMode /* others have read permission */
 let S_IWOTH = __host_int(S_IWOTH) as! CreateMode /* others have write permission */
 let S_IXOTH = __host_int(S_IXOTH) as! CreateMode /* others have execute permission */
+
+fn create_mode_default() => S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH
 
 instance Bitwise OpenFlags {
     fn &(a, b) {
@@ -103,6 +136,13 @@ instance FileOpen File Errno {
                 (__builtin_ffi_1("close", fd) as Int)!
             }))
         }
+    }
+}
+
+instance FileOpen String Errno {
+    # The default file open for generic reads and writes
+    fn open(filename) {
+        return open(File(filename, O_RDWR|O_CREAT, create_mode_default()))
     }
 }
 

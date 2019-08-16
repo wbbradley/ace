@@ -99,6 +99,7 @@ K(fn);
 K(for);
 K(has);
 K(if);
+K(is);
 K(import);
 K(in);
 K(instance);

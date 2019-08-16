@@ -21,6 +21,19 @@ int64_t zion_errno() {
 	return (int64_t)errno;
 }
 
+const char *zion_strerror(int errnum, char *buf, int64_t bufsize) {
+#ifdef __APPLE__
+	if (strerror_r(errnum, buf, bufsize) == 0) {
+		return buf;
+	} else {
+		return "Failed to find error description.";
+	}
+#else
+	strncpy(buf, "Unknown error", bufsize);
+	strerror_r(errnum, buf, bufsize);
+	return buf;
+#endif
+}
 void *zion_malloc(uint64_t cb) {
   void *pb = GC_MALLOC(cb);
   // printf("allocated %" PRId64 " bytes at 0x%08" PRIx64 "\n", cb, (uint64_t)pb);

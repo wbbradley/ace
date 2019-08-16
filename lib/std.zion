@@ -512,12 +512,13 @@ struct Vector a {
 }
 
 fn resize(xs [a], new_len Int) () {
+    let Vector(_, var size, _) = xs
     assert(not (new_len < 0))
-    while !xs.size < new_len {
+    while size < new_len {
         append(xs, new a)
     }
-    if new_len < !xs.size {
-        xs.size = new_len
+    if new_len < size {
+        size = new_len
     }
 }
 
