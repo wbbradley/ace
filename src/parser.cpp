@@ -1166,65 +1166,14 @@ const Expr *parse_shift_expr(ParseState &ps) {
   return expr;
 }
 
-const Expr *parse_binary_eq_expr(ParseState &ps) {
-  auto lhs = parse_shift_expr(ps);
-  if (ps.line_broke() ||
-      !(ps.token.tk == tk_binary_equal || ps.token.tk == tk_binary_inequal)) {
-    /* there is no rhs */
-    return lhs;
-  }
-
-  Identifier op = ps.id_mapped({ps.token.text, ps.token.location});
-  ps.advance();
-
-  return new Application(new Var(op), {lhs, parse_shift_expr(ps)});
-}
-
-const Expr *parse_ineq_expr(ParseState &ps) {
-  auto lhs = parse_binary_eq_expr(ps);
-  if (ps.line_broke() || !(ps.token.tk == tk_gt || ps.token.tk == tk_gte ||
-                           ps.token.tk == tk_lt || ps.token.tk == tk_lte)) {
-    /* there is no rhs */
-    return lhs;
-  }
-
-  Identifier op = ps.id_mapped({ps.token.text, ps.token.location});
-  ps.advance();
-
-  return new Application(new Var(op), {lhs, parse_shift_expr(ps)});
-}
-
-const Expr *parse_eq_expr(ParseState &ps) {
-  auto lhs = parse_ineq_expr(ps);
-  bool not_in = false;
-  if (ps.token.is_ident(K(not))) {
-    eat_token();
-    expect_ident(K(in));
-    not_in = true;
-  }
-
-  if (ps.line_broke() ||
-      !(ps.token.is_ident(K(in)) || ps.token.tk == tk_equal ||
-        ps.token.tk == tk_inequal)) {
-    /* there is no rhs */
-    return lhs;
-  }
-
-  Identifier op = ps.id_mapped(
-      {not_in ? "not_in" : ps.token.text, ps.token.location});
-  ps.advance();
-
-  return new Application(new Var(op), {lhs, parse_ineq_expr(ps)});
-}
-
 const Expr *parse_bitwise_and(ParseState &ps) {
-  auto expr = parse_eq_expr(ps);
+  auto expr = parse_shift_expr(ps);
 
   while (!ps.line_broke() && ps.token.tk == tk_ampersand) {
     Identifier op = ps.id_mapped({ps.token.text, ps.token.location});
     ps.advance();
 
-    expr = new Application(new Var(op), {expr, parse_eq_expr(ps)});
+    expr = new Application(new Var(op), {expr, parse_shift_expr(ps)});
   }
 
   return expr;
@@ -1279,13 +1228,86 @@ const Expr *fold_or_exprs(std::vector<const Expr *> exprs, int index) {
   }
 }
 
+const Expr *foldl_application(
+    ParseState &ps,
+    const Expr *seed,
+    std::list<const Expr *>::iterator terms_cur,
+    const std::list<const Expr *>::iterator terms_end,
+    std::list<Identifier>::iterator operands_cur,
+    const std::list<Identifier>::iterator &operands_end) {
+  const Expr *lhs = seed;
+  if (terms_cur == terms_end) {
+    return lhs;
+  }
+  const Expr *app = new Application(new Var(ps.id_mapped(*operands_cur++)),
+                                    {lhs, *terms_cur++});
+  return foldl_application(ps, app, terms_cur, terms_end, operands_cur,
+                           operands_end);
+}
+
+const Expr *parse_comparison_expr(ParseState &ps) {
+  /* all comparison operators have the same operator precedence and are left
+   * associative */
+  static const std::set<std::string> comparisons{
+      "<", ">", "<=", ">=", "==", "!=", "is", "in",
+  };
+  std::list<const Expr *> terms;
+  std::list<Identifier> operands;
+  do {
+    terms.push_back(parse_bitwise_or(ps));
+    bool not_ = false;
+    if (ps.token.is_ident(K(not))) {
+      ps.advance();
+      not_ = true;
+    }
+
+    if (in(ps.token.text, comparisons)) {
+      if (not_) {
+        if (ps.token.text != "in") {
+          throw user_error(ps.token.location,
+                           "'not' is only valid before 'in'");
+        } else {
+          operands.push_back(Identifier{"not_in", ps.token.location});
+          continue;
+        }
+      } // not-in
+
+      operands.push_back(Identifier{ps.token.text, ps.token.location});
+      continue;
+    } else if (not_) {
+      throw user_error(ps.token.location, "unexpected dangling 'not' operator");
+    } else {
+      break;
+    }
+  } while (ps.advance());
+
+  if (terms.size() != operands.size() + 1) {
+    throw user_error(ps.token.location,
+                     "invalid number of terms to operands in prior comparison");
+  }
+  auto terms_iter = terms.begin();
+  ++terms_iter;
+  return foldl_application(ps, terms.front(), terms_iter, terms.end(),
+                           operands.begin(), operands.end());
+}
+
+const Expr *parse_not_expr(ParseState &ps) {
+  if (ps.token.is_ident(K(not))) {
+    Token not_token = ps.token_and_advance();
+    return new Application(new Var(ps.id_mapped(iid(not_token))),
+                           {parse_comparison_expr(ps)});
+  } else {
+    return parse_comparison_expr(ps);
+  }
+}
+
 const Expr *parse_and_expr(ParseState &ps) {
   std::vector<const Expr *> exprs;
-  exprs.push_back(parse_bitwise_or(ps));
+  exprs.push_back(parse_not_expr(ps));
 
   while (!ps.line_broke() && (ps.token.is_ident(K(and)))) {
     ps.advance();
-    exprs.push_back(parse_bitwise_or(ps));
+    exprs.push_back(parse_not_expr(ps));
   }
 
   return fold_and_exprs(exprs, 0);
