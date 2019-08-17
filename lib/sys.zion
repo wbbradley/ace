@@ -1,38 +1,76 @@
-# __host_int relies on the compiler being built on the target platform. So,
-# this is only as portable as the compiler build, for now.
+import bufio {BufferedFileIO}
+
+link pkg "bdw-gc"
 
 newtype FileDescriptor = FileDescriptor(Int)
+newtype LineReader stream = LineReader(BufferedFileIO stream)
 
-/*
-instance Iterable FileDescriptor String {
-    # Readlines.
-    fn iter(fd) {
-        let chunk_iter = iter(ChunkedReader(fd))
-        var cur_chunk Maybe Buffer
-        var cur_chunk_index = 0
-        var cur_index = 0
-        let working_spans = []
-        let remaining_span = fn() String {
-            let ret = join("", working_spans)
-            resize(working_spans, 0)
-            return ret
+fn readlines(stream) => LineReader(BufferedFileIO(stream))
+
+instance Iterable (LineReader stream) String {
+    # readlines.
+    fn iter(line_reader LineReader stream) fn () Maybe String {
+        let LineReader(bufio) = line_reader
+        let chunk_iter = iter(bufio)
+        var cur_chunk = Nothing as Maybe Buffer
+        let working_spans = [] as [String]
+        let concat_current_line = fn() Maybe String {
+            if len(working_spans) != 0 {
+                let ret = join("", working_spans)
+                reset(working_spans)
+                return Just(ret)
+            } else {
+                return Nothing
+            }
         }
+        let add_span = fn(buf *Char, span_start Int, span_end Int) {
+            let cb = span_end - span_start
+            if cb > 0 {
+                append(
+                    working_spans,
+                    String(
+                        __builtin_ffi_2(
+                            "GC_strndup",
+                            __builtin_ptr_add(buf, span_start),
+                            cb),
+                        cb))
+            }
+        }
+
+        var span_start = 0
+        var span_end = 0
         return fn () {
             if cur_chunk is Nothing {
                 cur_chunk = chunk_iter()
-                chunk_index = 0
+                span_start = 0
+                span_end = 0
             }
             while match cur_chunk {
                 Nothing {
-                    return remaining_span()
+                    return concat_current_line()
                 }
-
-
-                Just(buffer) =>
+                Just(Buffer(buf, cb)) {
+                    /* scan for newline */
+                    while span_end < cb {
+                        if buf[span_end] == '\n' {
+                            span_end += 1
+                            add_span(buf, span_start, span_end)
+                            span_start = span_end
+                            if span_start >= cb {
+                                /* Grab another chunk next time we get called */
+                                cur_chunk = Nothing
+                            }
+                            return concat_current_line()
+                        } else {
+                            span_end += 1
+                        }
+                    }
+                }
+            }
+            return Nothing
         }
     }
 }
-*/
 
 let stdin = 0 as! FileDescriptor
 let stdout = 1 as! FileDescriptor
@@ -139,6 +177,10 @@ instance FileOpen File Errno {
     }
 }
 
+instance FileOpen (*Char) Errno {
+    fn open(filename) => open(String(filename, strlen(filename)))
+}
+
 instance FileOpen String Errno {
     # The default file open for generic reads and writes
     fn open(filename) {
@@ -161,9 +203,15 @@ fn creat(filename, mode CreateMode) Int {
     return __builtin_ffi_2("creat", filename, mode)
 }
 
-fn read(fd FileDescriptor, buffer *Char, nbyte Int) Int {
-    let FileDescriptor(fd) = fd
-    return __builtin_ffi_3("read", fd, buffer, nbyte)
+class Readable a {
+    fn read(a, *Char, Int) Errno
+}
+
+instance Readable FileDescriptor {
+    fn read(fd FileDescriptor, buffer *Char, nbyte Int) Errno {
+        let FileDescriptor(fd) = fd
+        return __builtin_ffi_3("read", fd, buffer, nbyte)
+    }
 }
 
 # For now all writes are blocking

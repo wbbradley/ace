@@ -1014,7 +1014,12 @@ const Expr *parse_postfix_expr(ParseState &ps) {
       ps.advance();
       bool is_slice = false;
 
-      const Expr *start = parse_expr(ps);
+      const Expr *start = nullptr;
+      if (ps.token.tk == tk_colon) {
+        start = new Literal(Token{ps.token.location, tk_integer, "0"});
+      } else {
+        start = parse_expr(ps);
+      }
 
       if (ps.token.tk == tk_colon) {
         is_slice = true;
@@ -1031,7 +1036,7 @@ const Expr *parse_postfix_expr(ParseState &ps) {
                                  {expr, start, rhs});
         } else {
           expr = new Application(
-              new Var(Identifier{is_slice ? "__getslice2__"
+              new Var(Identifier{is_slice ? "std.get_slice_from"
                                           : "std.get_indexed_item",
                                  ps.token.location}),
               {expr, start});
@@ -1041,9 +1046,10 @@ const Expr *parse_postfix_expr(ParseState &ps) {
         chomp_token(tk_rsquare);
 
         assert(is_slice);
-        expr = new Application(new Var(ps.id_mapped(Identifier{
-                                   "__getslice3__", ps.token.location})),
-                               {expr, start, stop});
+        expr = new Application(
+            new Var(ps.id_mapped(
+                Identifier{"std.get_slice_from_to", ps.token.location})),
+            {expr, start, stop});
       }
       break;
     }

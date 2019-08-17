@@ -1,19 +1,12 @@
-# test: skip
+# test: pass
 
-import sys {stdout, File, open, read, write, O_RDONLY, CreateMode}
+import sys {stdout, Errno, open, write}
+import bufio {BufferedFileIO}
 
 fn main() {
-    with! let fd = open(File(str(__filename__), O_RDONLY, CreateMode(0))) {
-        /* This is allocating a small buffer size just to test the
-         * looping behavior and that we aren't off by one, etc... */
-        let buffer = alloc(14)
-
-        while True {
-            let cb = read(fd, buffer, 14)
-            if cb <= 0 {
-                break
-            }
-            match! write(stdout, Buffer(buffer, cb)) {
+    with! let fd = open(__filename__) {
+        for buffer in BufferedFileIO(fd) {
+            match! write(stdout, buffer) {
                 Right(errno) {
                     panic("Failed to write to stdout with ${errno}")
                 }

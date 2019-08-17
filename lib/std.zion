@@ -317,7 +317,7 @@ instance Eq String {
     fn !=(a, b) => not (a == b)
 }
 
-fn concat(a, b) {
+fn concat(a String, b String) String {
     let String(xs, xlen) = a
     let String(ys, ylen) = b
 
@@ -375,7 +375,10 @@ class Ord a {
     fn <=(a, a) Bool
     fn >(a, a) Bool
     fn >=(a, a) Bool
+    fn min(a, a) a
+    fn max(a, a) a
 }
+
 
 instance Ord Int {
     fn <(a, b) => __builtin_int_lt(a, b)
@@ -391,6 +394,13 @@ instance Ord Int {
         } else {
             return EQ
         }
+    }
+
+    fn min(a, b) {
+        return (a < b) ? a : b
+    }
+    fn max(a, b) {
+        return (a > b) ? a : b
     }
 }
 
@@ -409,6 +419,12 @@ instance Ord Char {
             return EQ
         }
     }
+    fn min(a, b) {
+        return (a < b) ? a : b
+    }
+    fn max(a, b) {
+        return (a > b) ? a : b
+    }
 }
 
 instance Ord Float {
@@ -425,6 +441,12 @@ instance Ord Float {
         } else {
             return EQ
         }
+    }
+    fn min(a, b) {
+        return (a < b) ? a : b
+    }
+    fn max(a, b) {
+        return (a > b) ? a : b
     }
 }
 
@@ -465,6 +487,12 @@ instance Num Float {
 
 class ConvertibleToInt a {
     fn int(a) Int
+}
+
+instance ConvertibleToInt Char {
+    fn int(a) Int {
+        return __builtin_ffi_1("zion_char_to_int", a)
+    }
 }
 
 instance ConvertibleToInt Float {
@@ -511,11 +539,16 @@ struct Vector a {
     capacity var Int
 }
 
-fn resize(xs [a], new_len Int) () {
+fn reset(xs [a]) {
+    let Vector(_, var size, _) = xs
+    size = 0
+}
+
+fn resize(xs [a], new_len Int, default a) () {
     let Vector(_, var size, _) = xs
     assert(not (new_len < 0))
     while size < new_len {
-        append(xs, new a)
+        append(xs, default)
     }
     if new_len < size {
         size = new_len
@@ -722,6 +755,81 @@ instance Iterable String Char {
             }
         }
     }
+}
+
+fn isspace(ch Char) Bool {
+    return __builtin_ffi_1("isspace", int(ch))
+}
+
+class CanSliceFrom collection sliced_collection  {
+    fn get_slice_from(collection, Int) sliced_collection
+}
+
+class CanSliceFromTo collection sliced_collection {
+    fn get_slice_from_to(collection, Int, Int) sliced_collection
+}
+
+instance CanSliceFrom String String {
+    fn get_slice_from(s, index) {
+        let String(sz, cb) = s
+        var index = min(index, cb)
+        if index < 0 or index >= cb {
+            return ""
+        }
+        let new_len = cb - index
+        assert(new_len > 0)
+        return String(__builtin_ffi_2("GC_strndup", __builtin_ptr_add(sz, index), new_len), new_len)
+    }
+}
+
+instance CanSliceFromTo String String {
+    fn get_slice_from_to(s, index, lim) {
+        let String(sz, cb) = s
+        var index = min(index, cb)
+        var lim = min(lim, cb)
+        if index < 0 or index >= cb {
+            return ""
+        }
+        let new_len = lim - index
+        if new_len <= 0 {
+            return ""
+        }
+        return String(__builtin_ffi_2("GC_strndup", __builtin_ptr_add(sz, index), new_len), new_len)
+    }
+}
+
+fn strip(s String) String {
+    let String(sz, cb) = s
+    var i = 0
+    while i < cb {
+        if not isspace(sz[i]) {
+            break
+        }
+        i += 1
+    }
+    var j = cb - 1
+    while j > i {
+        if not isspace(sz[j]) {
+            break
+        }
+        j -= 1
+    }
+    return s[i:j+1]
+}
+
+fn chomp(s String) String {
+    let String(sz, cb) = s
+    # Find index of first non-space character from end
+    var j = cb
+    while j > 0 {
+        if not isspace(sz[j-1]) {
+            return s[:j]
+        } else {
+            j -= 1
+            continue
+        }
+    }
+    return ""
 }
 
 let unit = ()

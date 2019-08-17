@@ -54,6 +54,10 @@ int zion_write_char(int64_t fd, char x) {
   return write(fd, sz, 1);
 }
 
+int64_t zion_char_to_int(char ch) {
+	return (int64_t)ch;
+}
+
 char *zion_itoa(int64_t x) {
   char sz[128];
   if (snprintf(sz, sizeof(sz), "%" PRId64, x) < 1) {

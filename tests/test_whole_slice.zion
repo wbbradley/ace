@@ -1,0 +1,6 @@
+# test: pass
+
+fn main() {
+    assert("hey"[:] == "hey")
+    print("PASS")
+}

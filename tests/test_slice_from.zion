@@ -1,0 +1,29 @@
+# test: pass
+# expect: 0: This is a message.
+# expect: 1: his is a message.
+# expect: 2: is is a message.
+# expect: 3: s is a message.
+# expect: 4:  is a message.
+# expect: 5: is a message.
+# expect: 6: s a message.
+# expect: 7:  a message.
+# expect: 8: a message.
+# expect: 9:  message.
+# expect: 10: message.
+# expect: 11: essage.
+# expect: 12: ssage.
+# expect: 13: sage.
+# expect: 14: age.
+# expect: 15: ge.
+# expect: 16: e.
+# expect: 17: .
+
+import test_utils {make_indexed_logger}
+
+fn main() {
+    let log = make_indexed_logger()
+    let g = "This is a message."
+    for i in [0..len(g)-1] {
+        log("${g[i:]}")
+    }
+}
