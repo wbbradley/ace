@@ -42,6 +42,10 @@ RUN update-alternatives --install /usr/bin/llvm-link llvm-link /usr/bin/llvm-lin
 	update-alternatives --install /usr/bin/llvm-config llvm-config /usr/bin/llvm-config-8 100 && \
 	update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-8 100
 
+RUN echo "nmap ; :" >> /root/.vimrc
+RUN echo "imap jk <Esc>" >> /root/.vimrc
+RUN echo "imap kj <Esc>" >> /root/.vimrc
+
 ADD . /opt/zion
 WORKDIR /opt/zion
 

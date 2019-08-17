@@ -1,0 +1,13 @@
+# test: pass
+# expect: !!
+# expect: xx
+# expect: yy
+# expect: zz
+
+fn main() {
+    let g = "This is a message."
+    print("x${g[500:]}x")
+    print("y${g[:-1]}y")
+    print("z${g[-5:-1]}z")
+    print("!${g[500:560]}!")
+}

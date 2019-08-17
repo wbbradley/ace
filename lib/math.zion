@@ -1,24 +1,9 @@
 import trigonometry {PI, sin, cos, tan, acos, asin, sinh, cosh, tanh, atan,
                      atan2}
-export {MinMax, PI, min, max, even, odd, sqrt, sum, sin, cos, tan, acos, asin,
-        sinh, cosh, tanh, atan, atan2}
+export {PI, even, odd, sqrt, sum, sin, cos, tan, acos, asin, sinh, cosh, tanh,
+        atan, atan2}
 
 link "m"
-
-class MinMax a {
-    # TODO: put this in std.Ord
-    fn min(a, a) a
-    fn max(a, a) a
-}
-
-instance MinMax Int {
-    fn min(a, b) {
-        return (a < b) ? a : b
-    }
-    fn max(a, b) {
-        return (a > b) ? a : b
-    }
-}
 
 fn even(x Int) Bool => x % 2 == 0
 fn odd(x Int) Bool => x % 2 == 1

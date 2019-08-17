@@ -1,0 +1,20 @@
+# test: pass
+# expect: 0: !This is a message.!
+# expect: 1: !his is a message!
+# expect: 2: !is is a messag!
+# expect: 3: !s is a messa!
+# expect: 4: ! is a mess!
+# expect: 5: !is a mes!
+# expect: 6: !s a me!
+# expect: 7: ! a m!
+# expect: 8: !a !
+
+import test_utils {make_indexed_logger}
+
+fn main() {
+    let log = make_indexed_logger()
+    let g = "This is a message."
+    for i in [0..(len(g)+1)/2-1] {
+        log("!${g[i:len(g)-i]}!")
+    }
+}

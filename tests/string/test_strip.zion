@@ -1,0 +1,11 @@
+# test: pass
+
+fn main() {
+    assert(strip(" \t\r\nchampion\t\t ") == "champion")
+    assert(strip(" little") == "little")
+    assert(strip("drummer ") == "drummer")
+    assert(strip(" b o y ") == "b o y")
+    assert(strip(" ") == "")
+    assert(strip("\n") == "")
+    print("PASS")
+}

@@ -1,0 +1,27 @@
+import sys {stdout, Errno, File, open, read, write, O_RDONLY, CreateMode}
+
+newtype BufferedFileIO readable = BufferedFileIO(readable) /* where (Readable readable) */
+
+instance Iterable (BufferedFileIO readable) Buffer /* replace with encapsulated copy-only structure */ {
+    fn iter(bfio) {
+        let size = 4096
+        let BufferedFileIO(readable) = bfio
+        return fn () {
+            let buffer = alloc(size)
+            let errno = read(readable, buffer, size)
+            match errno {
+                Errno(0) {
+                    return Nothing
+                }
+                Errno(-1) {
+                    # TODO: find a better error handling methodology
+                    panic("Read failed.")
+                    return Nothing
+                }
+                Errno(cb) {
+                    return Just(Buffer(buffer, cb))
+                }
+            }
+        }
+    }
+}
