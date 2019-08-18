@@ -1,3 +1,5 @@
+export {List, Cons, Nil, nth, remove_if}
+
 data List x {
     Cons(x, var (List x))
     Nil

@@ -9,7 +9,7 @@ RewriteImportRules solve_rewriting_imports(
     const parser::SymbolImports &symbol_imports,
     const parser::SymbolExports &symbol_exports) {
   std::map<Identifier, Identifier> graph;
-
+  std::set<std::string> legal_exports;
   for (auto &module_pair : symbol_exports) {
     for (auto &id_pair : module_pair.second) {
       debug_above(3, log("%s: %s -> %s", module_pair.first.c_str(),
@@ -23,6 +23,11 @@ RewriteImportRules solve_rewriting_imports(
                            graph.at(id_pair.first).str().c_str());
         }
         graph[id_pair.first] = id_pair.second;
+      } else {
+        debug_above(2, log("%s looks authentic in the context of module %s",
+                           id_pair.first.str().c_str(),
+                           module_pair.first.c_str()));
+        legal_exports.insert(id_pair.first.name);
       }
     }
   }
@@ -59,12 +64,47 @@ RewriteImportRules solve_rewriting_imports(
     rewriting.insert({symbol_id, resolved_id});
   }
 
-#ifdef ZION_DEBUG
+  std::vector<std::pair<Identifier, Identifier>> illegal_imports;
   for (auto &pair : rewriting) {
     debug_above(1, log("rewriting %s -> %s", pair.first.str().c_str(),
                        pair.second.str().c_str()));
+    if (legal_exports.count(pair.second.name) == 0) {
+      illegal_imports.push_back(pair);
+    }
   }
-#endif
+
+  /* check for illegal imports */
+  for (auto &source_pair : symbol_imports) {
+    const std::string &source_module = source_pair.first;
+    for (auto &dest_pair : source_pair.second) {
+      const std::string &dest_module = dest_pair.first;
+      const std::set<Identifier> &symbols = dest_pair.second;
+      for (auto &symbol : symbols) {
+        debug_above(2,
+                    log("checking {%s: {..., %s: %s, ...} for illegal import",
+                        source_module.c_str(), dest_module.c_str(),
+                        symbol.str().c_str()));
+        if (legal_exports.count(dest_module + "." + symbol.name) == 0) {
+          illegal_imports.push_back(
+              {Identifier{source_module + "." + symbol.name, symbol.location},
+               Identifier{dest_module + "." + symbol.name, symbol.location}});
+        }
+      }
+    }
+  }
+
+  if (illegal_imports.size() != 0) {
+    auto error = user_error(illegal_imports[0].first.location,
+                            "%s is not exported or does not exist",
+                            illegal_imports[0].second.str().c_str());
+    for (int i = 1; i < illegal_imports.size(); ++i) {
+      error.add_info(illegal_imports[i].first.location,
+                     "error: %s is not exported or does not exist",
+                     illegal_imports[i].first.str().c_str(),
+                     illegal_imports[i].second.str().c_str());
+    }
+    throw error;
+  }
 
   return rewriting;
 }

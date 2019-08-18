@@ -1,0 +1,8 @@
+# test: pass
+
+import test_utils {exported_fn}
+
+fn main() {
+    print("PASS")
+}
+
