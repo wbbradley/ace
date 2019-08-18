@@ -1,0 +1,8 @@
+# test: fail
+# expect: error. test_utils.UnexportedClass is not exported or does not exist
+
+import test_utils {UnexportedClass}
+
+fn main() {
+}
+

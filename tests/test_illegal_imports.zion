@@ -1,0 +1,11 @@
+# test: fail
+# expect: map.needs_to_grow is not exported or does not exist
+
+import map {needs_to_grow}
+
+fn main() {
+    let map = {3: 5}
+    if needs_to_grow(map) {
+        print("shouldn't have compiled!")
+    }
+}

@@ -1,3 +1,5 @@
+export {hash}
+
 link pkg "libsodium"
 
 class Hashable a {
