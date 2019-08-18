@@ -539,6 +539,14 @@ struct Vector a {
     capacity var Int
 }
 
+fn vector(xs) {
+    let rg = []
+    for x in xs {
+        append(rg, x)
+    }
+    return rg
+}
+
 fn reset(xs [a]) {
     let Vector(_, var size, _) = xs
     size = 0
@@ -795,6 +803,36 @@ instance CanSliceFromTo String String {
             return ""
         }
         return String(__builtin_ffi_2("GC_strndup", __builtin_ptr_add(sz, index), new_len), new_len)
+    }
+}
+
+instance CanSliceFrom [a] [a] {
+    fn get_slice_from(xs, index) {
+        return get_slice_from_to(xs, index, len(xs))
+    }
+}
+
+instance CanSliceFromTo [a] [a] {
+    fn get_slice_from_to(xs, index, lim) {
+        let ys = []
+        let len_xs = len(xs)
+        var index = min(index, len_xs)
+        var lim = min(lim, len_xs)
+
+        if index < 0 or index >= len_xs {
+            return ys
+        }
+
+        let new_len = lim - index
+        if new_len <= 0 {
+            return []
+        }
+        reserve(ys, lim-index)
+
+        for i in [index..lim-1] {
+            append(ys, xs[i])
+        }
+        return ys
     }
 }
 
