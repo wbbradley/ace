@@ -33,7 +33,7 @@ man zion
 
 ## Description
 
-Zion is a statically typed procedural/funct onal language. It is a work in
+Zion is a statically typed procedural/functional language. It is a work in
 progress. Please reach out if you'd like to get involved.
 
 ### Syntax
