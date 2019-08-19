@@ -50,7 +50,7 @@ std::set<std::string> get_top_level_decls(
     const std::vector<const ast::Decl *> &decls,
     const std::vector<const ast::TypeDecl *> &type_decls,
     const std::vector<const ast::TypeClass *> &type_classes,
-    const std::vector<const Identifier> &imports);
+    const std::vector<Identifier> &imports);
 }; // namespace compiler
 
 std::string strip_zion_extension(std::string module_name);
