@@ -206,7 +206,7 @@ std::set<std::string> get_top_level_decls(
     const std::vector<const Decl *> &decls,
     const std::vector<const TypeDecl *> &type_decls,
     const std::vector<const TypeClass *> &type_classes,
-    const std::vector<const Identifier> &imports) {
+    const std::vector<Identifier> &imports) {
   std::map<std::string, Location> module_decls;
   for (const Decl *decl : decls) {
     if (module_decls.find(decl->id.name) != module_decls.end()) {
@@ -309,7 +309,8 @@ Compilation::ref parse_program(
 
     /* include the builtins library */
     if (getenv("NO_PRELUDE") == nullptr || atoi(getenv("NO_PRELUDE")) == 0) {
-      gps.parse_module_statefully({"std" /* lib/std */, Location{"std", 0, 0}});
+      gps.parse_module_statefully(
+          Identifier{"std" /* lib/std */, Location{"std", 0, 0}});
     } else {
       /* in the case that we are omitting the prelude, still include the GC */
       gps.link_ins.insert(LinkIn{
@@ -317,8 +318,8 @@ Compilation::ref parse_program(
     }
 
     /* now parse the main program module */
-    gps.parse_module_statefully(
-        {user_program_name, Location{"command line build parameters", 0, 0}});
+    gps.parse_module_statefully(Identifier{
+        user_program_name, Location{"command line build parameters", 0, 0}});
 
     debug_above(11, log(log_info, "parse_module of %s succeeded",
                         module_name.c_str(), false /*global*/));

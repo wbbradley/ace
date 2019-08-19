@@ -11,7 +11,7 @@
 struct Identifier {
   Identifier() = default;
   Identifier(const Identifier &) = default;
-  Identifier(const std::string &name, Location location);
+  explicit Identifier(const std::string &name, Location location);
 
   std::string name;
   Location location;

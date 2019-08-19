@@ -492,7 +492,7 @@ struct Instance {
 
 struct Module {
   Module(std::string name,
-         const std::vector<const Identifier> &imports,
+         const std::vector<Identifier> &imports,
          const std::vector<const Decl *> &decls,
          const std::vector<const TypeDecl *> &type_decls,
          const std::vector<const TypeClass *> &type_classes,
@@ -507,7 +507,7 @@ struct Module {
   }
 
   std::string const name;
-  std::vector<const Identifier> imports;
+  std::vector<Identifier> imports;
   std::vector<const Decl *> decls;
   std::vector<const TypeDecl *> type_decls;
   std::vector<const TypeClass *> type_classes;

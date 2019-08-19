@@ -40,7 +40,7 @@ std::string Identifier::str() const {
 
 Identifier Identifier::from_token(zion::Token token) {
   assert(token.tk == zion::tk_identifier);
-  return {token.text, token.location};
+  return Identifier{token.text, token.location};
 }
 
 bool Identifier::operator<(const Identifier &rhs) const {

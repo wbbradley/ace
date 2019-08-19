@@ -26,7 +26,7 @@ std::string prefix(const std::set<std::string> &bindings,
 Identifier prefix(const std::set<std::string> &bindings,
                   std::string pre,
                   const Identifier &id) {
-  return {prefix(bindings, pre, id.name), id.location};
+  return Identifier{prefix(bindings, pre, id.name), id.location};
 }
 
 Token prefix(const std::set<std::string> &bindings,
