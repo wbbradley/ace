@@ -58,7 +58,7 @@ instance Iterable (List a) a {
     }
 }
 
-instance Show (List a) {
+instance Str (List a) {
     fn str(list) {
         return join(", ", list)
     }

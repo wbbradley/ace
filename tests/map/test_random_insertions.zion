@@ -5,8 +5,6 @@
 # expect: 9: 18
 # expect: 10: 20
 
-import map {Map}
-
 fn main() {
     let m = {1: 10, 2: 15}
     for i in [1..10] {

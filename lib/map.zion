@@ -2,13 +2,13 @@
 
 import list {List, Cons, Nil, remove_if}
 import hash {hash}
-export {Map}
+export {Map, keys, values}
 
 newtype MapKeyValueCell key value = MapKeyValueCell(Int, key, var value)
 newtype MapStorage key value = MapStorage([List (MapKeyValueCell key value)])
 newtype Map key value = Map(MapStorage key value, var Int)
 
-instance Show (Map key value) {
+instance Str (Map key value) {
     fn str(map) {
         let Map(MapStorage(storage), _) = map
         let results = []
@@ -42,7 +42,7 @@ instance HasSetMembership (Map key value) key {
     }
 }
 
-instance Show (MapKeyValueCell key value) {
+instance Str (MapKeyValueCell key value) {
     fn str(key_value_cell) String {
         let MapKeyValueCell(hash_value, key, var value) = key_value_cell
         return "MapKeyValueCell(${hash_value}, ${key}, ${value})"
@@ -212,4 +212,46 @@ instance HasAssignableIndexableItems (Map key value) key value {
             size += 1
         }
     }
+}
+
+fn keys(map Map key value) [key] {
+    # Returns a copy of the keys in a Vector
+    let Map(MapStorage(storage), var size) = map
+    let results = []
+    reserve(results, size)
+    for match Cons(MapKeyValueCell(_, key, _), var next) in storage {
+        append(results, key)
+        var next_list = next
+        while match next_list {
+            Cons(MapKeyValueCell(_, key, _), var next_next) {
+                append(results, key)
+                next_list = next_next
+            }
+            Nil {
+                break
+            }
+        }
+    }
+    return results
+}
+
+fn values(map Map key value) [value] {
+    # Returns a copy of the values in a Vector
+    let Map(MapStorage(storage), var size) = map
+    let results = [] as [value]
+    reserve(results, size)
+    for match Cons(MapKeyValueCell(_, _, var value), var next) in storage {
+        append(results, value)
+        var next_list = next
+        while match next_list {
+            Cons(MapKeyValueCell(_, _, var value), var next_next) {
+                append(results, value)
+                next_list = next_next
+            }
+            Nil {
+                break
+            }
+        }
+    }
+    return results
 }

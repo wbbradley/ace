@@ -1,7 +1,8 @@
-import map {Map}
-import set {Set}
-export {Map, Set}
-
+import map {Map, keys, values}
+import set {Set, set}
+import math {+, -, *, /, abs, negate, Num, Bounded, from_int}
+export {Map, keys, values, Set, set}
+export {+, -, *, /, abs, negate, Num, Bounded, from_int}
 
 link pkg "bdw-gc"
 
@@ -33,17 +34,19 @@ class HasDefaultGet collection key value {
     fn get(collection, key, value) value
 }
 
+# The default string type. Strings are stored null-terminated and the length is
+# cached.
 newtype String = String(*Char, Int)
 
 class Repr a {
     fn repr(a) String
 }
 
-class Show a {
+class Str a {
     fn str(a) String
 }
 
-instance Show () {
+instance Str () {
     fn str(a) => "()"
 }
 
@@ -53,7 +56,7 @@ instance Repr () {
 
 fn strlen(sz *Char) Int => __builtin_ffi_1("zion_strlen", sz)
 
-instance Show Int {
+instance Str Int {
     fn str(x Int) {
         let sz = __builtin_ffi_1("zion_itoa", x)
         return String(sz, strlen(sz))
@@ -64,7 +67,7 @@ instance Repr Int {
     repr = str
 }
 
-instance Show Float {
+instance Str Float {
     fn str(x) {
         let sz = __builtin_ffi_1("zion_ftoa", x)
         let length = __builtin_ffi_1("zion_strlen", sz)
@@ -76,11 +79,11 @@ instance Repr Float {
     repr = str
 }
 
-instance Show (var a) {
+instance Str (var a) {
     fn str(var a) => str(a)
 }
 
-instance Show String {
+instance Str String {
     str = id
 }
 
@@ -108,7 +111,7 @@ instance Repr String {
     }
 }
 
-instance Show (* Char) {
+instance Str (* Char) {
     fn str(a) => String(a, __builtin_ffi_1("zion_strlen", a))
 }
 
@@ -204,7 +207,7 @@ fn join(delim_ String, xs) String {
     return String(buf, i)
 }
 
-instance Show [a] {
+instance Str [a] {
     fn str(xs) {
         let strs = []
         for x in xs {
@@ -346,23 +349,6 @@ instance Bitwise Int {
     fn ^(a, b) => __builtin_int_bitwise_xor(a, b)
 }
 
-class Num a {
-    # TODO: test "has Eq" with no "a"
-    has Eq a
-    fn from_int(Int) a
-    fn +(a, a) a
-    fn *(a, a) a
-    fn -(a, a) a
-    fn /(a, a) a
-    fn abs(a) a
-    fn negate(a) a
-}
-
-class Bounded a {
-    fn min_bound() a
-    fn max_bound() a
-}
-
 data Ordering {
     EQ
     LT
@@ -470,11 +456,6 @@ instance Num Char {
     fn abs(a) => __builtin_abs_char(a)
 }
 
-instance Bounded Int {
-    fn min_bound() => __builtin_min_int
-    fn max_bound() => __builtin_max_int
-}
-
 instance Num Float {
     fn from_int(a) => __builtin_int_to_float(a)
     fn +(a, b) => __builtin_add_float(a, b)
@@ -516,7 +497,7 @@ data Maybe t {
     Nothing
 }
 
-instance Show (Maybe a) {
+instance Str (Maybe a) {
     fn str(ma) => match ma {
         Just(a) => "Just(${a})"
         Nothing => "Nothing"
@@ -563,7 +544,7 @@ fn resize(xs [a], new_len Int, default a) () {
     }
 }
 
-instance Show Char {
+instance Str Char {
     fn str(ch) {
         let ys = __builtin_calloc(1)
         ys[0] = ch

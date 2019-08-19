@@ -5,7 +5,7 @@ struct MutableVector {
     y var Float
 }
 
-instance Show MutableVector {
+instance Str MutableVector {
     fn str(mv) {
         return "<${mv.x}, ${mv.y}>"
     }

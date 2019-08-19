@@ -38,7 +38,7 @@ struct ParseState {
   Token token_and_advance();
   Identifier identifier_and_advance();
   void error(const char *format, ...);
-  void add_term_map(Location, std::string, std::string);
+  void add_term_map(Location, std::string, std::string, bool allow_override);
   void add_type_map(Location, std::string, std::string);
   bool line_broke() const {
     return newline || prior_token.tk == tk_semicolon;

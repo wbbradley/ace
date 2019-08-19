@@ -64,7 +64,7 @@ do
 		"${run_test}" "${bin_dir}" "${source_dir}" "${test_file}"; then
 		passed+=1
 	else
-		failed_tests+=("$test_file")
+		failed_tests+=( "$test_file" )
 		echo "$0:$LINENO:1: error: test ${test_file} failed"
 		if [ "${FAIL_FAST}" != "" ]; then
 			echo "FAIL_FAST was specified. Quitting..."

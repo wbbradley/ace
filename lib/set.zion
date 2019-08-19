@@ -1,7 +1,14 @@
-import map {Map}
-export {Set}
+export {Set, set}
 
 newtype Set a = Set(Map a ())
+
+fn set(xs) {
+    let set = Set({})
+    for x in xs {
+        insert(set, x)
+    }
+    return set
+}
 
 instance HasInsertableItems (Set a) a {
     fn insert(set, value) {
@@ -44,5 +51,11 @@ instance Iterable (Set a) a {
                     return a
                 },
                 inner_map)) as fn () Maybe a
+    }
+}
+
+instance Str (Set a) {
+    fn str(xs) {
+        return "{${join(", ", xs)}}"
     }
 }

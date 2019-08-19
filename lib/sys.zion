@@ -90,7 +90,7 @@ instance Repr FileDescriptor {
 
 newtype Errno = Errno(Int)
 
-instance Show Errno {
+instance Str Errno {
     fn str(errno) {
         let Errno(errno) = errno
         let buffer = alloc(1024) as *Char

@@ -205,7 +205,8 @@ struct GlobalParserState {
 std::set<std::string> get_top_level_decls(
     const std::vector<const Decl *> &decls,
     const std::vector<const TypeDecl *> &type_decls,
-    const std::vector<const TypeClass *> &type_classes) {
+    const std::vector<const TypeClass *> &type_classes,
+    const std::vector<const Identifier> &imports) {
   std::map<std::string, Location> module_decls;
   for (const Decl *decl : decls) {
     if (module_decls.find(decl->id.name) != module_decls.end()) {
@@ -228,6 +229,9 @@ std::set<std::string> get_top_level_decls(
       top_level_decls.insert(overload_pair.first);
     }
   }
+  for (auto &import : imports) {
+    top_level_decls.insert(import.name);
+  }
   debug_above(8, log("tlds are %s", ::join(top_level_decls, ", ").c_str()));
   return top_level_decls;
 }
@@ -249,7 +253,8 @@ std::shared_ptr<Compilation> merge_compilation(
   for (const Module *module : modules) {
     /* get a list of all top-level decls */
     std::set<std::string> bindings = get_top_level_decls(
-        module->decls, module->type_decls, module->type_classes);
+        module->decls, module->type_decls, module->type_classes,
+        module->imports);
 
     const Module *module_rebound = prefix(bindings, module);
 

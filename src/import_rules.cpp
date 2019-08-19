@@ -274,7 +274,8 @@ std::vector<const Decl *> rewrite_decls(
 
   for (auto decl : decls) {
     new_decls.push_back(
-        new Decl(decl->id, rewrite_expr(rewrite_import_rules, decl->value)));
+        new Decl(rewrite_identifier(rewrite_import_rules, decl->id),
+                 rewrite_expr(rewrite_import_rules, decl->value)));
   }
   return new_decls;
 }
@@ -380,8 +381,8 @@ ParsedDataCtorsMap rewrite_data_ctors_map(
 const Module *rewrite_module(const RewriteImportRules &rewrite_import_rules,
                              const Module *module) {
   return new Module(
-      module->name, rewrite_decls(rewrite_import_rules, module->decls),
-      module->type_decls,
+      module->name, module->imports,
+      rewrite_decls(rewrite_import_rules, module->decls), module->type_decls,
       rewrite_type_classes(rewrite_import_rules, module->type_classes),
       rewrite_instances(rewrite_import_rules, module->instances),
       module->ctor_id_map,
