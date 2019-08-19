@@ -4,8 +4,6 @@
 # expect: empty
 # expect: gone
 
-import map {Map}
-
 fn main() {
     let map
     static_print(map)

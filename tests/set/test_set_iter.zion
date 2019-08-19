@@ -3,8 +3,6 @@
 # expect: dinosaur
 # expect: penguin
 
-import set {Set}
-
 fn main() {
     let set = {
         "penguin",

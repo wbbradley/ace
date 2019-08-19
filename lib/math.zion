@@ -1,9 +1,31 @@
 import trigonometry {PI, sin, cos, tan, acos, asin, sinh, cosh, tanh, atan,
                      atan2}
 export {PI, even, odd, sqrt, sum, sin, cos, tan, acos, asin, sinh, cosh, tanh,
-        atan, atan2}
+        atan, atan2, Num, +, *, -, /, abs, negate, Bounded, from_int,
+        max_bound, min_bound}
 
 link "m"
+
+class Num a {
+    has Eq a
+    fn from_int(Int) a
+    fn +(a, a) a
+    fn *(a, a) a
+    fn -(a, a) a
+    fn /(a, a) a
+    fn abs(a) a
+    fn negate(a) a
+}
+
+class Bounded a {
+    fn min_bound() a
+    fn max_bound() a
+}
+
+instance Bounded Int {
+    fn min_bound() => __builtin_min_int
+    fn max_bound() => __builtin_max_int
+}
 
 fn even(x Int) Bool => x % 2 == 0
 fn odd(x Int) Bool => x % 2 == 1

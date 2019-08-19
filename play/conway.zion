@@ -92,7 +92,7 @@ fn Step(l Life) {
 }
 
 # String returns the game board as a str.
-instance Show Life {
+instance Str Life {
     fn str(l) {
         # TODO: make a better string builder type thing
         var buf = ""

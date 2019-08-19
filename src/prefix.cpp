@@ -10,6 +10,12 @@ using namespace ast;
 std::string prefix(const std::set<std::string> &bindings,
                    std::string pre,
                    std::string name) {
+  if (starts_with(name, pre) && name.size() > pre.size() + 1 &&
+      name[pre.size()] == '.') {
+    /* already prefixed */
+    return name;
+  }
+
   if (in(name, bindings)) {
     return pre + "." + name;
   } else {
@@ -19,8 +25,8 @@ std::string prefix(const std::set<std::string> &bindings,
 
 Identifier prefix(const std::set<std::string> &bindings,
                   std::string pre,
-                  Identifier name) {
-  return {prefix(bindings, pre, name.name), name.location};
+                  const Identifier &id) {
+  return {prefix(bindings, pre, id.name), id.location};
 }
 
 Token prefix(const std::set<std::string> &bindings,
@@ -266,7 +272,8 @@ ParsedDataCtorsMap prefix(const std::set<std::string> &bindings,
 
 const Module *prefix(const std::set<std::string> &bindings,
                      const Module *module) {
-  return new Module(module->name, prefix(bindings, module->name, module->decls),
+  return new Module(module->name, module->imports,
+                    prefix(bindings, module->name, module->decls),
                     prefix(bindings, module->name, module->type_decls),
                     prefix(bindings, module->name, module->type_classes),
                     prefix(bindings, module->name, module->instances),

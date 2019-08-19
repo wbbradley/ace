@@ -492,6 +492,7 @@ struct Instance {
 
 struct Module {
   Module(std::string name,
+         const std::vector<const Identifier> &imports,
          const std::vector<const Decl *> &decls,
          const std::vector<const TypeDecl *> &type_decls,
          const std::vector<const TypeClass *> &type_classes,
@@ -499,13 +500,14 @@ struct Module {
          const ParsedCtorIdMap &ctor_id_map,
          const ParsedDataCtorsMap &data_ctors_map,
          const types::TypeEnv &type_env)
-      : name(name), decls(decls), type_decls(type_decls),
+      : name(name), imports(imports), decls(decls), type_decls(type_decls),
         type_classes(type_classes), instances(instances),
         ctor_id_map(ctor_id_map), data_ctors_map(data_ctors_map),
         type_env(type_env) {
   }
 
   std::string const name;
+  std::vector<const Identifier> imports;
   std::vector<const Decl *> decls;
   std::vector<const TypeDecl *> type_decls;
   std::vector<const TypeClass *> type_classes;

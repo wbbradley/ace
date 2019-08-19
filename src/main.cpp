@@ -722,7 +722,10 @@ CheckedDefinitionRef specialize_checked_defn(
     throw user_error(
         location,
         "unknown symbol '" c_id("%s") "' requested for specialization ",
-        name.c_str());
+        name.c_str())
+        .add_info(type->get_location(), "requested type is %s",
+                  type->str().c_str())
+        .add_info(location, "are you sure you have defined this function?");
   }
 
   types::Ref decl_type;

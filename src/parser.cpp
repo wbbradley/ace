@@ -675,8 +675,9 @@ const Expr *parse_array_literal(ParseState &ps) {
           range_max,
           (ps.token.tk != tk_rsquare)
               ? parse_expr(ps)
-              : new Application(new Var(ps.id_mapped(make_iid("max_bound"))),
-                                {unit_expr(location)}),
+              : new Application(
+                    new Var(Identifier{"math.max_bound", ps.token.location}),
+                    {unit_expr(location)}),
           range_body);
 
       auto let_range_next = new Let(
@@ -1963,14 +1964,21 @@ const TypeDecl *parse_type_decl(ParseState &ps) {
   expect_token(tk_identifier);
   auto token = ps.token_and_advance();
   auto class_id = ps.id_mapped(iid(token));
-  if (class_id.name.find(".") != std::string::npos) {
+
+  assert(ps.module_name.find(".") == std::string::npos);
+  assert(token.text.find(".") == std::string::npos);
+
+  if ((class_id.name != ps.module_name + "." + token.text) &&
+      class_id.name.find(".") != std::string::npos) {
     throw user_error(class_id.location, "name %s is already defined as %s",
                      token.text.c_str(), class_id.str().c_str());
   }
-  if (!isupper(class_id.name[0])) {
+  if (!isupper(token.text[0])) {
     throw user_error(
         class_id.location,
-        "names in type-space must begin with an upper-case letter");
+        "names in type-space must begin with an upper-case letter.")
+        .add_info(class_id.location, "%s seems to break this rule",
+                  token.text.c_str());
   }
 
   std::vector<Identifier> params;
@@ -2347,11 +2355,13 @@ const Module *parse_module(ParseState &ps,
       continue;
     }
     std::set<std::string> tlds = compiler::get_top_level_decls(
-        aim->decls, aim->type_decls, aim->type_classes);
+        aim->decls, aim->type_decls, aim->type_classes, aim->imports);
     for (auto tld : tlds) {
       debug_above(9, log("adding tld %s -> %s in %s", tld.c_str(),
                          (aim->name + "." + tld).c_str(), ps.filename.c_str()));
-      ps.add_term_map(INTERNAL_LOC(), tld, aim->name + "." + tld);
+      /* imports cannot override other imports */
+      ps.add_term_map(INTERNAL_LOC(), tld, aim->name + "." + tld,
+                      false /*allow_override*/);
     }
   }
 
@@ -2369,18 +2379,22 @@ const Module *parse_module(ParseState &ps,
     if (ps.token.tk == tk_lcurly) {
       ps.advance();
       while (true) {
-        expect_token(tk_identifier);
-        if (starts_with(ps.token.text, "_")) {
-          throw user_error(ps.token.location,
+        if (ps.token.tk == tk_comma) {
+          throw user_error(ps.token.location, "unexepected comma");
+        }
+        Identifier symbol = Identifier{ps.token.text, ps.token.location};
+        ps.advance();
+        if (starts_with(symbol.name, "_")) {
+          throw user_error(symbol.location,
                            "it is not possible to import module-scoped "
                            "variables into other modules");
         }
         /* record this import */
-        ps.symbol_imports[ps.module_name][module_name.name].insert(
-            Identifier::from_token(ps.token));
-        ps.add_term_map(ps.token.location, ps.token.text,
-                        module_name.name + "." + ps.token.text);
-        ps.advance();
+        ps.symbol_imports[ps.module_name][module_name.name].insert(symbol);
+        assert(symbol.name.find(".") == std::string::npos);
+        ps.add_term_map(symbol.location, symbol.name,
+                        module_name.name + "." + symbol.name,
+                        false /*allow_override*/);
         if (ps.token.tk == tk_comma) {
           ps.advance();
         } else {
@@ -2392,14 +2406,19 @@ const Module *parse_module(ParseState &ps,
     module_deps.insert(module_name);
   }
 
+  /* for now we will only allow exports at the top. trying to be draconian
+   * with module layout */
   std::set<Identifier> exports;
   while (ps.token.is_ident(K(export))) {
     ps.advance();
     chomp_token(tk_lcurly);
 
     while (ps.token.tk != tk_rcurly) {
-      expect_token(tk_identifier);
-      Identifier symbol = Identifier::from_token(ps.token_and_advance());
+      if (ps.token.tk == tk_comma) {
+        throw user_error(ps.token.location, "unexepected comma");
+      }
+      Identifier symbol = Identifier{ps.token.text, ps.token.location};
+      ps.advance();
       if (in(symbol, exports)) {
         auto iter = exports.find(symbol);
         assert(iter != exports.end());
@@ -2407,6 +2426,7 @@ const Module *parse_module(ParseState &ps,
                          symbol.str().c_str())
             .add_info(iter->location, "see previous export");
       }
+      assert(symbol.name.find(".") == std::string::npos);
       exports.insert(symbol);
       if (ps.token.tk != tk_rcurly) {
         chomp_token(tk_comma);
@@ -2415,15 +2435,20 @@ const Module *parse_module(ParseState &ps,
     chomp_token(tk_rcurly);
   }
 
-  /* for now we will only allow exports at the top. trying to be draconian
-   * with module layout */
   for (auto &id : exports) {
+    assert(id.name.find(".") == std::string::npos);
     auto fully_qualified_id = Identifier{ps.module_name + "." + id.name,
                                          id.location};
     auto imported_id = ps.id_mapped(id);
     ps.symbol_exports[ps.module_name][fully_qualified_id] =
-        (imported_id.name.find(".") != std::string::npos) ? imported_id
-                                                          : fully_qualified_id;
+        (imported_id.name.find(".") != std::string::npos &&
+         !starts_with(imported_id.name, GLOBAL_SCOPE_NAME "."))
+            ? imported_id
+            : fully_qualified_id;
+    /* in order to allow definitions in auto_imported modules, remap the
+     * exported symbol to the local namespace for parsing purposes */
+    ps.add_term_map(id.location, id.name, fully_qualified_id.name,
+                    true /*allow_override*/);
   }
 
   while (ps.token.is_ident(K(link))) {
@@ -2503,8 +2528,28 @@ const Module *parse_module(ParseState &ps,
   if (ps.token.tk != tk_none) {
     throw user_error(ps.token.location, "unknown stuff here");
   }
-  return new Module(ps.module_name, decls, type_decls, type_classes, instances,
-                    ps.ctor_id_map, ps.data_ctors_map, ps.type_env);
+
+  std::vector<const Identifier> imports;
+  std::set<const Identifier> imports_set;
+
+  for (auto &dest_pair : get(ps.symbol_imports, ps.module_name,
+                             std::map<std::string, std::set<Identifier>>{})) {
+#ifdef ZION_DEBUG
+    const std::string &dest_module = dest_pair.first;
+#endif
+    const std::set<Identifier> &symbols = dest_pair.second;
+    for (auto &symbol : symbols) {
+      debug_above(2, log("adding import from {%s: {..., %s: %s, ...}",
+                         ps.module_name.c_str(), dest_module.c_str(),
+                         symbol.str().c_str()));
+      assert(imports_set.count(symbol) == 0);
+      imports_set.insert(symbol);
+      imports.push_back(symbol);
+    }
+  }
+
+  return new Module(ps.module_name, imports, decls, type_decls, type_classes,
+                    instances, ps.ctor_id_map, ps.data_ctors_map, ps.type_env);
 }
 
 } // namespace parser

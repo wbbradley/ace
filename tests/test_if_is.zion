@@ -8,7 +8,7 @@ data Filler {
     Cookies(Int)
 }
 
-instance Show Filler {
+instance Str Filler {
     fn str(filler) => match filler {
         Lettuce => "Lettuce"
         Cheese => "Cheese"

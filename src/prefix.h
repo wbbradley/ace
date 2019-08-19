@@ -12,7 +12,7 @@ std::string prefix(const std::set<std::string> &bindings,
                    std::string name);
 Identifier prefix(const std::set<std::string> &bindings,
                   std::string pre,
-                  Identifier name);
+                  const Identifier &name);
 Token prefix(const std::set<std::string> &bindings,
              std::string pre,
              Token name);

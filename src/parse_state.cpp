@@ -79,6 +79,10 @@ Identifier ParseState::identifier_and_advance() {
 }
 
 Identifier ParseState::id_mapped(Identifier id) {
+  if (id.name.find(".") != std::string::npos) {
+    /* this has already been mapped */
+    return id;
+  }
   auto iter = term_map.find(id.name);
   if (iter != term_map.end()) {
     return Identifier{iter->second, id.location};
@@ -100,10 +104,13 @@ void ParseState::error(const char *format, ...) {
 
 void ParseState::add_term_map(Location location,
                               std::string key,
-                              std::string value) {
+                              std::string value,
+                              bool allow_override) {
   // log("adding %s to term map => %s", key.c_str(), value.c_str());
-  if (in(key, term_map)) {
-    throw user_error(location, "symbol imported twice");
+  if (!allow_override && in(key, term_map)) {
+    throw user_error(location, "symbol %s imported twice", key.c_str())
+        .add_info(location, "%s was already mapped to %s", key.c_str(),
+                  term_map.at(key).c_str());
   }
   term_map[key] = value;
 }

@@ -1,0 +1,18 @@
+# test: pass
+
+fn main() {
+    let m = {
+        "Funky": "Moose",
+        "Radical": "Movie",
+        "Awesome": "Badger",
+        "Cranky": "Pluto",
+    }
+    let keys = set(keys(m))
+    for (key, value) in m {
+        assert(key in keys)
+        assert(value not in keys)
+    }
+    assert(len(keys) == 4)
+    assert(len(m) == 4)
+    print("PASS")
+}
