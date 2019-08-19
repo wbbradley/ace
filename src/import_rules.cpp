@@ -97,11 +97,15 @@ RewriteImportRules solve_rewriting_imports(
     auto error = user_error(illegal_imports[0].first.location,
                             "%s is not exported or does not exist",
                             illegal_imports[0].second.str().c_str());
-    for (int i = 1; i < illegal_imports.size(); ++i) {
-      error.add_info(illegal_imports[i].first.location,
+    auto iter = illegal_imports.begin();
+    /* skip the first one */
+    ++iter;
+    for (; iter != illegal_imports.end(); ++iter) {
+      auto &illegal_import = *iter;
+      error.add_info(illegal_import.first.location,
                      "error: %s is not exported or does not exist",
-                     illegal_imports[i].first.str().c_str(),
-                     illegal_imports[i].second.str().c_str());
+                     illegal_import.first.str().c_str(),
+                     illegal_import.second.str().c_str());
     }
     throw error;
   }
