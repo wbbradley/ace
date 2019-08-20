@@ -1163,7 +1163,9 @@ ResolutionStatus gen(std::string name,
                 string_format("phi%s{%s}", tag.c_str(),
                               condition->get_location().repr().c_str()),
                 merge_block);
+#ifdef ZION_DEBUG
             phi_node->setName(string_format("phi::%s", type->repr().c_str()));
+#endif
             phi_node->addIncoming(truthy_value, builder.GetInsertBlock());
           }
         }
@@ -1188,7 +1190,9 @@ ResolutionStatus gen(std::string name,
                   string_format("phi%s{%s}", tag.c_str(),
                                 condition->get_location().repr().c_str()),
                   merge_block);
+#ifdef ZION_DEBUG
               phi_node->setName(string_format("phi::%s", type->repr().c_str()));
+#endif
             }
             phi_node->addIncoming(falsey_value, builder.GetInsertBlock());
           }

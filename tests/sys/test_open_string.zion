@@ -1,7 +1,5 @@
 # test: pass
 
-import sys {open, write}
-
 fn main() {
     with! let f = open("/var/tmp/test.file") {
         write(f, "Hey this is working!\n")!

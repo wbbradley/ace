@@ -1,7 +1,6 @@
 # test: pass
 
-import sys {File, unlink, open, write, close, O_CREAT, O_WRONLY, S_IRUSR,
-            S_IWUSR, CreateMode}
+import sys {File, unlink, O_CREAT, O_WRONLY, S_IRUSR, S_IWUSR, CreateMode}
 
 fn main() {
     let filename = "/var/tmp/test_sys_creat.txt"

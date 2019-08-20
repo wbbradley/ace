@@ -1,6 +1,6 @@
 # test: pass
 
-import sys {stdout, Errno, open, write}
+import sys {Errno}
 import bufio {BufferedFileIO}
 
 fn main() {

@@ -1,7 +1,7 @@
 # test: pass
 # expect: Writing to .* failed because .*No such file or directory.*
 
-import sys {File, write, open, O_RDWR, O_TRUNC, O_CREAT, S_IWUSR, S_IRUSR}
+import sys {File, O_RDWR, O_TRUNC, O_CREAT, S_IWUSR, S_IRUSR}
 
 fn main() {
     let filename = "/does/not/exist/asfj8asdfuag4wmjtdx7g"

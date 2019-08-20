@@ -1,0 +1,144 @@
+# test: pass
+# expect: Found Sequence
+
+import itertools {repeat}
+
+data Node {
+    Symbol(String, Int)
+    Sequence([Node])
+}
+
+instance Str Node {
+    fn str(node) => match node {
+        Symbol(s, pos) => "Symbol(${s}, ${pos})"
+        Sequence(nodes) => "Sequence(${nodes})"
+    }
+}
+
+newtype ParseState = ParseState(String, Int)
+newtype Step = Step(Node, ParseState)
+
+fn parse_token(k String) fn (ParseState) Maybe Step {
+    return fn (ps) {
+        let ParseState(content, index) = ps
+        var start = index
+        while start < len(content) and isspace(content[start]) {
+            start += 1
+        }
+        var i = start
+        while i < len(content) and i-start < len(k) and k[i-start] == content[i] {
+            i += 1
+        }
+        if start != i {
+            let symbol = content[start:i]
+            if symbol == k {
+                return Just(Step(Symbol(symbol, start), ParseState(content, i)))
+            }
+        }
+        return Nothing
+    }
+}
+
+fn sequence(parsers) {
+    let nodes = []
+    return fn (ps) {
+        var ps = ps
+        for parser in parsers {
+            match parser(ps) {
+                Just(Step(node, next_ps)) {
+                    ps = next_ps
+                    append(nodes, node)
+                }
+                Nothing {
+                    return Nothing
+                }
+            }
+        }
+        return Just(Step(Sequence(nodes), ps))
+    }
+}
+
+fn any_of(parsers) {
+    return fn (ps) {
+        for parser in parsers {
+            if parser(ps) is just_step@Just(_) {
+                return just_step
+            }
+        }
+        return Nothing
+    }
+}
+
+fn kleene_star(parsers) {
+    let nodes = []
+    return fn (ps) {
+        var ps = ps
+        for parser in parsers {
+            if parser(ps) is just_step@Just(Step(node, next_ps)) {
+                ps = next_ps
+                append(nodes, node)
+            } else {
+                break
+            }
+        }
+        return Just(Step(Sequence(nodes), ps))
+    }
+}
+
+fn parse_symbol(ps ParseState) {
+    let ParseState(content, index) = ps
+    var start = index
+    while start < len(content) and isspace(content[start]) {
+        start += 1
+    }
+    var i = start
+    while i < len(content) and isalpha(content[i]) {
+        i += 1
+    }
+    if start != i {
+        return Just(Step(Symbol(content[start:i], start), ParseState(content, i)))
+    } else {
+        return Nothing
+    }
+}
+
+fn parse_expr() {
+    let recur = fn (ps) => parse_expr()(ps)
+    return any_of([
+        parse_symbol,
+        sequence([
+            any_of([
+                parse_token("*"), 
+                parse_token("+"), 
+                parse_token("-"), 
+                parse_token("/"), 
+            ]),
+            recur,
+            recur,
+        ]),
+    ])
+}
+
+fn main() {
+    let program = "fn f x y = + * x x y"
+    print(program)
+    var ps = ParseState(program, 0)
+    let parse_fn = sequence([
+            parse_token("fn"),                 # fn keyword
+            parse_symbol,                      # function name
+            kleene_star(repeat(parse_symbol)), # params
+            parse_token("="),
+            parse_expr(),
+    ])
+
+    let parser = any_of([parse_fn, parse_token("var")])
+    while match parser(ps) {
+        Just(Step(node, next_ps)) {
+            print("Found ${node}")
+            ps = next_ps
+        }
+        Nothing {
+            break
+        }
+    }
+}
