@@ -1,6 +1,9 @@
 import map {Map, keys, values}
-import set {Set, set}
 import math {+, -, *, /, abs, negate, Num, Bounded, from_int}
+import set {Set, set}
+import sys {open, read, write, close, readlines, stdin, stdout, stderr}
+
+export {open, read, write, close, readlines, stdin, stdout, stderr}
 export {Map, keys, values, Set, set}
 export {+, -, *, /, abs, negate, Num, Bounded, from_int}
 
@@ -604,6 +607,15 @@ instance HasIndexableItems [a] Int a {
     }
 }
 
+instance HasIndexableItems String Int Char {
+    fn get_indexed_item(s String, index Int) {
+        let String(sz, len) = s
+        assert(index < len)
+        assert(index >= 0)
+        return sz[index]
+    }
+}
+
 class HasRemovableItems collection key {
     # Remove an item idempotently
     fn remove(collection, key) ()
@@ -748,6 +760,28 @@ instance Iterable String Char {
 
 fn isspace(ch Char) Bool {
     return __builtin_ffi_1("isspace", int(ch))
+}
+
+fn isalpha(ch Char) Bool {
+    return __builtin_ffi_1("isalpha", int(ch))
+}
+
+fn islower(ch Char) Bool {
+    return __builtin_ffi_1("islower", int(ch))
+}
+
+fn isupper(ch Char) Bool {
+    return __builtin_ffi_1("isupper", int(ch))
+}
+
+fn tolower(ch Char) Char {
+    # Only good for ASCII as is.
+    return __builtin_ffi_1("tolower", int(ch))
+}
+
+fn toupper(ch Char) Char {
+    # Only good for ASCII as is.
+    return __builtin_ffi_1("toupper", int(ch))
 }
 
 class CanSliceFrom collection sliced_collection  {

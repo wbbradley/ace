@@ -1,7 +1,6 @@
 # test: pass
 # expect: This should be here.
 
-import sys {readlines, open}
 import itertools {take}
 
 fn main() {

@@ -375,7 +375,9 @@ llvm::Constant *llvm_sizeof_type(llvm::IRBuilder<> &builder,
   llvm::Constant *alloc_size_const = llvm::ConstantExpr::getSizeOf(llvm_type);
   llvm::Constant *size_value = llvm::ConstantExpr::getTruncOrBitCast(
       alloc_size_const, builder.getInt64Ty());
+#ifdef ZION_DEBUG
   size_value->setName("size_value");
+#endif
   debug_above(3,
               log(log_info, "size of %s is: %s", llvm_print(llvm_type).c_str(),
                   llvm_print(*size_value).c_str()));
@@ -616,8 +618,10 @@ llvm::Value *llvm_tuple_alloc(llvm::IRBuilder<> &builder,
                            std::vector<llvm::Value *>{
                                llvm_sizeof_type(builder, llvm_tuple_type)}),
         llvm_tuple_type->getPointerTo());
+#ifdef ZION_DEBUG
     llvm_allocated_tuple->setName(
         string_format("tuple/%d", int(llvm_dims.size())));
+#endif
 
     llvm::Value *llvm_zero = llvm::ConstantInt::get(
         llvm::Type::getInt32Ty(builder.getContext()), 0);
@@ -635,8 +639,10 @@ llvm::Value *llvm_tuple_alloc(llvm::IRBuilder<> &builder,
                       llvm_print(llvm_allocated_tuple->getType()).c_str(), i));
       llvm::Value *llvm_member_address = builder.CreateInBoundsGEP(
           llvm_tuple_type, llvm_allocated_tuple, llvm_gep_args);
+#ifdef ZION_DEBUG
       llvm_member_address->setName(
           string_format("&tuple/%d[%d]", int(llvm_dims.size()), i));
+#endif
       debug_above(7, log("GEP returned %s with type %s",
                          llvm_print(llvm_member_address).c_str(),
                          llvm_print(llvm_member_address->getType()).c_str()));
@@ -719,8 +725,12 @@ llvm::Value *llvm_create_closure_callsite(Location location,
                      llvm_print(args[0]->getType()).c_str(),
                      llvm_print(args[1]->getType()).c_str()));
   return builder.CreateCall(llvm_function_to_call,
-                            llvm::ArrayRef<llvm::Value *>(args),
-                            string_format("call{%s}", location.repr().c_str()));
+                            llvm::ArrayRef<llvm::Value *>(args)
+#ifdef ZION_DEBUG
+                                ,
+                            string_format("call{%s}", location.repr().c_str())
+#endif
+  );
 }
 
 } // namespace zion

@@ -1,4 +1,4 @@
-import sys {stdout, Errno, File, open, read, write, O_RDONLY, CreateMode}
+import sys {Errno, File, O_RDONLY, CreateMode}
 export {BufferedFileIO}
 
 newtype BufferedFileIO readable = BufferedFileIO(readable) /* where (Readable readable) */
