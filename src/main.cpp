@@ -1230,7 +1230,9 @@ Phase4 ssa_gen(llvm::LLVMContext &context, const Phase3 &phase_3) {
          * definition or anything for this symbol */
 #ifdef ZION_DEBUG
         llvm::Value *value = gen::maybe_get_env_var(
-            gen_env, {pair.first, overload.second->expr->get_location()}, type);
+            gen_env,
+            Identifier{pair.first, overload.second->expr->get_location()},
+            type);
         assert(value == nullptr);
 #endif
 
