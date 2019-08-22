@@ -1,0 +1,11 @@
+# test: pass
+
+import sort {is_sorted, bubble_sort}
+
+fn main() {
+    let xs = vector([40, 39..5])
+    assert(not is_sorted(xs))
+    bubble_sort(xs)
+    assert(is_sorted(xs))
+    print("PASS")
+}

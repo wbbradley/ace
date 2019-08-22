@@ -1,0 +1,33 @@
+import sys {FileDescriptor, get_errno}
+export {socket, Domain, Type, AF_INET, AF_INET6, SOCK_STREAM, SOCK_DGRAM}
+
+newtype Domain = Domain(Int)
+
+let AF_INET = __host_int(AF_INET) as! Domain
+let AF_INET6 = __host_int(AF_INET6) as! Domain
+#if !__APPLE__
+#  let AF_PACKET = __host_int(AF_PACKET) as! Domain
+#  let AF_NETLINK = __host_int(AF_NETLINK) as! Domain
+#endif
+
+# etc...
+
+newtype Type = Type(Int)
+
+let SOCK_STREAM = __host_int(SOCK_STREAM) as! Type
+let SOCK_DGRAM = __host_int(SOCK_STREAM) as! Type
+# etc...
+
+fn socket(domain Domain, type Type) {
+    let Domain(domain) = domain
+    let Type(type) = type
+    let ret = __builtin_ffi_3("socket", domain, type, 0)
+    if ret == -1 {
+        return ResourceFailure(get_errno())
+    } else {
+        return ResourceAcquired(
+            WithResource(
+                FileDescriptor(ret),
+                fn () { close(ret)! }))
+    }
+}

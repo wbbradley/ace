@@ -1,0 +1,15 @@
+# test: pass
+
+fn main() {
+    let p = (1, 2.0)
+    let q = (2, 2.0)
+    assert(not p > p)
+    assert(not p < p)
+    assert(p >= p)
+    assert(p <= p)
+    assert(p < q)
+    assert(q > p)
+    assert(p <= q)
+    assert(q >= p)
+    print("PASS")
+}

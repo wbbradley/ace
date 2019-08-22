@@ -1,0 +1,34 @@
+export {bubble_sort, is_sorted}
+
+fn bubble_sort(xs) {
+    # Perform an in-place bubble sort
+    var n = len(xs)
+    var next_n = 0
+    while n > 1 {
+        next_n = 0
+        for i in [1..n-1] {
+            if xs[i-1] > xs[i] {
+                let x = xs[i-1]
+                xs[i-1] = xs[i]
+                xs[i] = x
+                next_n = i
+            }
+        }
+        n = next_n
+    }
+}
+
+fn is_sorted(xs) {
+    let iterator = iter(xs)
+    if iterator() is Just(x) {
+        var last = x
+        while iterator() is Just(x) {
+            if x < last {
+                return False
+            } else {
+                last = x
+            }
+        }
+    }
+    return True
+}

@@ -2,10 +2,12 @@ import map {Map, keys, values}
 import math {+, -, *, /, abs, negate, Num, Bounded, from_int}
 import set {Set, set}
 import sys {open, read, write, close, readlines, stdin, stdout, stderr}
+import vector {Vector}
 
 export {open, read, write, close, readlines, stdin, stdout, stderr}
 export {Map, keys, values, Set, set}
 export {+, -, *, /, abs, negate, Num, Bounded, from_int}
+export {Vector}
 
 link pkg "bdw-gc"
 
@@ -368,6 +370,69 @@ class Ord a {
     fn max(a, a) a
 }
 
+instance Ord (a, b) {
+    fn compare(a, b) Ordering {
+        let (a1, a2) = a
+        let (b1, b2) = b
+        let c = compare(a1, b1)
+        if c is EQ {
+            return compare(a2, b2)
+        } else {
+            return c
+        }
+    }
+    fn <(a, b) Bool {
+        let (a1, a2) = a
+        let (b1, b2) = b
+        if a1 < b1 {
+            return True
+        } else if a1 > b1 {
+            return True
+        } else {
+            return a2 < b2
+        }
+    }
+
+    fn <=(a, b) Bool {
+        let (a1, a2) = a
+        let (b1, b2) = b
+        if a1 < b1 {
+            return True
+        } else if a1 > b1 {
+            return False
+        } else {
+            return a2 <= b2
+        }
+    }
+    fn >(a, b) Bool {
+        let (a1, a2) = a
+        let (b1, b2) = b
+        if a1 > b1 {
+            return True
+        } else if a1 < b1 {
+            return False
+        } else {
+            return a2 > b2
+        }
+    }
+    fn >=(a, b) Bool {
+        let (a1, a2) = a
+        let (b1, b2) = b
+        if a1 > b1 {
+            return True
+        } else if a1 < b1 {
+            return False
+        } else {
+            return a2 >= b2
+        }
+    }
+    fn min(a, b) {
+        return a > b ? b : a
+    }
+    fn max(a, b) {
+        return a > b ? a : b
+    }
+}
 
 instance Ord Int {
     fn <(a, b) => __builtin_int_lt(a, b)
@@ -514,13 +579,6 @@ class Functor f {
 data Either a b {
     Left(a)
     Right(b)
-}
-
-struct Vector a {
-    # TODO: make sure offset in struct is correct RE dim_offset
-    array var (*a)
-    size var Int
-    capacity var Int
 }
 
 fn vector(xs) {
@@ -899,20 +957,41 @@ struct Range a {
     range_max a
 }
 
+instance Str (Range a) {
+    fn str(r) {
+        let Range(min, size, max) = r
+        return "Range(${min}, ${size}, ${max})"
+    }
+}
+
 fn range(max Int) {
     return Range(0, 1, max-1)
 }
 
 instance Iterable (Range a) a {
     fn iter(ri) {
-        var index = ri.range_min
-        return fn () {
-            let cur_index = index;
-            if cur_index <= ri.range_max {
-                index = cur_index + ri.step_size
-                return Just(cur_index)
-            } else {
-                return Nothing
+        let Range(range_min, step, range_max) = ri
+        var index = range_min
+        if step > 0 {
+            return fn () {
+                let cur_index = index;
+                if cur_index <= range_max {
+                    index = cur_index + ri.step_size
+                    return Just(cur_index)
+                } else {
+                    return Nothing
+                }
+            }
+        } else {
+            /* handle stepping negatively */ 
+            return fn () {
+                let cur_index = index;
+                if cur_index >= range_max {
+                    index = cur_index + ri.step_size
+                    return Just(cur_index)
+                } else {
+                    return Nothing
+                }
             }
         }
     }
@@ -964,7 +1043,9 @@ fn enumerate(xs) fn () Maybe (Int, a) {
 # WithResources are expected by `with` blocks without `else` blocks. In other
 # words, `with` blocks without follow-up `else` blocks cannot fail to provide
 # the resource.
-newtype WithResource resource = WithResource(resource, fn () ())
+newtype
+    WithResource resource =
+        WithResource(resource, fn () ())
 
 # `WithElseResource`s are expected by `with` blocks that have `else` blocks. The
 # input to a `with` block can fail to acquire the resource, and thus pass

@@ -1,0 +1,15 @@
+# test: pass
+# expect: Created socket .*\.
+
+import sys {FileDescriptor}
+import socket {socket, AF_INET, SOCK_STREAM}
+
+
+fn main() {
+    # TODO: this is fairly invasive as far as tests go, consider mocking FFI
+    with let FileDescriptor(socket) = socket(AF_INET, SOCK_STREAM) {
+        print("Created socket ${socket}.")
+    } else {
+        print("Failed to create socket.")
+    }
+}
