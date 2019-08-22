@@ -476,14 +476,16 @@ instance Ord String {
     fn compare(a, b) {
         let String(a, len_a) = a
         let String(b, len_b) = b
-        let ret = __builtin_ffi_3("memcmp", a, b, min(len_a, len_b))
+        let ret = __builtin_ffi_3("zion_memcmp", a, b, min(len_a, len_b))
         if ret == 0 {
             if len_a == len_b {
                 return EQ
             }
-            return len_a < len_b ? LT : GT
+            let ret = len_a < len_b ? LT : GT
+            return ret
         } else {
-            return ret < 0 ? LT : GT
+            let ret = ret < 0 ? LT : GT
+            return ret
         }
     }
 
