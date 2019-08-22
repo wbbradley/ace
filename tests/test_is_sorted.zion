@@ -1,0 +1,17 @@
+# test: pass
+
+import sort {is_sorted}
+
+fn main() {
+    assert(is_sorted([]))
+    assert(is_sorted([1]))
+    assert(is_sorted([1, 2]))
+    assert(is_sorted([1, 2, 3]))
+    assert(is_sorted([2, 2, 2]))
+    assert(is_sorted([2, 3..10]))
+    assert(not is_sorted([20, 19..10]))
+    assert(not is_sorted([52, 2, 2]))
+    assert(not is_sorted([52, 2]))
+    print("PASS")
+}
+

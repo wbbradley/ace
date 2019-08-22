@@ -19,7 +19,7 @@ const char *FLOAT_TYPE = "Float";
 
 const char *BOOL_TYPE = "std.Bool";
 const char *MAYBE_TYPE = "std.Maybe";
-const char *VECTOR_TYPE = "std.Vector";
+const char *VECTOR_TYPE = "vector.Vector";
 const char *MAP_TYPE = "map.Map";
 const char *SET_TYPE = "set.Set";
 const char *STRING_TYPE = "std.String";

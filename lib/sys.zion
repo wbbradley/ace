@@ -1,9 +1,9 @@
 import bufio {BufferedFileIO}
-export {File, open, close, unlink, read, stdin, stdout, stderr, Errno, write,
-        BufferedFileIO, readlines, CreateMode, O_RDONLY, O_WRONLY, O_RDWR,
-        O_ACCMODE, O_CREAT, O_EXCL, O_NOCTTY, O_TRUNC, O_APPEND, O_NONBLOCK,
-        S_IRWXU, S_IRUSR, S_IWUSR, S_IXUSR, S_IRWXG, S_IRGRP, S_IWGRP, S_IXGRP,
-        S_IRWXO, S_IROTH, S_IWOTH, S_IXOTH}
+export {FileDescriptor, File, open, close, unlink, read, stdin, stdout, stderr, Errno,
+        get_errno, write, BufferedFileIO, readlines, CreateMode, O_RDONLY,
+        O_WRONLY, O_RDWR, O_ACCMODE, O_CREAT, O_EXCL, O_NOCTTY, O_TRUNC,
+        O_APPEND, O_NONBLOCK, S_IRWXU, S_IRUSR, S_IWUSR, S_IXUSR, S_IRWXG,
+        S_IRGRP, S_IWGRP, S_IXGRP, S_IRWXO, S_IROTH, S_IWOTH, S_IXOTH}
 
 link pkg "bdw-gc"
 
@@ -168,13 +168,17 @@ class FileOpen params error {
     fn open(params) WithElseResource FileDescriptor error
 }
 
+fn get_errno() {
+    return Errno(__builtin_ffi_0("zion_errno"))
+}
+
 newtype File = File(String, OpenFlags, CreateMode)
 
 instance FileOpen File Errno {
     fn open(params) {
         let File(String(sz_filename, _), OpenFlags(flags), CreateMode(mode)) = params
         return match __builtin_ffi_3("open", sz_filename, flags, mode) {
-            -1 => ResourceFailure(Errno(__builtin_ffi_0("zion_errno")))
+            -1 => ResourceFailure(get_errno())
             fd => ResourceAcquired(WithResource(FileDescriptor(fd), fn () {
                 (__builtin_ffi_1("close", fd) as Int)!
             }))

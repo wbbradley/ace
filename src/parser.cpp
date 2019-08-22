@@ -1564,8 +1564,21 @@ const While *parse_while(ParseState &ps) {
         new Var(ps.id_mapped(Identifier{"True", while_token.location})),
         parse_match(ps));
   } else {
-    return new While(parse_expr(ps),
-                     parse_block(ps, false /*expression_means_return*/));
+    const Expr *condition_expr = parse_expr(ps);
+    if (ps.token.is_ident(K(is))) {
+      auto is_token = ps.token;
+      ps.advance();
+      PatternBlocks pattern_blocks{
+          parse_pattern_block(ps, false /*allow_else*/)};
+      pattern_blocks.push_back(new PatternBlock(
+          new IrrefutablePredicate(is_token.location, maybe<Identifier>()),
+          new Break(is_token.location)));
+      return new While(new Var(Identifier{"std.True", ps.token.location}),
+                       new Match(condition_expr, pattern_blocks));
+    } else {
+      return new While(condition_expr,
+                       parse_block(ps, false /*expression_means_return*/));
+    }
   }
 }
 

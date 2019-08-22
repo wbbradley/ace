@@ -1,0 +1,10 @@
+export {Vector, array, size, capacity}
+
+struct Vector a {
+    # TODO: make sure offset in struct is correct RE dim_offset
+    array var (*a)
+    size var Int
+    capacity var Int
+}
+
+

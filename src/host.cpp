@@ -3,6 +3,8 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <sys/signal.h>
+#include <sys/socket.h>
+#include <sys/types.h>
 #include <unordered_map>
 
 #include "user_error.h"
@@ -214,6 +216,14 @@ void init_host() {
   // V(SIGUNUSED);
   // V(SIGRTMIN);
   // V(SIGRTMAX);
+  V(AF_INET);
+  V(AF_INET6);
+#ifndef __APPLE__
+  V(AF_PACKET);
+  V(AF_NETLINK);
+#endif
+  V(SOCK_STREAM);
+  V(SOCK_DGRAM);
 }
 
 int get_host_int(Location location, std::string name) {
