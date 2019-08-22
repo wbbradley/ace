@@ -15,4 +15,5 @@ fn main() {
     assert("" < "a")
     assert("" <= "a")
     assert("A" <= "a")
+    print("PASS")
 }
