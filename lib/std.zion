@@ -360,6 +360,14 @@ data Ordering {
     GT
 }
 
+instance Str Ordering {
+    fn str(o) => match o {
+        EQ => "EQ"
+        LT => "LT"
+        GT => "GT"
+    }
+}
+
 class Ord a {
     fn compare(a, a) Ordering
     fn <(a, a) Bool
@@ -456,6 +464,31 @@ instance Ord Int {
     fn max(a, b) {
         return (a > b) ? a : b
     }
+}
+
+
+instance Ord String {
+    fn <(a, b) => match compare(a, b) { LT => True } else => False
+    fn <=(a, b) => match compare(a, b) { GT => False } else => True
+    fn >(a, b) => match compare(a, b) { GT => True } else => False
+    fn >=(a, b) => match compare(a, b) { LT => False } else => True
+
+    fn compare(a, b) {
+        let String(a, len_a) = a
+        let String(b, len_b) = b
+        let ret = __builtin_ffi_3("memcmp", a, b, min(len_a, len_b))
+        if ret == 0 {
+            if len_a == len_b {
+                return EQ
+            }
+            return len_a < len_b ? LT : GT
+        } else {
+            return ret < 0 ? LT : GT
+        }
+    }
+
+    fn min(a, b) => a < b ? a : b
+    fn max(a, b) => a > b ? a : b
 }
 
 instance Ord Char {

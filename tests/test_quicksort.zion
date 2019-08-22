@@ -1,0 +1,10 @@
+# test: pass
+
+import sort {quicksort, is_sorted}
+
+fn main() {
+    let rg = ["diaper", "bath", "food", "milk"]
+    quicksort(rg)
+    assert(is_sorted(rg))
+    print("PASS")
+}
