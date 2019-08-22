@@ -1,0 +1,12 @@
+# test: pass
+# expect: \-3352.*3\.4.*6\.7.*24\.3
+
+import sort {is_sorted, sort}
+
+fn main() {
+    let h = [6.7, 3.4, 24.3, -3352.008]
+    assert(not is_sorted(h))
+    sort(h)
+    assert(is_sorted(h))
+    print(h)
+}

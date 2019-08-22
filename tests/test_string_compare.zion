@@ -1,0 +1,18 @@
+# test: pass
+
+fn main() {
+    assert("alphabet" < "barcode")
+    assert(not "alphabet" > "barcode")
+    assert("alphabet" <= "barcode")
+    assert(not "alphabet" >= "barcode")
+    assert(not "barcode" < "alphabet")
+    assert("barcode" > "alphabet")
+    assert(not "barcode" <= "alphabet")
+    assert("barcode" >= "alphabet")
+    assert("a" >= "")
+    assert("a" > "")
+    assert("a" >= "A")
+    assert("" < "a")
+    assert("" <= "a")
+    assert("A" <= "a")
+}
