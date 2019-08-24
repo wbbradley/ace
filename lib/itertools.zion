@@ -1,5 +1,4 @@
-export {count_up_by_from, count_up_from, count_up_by, count, take, repeat,
-        chain, chain2, cycle, dropwhile, takewhile, zip}
+export {take, repeat, chain, chain2, cycle, dropwhile, takewhile, zip}
 
 fn zip(xs, ys) {
     let iter_xs = iter(xs)
@@ -12,18 +11,6 @@ fn zip(xs, ys) {
         }
         return Nothing
     }
-}
-
-fn count_up_by_from(inc Int, x Int) {
-    return [x, inc..]
-}
-
-fn count_up_from(x Int) {
-    return [x..]
-}
-
-fn count_up_by(inc Int) {
-    return [0..]
 }
 
 fn repeat(x) fn () Maybe a {
