@@ -25,7 +25,8 @@ BoundVarLifetimeTracker::~BoundVarLifetimeTracker() {
   ps.term_map = term_map_saved;
 }
 
-const ast::Expr *BoundVarLifetimeTracker::escaped_parse_expr() {
+const ast::Expr *BoundVarLifetimeTracker::escaped_parse_expr(
+    bool allow_for_comprehensions) {
   /* pop out of the current parsing scope to allow the parser to harken back to
    * prior scopes */
   auto mutable_vars = ps.mutable_vars;
@@ -34,7 +35,7 @@ const ast::Expr *BoundVarLifetimeTracker::escaped_parse_expr() {
   auto term_map = ps.term_map;
   ps.term_map = term_map_saved;
 
-  const ast::Expr *expr = parse_expr(ps);
+  const ast::Expr *expr = parse_expr(ps, allow_for_comprehensions);
   ps.term_map = term_map;
   ps.mutable_vars = mutable_vars;
   return expr;

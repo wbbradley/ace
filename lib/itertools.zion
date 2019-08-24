@@ -1,5 +1,18 @@
 export {count_up_by_from, count_up_from, count_up_by, count, take, repeat,
-        chain, chain2, cycle, dropwhile, takewhile}
+        chain, chain2, cycle, dropwhile, takewhile, zip}
+
+fn zip(xs, ys) {
+    let iter_xs = iter(xs)
+    let iter_ys = iter(ys)
+    return fn () {
+        if iter_xs() is Just(x) {
+            if iter_ys() is Just(y) {
+                return Just((x, y))
+            }
+        }
+        return Nothing
+    }
+}
 
 fn count_up_by_from(inc Int, x Int) {
     return [x, inc..]
