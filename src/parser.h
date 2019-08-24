@@ -61,7 +61,7 @@ const ast::Module *parse_module(
 
 types::Ref parse_type(ParseState &ps, bool allow_top_level_application);
 const ast::Expr *parse_literal(ParseState &ps);
-const ast::Expr *parse_expr(ParseState &ps);
+const ast::Expr *parse_expr(ParseState &ps, bool allow_for_comprehensions);
 const ast::Expr *parse_assignment(ParseState &ps);
 const ast::Expr *parse_tuple_expr(ParseState &ps);
 const ast::Expr *parse_let(ParseState &ps, Identifier var_id, bool is_let);

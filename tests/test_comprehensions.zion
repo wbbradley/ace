@@ -1,0 +1,17 @@
+# test: pass
+# expect: 36
+# expect: \[4, 10, 18\]
+
+import math {sum, odd}
+import itertools {zip}
+
+newtype Inches = Inches(Int)
+
+fn main() {
+    # Structure and destructure a range of Ints in a comprehension
+    print(sum(x for Inches(x) in (Inches(p) for p in [1..11]) if odd(x)))
+    # Multiply some zipped Ints and put them into a Vector
+    print([x*y for (x, y) in zip([1..3], [4..])])
+}
+
+

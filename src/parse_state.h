@@ -78,7 +78,7 @@ struct BoundVarLifetimeTracker {
   BoundVarLifetimeTracker(ParseState &ps);
   ~BoundVarLifetimeTracker();
 
-  const ast::Expr *escaped_parse_expr();
+  const ast::Expr *escaped_parse_expr(bool allow_for_comprehensions);
 
 private:
   ParseState &ps;

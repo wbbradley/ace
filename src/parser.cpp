@@ -72,7 +72,8 @@ const Expr *parse_var_decl(ParseState &ps,
                                                  maybe<Identifier>());
     chomp_token(tk_assign);
     /* parse the initializer in the context before the left-hand side */
-    const Expr *rhs = bvlt.escaped_parse_expr();
+    const Expr *rhs = bvlt.escaped_parse_expr(
+        false /*allow_for_comprehensions*/);
     const Expr *body = parse_block(ps, false /*expression_means_return*/);
     return new Match(rhs, {new PatternBlock(predicate, body)});
   } else {
@@ -88,7 +89,7 @@ const Expr *parse_let(ParseState &ps, Identifier var_id, bool is_let) {
 
   if (!ps.line_broke() && (ps.token.tk == tk_assign)) {
     ps.advance();
-    initializer = parse_expr(ps);
+    initializer = parse_expr(ps, false /*allow_for_comprehensions*/);
   } else {
     initializer = new Application(
         new Var(ps.id_mapped(Identifier{"new", location})),
@@ -126,80 +127,14 @@ const Expr *parse_let(ParseState &ps, Identifier var_id, bool is_let) {
 const Expr *parse_return_statement(ParseState &ps) {
   auto return_token = ps.token;
   chomp_ident(K(return ));
-  return new ReturnStatement((!ps.line_broke() && ps.token.tk != tk_rcurly)
-                                 ? parse_expr(ps)
-                                 : unit_expr(INTERNAL_LOC()));
-}
-
-maybe<Identifier> parse_with_param(ParseState &ps, const Expr *&expr) {
-  expr = parse_expr(ps);
-  if (auto var = dcast<const Var *>(expr)) {
-    if (ps.token.tk == tk_becomes) {
-      auto param_id = var->id;
-      ps.advance();
-      expr = parse_expr(ps);
-      return maybe<Identifier>(param_id);
-    }
-  }
-  return maybe<Identifier>();
-}
-
-const Expr *parse_with_block(ParseState &ps) {
-  return unit_expr(INTERNAL_LOC());
-#if 0
-	auto with_token = ps.token;
-	ps.advance();
-
-	Expr *expr = nullptr;
-	maybe<Identifier> maybe_param_id = parse_with_param(ps, expr);
-	assert(expr != nullptr);
-
-	Identifier param_id = (maybe_param_id.valid
-			? maybe_param_id.t
-			: Identifier{fresh(), with_token.location});
-
-	auto block = parse_block(ps, false /*expression_means_return*/);
-
-	auto else_token = ps.token;
-	chomp_ident(K(else));
-
-	Identifier error_var_id = (ps.token.tk == tk_identifier)
-		? Identifier::from_token(ps.token_and_advance())
-		: Identifier{fresh(), with_token.location};
-
-	auto error_block = parse_block(ps, false /* expression_means_return */);
-
-	auto cleanup_token = Identifier{"__cleanup", with_token.location};
-	auto match = create<match_expr_t>(with_token);
-	match->value = expr;
-
-	auto with_pattern = create<PatternBlock>(with_token);
-	with_pattern->block = block;
-
-	auto with_predicate = create<CtorPredicate>(Token{with_token.location, tk_identifier, "Acquired"});
-	with_predicate->params.push_back(create<IrrefutablePredicate>(param_id));
-	with_predicate->params.push_back(create<IrrefutablePredicate>(cleanup_token));
-	with_pattern->predicate = with_predicate;
-
-	auto cleanup_defer = create<defer_t>(block->token);
-	cleanup_defer->callable = create<reference_expr_t>(cleanup_token);
-	block->statements.insert(block->statements.begin(), cleanup_defer);
-
-	auto else_pattern = create<PatternBlock>(else_token);
-	else_pattern->block = error_block;
-
-	auto else_predicate = create<CtorPredicate>(Token{else_token.location, tk_identifier, "Failed"});
-	else_predicate->params.push_back(create<IrrefutablePredicate>(error_var_id));
-	else_pattern->predicate = else_predicate;
-
-	match->pattern_blocks.push_back(with_pattern);
-	match->pattern_blocks.push_back(else_pattern);
-	return match;
-#endif
+  return new ReturnStatement(
+      (!ps.line_broke() && ps.token.tk != tk_rcurly)
+          ? parse_expr(ps, false /*allow_for_comprehensions*/)
+          : unit_expr(INTERNAL_LOC()));
 }
 
 const Expr *parse_for_block(ParseState &ps) {
-  chomp_ident("for");
+  chomp_ident(K(for));
 
   bool filtered_matching = ps.token.is_ident(K(match));
   if (filtered_matching) {
@@ -213,7 +148,8 @@ const Expr *parse_for_block(ParseState &ps) {
   auto in_token = ps.token;
   chomp_ident(K(in));
 
-  const Expr *iterable = bvlt.escaped_parse_expr();
+  const Expr *iterable = bvlt.escaped_parse_expr(
+      false /*allow_for_comprehensions*/);
   const Expr *block = parse_block(ps, false /*expression_means_return*/);
 
   auto iterator_id = Identifier{fresh(), for_var_predicate->get_location()};
@@ -267,7 +203,8 @@ const Expr *parse_new_expr(ParseState &ps) {
 const Expr *parse_static_print(ParseState &ps) {
   auto location = ps.token_and_advance().location;
   chomp_token(tk_lparen);
-  auto sp = new StaticPrint(location, parse_expr(ps));
+  auto sp = new StaticPrint(location,
+                            parse_expr(ps, true /*allow_for_comprehensions*/));
   chomp_token(tk_rparen);
   return sp;
 }
@@ -278,7 +215,7 @@ const Expr *parse_assert(ParseState &ps) {
   chomp_ident(K(assert));
   chomp_token(tk_lparen);
 
-  const Expr *condition = parse_expr(ps);
+  const Expr *condition = parse_expr(ps, false /*allow_for_comprehensions*/);
   std::string assert_message = string_format(
       "%s: assertion failed: (%s)\n", ps.token.location.repr().c_str(),
       clean_ansi_escapes(condition->str()).c_str());
@@ -315,7 +252,7 @@ const Expr *parse_assert(ParseState &ps) {
 
 const Expr *parse_defer(ParseState &ps) {
   chomp_ident(K(defer));
-  const Expr *expr = parse_expr(ps);
+  const Expr *expr = parse_expr(ps, false /*allow_for_comprehensions*/);
   if (const Application *application = dcast<const Application *>(expr)) {
     return new Defer(application);
   } else {
@@ -348,7 +285,8 @@ const Expr *parse_with(ParseState &ps) {
   }
 
   /* the context manager expression should be parsed in the prior context */
-  const Expr *context_manager_expr = bvlt.escaped_parse_expr();
+  const Expr *context_manager_expr = bvlt.escaped_parse_expr(
+      false /*allow_for_comprehensions*/);
   /* parse the success block */
   const Expr *block = parse_block(ps, false /*expression_means_return*/);
 
@@ -517,7 +455,7 @@ const Expr *parse_var_ref(ParseState &ps) {
     if (arity > 0) {
       chomp_token(tk_lparen);
       while (true) {
-        exprs.push_back(parse_expr(ps));
+        exprs.push_back(parse_expr(ps, false /*allow_for_comprehensions*/));
         --arity;
         if (arity > 0) {
           chomp_token(tk_comma);
@@ -639,6 +577,115 @@ const Expr *build_array_literal(Location location,
       new Block(stmts));
 }
 
+struct GeneratorFor {
+  const Predicate *predicate = nullptr;
+  const Expr *iterable = nullptr;
+  const Expr *condition = nullptr;
+};
+
+GeneratorFor parse_generator_for(ParseState &ps) {
+  auto for_token = ps.token;
+  chomp_ident(K(for));
+  GeneratorFor generator_for;
+  generator_for.predicate = parse_predicate(
+      ps, false /*allow_else*/, maybe<Identifier>() /*name_assignment*/);
+  chomp_ident(K(in));
+  generator_for.iterable = parse_expr(ps, false /*allow_for_comprehensions*/);
+  if (ps.token.is_ident(K(if))) {
+    ps.advance();
+    generator_for.condition = parse_expr(ps,
+                                         false /*allow_for_comprehensions*/);
+  }
+  return generator_for;
+}
+
+//
+// (expr
+//    for predicate_1 in iterable_1 if cond_1
+//    for predicate_2 in iterable_2 if cond_2
+//    ...)
+//
+// expands to:
+// {
+//   let i_1 = iter(iterable_1),
+//   fn () {
+//     while True {
+//       match i_1() {
+//         Just(predicate_1) {
+//           if cond_1 {
+//             recurse for _2...
+//               return Just(expr)
+//           }
+//         }
+//         Nothing {
+//           return Nothing
+//         }
+//       }
+//     }
+//   }
+// }
+//
+// [expr for predicate_1 in iterable if cond]
+// expands to:
+// vector(...the above...)
+//
+const Expr *build_generator(Location location,
+                            const Expr *expr,
+                            const GeneratorFor &generator_for) {
+  Identifier iterator_id{fresh(), location};
+  return new Let(
+      iterator_id,
+      new Application(new Var(Identifier{"std.iter", location}),
+                      {generator_for.iterable}),
+      new Lambda(
+          {Identifier{fresh(), location}}, {type_unit(location)},
+          type_operator(type_id(Identifier{"std.Maybe", expr->get_location()}),
+                        type_variable(expr->get_location())),
+          new Block(
+              {new While(
+                   new Var(Identifier{"std.True", location}),
+                   new Match(
+                       new Application(new Var(iterator_id),
+                                       {unit_expr(location)}),
+                       {new PatternBlock(
+                            new CtorPredicate(location,
+                                              {generator_for.predicate},
+                                              Identifier{"std.Just", location},
+                                              maybe<Identifier>()),
+                            generator_for.condition != nullptr
+                                ? static_cast<const Expr *>(new Conditional(
+                                      generator_for.condition,
+                                      new ReturnStatement(new Application(
+                                          new Var(
+                                              Identifier{"std.Just", location}),
+                                          {expr})),
+                                      unit_expr(location)))
+                                : static_cast<const Expr *>(
+                                      new ReturnStatement(new Application(
+                                          new Var(
+                                              Identifier{"std.Just", location}),
+                                          {expr})))),
+                        new PatternBlock(new CtorPredicate(location, {},
+                                                           Identifier{"std."
+                                                                      "Nothing",
+                                                                      location},
+                                                           maybe<Identifier>()),
+                                         new ReturnStatement(new Var(Identifier{
+                                             "std.Nothing", location})))})),
+               new ReturnStatement(
+                   new Var(Identifier{"std.Nothing", location}))})));
+}
+
+const Expr *parse_generator(ParseState &ps, const Expr *expr) {
+  BoundVarLifetimeTracker bvlt(ps);
+  GeneratorFor generator_for = parse_generator_for(ps);
+  if (ps.token.is_ident(K(for))) {
+    throw user_error(ps.token.location,
+                     "nested comprehensions are not legal in Zion");
+  }
+  return build_generator(expr->get_location(), expr, generator_for);
+}
+
 const Expr *parse_array_literal(ParseState &ps) {
   Location location = ps.token.location;
   chomp_token(tk_lsquare);
@@ -647,7 +694,7 @@ const Expr *parse_array_literal(ParseState &ps) {
   int i = 0;
   while (ps.token.tk != tk_rsquare && ps.token.tk != tk_none) {
     ++i;
-    exprs.push_back(parse_expr(ps));
+    exprs.push_back(parse_expr(ps, false /*allow_for_comprehensions*/));
 
     if (ps.token.tk == tk_double_dot && (i == 1 || i == 2)) {
       /* range syntax with step calculation */
@@ -674,7 +721,7 @@ const Expr *parse_array_literal(ParseState &ps) {
       auto let_range_max = new Let(
           range_max,
           (ps.token.tk != tk_rsquare)
-              ? parse_expr(ps)
+              ? parse_expr(ps, false /*allow_for_comprehensions*/)
               : new Application(
                     new Var(Identifier{"math.max_bound", ps.token.location}),
                     {unit_expr(location)}),
@@ -695,6 +742,20 @@ const Expr *parse_array_literal(ParseState &ps) {
       return let_range_min;
     } else if (ps.token.tk == tk_comma) {
       ps.advance();
+    } else if (ps.token.is_ident(K(for))) {
+      if (i == 1) {
+        const Expr *list_comprehension = new Application(
+            new Var(Identifier{"std.vector", location}),
+            {parse_generator(ps, exprs[0])});
+        chomp_token(tk_rsquare);
+        return list_comprehension;
+
+      } else {
+        // TODO: consider allowing this as a special case
+        throw user_error(
+            ps.token.location,
+            "for comprehensions are not allowed after multiple array elements");
+      }
     } else if (ps.token.tk != tk_rsquare) {
       throw user_error(
           ps.token.location,
@@ -777,7 +838,7 @@ const Expr *parse_string_expr(ParseState &ps) {
       throw user_error(ps.token.location, "found empty string expression");
     }
 
-    const Expr *expr = parse_expr(ps);
+    const Expr *expr = parse_expr(ps, false /*allow_for_comprehensions*/);
     exprs.push_back(new Application(
         new Var(Identifier{"std.str", expr->get_location()}), {expr}));
 
@@ -789,6 +850,7 @@ const Expr *parse_string_expr(ParseState &ps) {
       }
     }
   }
+
   const Expr *string_expr_suffix = parse_string_expr_suffix(
       ps.token_and_advance());
   if (string_expr_suffix != nullptr) {
@@ -881,7 +943,7 @@ const Expr *parse_associative_array_literal(ParseState &ps) {
     }
     ++i;
 
-    const Expr *lhs = parse_expr(ps);
+    const Expr *lhs = parse_expr(ps, false /*allow_for_comprehensions*/);
     if (ps.token.tk == tk_colon) {
       if (is_set) {
         throw user_error(ps.token.location,
@@ -889,7 +951,8 @@ const Expr *parse_associative_array_literal(ParseState &ps) {
                          "map literal syntax");
       }
       ps.advance();
-      exprs.push_back({lhs, parse_expr(ps)});
+      exprs.push_back(
+          {lhs, parse_expr(ps, false /*allow_for_comprehensions*/)});
     } else if (ps.token.tk == tk_comma) {
       if (i > 1 && !is_set) {
         throw user_error(ps.token.location,
@@ -986,7 +1049,7 @@ const Expr *parse_postfix_expr(ParseState &ps) {
       } else {
         std::vector<const Expr *> params;
         while (ps.token.tk != tk_rparen) {
-          params.push_back(parse_expr(ps));
+          params.push_back(parse_expr(ps, true /*allow_for_comprehensions*/));
           if (ps.token.tk == tk_comma) {
             ps.advance();
           } else {
@@ -1019,7 +1082,7 @@ const Expr *parse_postfix_expr(ParseState &ps) {
       if (ps.token.tk == tk_colon) {
         start = new Literal(Token{ps.token.location, tk_integer, "0"});
       } else {
-        start = parse_expr(ps);
+        start = parse_expr(ps, false /*allow_for_comprehensions*/);
       }
 
       if (ps.token.tk == tk_colon) {
@@ -1032,7 +1095,7 @@ const Expr *parse_postfix_expr(ParseState &ps) {
         if (ps.token.tk == tk_assign) {
           /* set up an array index assignment */
           auto location = ps.token_and_advance().location;
-          auto rhs = parse_expr(ps);
+          auto rhs = parse_expr(ps, false /*allow_for_comprehensions*/);
           expr = new Application(
               new Var(Identifier{"std.set_indexed_item", location}),
               {expr, start, rhs});
@@ -1044,7 +1107,7 @@ const Expr *parse_postfix_expr(ParseState &ps) {
               {expr, start});
         }
       } else {
-        const Expr *stop = parse_expr(ps);
+        const Expr *stop = parse_expr(ps, false /*allow_for_comprehensions*/);
         chomp_token(tk_rsquare);
 
         assert(is_slice);
@@ -1328,7 +1391,7 @@ const Expr *parse_tuple_expr(ParseState &ps) {
     /* we've got a reference to sole value of unit type */
     return unit_expr(ps.token_and_advance().location);
   }
-  const Expr *expr = parse_expr(ps);
+  const Expr *expr = parse_expr(ps, true /*allow_for_comprehensions*/);
   if (ps.token.tk != tk_comma) {
     chomp_token(tk_rparen);
     return expr;
@@ -1345,7 +1408,7 @@ const Expr *parse_tuple_expr(ParseState &ps) {
         ps.advance();
         break;
       }
-      exprs.push_back(parse_expr(ps));
+      exprs.push_back(parse_expr(ps, true /*allow_for_comprehensions*/));
       if (ps.token.tk == tk_comma) {
         ps.advance();
       }
@@ -1376,18 +1439,29 @@ const Expr *parse_ternary_expr(ParseState &ps) {
     const Expr *truthy_expr = parse_or_expr(ps);
     expect_token(tk_colon);
     ps.advance();
-    return new Conditional(condition, truthy_expr, parse_expr(ps));
+    return new Conditional(condition, truthy_expr, parse_or_expr(ps));
   } else {
     return condition;
   }
 }
 
-const Expr *parse_expr(ParseState &ps) {
-  return parse_ternary_expr(ps);
+const Expr *parse_for_comprehension(ParseState &ps,
+                                    bool allow_for_comprehensions) {
+  const Expr *expr = parse_ternary_expr(ps);
+  if (allow_for_comprehensions && ps.token.is_ident(K(for))) {
+    return parse_generator(ps, expr);
+  }
+  return expr;
+}
+
+const Expr *parse_expr(ParseState &ps, bool allow_for_comprehensions) {
+  return parse_for_comprehension(ps, allow_for_comprehensions);
 }
 
 const Expr *parse_assignment(ParseState &ps) {
-  const Expr *lhs = parse_expr(ps);
+  /* do not allow for comprehensions beause they would be at the statement
+   * level which is better expressed as a regular for loop. */
+  const Expr *lhs = parse_expr(ps, false /*allow_for_comprehensions*/);
 
   if (ps.line_broke()) {
     return lhs;
@@ -1398,7 +1472,7 @@ const Expr *parse_assignment(ParseState &ps) {
     ps.advance();
     return new Application(
         new Var(Identifier{"std.store_value", ps.token.location}),
-        {lhs, parse_expr(ps)});
+        {lhs, parse_expr(ps, false /*allow_for_comprehensions*/)});
   case tk_divide_by_eq:
   case tk_minus_eq:
   case tk_mod_eq:
@@ -1406,7 +1480,7 @@ const Expr *parse_assignment(ParseState &ps) {
   case tk_times_eq: {
     auto op_token = ps.token_and_advance();
     assert(op_token.text.size() >= 1);
-    const Expr *rhs = parse_expr(ps);
+    const Expr *rhs = parse_expr(ps, false /*allow_for_comprehensions*/);
     Identifier copy_value = Identifier{fresh(), lhs->get_location()};
     return new Application(
         new Var(Identifier{"std.store_value", op_token.location}),
@@ -1510,7 +1584,7 @@ const Expr *parse_if(ParseState &ps) {
   }
 
   Token condition_token = ps.token;
-  const Expr *condition = parse_expr(ps);
+  const Expr *condition = parse_expr(ps, false /*allow_for_comprehensions*/);
   if (ps.token.is_ident(K(is))) {
     /* if ... is is a special form */
     Token is_token = ps.token;
@@ -1564,7 +1638,8 @@ const While *parse_while(ParseState &ps) {
         new Var(ps.id_mapped(Identifier{"True", while_token.location})),
         parse_match(ps));
   } else {
-    const Expr *condition_expr = parse_expr(ps);
+    const Expr *condition_expr = parse_expr(ps,
+                                            false /*allow_for_comprehensions*/);
     if (ps.token.is_ident(K(is))) {
       auto is_token = ps.token;
       ps.advance();
@@ -1634,9 +1709,10 @@ const Predicate *parse_predicate(ParseState &ps,
     }
   } else if (!ps.token.is_ident(K(var)) &&
              is_restricted_var_name(ps.token.text)) {
-    throw user_error(
-        ps.token.location,
-        "irrefutable predicates are restricted to non-keyword symbols");
+    throw user_error(ps.token.location,
+                     "irrefutable predicates are restricted to non-keyword "
+                     "symbols (saw '%s')",
+                     ps.token.text.c_str());
   }
 
   if (ps.token.tk == tk_lparen) {
@@ -1661,9 +1737,10 @@ const Predicate *parse_predicate(ParseState &ps,
           throw user_error(ps.token.location,
                            "constructor predicates cannot be 'var'");
         } else if (is_restricted_var_name(ps.token.text)) {
-          throw user_error(
-              ps.token.location,
-              "irrefutable predicates are restricted to non-keyword symbols");
+          throw user_error(ps.token.location,
+                           "irrefutable predicates are restricted to "
+                           "non-keyword symbols (saw '%s')",
+                           ps.token.text.c_str());
         }
         /* this will be a var ref */
         ps.mutable_vars.insert(ps.token.text);
@@ -1745,7 +1822,7 @@ const Match *parse_match(ParseState &ps) {
     auto_else = true;
     ps.advance();
   }
-  auto scrutinee = parse_expr(ps);
+  auto scrutinee = parse_expr(ps, false /*allow_for_comprehensions*/);
   chomp_token(tk_lcurly);
   PatternBlocks pattern_blocks;
   while (ps.token.tk != tk_rcurly) {
@@ -2304,7 +2381,8 @@ const Instance *parse_type_class_instance(ParseState &ps) {
       auto name_token = ps.token_and_advance();
       auto id = ps.id_mapped(Identifier{name_token.text, name_token.location});
       chomp_token(tk_assign);
-      decls.push_back(new Decl(id, parse_expr(ps)));
+      decls.push_back(
+          new Decl(id, parse_expr(ps, false /*allow_for_comprehensions*/)));
     } else {
       chomp_token(tk_rcurly);
       break;
@@ -2526,7 +2604,8 @@ const Module *parse_module(ParseState &ps,
       ps.advance();
       auto id = Identifier::from_token(ps.token_and_advance());
       chomp_token(tk_assign);
-      decls.push_back(new Decl(id, parse_expr(ps)));
+      decls.push_back(
+          new Decl(id, parse_expr(ps, false /*allow_for_comprehensions*/)));
     } else if (ps.token.is_ident(K(class))) {
       /* module-level type classes */
       ps.advance();
