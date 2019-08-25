@@ -10,17 +10,16 @@ To play with Zion in Docker, try this.
 git clone https://github.com/zionlang/zion.git
 cd zion
 
-# Get a docker image set up ready to run a build
+# Get a docker image set up ready to run a build (assumes Docker is running).
 ./docker-build.sh && ./docker-run.sh bash
 
 # The prior command should open up a bash prompt within a new docker container.
 # Build and install Zion inside this container.
 make install
 
-# The prior command should have installed Zion to /usr/local. Set up the proper
-environment variables.
-export ZION_PATH=/usr/local/share/zion/lib
-export ZION_RT=/usr/local/share/zion/runtime
+# The prior command should have installed Zion to /usr/local. Set up the
+# $ZION_ROOT environment variable.
+export ZION_ROOT="/usr/local/share/zion"
 
 # Build and run a simple test program
 cd
@@ -49,6 +48,36 @@ based on System F with extensions for Type Classes, newtypes and pattern
 matching. There is no macro system but there is a rich syntax
 available via reader macros within the parser.
 
+#### Examples
+
+Deterministic cleanup.
+
+```
+fn main() {
+  let filename = "some-file.txt"
+  # 'with' gives guarantees that the value can clean itself up. See std.WithElseResource.
+  with let f = open(filename) {
+    for line in readlines(f) {
+      print(strip(line))
+    }
+  } else errno {
+    print("Failed to open ${filename}: ${errno}")
+  }
+}
+```
+
+For comprehensions and iterators...
+
+```
+import itertools {zip}
+
+fn main() {
+  # Multiply some zipped Ints and put them into a Vector
+  print([x*y for (x, y) in zip([1..3], [4..])])
+  # prints [4, 10, 18]...
+}
+```
+
 ### Semantics
 
 The evaluation of Zion is strict, not lazy. The call-by-value method of passing
@@ -61,16 +90,47 @@ There is no explicit notion of immutability, however it is implicit unless
 reference cell. Under the covers, this is the `std.Ref` type. The primary way
 to maintain mutable state is to use `var`.
 
+```
+fn main() {
+  # Create a value with let. By default it is immutable.
+  let y = 4
+  # Try to change it...
+  y = 5          // error: type error
+
+  # Create a variable with var. It is mutable.
+  var x = 5
+  print("${x}")  // Prints "5"
+
+  # Change what is in the memory cell described by x...
+  x = 7
+  print("${x}")  // Prints "7"
+
+  # Try putting some other type of thing in there...
+  x = "hey!"     // error: type error. Int != string.String
+}
+```
+
+
 ### Encapsulation
 
 There is no class-based encapsulation in Zion. Encapsulation can be achieved by
-not letting local variables escape from functions (or blocks), or by using module-local
-functions.
+
+1. using modules to implement Abstract Data Types, exporting only the functions
+   relevant to the creation, use, and lifetime of a type.
+2. not letting local variables escape from functions (or blocks), or by using
+   module-local functions.
+
+#### Modularity
+
+Zion lacks support for shared libraries or any shareable intermediate
+representation. Code complexity and leaky abstractions can still be avoided by
+limiting which symbols are exported from source modules.  In other words, only
+`export` the public interface to your module.
 
 ### Type System
 
 Types are inferred but type annotations are also allowed/encouraged as
-documentation and sometimes necessary when types cannot be inferred.  Zion
+documentation and sometimes necessary when types cannot be inferred. Zion
 does not support default type class instances by design (although, if a good
 design for that comes along, it might happen.)
 

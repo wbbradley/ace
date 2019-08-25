@@ -773,7 +773,7 @@ const Expr *parse_string_literal(const Token &token) {
   std::string str = unescape_json_quotes(token.text);
   int string_len = str.size();
   return new Application(
-      new Var(Identifier{"std.String", token.location}),
+      new Var(Identifier{STRING_TYPE, token.location}),
       {new Literal(token), new Literal(Token{token.location, tk_integer,
                                              std::to_string(string_len)})});
 }

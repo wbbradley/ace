@@ -1479,6 +1479,16 @@ int run_job(const Job &job) {
       return EXIT_FAILURE;
     }
 
+    bool have_root_dir = getenv("ZION_ROOT") != nullptr;
+    if (have_root_dir) {
+      std::stringstream ss;
+      ss << getenv("ZION_ROOT") << "/lib";
+      setenv("ZION_PATH", ss.str().c_str(), false /*overwrite*/);
+      ss.str("");
+      ss << getenv("ZION_ROOT") << "/runtime";
+      setenv("ZION_RT", ss.str().c_str(), false /*overwrite*/);
+    }
+
     if (getenv("ZION_RT") == nullptr) {
       log(log_error,
           "ZION_RT is not set. It should be set to the dirname of zion_rt.c. "
@@ -1520,8 +1530,6 @@ int run_job(const Job &job) {
           "-Wno-override-module "
           // TODO: plumb host targeting through clang here
           "--target=$(llvm-config --host-target) "
-          // TODO: plumb zion_rt.c properly into installation location.
-          // probably something like /usr/share/zion/rt
           "${ZION_RT}/zion_rt.c "
           // Add linker flags
           "-lm %s "

@@ -6,7 +6,7 @@ import itertools {take}
 fn main() {
     assert(chomp("\n") == "")
     with! let fd = open(__filename__) {
-        for line@String(sz, cb) in take(5, readlines(fd)) {
+        for line in take(5, readlines(fd)) {
             print(chomp(line))
         }
     }

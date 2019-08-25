@@ -1,0 +1,10 @@
+# test: pass
+# expect: PASS
+# expect: GET.*admin.*HTTP/1.1
+
+fn main() {
+  print([repr(x) for x in split("GET /admin.php HTTP/1.1", " ")])
+  assert(split("The quick brown fox", " ") == ["The", "quick", "brown", "fox"])
+  assert("a" in split("a.b.c", "."))
+  print("PASS")
+}

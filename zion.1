@@ -49,16 +49,33 @@ When searching for the specified \fIprogram\fR, \fBzion\fR will look in the curr
 .SH ENVIRONMENT
 .TP
 .br
+ZION_ROOT=\fI/usr/local/share/zion\fR
+Should point to the base directory for standard runtime and library.
+If 
+.B ZION_PATH
+is not set, it will default to
+.B $ZION_ROOT/lib
+\&. If 
+.B ZION_RT
+is not set, it will default to "
+.B $ZION_ROOT/runtime
+\&.
+.TP
+.br
 ZION_PATH=\fI/usr/local/share/zion/lib\fR
 A colon-separated list of directories to search for imported libraries.
 Libraries are imported with the `import` keyword.
 The `lib/std.zion` library is called the prelude and is automatically imported unless 
 .B NO_PRELUDE
-is given.
+is given. Setting this variable overrides the
+.B $ZION_ROOT/lib
+location.
 .TP
 .br
 ZION_RT=\fI/usr/local/share/zion/runtime\fR
-The location of the C-runtime portion of Zion's builtins. See src/zion_rt.c.
+The location of the C-runtime portion of Zion's builtins. See src/zion_rt.c. Setting this variable overrides the
+.B $ZION_ROOT/runtime
+location.
 .TP
 .br
 NO_PRELUDE=\fI1\fR

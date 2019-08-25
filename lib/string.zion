@@ -1,0 +1,312 @@
+export {String, chomp, strip, concat, split, has_substring, has_prefix, has_suffix, replace, join}
+
+# The default string type. Strings are stored null-terminated and the length is
+# cached.
+newtype String = String(*Char, Int)
+
+instance Str String {
+    str = id
+}
+
+instance Repr String {
+    fn repr(s) {
+        # TODO: maybe make this a DFA or something
+        let text = (
+            replace(
+                replace(
+                    replace(
+                        replace(
+                            replace(
+                                replace(s, "\"", "\\\""),
+                                "\n",
+                                "\\n"),
+                            "\t",
+                            "\\t"),
+                        "\b",
+                        "\\b"),
+                    "\r",
+                    "\\r"),
+                "\f",
+                "\\f"))
+        return "\"${text}\""
+    }
+}
+
+instance HasLength String {
+    fn len(s) {
+        let String(_, l) = s
+        return l
+    }
+}
+
+instance Eq String {
+    fn ==(a, b) {
+        let String(a, alen) = a
+        let String(b, blen) = b
+
+        if alen != blen {
+            return False
+        } else {
+            return __builtin_memcmp(a, b, alen) == 0
+        }
+    }
+
+    fn !=(a, b) => not (a == b)
+}
+
+instance Ord String {
+    fn <(a, b) => match compare(a, b) { LT => True } else => False
+    fn <=(a, b) => match compare(a, b) { GT => False } else => True
+    fn >(a, b) => match compare(a, b) { GT => True } else => False
+    fn >=(a, b) => match compare(a, b) { LT => False } else => True
+
+    fn compare(a, b) {
+        let String(a, len_a) = a
+        let String(b, len_b) = b
+        let ret = __builtin_ffi_3("zion_memcmp", a, b, min(len_a, len_b))
+        if ret == 0 {
+            if len_a == len_b {
+                return EQ
+            }
+            let ret = len_a < len_b ? LT : GT
+            return ret
+        } else {
+            let ret = ret < 0 ? LT : GT
+            return ret
+        }
+    }
+
+    fn min(a, b) => a < b ? a : b
+    fn max(a, b) => a > b ? a : b
+}
+
+instance HasIndexableItems String Int Char {
+    fn get_indexed_item(s String, index Int) {
+        let String(sz, len) = s
+        assert(index < len)
+        assert(index >= 0)
+        return sz[index]
+    }
+}
+
+instance Iterable String Char {
+    fn iter(s) {
+        var index = -1
+        let String(buf, length) = s
+        return fn() {
+            index += 1
+            if index >= length {
+                return Nothing
+            } else {
+                return Just(buf[index])
+            }
+        }
+    }
+}
+
+fn strip(s String) String {
+    let String(sz, cb) = s
+    var i = 0
+    while i < cb {
+        if not isspace(sz[i]) {
+            break
+        }
+        i += 1
+    }
+    var j = cb - 1
+    while j > i {
+        if not isspace(sz[j]) {
+            break
+        }
+        j -= 1
+    }
+    return s[i:j+1]
+}
+
+fn chomp(s String) String {
+    let String(sz, cb) = s
+    # Find index of first non-space character from end
+    var j = cb
+    while j > 0 {
+        if not isspace(sz[j-1]) {
+            return s[:j]
+        } else {
+            j -= 1
+            continue
+        }
+    }
+    return ""
+}
+
+fn has_substring(haystack String, needle String) Bool {
+    let String(haystack, _) = haystack
+    let String(needle, _) = needle
+    return __builtin_ffi_2("strstr", haystack, needle) != null as *Char
+}
+
+fn strstr_index(haystack *Char, haystack_len Int, needle *Char, needle_len Int) Int {
+    if haystack_len < needle_len {
+        return -1
+    }
+
+    let pos = __builtin_ffi_2("strstr", haystack, needle) as *Char
+    return pos != null ? (pos as! Int) - (haystack as! Int) : -1
+}
+
+fn has_prefix(haystack String, needle String) Bool {
+    let String(haystack, _) = haystack
+    let String(needle, len) = needle
+    return __builtin_ffi_3("strncmp", haystack, needle, len) == 0
+}
+
+fn has_suffix(haystack String, needle String) Bool {
+    let String(haystack, len_haystack) = haystack
+    let String(needle, len_needle) = needle
+    if len_haystack < len_needle {
+        return False
+    }
+    return __builtin_ffi_3(
+        "memcmp",
+        __builtin_ptr_add(haystack, len_haystack - len_needle),
+        needle,
+        len_needle) == 0
+}
+
+fn replace(source String, term String, new_term String) String {
+    let String(sz, len) = source
+    let String(needle, needle_len) = term
+    var i = 0
+    var start_span = 0
+    let result = []
+    while i < len {
+        let cur_start = __builtin_ptr_add(sz, i)
+        let next_index = strstr_index(cur_start, len - i, needle, needle_len)
+        if next_index == -1 {
+            append(result, String(cur_start, len - i))
+            i += len - i
+        } else {
+            if next_index > 0 {
+                append(result, String(cur_start, next_index))
+                i += next_index
+            }
+            append(result, new_term)
+            i += needle_len
+        }
+    }
+    assert(i == len)
+    return join("", result)
+}
+
+fn join(delim_ String, xs) String {
+    let results = []
+    var total = 0
+    var cur_delim_len = 0
+    let delim_len = len(delim_)
+    var count = 0
+    for x in xs {
+        count += 1
+        let s = str(x)
+        append(results, s)
+        total = total + len(s)
+        cur_delim_len = delim_len
+    }
+    total += len(delim_) * (count - 1)
+    let buf = alloc(total + 1)
+    var i = 0
+    for r in results {
+        if i > 0 {
+            for ch in delim_ {
+                buf[i] = ch
+                i = i + 1
+            }
+        }
+        for ch in r {
+            buf[i] = ch
+            i = i + 1
+        }
+    }
+    buf[i] = '\0'
+
+    return String(buf, i)
+}
+
+fn concat(a String, b String) String {
+    let String(xs, xlen) = a
+    let String(ys, ylen) = b
+
+    let zlen = xlen + ylen
+    if xlen == 0 {
+        return b
+    } else if ylen == 0 {
+        return a
+    } else {
+        let zs = __builtin_calloc(zlen) as *Char
+        __builtin_memcpy(zs, xs, xlen)
+        __builtin_memcpy(__builtin_ptr_add(zs, xlen), ys, ylen)
+        return String(zs, zlen)
+    }
+}
+
+instance CanSliceFrom String String {
+    fn get_slice_from(s, index) {
+        let String(sz, cb) = s
+        var index = min(index, cb)
+        if index < 0 or index >= cb {
+            return ""
+        }
+        let new_len = cb - index
+        assert(new_len > 0)
+        return String(__builtin_ffi_2("GC_strndup", __builtin_ptr_add(sz, index), new_len), new_len)
+    }
+}
+
+instance CanSliceFromTo String String {
+  fn get_slice_from_to(s, index, lim) {
+    let String(sz, cb) = s
+    var index = min(index, cb)
+    var lim = min(lim, cb)
+    if index < 0 or index >= cb {
+      return ""
+    }
+    let new_len = lim - index
+    if new_len <= 0 {
+      return ""
+    }
+    return String(__builtin_ffi_2("GC_strndup", __builtin_ptr_add(sz, index), new_len), new_len)
+  }
+}
+
+instance Serializeable String {
+    fn serialize(str) {
+        let String(sz, l) = str
+        # Assume utf-8 here.
+        return Buffer(sz, l)
+    }
+}
+
+fn memmem(big *Char, big_len Int, little *Char, little_len Int) *Char {
+  return __builtin_ffi_4("zion_memmem", big, big_len, little, little_len)
+}
+
+fn split(input String, delim String) [String] {
+  let String(orig_big, orig_big_len) = input
+  let String(little, little_len) = delim
+  var big = orig_big
+  var big_len = orig_big_len
+  let result = []
+  while big_len > 0 {
+    let pch = memmem(big, big_len, little, little_len)
+    if pch == null {
+      # no more delims, just add the remainder
+      append(result, String(big, big_len))
+      break
+    } else if (big != pch) {
+      let span_len = __ptr_sub(pch, big)
+      append(result, String(big, span_len))
+    }
+
+    big = __builtin_ptr_add(pch, little_len)
+    big_len = orig_big_len - __ptr_sub(big, orig_big)
+  }
+  return result
+}
