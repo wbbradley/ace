@@ -19,8 +19,8 @@ newtype ParseState = ParseState(String, Int)
 newtype Step = Step(Node, ParseState)
 
 fn parse_token(k String) fn (ParseState) Maybe Step {
-    return fn (ps) {
-        let ParseState(content, index) = ps
+    return fn (parse_state) {
+        let ParseState(content, index) = parse_state
         var start = index
         while start < len(content) and isspace(content[start]) {
             start += 1
@@ -41,12 +41,12 @@ fn parse_token(k String) fn (ParseState) Maybe Step {
 
 fn sequence(parsers) {
     let nodes = []
-    return fn (ps) {
-        var ps = ps
+    return fn (parse_state) {
+        var parse_state = parse_state
         for parser in parsers {
-            match parser(ps) {
-                Just(Step(node, next_ps)) {
-                    ps = next_ps
+            match parser(parse_state) {
+                Just(Step(node, next_parse_state)) {
+                    parse_state = next_parse_state
                     append(nodes, node)
                 }
                 Nothing {
@@ -54,14 +54,14 @@ fn sequence(parsers) {
                 }
             }
         }
-        return Just(Step(Sequence(nodes), ps))
+        return Just(Step(Sequence(nodes), parse_state))
     }
 }
 
 fn any_of(parsers) {
-    return fn (ps) {
+    return fn (parse_state) {
         for parser in parsers {
-            if parser(ps) is just_step@Just(_) {
+            if parser(parse_state) is just_step@Just(_) {
                 return just_step
             }
         }
@@ -71,22 +71,22 @@ fn any_of(parsers) {
 
 fn kleene_star(parsers) {
     let nodes = []
-    return fn (ps) {
-        var ps = ps
+    return fn (parse_state) {
+        var parse_state = parse_state
         for parser in parsers {
-            if parser(ps) is just_step@Just(Step(node, next_ps)) {
-                ps = next_ps
+            if parser(parse_state) is Just(Step(node, next_parse_state)) {
+                parse_state = next_parse_state
                 append(nodes, node)
             } else {
                 break
             }
         }
-        return Just(Step(Sequence(nodes), ps))
+        return Just(Step(Sequence(nodes), parse_state))
     }
 }
 
-fn parse_symbol(ps ParseState) {
-    let ParseState(content, index) = ps
+fn parse_symbol(parse_state ParseState) {
+    let ParseState(content, index) = parse_state
     var start = index
     while start < len(content) and isspace(content[start]) {
         start += 1
@@ -103,7 +103,7 @@ fn parse_symbol(ps ParseState) {
 }
 
 fn parse_expr() {
-    let recur = fn (ps) => parse_expr()(ps)
+    let recur = fn (parse_state) => parse_expr()(parse_state)
     return any_of([
         parse_symbol,
         sequence([
@@ -122,7 +122,7 @@ fn parse_expr() {
 fn main() {
     let program = "fn f x y = + * x x y"
     print(program)
-    var ps = ParseState(program, 0)
+    var parse_state = ParseState(program, 0)
     let parse_fn = sequence([
             parse_token("fn"),                 # fn keyword
             parse_symbol,                      # function name
@@ -132,10 +132,10 @@ fn main() {
     ])
 
     let parser = any_of([parse_fn, parse_token("var")])
-    while match parser(ps) {
-        Just(Step(node, next_ps)) {
+    while match parser(parse_state) {
+        Just(Step(node, next_parse_state)) {
             print("Found ${node}")
-            ps = next_ps
+            parse_state = next_parse_state
         }
         Nothing {
             break

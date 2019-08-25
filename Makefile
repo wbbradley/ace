@@ -73,12 +73,11 @@ install-test:
 test:
 	@make $(BUILT_BINARY)
 	@make install-test
-	@ZION_RT=$(test_destdir)/$(prefix)/share/$(PN)/runtime \
-		ZION_PATH=$(test_destdir)/$(prefix)/share/$(PN)/lib \
-			$(SRCDIR)/tests/run-tests.sh \
-				$(test_destdir)/$(prefix)/bin \
-				$(SRCDIR) \
-				$(SRCDIR)/tests
+	@ZION_ROOT="$(test_destdir)/$(prefix)/share/$(PN)" \
+		"$(SRCDIR)/tests/run-tests.sh" \
+			"$(test_destdir)/$(prefix)/bin" \
+			"$(SRCDIR)" \
+			"$(SRCDIR)/tests"
 
 .PHONY: format
 format:

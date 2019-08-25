@@ -7,4 +7,14 @@ struct Vector a {
     capacity var Int
 }
 
-
+instance HasSetMembership [a] a {
+  fn in(value, vec) Bool {
+    for x in vec {
+      if x == value {
+        return True
+      }
+    }
+    return False
+  }
+  fn not_in(value, collection) => not (value in collection)
+}

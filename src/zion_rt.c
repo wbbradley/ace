@@ -25,6 +25,10 @@ int64_t zion_memcmp(const char *a, const char *b, int64_t len) {
 	return memcmp(a, b, len);
 }
 
+const char * zion_memmem(const char *big, int64_t big_len, const char *little, int64_t little_len) {
+	return memmem(big, big_len, little, little_len);
+}
+
 const char *zion_strerror(int errnum, char *buf, int64_t bufsize) {
 #ifdef __APPLE__
 	if (strerror_r(errnum, buf, bufsize) == 0) {

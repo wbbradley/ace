@@ -1,5 +1,5 @@
 # test: pass
-# expect: the type is map.Map std.String std.String
+# expect: the type is map.Map string.String string.String
 # expect: job
 # expect: empty
 # expect: gone
