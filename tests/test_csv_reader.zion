@@ -1,0 +1,23 @@
+# test: pass
+# expect: "favorite-color": "black"
+# expect: "birthday": "1970-01-01"
+# expect: "name": "angie"
+# expect: "favorite-color": "red"
+# expect: "birthday": "1872-05-18"
+# expect: "name": "bertrand"
+
+import csv {read_csv_dicts, HasHeaderRow}
+
+fn main() {
+  let fake_csv = "/var/tmp/fake.csv"
+  with! let f = open(fake_csv) {
+    write(f, "name, birthday, favorite-color\n")!
+    write(f, "angie, 1970-01-01, black\n")!
+    write(f, "bertrand, 1872-05-18, red\n")!
+  }
+  with! let f = open(fake_csv) {
+    for dict in read_csv_dicts(f, HasHeaderRow) {
+      print(dict)
+    }
+  }
+}

@@ -2,7 +2,7 @@
 
 import list {List, Cons, Nil, remove_if}
 import hash {hash}
-export {Map, keys, values}
+export {Map, keys, values, from_pairs}
 
 newtype MapKeyValueCell key value = MapKeyValueCell(Int, key, var value)
 newtype MapStorage key value = MapStorage([List (MapKeyValueCell key value)])
@@ -254,4 +254,12 @@ fn values(map Map key value) [value] {
         }
     }
     return results
+}
+
+fn from_pairs(xys) Map a b {
+  let map = new Map a b
+  for (x, y) in xys {
+    map[x] = y
+  }
+  return map
 }

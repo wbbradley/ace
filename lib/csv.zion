@@ -1,0 +1,40 @@
+import itertools {zip}
+
+export {read_csv_dicts, HasHeaderRow, UseFieldNames}
+
+fn split_csv_line(line String) [String] {
+  # TODO: use a proper parser
+  return [strip(s) for s in split(line, ",")]
+}
+
+data ReadCSVDicts {
+  HasHeaderRow
+  UseFieldNames([String])
+}
+
+fn read_csv_dicts(stream, read_csv_dicts ReadCSVDicts) fn () Maybe (Map String String) {
+  let linereader = iter(readlines(stream))
+
+  var headers = []
+  match read_csv_dicts {
+    HasHeaderRow {
+      if linereader() is Just(line) {
+        headers = split_csv_line(line)
+      } else {
+        return fn () => Nothing
+      }
+    }
+    UseFieldNames(given_headers) {
+      headers = vector(given_headers) as [String]
+    }
+  }
+
+  return fn () {
+    if linereader() is Just(line) {
+      return Just({key: value
+      for (key, value) in zip(headers, split_csv_line(line))})
+    } else {
+      return Nothing
+    }
+  }
+}

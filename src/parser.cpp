@@ -926,6 +926,23 @@ const Expr *build_associative_array_literal(
       new Block(stmts));
 }
 
+const Expr *build_map_from_generator(Location location, const Expr *generator) {
+  Identifier map_id{fresh(), location};
+
+  /* take all the exprs from the array, and turn them into statements to fill
+   * out the structure */
+  types::Ref key_type = type_variable(generator->get_location());
+  types::Ref value_type = type_variable(generator->get_location());
+
+  return new Let(
+      map_id,
+      new As(new Application(new Var(Identifier{"std.new", location}),
+                             {unit_expr(location)}),
+             type_map_type(key_type, value_type), false /*force_cast*/),
+      new Application(new Var(Identifier{"map.from_pairs", location}),
+                      {generator}));
+}
+
 const Expr *parse_associative_array_literal(ParseState &ps) {
   auto start_curly_token = ps.token;
   chomp_token(tk_lcurly);
@@ -944,6 +961,7 @@ const Expr *parse_associative_array_literal(ParseState &ps) {
     ++i;
 
     const Expr *lhs = parse_expr(ps, false /*allow_for_comprehensions*/);
+    auto prior_token = ps.token;
     if (ps.token.tk == tk_colon) {
       if (is_set) {
         throw user_error(ps.token.location,
@@ -953,7 +971,10 @@ const Expr *parse_associative_array_literal(ParseState &ps) {
       ps.advance();
       exprs.push_back(
           {lhs, parse_expr(ps, false /*allow_for_comprehensions*/)});
-    } else if (ps.token.tk == tk_comma) {
+    } else if (ps.token.tk == tk_double_dot) {
+      throw user_error(start_curly_token.location,
+                       "range syntax is not allowed here");
+    } else {
       if (i > 1 && !is_set) {
         throw user_error(ps.token.location,
                          "looks like you are mixing set literal syntax with "
@@ -961,9 +982,27 @@ const Expr *parse_associative_array_literal(ParseState &ps) {
       }
       is_set = true;
       exprs.push_back({lhs, nullptr});
-    } else if (ps.token.tk == tk_double_dot) {
-      throw user_error(start_curly_token.location,
-                       "range syntax is not allowed here");
+    }
+
+    if (i == 1 && ps.token.is_ident(K(for))) {
+      assert(exprs.size() == 1);
+      /* this is a dictionary or set comprehension */
+      if (is_set) {
+        const Expr *ret = new Application(
+            new Var(Identifier{"set.set", exprs[0].first->get_location()}),
+            {parse_generator(ps, exprs[0].first)});
+        chomp_token(tk_rcurly);
+        return ret;
+      } else {
+        const Expr *ret = new Application(
+            new Var(
+                Identifier{"map.from_pairs", exprs[0].first->get_location()}),
+            {parse_generator(ps,
+                             new Tuple(prior_token.location,
+                                       {exprs[0].first, exprs[0].second}))});
+        chomp_token(tk_rcurly);
+        return ret;
+      }
     }
   }
 

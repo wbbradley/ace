@@ -1,4 +1,4 @@
-export {sort, quicksort, bubble_sort, is_sorted}
+export {sort, sorted, quicksort, bubble_sort, is_sorted}
 
 fn bubble_sort(xs) {
     # Perform an in-place bubble sort
@@ -63,3 +63,10 @@ fn partition(A, lo, hi) {
 }
 
 let sort = quicksort
+
+fn sorted(xs) [a] {
+  let xs = vector(xs)
+  sort(xs)
+  return xs
+}
+

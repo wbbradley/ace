@@ -1,0 +1,13 @@
+# test: pass
+# expect: 2: 6
+# expect: 1: 5
+# expect: 0: 4
+# expect: \[cool, rad, this, was\]
+
+import itertools {zip, chain2}
+import sort {sorted}
+
+fn main() {
+  print({k: v for (k, v) in zip([0..2], [4..])})
+  print(sorted(x for x in {k for k in chain2(["this", "was", "cool"], ["this", "was", "rad"])}))
+}

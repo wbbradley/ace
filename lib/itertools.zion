@@ -115,26 +115,20 @@ fn cycle(xs_input) {
     }
 }
 
-fn chain2(a, b) {
-    var outer_iter = iter([iter(a), iter(b)])
-    var cur_iterable = outer_iter()
-    return fn () {
-        while match cur_iterable {
-            Just(iterable_nested) {
-                let value = iterable_nested()
-                match value {
-                    j@Just(_) {
-                        return j
-                    }
-                    Nothing {
-                        cur_iterable = outer_iter()
-                    }
-                }
-            }
-            Nothing {
-                return Nothing
-            }
-        }
-        return Nothing
+fn chain2(a, b) fn () Maybe a => chain2_iters(iter(a), iter(b))
+
+fn chain2_iters(as fn () Maybe a, bs fn () Maybe a) fn () Maybe a {
+  var outer_iter = iter([as, bs])
+  var cur_iterable = outer_iter()
+  return fn () {
+    while cur_iterable is Just(iterable_nested) {
+      let value = iterable_nested()
+      if value is Just(_) {
+        return value
+      } else {
+        cur_iterable = outer_iter()
+      }
     }
+    return Nothing
+  }
 }
