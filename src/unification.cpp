@@ -254,7 +254,11 @@ Unification unify_many(const types::Refs &as, const types::Refs &bs) {
   if (as.size() == 0 && bs.size() == 0) {
     return Unification{true, location, "", {}};
   } else if (as.size() != bs.size()) {
-    return Unification{false, location, "unification mismatch", {}};
+    return Unification{false,
+                       location,
+                       string_format("unification mismatch %s != %s",
+                                     str(as).c_str(), str(bs).c_str()),
+                       {}};
     /*
     throw zion::user_error(
         as.size() != 0

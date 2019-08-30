@@ -89,19 +89,36 @@ instance HasIndexableItems String Int Char {
     }
 }
 
-instance Iterable String Char {
-    fn iter(s) {
-        var index = -1
-        let String(buf, length) = s
-        return fn() {
-            index += 1
-            if index >= length {
-                return Nothing
-            } else {
-                return Just(buf[index])
-            }
-        }
+instance HasSetMembership String Char {
+  fn in(value, collection) Bool {
+    let String(sz, l) = collection
+    var i = 0
+    while i < l {
+      if sz[i] == value {
+        return True
+      }
+      i += 1
     }
+    return False
+  }
+  fn not_in(value, collection) Bool {
+    return not value in collection
+  }
+}
+
+instance Iterable String Char {
+  fn iter(s) {
+    var index = -1
+    let String(buf, length) = s
+    return fn() {
+      index += 1
+      if index >= length {
+        return Nothing
+      } else {
+        return Just(buf[index])
+      }
+    }
+  }
 }
 
 fn strip(s String) String {
@@ -262,6 +279,9 @@ instance CanSliceFrom String String {
 
 instance CanSliceFromTo String String {
   fn get_slice_from_to(s, index, lim) {
+    if index >= lim {
+      return ""
+    }
     let String(sz, cb) = s
     var index = min(index, cb)
     var lim = min(lim, cb)

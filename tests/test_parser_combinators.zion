@@ -69,7 +69,7 @@ fn any_of(parsers) {
     }
 }
 
-fn kleene_star(parsers) {
+fn any_number_of(parsers) {
     let nodes = []
     return fn (parse_state) {
         var parse_state = parse_state
@@ -126,7 +126,7 @@ fn main() {
     let parse_fn = sequence([
             parse_token("fn"),                 # fn keyword
             parse_symbol,                      # function name
-            kleene_star(repeat(parse_symbol)), # params
+            any_number_of(repeat(parse_symbol)), # params
             parse_token("="),
             parse_expr(),
     ])
