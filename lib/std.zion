@@ -107,9 +107,7 @@ fn putch(ch Char) () {
 }
 
 fn print(x) () {
-    # TODO: this is not great because it is two syscalls, instead of one. This
-    # could lead to interleaved writes.
-    let String(sz, length) = "${str(x)}\n"
+    let String(sz, length) = "${x}\n"
     (__builtin_ffi_3("write", 1, sz, length) as Int)!
 }
 
@@ -833,4 +831,14 @@ instance Serializeable Buffer {
 
 fn __ptr_sub(p1 *Char, p2 *Char) Int {
   return (p1 as! Int) - (p2 as! Int)
+}
+
+class FoldFromLeft container elem {
+  # Left fold
+  fn foldl(fn (elem, elem) elem, container, elem) container
+}
+
+class FoldFromRight container elem {
+  # Right fold
+  fn foldr(fn (elem, elem) elem, container, elem) container
 }

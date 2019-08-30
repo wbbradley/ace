@@ -17,7 +17,11 @@ fn main() {
   }
   with! let f = open(fake_csv) {
     for dict in read_csv_dicts(f, HasHeaderRow) {
-      print(dict)
+      print("Got a dict")
+      for (k, v) in dict {
+        print("(${k}, ${v})")
+      }
+      # print(len(dict))
     }
   }
 }

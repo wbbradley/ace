@@ -1,0 +1,118 @@
+import itertools {repeat}
+export {parse_token, sequence, any_of, kleene_star, ParseState, Step, char,
+        Span, until_one_of, lift}
+
+newtype ParseState = ParseState(String, Int)
+struct Span {
+  text String
+  pos  Int
+}
+newtype Step a = Step(a, ParseState)
+
+instance Str Span {
+  fn str(span) => span.text
+}
+
+fn char(ch Char) fn (ParseState) Maybe (Step Span) {
+  return fn (ps) {
+    let ParseState(content, index) = ps
+    if index < len(content) {
+      if content[index] == ch {
+        return Just(Step(Span(str(ch), index), ParseState(content, index + 1)))
+      }
+    }
+    return Nothing
+  }
+}
+
+fn parse_token(k String) fn (ParseState) Maybe (Step Span) {
+    return fn (parse_state) {
+        let ParseState(content, index) = parse_state
+        var start = index
+        while start < len(content) and isspace(content[start]) {
+            start += 1
+        }
+        var i = start
+        while i < len(content) and i-start < len(k) and k[i-start] == content[i] {
+            i += 1
+        }
+        if start != i {
+            let symbol = content[start:i]
+            if symbol == k {
+                return Just(Step(Span(symbol, start), ParseState(content, i)))
+            }
+        }
+        return Nothing
+    }
+}
+
+fn sequence(parsers) fn (ParseState) Maybe (Step b) {
+    let nodes = []
+    return fn (parse_state) {
+        var parse_state = parse_state
+        for parser in parsers {
+            match parser(parse_state) {
+                Just(Step(node, next_parse_state)) {
+                    parse_state = next_parse_state
+                    append(nodes, node)
+                }
+                Nothing {
+                    return Nothing
+                }
+            }
+        }
+        return Just(Step(nodes, parse_state))
+    }
+}
+
+fn until_one_of(ctor fn (Span) b, chars String) fn (ParseState) Maybe (Step b) {
+  return fn (parse_state) {
+    let ParseState(content, index) = parse_state
+    var cur = index
+    while cur < len(content) {
+      print("${content[cur]} until ${repr(chars)}")
+      if content[cur] in chars {
+        let span = Span(content[index:cur], index)
+        print("returning span '${span}'")
+        return Just(Step(ctor(span),
+                         ParseState(content, cur)))
+      }
+      cur += 1
+    }
+    return Nothing
+  }
+}
+
+fn lift(f fn (b) a, parser fn (ParseState) Maybe (Step b)) fn (ParseState) Maybe (Step a) {
+  return fn (ps) => match parser(ps) {
+    Just(Step(thing, ps)) => Just(Step(f(thing), ps))
+    Nothing => Nothing
+  }
+}
+
+fn any_of(parsers) {
+  return fn (parse_state) {
+    for parser in parsers {
+      if parser(parse_state) is just_step@Just(_) {
+        return just_step
+      }
+    }
+    return Nothing
+  }
+}
+
+fn kleene_star(parser) fn (ParseState) Maybe (Step [a]) {
+  let nodes = []
+  return fn (parse_state) {
+    var parse_state = parse_state
+    while True {
+      if parser(parse_state) is Just(Step(node, next_parse_state)) {
+        parse_state = next_parse_state
+        append(nodes, node)
+      } else {
+        break
+      }
+    }
+    return Just(Step(nodes, parse_state))
+  }
+}
