@@ -86,11 +86,14 @@ Scheme::Ref Scheme::freshen() const {
 }
 
 Ftvs Scheme::ftvs() const {
-  auto ftvs = type->get_ftvs();
-  for (auto &v : vars) {
-    ftvs.erase(v);
+  if (!has_ftvs) {
+    has_ftvs = true;
+    cached_ftvs = type->get_ftvs();
+    for (auto &v : vars) {
+      cached_ftvs.erase(v);
+    }
   }
-  return ftvs;
+  return cached_ftvs;
 }
 
 std::string Scheme::str() const {
