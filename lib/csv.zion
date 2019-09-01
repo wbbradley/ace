@@ -46,16 +46,14 @@ fn parse_csv_line(ps ParseState) Maybe (Step [String]) {
   let comma = lift(fn(_)=>Comma, char(','))
   let parse_terms = lift(flatten, sequence([
     kleene_star(
-      sequence([
+      lift(fn(xs) => xs[0:1], sequence([
         term_parser,
         comma,
-      ])),
+      ]))),
     lift(fn (x) => [[x]], term_parser),
   ]))
   if parse_terms(ps) is Just(Step(xs, ps_)) {
-    for ys in xs {
-      print("${join(" ", ys)}")
-    }
+    print("Read line: ${[join(":", x) for x in xs]}")
     return Just(Step([], ps_))
   } else {
     return Nothing

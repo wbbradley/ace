@@ -325,11 +325,16 @@ llvm::StructType *llvm_create_struct_type(
 }
 
 void llvm_verify_function(Location location, llvm::Function *llvm_function) {
+#ifdef ZION_DEBUG
   debug_above(5, log("writing to function-verification-failure.ll..."));
   std::string llir_filename = "function-verification-failure.ll";
-#if 1
+#if 0
   FILE *fp = fopen(llir_filename.c_str(), "wt");
   fprintf(fp, "%s\n", llvm_print_module(*llvm_function->getParent()).c_str());
+  fclose(fp);
+#else
+  FILE *fp = fopen(llir_filename.c_str(), "wt");
+  fprintf(fp, "%s:%d: Go to turn this on and recompile to debug...\n", __FILE__, __LINE__);
   fclose(fp);
 #endif
 
@@ -343,6 +348,7 @@ void llvm_verify_function(Location location, llvm::Function *llvm_function) {
     error.add_info(Location{llir_filename, 1, 1}, "consult LLVM module dump");
     throw error;
   }
+#endif
 }
 
 void llvm_verify_module(llvm::Module &llvm_module) {

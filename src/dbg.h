@@ -70,6 +70,7 @@ extern int __dbg_level;
     DEBUG_BREAK();                                                             \
   } while (0)
 
+#ifdef ZION_DEBUG
 #define dbg_when(x)                                                            \
   if (x) {                                                                     \
     fprintf(stderr,                                                            \
@@ -81,6 +82,11 @@ extern int __dbg_level;
   }
 
 #define dbg_not(x) dbg_when(!(x))
+#else
+#define dbg_when(x)
+#define dbg_not(x)
+#endif
+
 #define wat() panic("wat is this branch doing?")
 
 #ifdef ZION_DEBUG
