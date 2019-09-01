@@ -47,6 +47,9 @@ struct Scheme final : public std::enable_shared_from_this<Scheme> {
   std::vector<std::string> const vars;
   ClassPredicates const predicates;
   types::Ref const type;
+private:
+  mutable bool has_ftvs = false;
+  mutable Ftvs cached_ftvs;
 };
 
 } // namespace types
