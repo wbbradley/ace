@@ -1,0 +1,6 @@
+# test: fail
+# expect: mixing implicit and explicit lambda param indexes is not allowed
+
+fn main() {
+  whatever($, $1)
+}

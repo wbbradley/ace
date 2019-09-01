@@ -18,7 +18,7 @@ const char *UINT8_TYPE = "UInt8";
 const char *FLOAT_TYPE = "Float";
 
 const char *BOOL_TYPE = "std.Bool";
-const char *MAYBE_TYPE = "std.Maybe";
+const char *MAYBE_TYPE = "maybe.Maybe";
 const char *VECTOR_TYPE = "vector.Vector";
 const char *MAP_TYPE = "map.Map";
 const char *SET_TYPE = "set.Set";

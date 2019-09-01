@@ -1,6 +1,6 @@
 import itertools {zip}
-import parser {ParseState, Span, Step, char, any_of, until_one_of, sequence,
-               kleene_star, lift}
+import parser {ParseState, Span, Step, char, not_char, any_of, until_one_of, sequence,
+               kleene_star, lift, span_concat}
 
 export {read_csv_dicts, HasHeaderRow, UseFieldNames}
 
@@ -25,39 +25,37 @@ data Term {
   Comma
 }
 
+instance Str Term {
+  fn str(term) => match term {
+    QuotedString(spans) => "QuotedString(${spans})"
+    UnquotedString(span) => "UnquotedString(${span})"
+    Comma => "Comma"
+  }
+}
+
 fn parse_csv_line(ps ParseState) Maybe (Step [String]) {
   let term_parser = any_of([
     lift(QuotedString, sequence([
       char('"'),
-      until_one_of(id, "\""),
+      until_one_of("\""),
       char('"'),
-      char(','),
     ])),
-    until_one_of(UnquotedString, ","),
-  ]) as fn (ParseState) Maybe (Step Term)
-  let comma = lift(fn(_)=>Comma, char(',')) as fn (ParseState) Maybe (Step Term)
+    lift(compose(UnquotedString, strip), until_one_of(","))
+  ])
 
-  let parse_terms = sequence([
+  let comma = lift(fn(_)=>Comma, char(','))
+  let parse_terms = lift(flatten, sequence([
     kleene_star(
       sequence([
         term_parser,
         comma,
       ])),
-    lift(vector, term_parser)
-  ]) as fn (ParseState) Maybe (Step [[Term]])
+    lift(fn (x) => [[x]], term_parser),
+  ]))
   if parse_terms(ps) is Just(Step(xs, ps_)) {
-
     for ys in xs {
-      static_print(ys)
-      for zs in ys {
-        static_print(zs)
-      }
+      print("${join(" ", ys)}")
     }
-    let _ = "let ret = [((match z {
-      QuotedString(spans) => join(\"\", span for span in spans)
-      UnquotedString(span) => str(span)
-      Comma => \",\"
-    } for z in zs) for zs in ys) for ys in xs]"
     return Just(Step([], ps_))
   } else {
     return Nothing
@@ -66,23 +64,26 @@ fn parse_csv_line(ps ParseState) Maybe (Step [String]) {
 
 fn read_csv_dicts(stream, read_csv_dicts ReadCSVDicts) fn () Maybe (Map String String) {
   let linereader = iter(readlines(stream))
-
   var headers = []
-  match read_csv_dicts {
-    HasHeaderRow {
-      if linereader() is Just(line) {
-        let g = line as String
-        headers = split_csv_line(parse_csv_line, line)
-      } else {
-        return fn () => Nothing
-      }
-    }
-    UseFieldNames(given_headers) {
-      headers = vector(given_headers) as [String]
-    }
-  }
+  var have_headers = False
 
   return fn () {
+    if not have_headers {
+      have_headers = True
+      match read_csv_dicts {
+        HasHeaderRow {
+          if linereader() is Just(line) {
+            headers = split_csv_line(parse_csv_line, line)
+          } else {
+            return Nothing
+          }
+        }
+        UseFieldNames(given_headers) {
+          headers = vector(given_headers) as [String]
+        }
+      }
+    }
+
     if linereader() is Just(line) {
       return Just({key: value
                    for (key, value) in zip(headers,

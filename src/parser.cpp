@@ -639,7 +639,7 @@ const Expr *build_generator(Location location,
                       {generator_for.iterable}),
       new Lambda(
           {Identifier{fresh(), location}}, {type_unit(location)},
-          type_operator(type_id(Identifier{"std.Maybe", expr->get_location()}),
+          type_operator(type_id(Identifier{MAYBE_TYPE, expr->get_location()}),
                         type_variable(expr->get_location())),
           new Block(
               {new While(
@@ -648,22 +648,22 @@ const Expr *build_generator(Location location,
                        new Application(new Var(iterator_id),
                                        {unit_expr(location)}),
                        {new PatternBlock(
-                            new CtorPredicate(location,
-                                              {generator_for.predicate},
-                                              Identifier{"std.Just", location},
-                                              maybe<Identifier>()),
+                            new CtorPredicate(
+                                location, {generator_for.predicate},
+                                Identifier{"maybe.Just", location},
+                                maybe<Identifier>()),
                             generator_for.condition != nullptr
                                 ? static_cast<const Expr *>(new Conditional(
                                       generator_for.condition,
                                       new ReturnStatement(new Application(
-                                          new Var(
-                                              Identifier{"std.Just", location}),
+                                          new Var(Identifier{"maybe.Just",
+                                                             location}),
                                           {expr})),
                                       unit_expr(location)))
                                 : static_cast<const Expr *>(
                                       new ReturnStatement(new Application(
-                                          new Var(
-                                              Identifier{"std.Just", location}),
+                                          new Var(Identifier{"maybe.Just",
+                                                             location}),
                                           {expr})))),
                         new PatternBlock(new CtorPredicate(location, {},
                                                            Identifier{"std."
@@ -671,9 +671,9 @@ const Expr *build_generator(Location location,
                                                                       location},
                                                            maybe<Identifier>()),
                                          new ReturnStatement(new Var(Identifier{
-                                             "std.Nothing", location})))})),
+                                             "maybe.Nothing", location})))})),
                new ReturnStatement(
-                   new Var(Identifier{"std.Nothing", location}))})));
+                   new Var(Identifier{"maybe.Nothing", location}))})));
 }
 
 const Expr *parse_generator(ParseState &ps, const Expr *expr) {
@@ -1079,24 +1079,119 @@ const Expr *parse_postfix_expr(ParseState &ps) {
                     true /*force_cast*/);
       break;
     case tk_lparen: {
-      /* function call */
+      /* function call or implicit partial application (implicit lambda) */
       auto location = ps.token.location;
       ps.advance();
       if (ps.token.tk == tk_rparen) {
         ps.advance();
         expr = new Application(expr, {unit_expr(ps.token.location)});
       } else {
-        std::vector<const Expr *> params;
-        while (ps.token.tk != tk_rparen) {
-          params.push_back(parse_expr(ps, true /*allow_for_comprehensions*/));
+        std::vector<const Expr *> callsite_refs;
+        std::map<int, Identifier> implicit_param_ids;
+        std::unordered_set<int> partially_applied_indices;
+        bool saw_explicit_indexing = false;
+        for (int index = 0; ps.token.tk != tk_rparen; ++index) {
+          if (ps.token.tk == tk_dollar) {
+            auto location = ps.token_and_advance().location;
+            int param_ref_index = implicit_param_ids.size() + 1;
+            if (ps.token.tk == tk_integer) {
+              if (!saw_explicit_indexing && implicit_param_ids.size() != 0) {
+                throw user_error(ps.token.location,
+                                 "mixing implicit and explicit lambda param "
+                                 "indexes is not allowed");
+              }
+              saw_explicit_indexing = true;
+              param_ref_index = parse_int_value(ps.token_and_advance());
+            } else {
+              if (saw_explicit_indexing) {
+                throw user_error(ps.token.location,
+                                 "mixing implicit and explicit lambda param "
+                                 "indexes is not allowed");
+              }
+            }
+            if (implicit_param_ids.count(param_ref_index) == 0) {
+              implicit_param_ids[param_ref_index] = Identifier{fresh(),
+                                                               location};
+            }
+            callsite_refs.push_back(
+                new Var(implicit_param_ids.at(param_ref_index)));
+          } else {
+            callsite_refs.push_back(
+                parse_expr(ps, true /*allow_for_comprehensions*/));
+            partially_applied_indices.insert(index);
+          }
           if (ps.token.tk == tk_comma) {
             ps.advance();
           } else {
             expect_token(tk_rparen);
           }
         }
-        expr = new Application(expr, {params});
-        ps.advance();
+        if (implicit_param_ids.size() != 0) {
+          /* we are creating an implicit lambda. syntax looks like:
+           * a(b, $, $)
+           * which expands to
+           * let v1 = a in
+           *   let v2 = b in
+           *     fn (v3, v4) => v1(v2, v3, v4)
+           * allowing partial application in a concise syntax.
+           *
+           * implicit parameters can be indexed and reordered.
+           * d($2, $1) is equivalent to d with its parameters flipped.
+           *
+           * indexed implicit parameters can be mentioned more than once.
+           * add($1, $1) is equivalent to (* 2)
+           */
+          std::vector<const Expr *> internal_callsite_params;
+
+          /* construct a let expression wherein we first evaluate all of the
+           * non-implicit params */
+          Identifiers param_ids;
+          types::Refs param_types;
+          std::vector<const Expr *> internal_callsite_refs;
+          for (int i = 1; i <= int(implicit_param_ids.size()); ++i) {
+            if (implicit_param_ids.count(i) == 0) {
+              throw user_error(implicit_param_ids.begin()->second.location,
+                               "missing implicit param id %d", i);
+            }
+            param_ids.push_back(implicit_param_ids.at(i));
+            param_types.push_back(
+                type_variable(implicit_param_ids.at(i).location));
+          }
+          std::vector<std::pair<Identifier, const Expr *>>
+              partially_applied_ids;
+          for (auto i = 0; i < callsite_refs.size(); ++i) {
+            if (partially_applied_indices.count(i) != 0) {
+              partially_applied_ids.push_back(
+                  {Identifier{fresh(), callsite_refs[i]->get_location()},
+                   callsite_refs[i]});
+              internal_callsite_params.push_back(
+                  new Var(partially_applied_ids.back().first));
+            } else {
+              internal_callsite_params.push_back(callsite_refs[i]);
+            }
+          }
+          Identifier partial_name{string_format("__partial%s", fresh().c_str()),
+                                  expr->get_location()};
+          debug_above(5, log("making an implicit lambda %s(%s)",
+                             partial_name.str().c_str(),
+                             join(param_ids, ", ").c_str()));
+          Identifier callee_id{fresh(), expr->get_location()};
+          expr = new Let(
+              callee_id, expr,
+              new Lambda(param_ids, param_types,
+                         type_variable(ps.token.location) /*return_type*/,
+                         new ReturnStatement(new Application(
+                             new Var(callee_id), {internal_callsite_params}))));
+
+          for (auto iter = partially_applied_ids.rbegin();
+               iter != partially_applied_ids.rend(); ++iter) {
+            expr = new Let(iter->first, iter->second, expr);
+          }
+        } else {
+          expr = new Application(expr, {callsite_refs});
+        }
+
+        chomp_token(tk_rparen);
       }
       break;
     }

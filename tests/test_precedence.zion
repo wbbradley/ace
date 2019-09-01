@@ -1,3 +1,8 @@
+# test: pass
+
 fn main() {
-  return not a in b
+  let a = "0"
+  let b = "1"
+  assert(not a in b)
+  print("PASS")
 }

@@ -1,0 +1,21 @@
+# test: pass
+
+fn add(x, y) {
+  return x + y
+}
+
+fn main() {
+  var x = 4
+  let plus4 = add($, x)
+
+  # Should be equivalent to
+  # let plus4 = let v1 = add in
+  #   let v2 = x in
+  #     fn (v3) => v1(v2, v3)
+
+  x = 0
+  assert(plus4(5) == 9)
+  let times2 = add($1, $1)
+  assert(times2(3) == 6)
+  print("PASS")
+}

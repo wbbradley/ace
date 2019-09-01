@@ -73,6 +73,10 @@ enum token_kind {
   tk_double_dot,     /* .. */
   tk_ampersand,      /* & */
 
+  /* implicit lambda */
+  tk_tilde,  /* ~ */
+  tk_dollar, /* $ */
+
   // Mutating binary ops
   tk_plus_eq,      /* += */
   tk_minus_eq,     /* -= */
