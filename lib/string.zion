@@ -1,4 +1,5 @@
-export {String, chomp, strip, concat, split, has_substring, has_prefix, has_suffix, replace, join}
+export {String, Strippable, chomp, strip, concat, split, has_substring,
+        has_prefix, has_suffix, replace, join}
 
 # The default string type. Strings are stored null-terminated and the length is
 # cached.
@@ -106,6 +107,11 @@ instance HasSetMembership String Char {
   }
 }
 
+instance HasSetMembership String String {
+  fn in(value, collection) => has_substring(collection, value)
+  fn not_in(value, collection) => not has_substring(collection, value)
+}
+
 instance Iterable String Char {
   fn iter(s) {
     var index = -1
@@ -121,23 +127,28 @@ instance Iterable String Char {
   }
 }
 
-fn strip(s String) String {
+class Strippable s {
+  fn strip(s) s
+}
+instance Strippable String {
+  fn strip(s String) String {
     let String(sz, cb) = s
     var i = 0
     while i < cb {
-        if not isspace(sz[i]) {
-            break
-        }
-        i += 1
+      if not isspace(sz[i]) {
+        break
+      }
+      i += 1
     }
     var j = cb - 1
     while j > i {
-        if not isspace(sz[j]) {
-            break
-        }
-        j -= 1
+      if not isspace(sz[j]) {
+        break
+      }
+      j -= 1
     }
     return s[i:j+1]
+  }
 }
 
 fn chomp(s String) String {

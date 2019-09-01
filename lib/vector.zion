@@ -1,4 +1,4 @@
-export {Vector, array, size, capacity, concat}
+export {Vector, array, size, capacity, flatten}
 
 struct Vector a {
     # TODO: make sure offset in struct is correct RE dim_offset
@@ -19,15 +19,19 @@ instance HasSetMembership [a] a {
   fn not_in(value, collection) => not (value in collection)
 }
 
-fn concat(xss [[a]]) [a] {
-  let xs = []
-  reserve(xs, reduce(
-  for 
+fn flatten(xss [[a]]) [a] {
+  let ys = []
+  for xs in xss {
+    for y in xs {
+      append(ys, y)
+    }
+  }
+  return ys
 }
 
-instance FoldFromLeft [a] a {
-  fn foldl(binop, xs, initial) {
-    var value = initial
+instance FoldFromLeft [a] a b {
+  fn foldl(binop, xs, initial) b {
+    var value = initial as b
     for x in xs {
       value = binop(value, x)
     }

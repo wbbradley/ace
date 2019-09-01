@@ -73,11 +73,34 @@ import itertools {zip}
 
 fn main() {
   # Multiply some zipped Ints and put them into a Vector
-  print([x*y for (x, y) in zip([1..3], [4..])])
+  print([x * y for (x, y) in zip([1..3], [4..])])
   # prints [4, 10, 18]...
 }
 ```
 
+Implicit lambdas for partial or reordered function argument application.
+
+```
+a(b, $, $)
+```
+
+which expands to (pseudocode)
+
+```
+  (let v1 = a in
+   let v2 = b in
+   fn (v3, v4) => v1(v2, v3, v4))
+```
+
+Allowing partial application in a concise syntax.
+
+Implicit parameters can be indexed and reordered.
+`d($2, $1)` is equivalent to d with its parameters flipped.
+
+Indexed implicit parameters can be mentioned more than once.
+
+`add($1, $1)` is equivalent to `fn (x) => x * 2`
+          
 ### Semantics
 
 The evaluation of Zion is strict, not lazy. The call-by-value method of passing

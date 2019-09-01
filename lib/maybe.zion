@@ -1,0 +1,29 @@
+export {Maybe, Nothing, Just}
+
+data Maybe a {
+  Just(a)
+  Nothing
+}
+
+instance Eq (Maybe a) {
+    fn ==(a, b) => match (a, b) {
+        (Nothing, Nothing) => True
+        (Just(a), Just(b)) => a == b
+        _ => False
+    }
+    fn !=(a, b) => not (a == b)
+}
+
+instance Str (Maybe a) {
+    fn str(ma) => match ma {
+        Just(a) => "Just(${a})"
+        Nothing => "Nothing"
+    }
+}
+
+instance Functor Maybe {
+  fn fmap(f, ma) => match ma {
+    Just(a) => Just(f(a))
+    Nothing => Nothing
+  }
+}

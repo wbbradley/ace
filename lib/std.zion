@@ -1,15 +1,17 @@
+import maybe {Maybe, Nothing, Just}
 import map {Map, keys, values}
 import math {+, -, *, /, abs, negate, Num, Bounded, from_int}
 import set {Set, set}
 import sys {open, read, write, close, readlines, stdin, stdout, stderr}
-import vector {Vector}
+import vector {Vector, flatten}
 import string {String, split, chomp, strip, concat, has_substring, has_prefix, has_suffix,
                replace, join}
 
+export {Maybe, Nothing, Just}
 export {open, read, write, close, readlines, stdin, stdout, stderr}
 export {Map, keys, values, Set, set}
 export {+, -, *, /, abs, negate, Num, Bounded, from_int}
-export {Vector}
+export {Vector, flatten}
 export {String, split, chomp, strip, concat, has_substring, has_prefix, has_suffix, replace,
         join}
 
@@ -172,15 +174,6 @@ instance Eq Int {
 instance Eq Float {
     fn ==(a, b) => __builtin_float_eq(a, b)
     fn !=(a, b) => __builtin_float_ne(a, b)
-}
-
-instance Eq (Maybe a) {
-    fn ==(a, b) => match (a, b) {
-        (Nothing, Nothing) => True
-        (Just(a), Just(b)) => a == b
-        _ => False
-    }
-    fn !=(a, b) => not (a == b)
 }
 
 instance Eq Char {
@@ -412,18 +405,6 @@ class Modular a {
 instance Modular Int {
     fn %(p, q) {
         return __builtin_mod_int(p, q)
-    }
-}
-
-data Maybe t {
-    Just(t)
-    Nothing
-}
-
-instance Str (Maybe a) {
-    fn str(ma) => match ma {
-        Just(a) => "Just(${a})"
-        Nothing => "Nothing"
     }
 }
 
@@ -833,12 +814,7 @@ fn __ptr_sub(p1 *Char, p2 *Char) Int {
   return (p1 as! Int) - (p2 as! Int)
 }
 
-class FoldFromLeft container elem {
+class FoldFromLeft container elem initial {
   # Left fold
-  fn foldl(fn (elem, elem) elem, container, elem) container
-}
-
-class FoldFromRight container elem {
-  # Right fold
-  fn foldr(fn (elem, elem) elem, container, elem) container
+  fn foldl(fn (initial, elem) initial, container, initial) initial
 }

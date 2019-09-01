@@ -367,6 +367,14 @@ bool Lexer::_get_tokens() {
       case '*':
         gts = gts_times;
         break;
+      case '~':
+        tk = tk_tilde;
+        gts = gts_end;
+        break;
+      case '$':
+        tk = tk_dollar;
+        gts = gts_end;
+        break;
       case '%':
         gts = gts_mod;
         break;
