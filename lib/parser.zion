@@ -1,9 +1,13 @@
 import itertools {repeat}
 import string {Strippable}
-export {parse_token, sequence, any_of, kleene_star, ParseState, Step, char,
-        not_char, Span, until_one_of, lift, span_concat}
+export {
+  text, sequence, choice, many, many1, ParseState, Step, char, not_char, Span,
+  until_one_of, lift, span_concat}
 
+# The immutable most-recent state of the parser, sans AST state
 newtype ParseState = ParseState(String, Int)
+
+# Span is a run of text within the source content
 struct Span {
   text String
   pos  Int
@@ -54,7 +58,7 @@ fn not_char(ch Char) fn (ParseState) Maybe (Step Span) {
   }
 }
 
-fn parse_token(k String) fn (ParseState) Maybe (Step Span) {
+fn text(k String) fn (ParseState) Maybe (Step Span) {
     return fn (parse_state) {
         let ParseState(content, index) = parse_state
         var start = index
@@ -75,7 +79,7 @@ fn parse_token(k String) fn (ParseState) Maybe (Step Span) {
     }
 }
 
-fn sequence(parsers) {
+fn sequence(parsers [fn (ParseState) Maybe (Step a)]) fn (ParseState) Maybe (Step [a]) {
     return fn (parse_state) {
         let nodes = []
         var parse_state = parse_state
@@ -110,11 +114,11 @@ fn until_one_of(chars String) {
   }
 }
 
-fn lift(f fn (b) a, parser fn (ParseState) Maybe (Step b)) fn (ParseState) Maybe (Step a) {
+fn lift(f fn (a) b, parser fn (ParseState) Maybe (Step a)) fn (ParseState) Maybe (Step b) {
   return fn (ps) => fmap(fmap(f, $), parser(ps))
 }
 
-fn any_of(parsers) {
+fn choice(parsers) {
   return fn (parse_state) {
     for parser in parsers {
       if parser(parse_state) is just_step@Just(_) {
@@ -125,7 +129,7 @@ fn any_of(parsers) {
   }
 }
 
-fn kleene_star(parser) fn (ParseState) Maybe (Step [a]) {
+fn many(parser) fn (ParseState) Maybe (Step [a]) {
   let nodes = []
   return fn (parse_state) {
     var parse_state = parse_state
@@ -141,8 +145,8 @@ fn kleene_star(parser) fn (ParseState) Maybe (Step [a]) {
   }
 }
 
-fn kleene_plus(parser) fn (ParseState) Maybe (Step [a]) {
-  let ks_parser = kleene_star(parser)
+fn many1(parser) fn (ParseState) Maybe (Step [a]) {
+  let ks_parser = many(parser)
   return fn (ps) {
     let maybe_step = ks_parser(ps)
     return match maybe_step {

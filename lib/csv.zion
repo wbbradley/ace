@@ -1,15 +1,12 @@
 import itertools {zip}
-import parser {ParseState, Span, Step, char, not_char, any_of, until_one_of, sequence,
-               kleene_star, lift, span_concat}
+import parser {ParseState, Span, Step, char, not_char, choice, until_one_of, sequence,
+               many, lift, span_concat, text}
 
 export {read_csv_dicts, HasHeaderRow, UseFieldNames}
 
 fn split_csv_line(parse fn (ParseState) Maybe (Step [String]), line String) [String] {
   if parse(ParseState(line, 0)) is Just(Step(fields, _)) {
-    for s in fields {
-      print(s)
-    }
-    return [strip(str(s)) for s in fields]
+    return fields
   }
   return []
 }
@@ -19,45 +16,36 @@ data ReadCSVDicts {
   UseFieldNames([String])
 }
 
-data Term {
-  QuotedString([Span])
-  UnquotedString(Span)
-  Comma
-}
-
-instance Str Term {
-  fn str(term) => match term {
-    QuotedString(spans) => "QuotedString(${spans})"
-    UnquotedString(span) => "UnquotedString(${span})"
-    Comma => "Comma"
-  }
+fn convert_quote(span Span) Span {
+  let Span(q, i) = span
+  return Span("\"", i)
 }
 
 fn parse_csv_line(ps ParseState) Maybe (Step [String]) {
-  let term_parser = any_of([
-    lift(QuotedString, sequence([
-      char('"'),
-      until_one_of("\""),
-      char('"'),
-    ])),
-    lift(compose(UnquotedString, strip), until_one_of(","))
-  ])
+  let escaped_quote = lift(convert_quote, text("\\\""))
+  let term_parser = lift(
+    strip,
+    choice([
+      lift(get_indexed_item($, 1),
+        sequence([
+          char('"'),
+          lift(span_concat, many(choice([escaped_quote, not_char('"')]))),
+          char('"'),
+        ])),
+      until_one_of(",")
+    ]))
 
-  let comma = lift(fn(_)=>Comma, char(','))
-  let parse_terms = lift(flatten, sequence([
-    kleene_star(
-      lift(fn(xs) => xs[0:1], sequence([
-        term_parser,
-        comma,
-      ]))),
-    lift(fn (x) => [[x]], term_parser),
-  ]))
-  if parse_terms(ps) is Just(Step(xs, ps_)) {
-    print("Read line: ${[join(":", x) for x in xs]}")
-    return Just(Step([], ps_))
-  } else {
-    return Nothing
-  }
+  let comma = char(',')
+  let parse_terms = lift(
+    compose(fmap(str, $), flatten),
+    sequence([
+      many(
+        lift(get_indexed_item($, 0),
+          sequence([term_parser, comma]))),
+      lift(fn (x) => [x], term_parser),
+    ]))
+
+  return parse_terms(ps)
 }
 
 fn read_csv_dicts(stream, read_csv_dicts ReadCSVDicts) fn () Maybe (Map String String) {
@@ -77,7 +65,7 @@ fn read_csv_dicts(stream, read_csv_dicts ReadCSVDicts) fn () Maybe (Map String S
           }
         }
         UseFieldNames(given_headers) {
-          headers = vector(given_headers) as [String]
+          headers = vector(given_headers)
         }
       }
     }

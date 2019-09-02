@@ -30,11 +30,22 @@ fn flatten(xss [[a]]) [a] {
 }
 
 instance FoldFromLeft [a] a b {
-  fn foldl(binop, xs, initial) b {
-    var value = initial as b
+  fn foldl(binop, xs, initial b) b {
+    var value = initial
     for x in xs {
       value = binop(value, x)
     }
     return value
+  }
+}
+
+instance Functor Vector {
+  fn fmap(f, xs) {
+    let ys = []
+    reserve(ys, len(xs))
+    for x in xs {
+      append(ys, f(x))
+    }
+    return ys
   }
 }

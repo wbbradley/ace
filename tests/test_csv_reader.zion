@@ -1,4 +1,9 @@
 # test: pass
+# expect: name.*angie
+# reject: "\\"angie
+# expect: name.*bertrand
+# expect: birthday.*1970-01-01
+# expect: favorite-color.*red
 
 import csv {read_csv_dicts, HasHeaderRow}
 
@@ -11,12 +16,7 @@ fn main() {
   }
   with! let f = open(fake_csv) {
     for dict in read_csv_dicts(f, HasHeaderRow) {
-      print("Got a dict")
-      for (k, v) in dict {
-        print("(${k}, ${v})")
-      }
-      # print(len(dict))
+      print(dict)
     }
   }
-  print("PASS")
 }

@@ -238,11 +238,12 @@ fn join(delim_ String, xs) String {
         total = total + len(s)
         cur_delim_len = delim_len
     }
-    total += len(delim_) * (count - 1)
+    let len_delim = len(delim_)
+    total += len_delim * (count - 1)
     let buf = alloc(total + 1)
     var i = 0
     for r in results {
-        if i > 0 {
+        if i * len_delim != 0 {
             for ch in delim_ {
                 buf[i] = ch
                 i = i + 1
