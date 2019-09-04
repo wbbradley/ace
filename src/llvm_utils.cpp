@@ -334,7 +334,8 @@ void llvm_verify_function(Location location, llvm::Function *llvm_function) {
   fclose(fp);
 #else
   FILE *fp = fopen(llir_filename.c_str(), "wt");
-  fprintf(fp, "%s:%d: Go to turn this on and recompile to debug...\n", __FILE__, __LINE__);
+  fprintf(fp, "%s:%d: Go to turn this on and recompile to debug...\n", __FILE__,
+          __LINE__);
   fclose(fp);
 #endif
 

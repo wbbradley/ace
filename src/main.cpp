@@ -491,6 +491,21 @@ Identifier make_instance_decl_id(const Instance *instance, Identifier decl_id) {
                     decl_id.location};
 }
 
+const Decl *find_overload_for_instance(std::string name,
+                                       Location location,
+                                       const Instance *instance) {
+  // TODO: plumb type_class defaults down here so that if this instance does not
+  // override a particular symbol, we can see about trying the "default" impl.
+  for (const Decl *decl : instance->decls) {
+    assert(name.find(".") != std::string::npos);
+    if (decl->id.name == name) {
+      return decl;
+    }
+  }
+  throw user_error(location, "could not find decl for %s in instance %s",
+                   name.c_str(), instance->class_predicate->str().c_str());
+}
+
 void check_instance_for_type_class_overload(
     std::string name,
     types::Ref type,
@@ -501,60 +516,50 @@ void check_instance_for_type_class_overload(
     types::SchemeResolver &scheme_resolver,
     const types::ClassPredicates &class_predicates,
     CheckedDefinitionsByName &checked_defns) {
-  bool found = false;
-  for (const Decl *decl : instance->decls) {
-    assert(name.find(".") != std::string::npos);
-    // assert(decl->id.name.find(".") != std::string::npos);
-    if (decl->id.name == name) {
-      found = true;
-      if (in(name, names_checked)) {
-        throw user_error(decl->get_location(),
-                         "name %s already duplicated in this instance",
-                         decl->id.str().c_str());
-      }
-      names_checked.insert(decl->id.name);
+  const Decl *source_decl = find_overload_for_instance(
+      name, type->get_location(), instance);
 
-      types::Ref expected_type = type->rebind(subst);
-      types::SchemeRef expected_scheme = expected_type->generalize(
-          class_predicates);
-
-      CheckedDefinitionRef checked_defn = check_decl(
-          false /*check_constraint_coverage*/, data_ctors_map, {}, decl->id,
-          decl, expected_type, scheme_resolver);
-      const auto &resolved_scheme = checked_defn->scheme;
-      const auto &decl = checked_defn->decl;
-
-      debug_above(3, log_location(decl->id.location, "adding %s to env as %s",
-                                  decl->id.str().c_str(),
-                                  resolved_scheme->str().c_str()));
-      checked_defns[decl->id.name].push_back(checked_defn);
-
-      debug_above(3, log_location(
-                         decl->id.location,
-                         "checked the instance %s :: %s. we expected %s",
-                         decl->id.str().c_str(), resolved_scheme->str().c_str(),
-                         expected_scheme->str().c_str()));
-
-      /* check whether the resolved scheme matches the expected scheme */
-      if (!scheme_equality(resolved_scheme, expected_scheme)) {
-        auto error = user_error(decl->id.location,
-                                "instance component %s appears to be more "
-                                "constrained than the type class",
-                                decl->id.str().c_str());
-        error.add_info(decl->id.location,
-                       "instance component declaration has scheme %s",
-                       resolved_scheme->normalize()->str().c_str());
-        error.add_info(type->get_location(),
-                       "type class component declaration has scheme %s",
-                       expected_scheme->str().c_str());
-        throw error;
-      }
-    }
+  if (in(name, names_checked)) {
+    throw user_error(source_decl->get_location(),
+                     "name %s already duplicated in this instance",
+                     source_decl->id.str().c_str());
   }
-  if (!found) {
-    throw user_error(type->get_location(),
-                     "could not find decl for %s in instance %s", name.c_str(),
-                     instance->class_predicate->str().c_str());
+  names_checked.insert(source_decl->id.name);
+
+  types::Ref expected_type = type->rebind(subst);
+  types::SchemeRef expected_scheme = expected_type->generalize(
+      class_predicates);
+
+  CheckedDefinitionRef checked_defn = check_decl(
+      false /*check_constraint_coverage*/, data_ctors_map, {}, source_decl->id,
+      source_decl, expected_type, scheme_resolver);
+  const auto &resolved_scheme = checked_defn->scheme;
+  const auto &decl = checked_defn->decl;
+
+  debug_above(3, log_location(decl->id.location, "adding %s to env as %s",
+                              decl->id.str().c_str(),
+                              resolved_scheme->str().c_str()));
+  checked_defns[decl->id.name].push_back(checked_defn);
+
+  debug_above(3, log_location(decl->id.location,
+                              "checked the instance %s :: %s. we expected %s",
+                              decl->id.str().c_str(),
+                              resolved_scheme->str().c_str(),
+                              expected_scheme->str().c_str()));
+
+  /* check whether the resolved scheme matches the expected scheme */
+  if (!scheme_equality(resolved_scheme, expected_scheme)) {
+    auto error = user_error(decl->id.location,
+                            "instance component %s appears to be more "
+                            "constrained than the type class",
+                            decl->id.str().c_str());
+    error.add_info(decl->id.location,
+                   "instance component declaration has scheme %s",
+                   resolved_scheme->normalize()->str().c_str());
+    error.add_info(type->get_location(),
+                   "type class component declaration has scheme %s",
+                   expected_scheme->str().c_str());
+    throw error;
   }
 }
 
