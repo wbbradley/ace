@@ -1,0 +1,12 @@
+# test: fail
+# expect: type error. Int != string.String
+
+class Foo a {
+  fn foo(a) Int
+}
+
+instance Foo String {
+  fn foo(a Int) Int {
+    return 10
+  }
+}
