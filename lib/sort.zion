@@ -37,36 +37,36 @@ fn quicksort(xs) () {
     quicksort_core(xs, 0, len(xs)-1)
 }
 
-fn quicksort_core(A, lo, hi) {
+fn quicksort_core(a, lo, hi) {
     if lo < hi {
-        let p = partition(A, lo, hi)
-        quicksort_core(A, lo, p - 1)
-        quicksort_core(A, p + 1, hi)
+        let p = partition(a, lo, hi)
+        quicksort_core(a, lo, p - 1)
+        quicksort_core(a, p + 1, hi)
     }
 }
 
-fn partition(A, lo, hi) {
-    let pivot = A[hi]
+fn partition(rg, lo, hi) {
+    let pivot = rg[hi]
     var i = lo
     for j in [lo..hi-1] {
-        if A[j] < pivot {
-            let ai = A[i]
-            A[i] = A[j]
-            A[j] = ai
+        if rg[j] < pivot {
+            let ai = rg[i]
+            rg[i] = rg[j]
+            rg[j] = ai
             i += 1
         }
     }
-    let ai = A[i]
-    A[i] = A[hi]
-    A[hi] = ai
+    let ai = rg[i]
+    rg[i] = rg[hi]
+    rg[hi] = ai
     return i
 }
 
 let sort = quicksort
 
 fn sorted(xs) [a] {
-  let xs = vector(xs)
-  sort(xs)
-  return xs
+  let ys = vector(xs)
+  sort(ys)
+  return ys
 }
 

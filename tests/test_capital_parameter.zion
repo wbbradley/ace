@@ -1,0 +1,5 @@
+# test: fail
+# expect: parameter names cannot begin with capital letters
+
+fn foo(Int) Int {
+}

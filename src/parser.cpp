@@ -2011,6 +2011,9 @@ std::pair<Identifier, types::Ref> parse_lambda_param_core(ParseState &ps) {
                           : type_variable(param_token.location))};
   } else {
     /* remove this param from the outer term_map */
+    if (isupper(first_token.text[0])) {
+      throw user_error(first_token.location, "parameter names cannot begin with capital letters");
+    }
     ps.term_map.erase(first_token.text);
     return {iid(first_token),
             (token_begins_type(ps.token))

@@ -220,7 +220,9 @@ CheckedDefinitionRef check_decl(
                         scheme_resolver, tracked_types, constraints,
                         instance_requirements);
   append_to_constraints(constraints, ty, expected_type,
-                        make_context(INTERNAL_LOC(), "expected type"));
+                        make_context(expected_type->get_location(),
+                                     "declaration %s has its expected type",
+                                     id.str().c_str()));
   types::Map bindings = zion::solver(
       check_constraint_coverage,
       make_context(id.location, "solving %s :: %s", id.name.c_str(),
@@ -842,7 +844,6 @@ Phase2 compile(std::string user_program_name_) {
   auto type_class_map = check_type_classes(program->type_classes,
                                            scheme_resolver);
   /* start resolving more schemes */
-  // TODO: iterate through all decls to do an ordering */
   CheckedDefinitionsByName checked_defns = check_decls(
       compilation->program_name + ".main", program->decls,
       compilation->data_ctors_map, scheme_resolver);
@@ -851,34 +852,6 @@ Phase2 compile(std::string user_program_name_) {
   check_instances(program->instances, type_class_map,
                   compilation->data_ctors_map, scheme_resolver, checked_defns,
                   instance_predicates);
-
-#if 0
-    if (debug_compiled_env) {
-        INDENT(0, "--debug_compiled_env--");
-        for (auto pair : env.map) {
-            log("%s" c_good(" :: ") c_type("%s"), pair.first.c_str(),
-                pair.second->normalize()->str().c_str());
-        }
-    }
-#endif
-
-#if 0
-  try {
-    check_instance_requirements(program->instances, env);
-  } catch (user_error &e) {
-    print_exception(e);
-  }
-
-  if (debug_all_expr_types) {
-    INDENT(0, "--debug_all_expr_types--");
-    log(c_good("All Expression Types"));
-    for (auto pair : tracked_types) {
-      log_location(pair.first->get_location(), "%s :: %s",
-                   pair.first->str().c_str(),
-                   pair.second->generalize({})->str().c_str());
-    }
-  }
-#endif
 
   return Phase2{compilation, scheme_resolver_ptr, std::move(checked_defns),
                 instance_predicates, compilation->data_ctors_map};
@@ -915,7 +888,7 @@ void specialize_core(const types::TypeEnv &type_env,
   if (!type->get_ftvs().empty()) {
     throw user_error(defn_id_to_match.get_location(),
                      "unable to monomorphize %s because it still has free "
-                     "types variables %s",
+                     "type variables %s",
                      defn_id_to_match.str().c_str(),
                      str(type->get_ftvs()).c_str());
   }
