@@ -173,13 +173,13 @@ derived implementations.
 Since Zion treats functions as values and allows closure over function
 definitions (`fn`), you can `return` new behaviors as functions. Users of those
 functions will get statically checked run-time varying behavior (aka run-time
-polymorphism). For example, the `Iterable` type class requires a single
-function which will itself return a function which can be called repeatedly to
-iterate. It has a signature like
+polymorphism). For example, the `Iterable` type-class requires the definition
+of a single function which will itself return a function which can be called
+repeatedly to iterate. It has a signature like
 
 ```
-class Iterable a {
-  fn iter(a b) fn () Maybe b
+class Iterable collection item {
+  fn iter(collection) fn () Maybe item
 }
 ```
 
@@ -195,6 +195,8 @@ All code that is reachable from `main` is specialized and monomorphized prior
 to the final code generation phase. Code generation creates LLVM IR, which is
 passed through clang to perform static linking, optimization, and lowering to
 the target host.
+
+### Learning more
 
 The best way to learn more at this time is to read through the
 `tests/test_*.zion` code.
