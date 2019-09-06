@@ -4,8 +4,8 @@ import parser {ParseState, Span, Step, char, not_char, choice, until_one_of, seq
 
 export {read_csv_dicts, HasHeaderRow, UseFieldNames}
 
-fn split_csv_line(parse fn (ParseState) Maybe (Step [String]), line String) [String] {
-  if parse(ParseState(line, 0)) is Just(Step(fields, _)) {
+fn split_csvs(line String) [String] {
+  if parse_csv_line(ParseState(line, 0)) is Just(Step(fields, _)) {
     return fields
   }
   return []
@@ -59,7 +59,7 @@ fn read_csv_dicts(stream, read_csv_dicts ReadCSVDicts) fn () Maybe (Map String S
       match read_csv_dicts {
         HasHeaderRow {
           if linereader() is Just(line) {
-            headers = split_csv_line(parse_csv_line, line)
+            headers = split_csvs(line)
           } else {
             return Nothing
           }
@@ -73,8 +73,7 @@ fn read_csv_dicts(stream, read_csv_dicts ReadCSVDicts) fn () Maybe (Map String S
     if linereader() is Just(line) {
       return Just({key: value
                    for (key, value) in zip(headers,
-                                           split_csv_line(parse_csv_line,
-                                                          line))})
+                                           split_csvs(line))})
     } else {
       return Nothing
     }

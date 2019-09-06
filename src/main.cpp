@@ -170,21 +170,6 @@ types::Map resolve_free_type_after_specialization_inference(
           }
         }
       }
-#if 0
-          /* we were unable to make progress on this type, but perhaps with
-           * further refinement, we'll be able to make progress. */
-          /* uh-oh, we found some ambiguity */
-          log_location(expr->get_location(),
-                       "ambiguous instances exist here for type %s "
-                       "(which eventually was rebound to %s)",
-                       type->str().c_str(),
-                       type->rebind(bindings)->str().c_str());
-          for (auto &predicate : found_instances) {
-            log_location(predicate->get_location(), "could be %s",
-                         predicate->str().c_str());
-          }
-        }
-#endif
     }
   }
 
@@ -572,14 +557,6 @@ void check_instance_for_type_class_overloads(
     std::vector<const Decl *> &instance_decls,
     types::SchemeResolver &scheme_resolver,
     CheckedDefinitionsByName &checked_defns) {
-  /* make a template for the types that the instance implementation should
-   * conform to */
-  types::Map subst;
-
-  types::Refs new_type_parameters;
-
-  // freshen them all
-  int i = 0;
   if (instance->class_predicate->params.size() !=
       type_class->type_var_ids.size()) {
     throw user_error(instance->get_location(),
@@ -587,6 +564,11 @@ void check_instance_for_type_class_overloads(
                      "the number of type variables on %s",
                      instance->str().c_str(), type_class->str().c_str());
   }
+
+  /* make a template for the types that the instance implementation should
+   * conform to */
+  types::Map subst;
+  int i = 0;
 
   for (auto &type_var_id : type_class->type_var_ids) {
     subst[type_var_id.name] = instance->class_predicate->params[i++];
@@ -670,52 +652,6 @@ void check_instances(
     }
   }
 }
-
-#if 0
-bool instance_matches_requirement(Instance *instance,
-                                  const types::ClassPredicateRef &ir,
-                                  Env &env) {
-  // log("checking %s %s vs. %s %s", ir.type_class_name.c_str(),
-  // ir.type->str().c_str(), instance->type_class_id.name.c_str(),
-  // instance->type->str().c_str());
-  auto pm = env.get_predicate_map();
-  if (instance->class_predicate->classname.name != ir->classname.name) {
-    return false;
-  }
-
-  return type_equality(type_tuple(ir->params),
-                       type_tuple(instance->class_predicate->params));
-}
-
-void check_instance_requirements(const std::vector<Instance *> &instances,
-                                 Env &env) {
-  for (auto ir : env.instance_requirements) {
-    log("checking instance requirement %s", ir->str().c_str());
-    std::vector<Instance *> matching_instances;
-    for (auto instance : instances) {
-      if (instance_matches_requirement(instance, ir, env)) {
-        matching_instances.push_back(instance);
-      }
-    }
-
-    if (matching_instances.size() == 0) {
-      throw user_error(
-          ir->get_location(),
-          "could not find an instance that supports the requirement %s",
-          ir->str().c_str());
-    } else if (matching_instances.size() != 1) {
-      auto error = user_error(ir->get_location(),
-                              "found multiple instances implementing %s",
-                              ir->str().c_str());
-      for (auto mi : matching_instances) {
-        error.add_info(mi->get_location(), "matching instance found is %s",
-                       mi->class_predicate->str().c_str());
-      }
-      throw error;
-    }
-  }
-}
-#endif
 
 CheckedDefinitionRef specialize_checked_defn(
     const DataCtorsMap &data_ctors_map,
