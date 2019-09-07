@@ -2502,8 +2502,7 @@ types::ClassPredicateRef parse_class_predicate(ParseState &ps) {
   return std::make_shared<types::ClassPredicate>(classname, type_parameters);
 }
 
-const Instance *parse_type_class_instance(ParseState &ps) {
-  types::ClassPredicateRef class_predicate = parse_class_predicate(ps);
+std::vector<const Decl *> parse_decls(ParseState & ps) {
   chomp_token(tk_lcurly);
 
   std::vector<const Decl *> decls;
@@ -2526,8 +2525,12 @@ const Instance *parse_type_class_instance(ParseState &ps) {
       break;
     }
   }
+  return decls;
+}
 
-  return new Instance{class_predicate, decls};
+const Instance *parse_type_class_instance(ParseState &ps) {
+  types::ClassPredicateRef class_predicate = parse_class_predicate(ps);
+  return new Instance{class_predicate, parse_decls(ps)};
 }
 
 const TypeClass *parse_type_class(ParseState &ps) {
@@ -2555,6 +2558,8 @@ const TypeClass *parse_type_class(ParseState &ps) {
   chomp_token(tk_lcurly);
   types::ClassPredicates class_predicates;
   types::Map overloads;
+  std::vector<const Decl *> default_decls;
+
   while (true) {
     if (ps.token.is_ident(K(has))) {
       ps.advance();
@@ -2566,13 +2571,17 @@ const TypeClass *parse_type_class(ParseState &ps) {
       ps.advance();
       overloads[id.name] = parse_function_type(ps);
     } else {
-      chomp_token(tk_rcurly);
       break;
     }
   }
 
+  if (ps.token.is_ident(K(default))) {
+    ps.advance();
+    default_decls = parse_decls(ps);
+  }
+  chomp_token(tk_rcurly);
   return new TypeClass(type_decl->id, type_decl->params, class_predicates,
-                       overloads);
+                       overloads, default_decls);
 }
 
 const Module *parse_module(ParseState &ps,

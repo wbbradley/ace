@@ -97,6 +97,7 @@ K(class);
 K(continue);
 K(data);
 K(defer);
+K(default);
 K(else);
 K(export);
 K(fn);

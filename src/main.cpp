@@ -478,10 +478,18 @@ Identifier make_instance_decl_id(const Instance *instance, Identifier decl_id) {
 
 const Decl *find_overload_for_instance(std::string name,
                                        Location location,
+                                       const TypeClass *type_class,
                                        const Instance *instance) {
-  // TODO: plumb type_class defaults down here so that if this instance does not
-  // override a particular symbol, we can see about trying the "default" impl.
+  /* type class defaults are plumbed down here so that if this instance does not
+   * override a particular symbol, we can fall back about trying the "default" impl.
+   */
   for (const Decl *decl : instance->decls) {
+    assert(name.find(".") != std::string::npos);
+    if (decl->id.name == name) {
+      return decl;
+    }
+  }
+  for (const Decl *decl : type_class->default_decls) {
     assert(name.find(".") != std::string::npos);
     if (decl->id.name == name) {
       return decl;
@@ -494,6 +502,7 @@ const Decl *find_overload_for_instance(std::string name,
 void check_instance_for_type_class_overload(
     std::string name,
     types::Ref type,
+    const TypeClass *type_class,
     const Instance *instance,
     const types::Map &subst,
     const DataCtorsMap &data_ctors_map,
@@ -502,7 +511,7 @@ void check_instance_for_type_class_overload(
     const types::ClassPredicates &class_predicates,
     CheckedDefinitionsByName &checked_defns) {
   const Decl *source_decl = find_overload_for_instance(
-      name, type->get_location(), instance);
+      name, type->get_location(), type_class, instance);
 
   if (in(name, names_checked)) {
     throw user_error(source_decl->get_location(),
@@ -581,7 +590,7 @@ void check_instance_for_type_class_overloads(
     auto name = pair.first;
     auto type = pair.second;
     check_instance_for_type_class_overload(
-        name, type, instance, subst, data_ctors_map, names_checked,
+        name, type, type_class, instance, subst, data_ctors_map, names_checked,
         scheme_resolver,
         type_class->class_predicates /*, type_class->defaults*/, checked_defns);
   }

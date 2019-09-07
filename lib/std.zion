@@ -18,203 +18,213 @@ export {String, split, chomp, strip, concat, has_substring, has_prefix, has_suff
 link pkg "bdw-gc"
 
 data Bool {
-    False
-    True
+  False
+  True
 }
 
 fn not(x Bool) {
-    if x {
-        return False
-    } else {
-        return True
-    }
+  if x {
+    return False
+  } else {
+    return True
+  }
 }
 
 class HasDefault a {
-    fn new() a
+  fn new() a
 }
 
 instance HasDefault Int {
-    fn new() => 0
+  fn new() => 0
 }
 
 class HasDefaultGet collection key value {
-    # Get an item from the collection, falling back to the
-    # default if the key does not allow the implementation to
-    # resolve the value otherwise.
-    fn get(collection, key, value) value
+  # Get an item from the collection, falling back to the
+  # default if the key does not allow the implementation to
+  # resolve the value otherwise.
+  fn get(collection, key, value) value
 }
 
 class Repr a {
-    fn repr(a) String
+  fn repr(a) String
 }
 
 class Str a {
-    fn str(a) String
+  fn str(a) String
 }
 
 instance Str () {
-    fn str(a) => "()"
+  fn str(a) => "()"
 }
 
 instance Repr () {
-    fn repr(a) => "()"
+  fn repr(a) => "()"
 }
 
 fn strlen(sz *Char) Int => __builtin_ffi_1("zion_strlen", sz)
 
 instance Str Int {
-    fn str(x Int) {
-        let sz = __builtin_ffi_1("zion_itoa", x)
-        return String(sz, strlen(sz))
-    }
+  fn str(x Int) {
+    let sz = __builtin_ffi_1("zion_itoa", x)
+    return String(sz, strlen(sz))
+  }
 }
 
 instance Repr Int {
-    repr = str
+  repr = str
 }
 
 instance Str Float {
-    fn str(x) {
-        let sz = __builtin_ffi_1("zion_ftoa", x)
-        let length = __builtin_ffi_1("zion_strlen", sz)
-        return String(sz, length)
-    }
+  fn str(x) {
+    let sz = __builtin_ffi_1("zion_ftoa", x)
+    let length = __builtin_ffi_1("zion_strlen", sz)
+    return String(sz, length)
+  }
 }
 
 instance Repr Float {
-    repr = str
+  repr = str
 }
 
 instance Str (var a) {
-    fn str(var a) => str(a)
+  fn str(var a) => str(a)
 }
 
 instance Str (* Char) {
-    fn str(a) => String(a, __builtin_ffi_1("zion_strlen", a))
+  fn str(a) => String(a, __builtin_ffi_1("zion_strlen", a))
 }
 
 instance Str [a] {
-    fn str(xs) {
-        let strs = []
-        for x in xs {
-            append(strs, str(x))
-        }
-        return "[${join(", ", strs)}]"
+  fn str(xs) {
+    let strs = []
+    for x in xs {
+      append(strs, str(x))
     }
+    return "[${join(", ", strs)}]"
+  }
 }
 
 fn putch(ch Char) () {
-    (__builtin_ffi_2("zion_write_char", 1, ch) as Int)!
+  (__builtin_ffi_2("zion_write_char", 1, ch) as Int)!
 }
 
 fn print(x) () {
-    let String(sz, length) = "${x}\n"
-    (__builtin_ffi_3("write", 1, sz, length) as Int)!
+  let String(sz, length) = "${x}\n"
+  (__builtin_ffi_3("write", 1, sz, length) as Int)!
 }
 
 data Ref a {
-    Ref(a)
+  Ref(a)
 }
 
 
 class LoadableValue f {
-    fn load_value(f a) a
+  fn load_value(f a) a
 }
 
 class StorableValue g {
-    fn store_value(g q, q) ()
+  fn store_value(g q, q) ()
 }
 
 instance LoadableValue Ref {
-    fn load_value(a) {
-        let Ref(x) = a
-        return x
-    }
+  fn load_value(a) {
+    let Ref(x) = a
+    return x
+  }
 }
 
 instance StorableValue Ref {
-    fn store_value(ra Ref a, a a) () {
-        __builtin_store_ref(ra, a)
-    }
+  fn store_value(ra Ref a, a a) () {
+    __builtin_store_ref(ra, a)
+  }
 }
 
 instance LoadableValue * {
-    fn load_value(a) => __builtin_ptr_load(a)
+  fn load_value(a) => __builtin_ptr_load(a)
 }
 
 class Eq a {
-    fn ==(a, a) Bool
-    fn !=(a, a) Bool
-    /*default {
-        fn ==(a, b) {
-            return not (a != b)
-        }
-        fn !=(a, b) {
-            return not (a == b)
-        }
-    }*/
+  fn ==(a, a) Bool
+  fn !=(a, a) Bool
+  default {
+    fn ==(a, b) => not (a != b)
+    fn !=(a, b) => not (a == b)
+  }
 }
 
 instance Eq (*a) {
-    fn ==(a, b) => __builtin_ptr_eq(a, b)
-    fn !=(a, b) => __builtin_ptr_ne(a, b)
-}
-
-instance Eq (Ref a) {
-    fn ==(a, b) => !a == !b
-    fn !=(a, b) => !a != !b
+  fn ==(a, b) => __builtin_ptr_eq(a, b)
+  fn !=(a, b) => __builtin_ptr_ne(a, b)
 }
 
 instance Eq Int {
-    fn ==(a, b) => __builtin_int_eq(a, b)
-    fn !=(a, b) => __builtin_int_ne(a, b)
+  fn ==(a, b) => __builtin_int_eq(a, b)
+  fn !=(a, b) => __builtin_int_ne(a, b)
 }
 
 instance Eq Float {
-    fn ==(a, b) => __builtin_float_eq(a, b)
-    fn !=(a, b) => __builtin_float_ne(a, b)
+  fn ==(a, b) => __builtin_float_eq(a, b)
+  fn !=(a, b) => __builtin_float_ne(a, b)
 }
 
 instance Eq Char {
-    fn ==(a, b) => __builtin_char_eq(a, b)
-    fn !=(a, b) => __builtin_char_ne(a, b)
+  fn ==(a, b) => __builtin_char_eq(a, b)
+  fn !=(a, b) => __builtin_char_ne(a, b)
 }
 
 class Bitwise a {
-    fn &(a, a) a
-    fn |(a, a) a
-    fn ^(a, a) a
+  fn &(a, a) a
+  fn |(a, a) a
+  fn ^(a, a) a
 }
 
 instance Bitwise Int {
-    fn &(a, b) => __builtin_int_bitwise_and(a, b)
-    fn |(a, b) => __builtin_int_bitwise_or(a, b)
-    fn ^(a, b) => __builtin_int_bitwise_xor(a, b)
+  fn &(a, b) => __builtin_int_bitwise_and(a, b)
+  fn |(a, b) => __builtin_int_bitwise_or(a, b)
+  fn ^(a, b) => __builtin_int_bitwise_xor(a, b)
 }
 
 data Ordering {
-    EQ
-    LT
-    GT
+  EQ
+  LT
+  GT
 }
 
 instance Str Ordering {
-    fn str(o) => match o {
-        EQ => "EQ"
-        LT => "LT"
-        GT => "GT"
-    }
+  fn str(o) => match o {
+    EQ => "EQ"
+    LT => "LT"
+    GT => "GT"
+  }
+}
+
+instance Eq Ordering {
+  fn ==(a, b) => match (a, b) {
+    (EQ, EQ) => True
+    (LT, LT) => True
+    (GT, GT) => True
+    _ => False
+  }
 }
 
 class Ord a {
-    fn compare(a, a) Ordering
-    fn <(a, a) Bool
-    fn <=(a, a) Bool
-    fn >(a, a) Bool
-    fn >=(a, a) Bool
-    fn min(a, a) a
-    fn max(a, a) a
+  fn compare(a, a) Ordering
+  fn <(a, a) Bool
+  fn <=(a, a) Bool
+  fn >(a, a) Bool
+  fn >=(a, a) Bool
+  fn min(a, a) a
+  fn max(a, a) a
+  default {
+    # Normal Ord can be completed by implementing just <= in your instance
+    # fn <=(a, b)
+    fn <(a, b) => not b <= a
+    fn >(a, b) => not a <= b
+    fn >=(a, b) => b <= a
+    fn min(a, b) => a <= b ? a : b
+    fn max(a, b) => a <= b ? b : a
+    fn compare(a, b) => (a <= b) ? ((b <= a) ? EQ : LT) : GT
+  }
 }
 
 instance Ord (a, b) {
@@ -502,6 +512,10 @@ class HasRemovableItems collection key {
 class HasSetMembership collection value {
     fn in(value, collection) Bool
     fn not_in(value, collection) Bool
+    default {
+      fn in(value, collection) => not (value not in collection)
+      fn not_in(value, collection) => not (value in collection)
+    }
 }
 
 class HasInsertableItems collection value {

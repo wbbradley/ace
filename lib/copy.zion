@@ -4,6 +4,9 @@ link in "bdw-gc"
 
 class Copy a {
     fn copy(a) a
+    default {
+      copy = deepcopy
+    }
 }
 
 class Deepcopy a {
