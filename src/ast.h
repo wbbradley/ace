@@ -467,7 +467,8 @@ struct TypeClass {
   TypeClass(Identifier id,
             const Identifiers &type_var_ids,
             const types::ClassPredicates &class_predicates,
-            const types::Map &overloads);
+            const types::Map &overloads,
+            const std::vector<const Decl *> &default_decls);
 
   Location get_location() const;
   std::string str() const;
@@ -476,6 +477,7 @@ struct TypeClass {
   Identifiers type_var_ids;
   types::ClassPredicates class_predicates;
   types::Map overloads;
+  std::vector<const Decl *> default_decls;
 };
 
 struct Instance {

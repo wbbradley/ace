@@ -118,7 +118,8 @@ const TypeClass *prefix(const std::set<std::string> &bindings,
   return new TypeClass(
       prefix(bindings, pre, type_class->id), type_class->type_var_ids,
       prefix(bindings, pre, type_class->class_predicates),
-      prefix(bindings, pre, type_class->overloads, true /*include_keys*/));
+      prefix(bindings, pre, type_class->overloads, true /*include_keys*/),
+      prefix(bindings, pre, type_class->default_decls));
 }
 
 types::ClassPredicateRef prefix(

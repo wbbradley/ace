@@ -1,0 +1,21 @@
+# test: pass
+
+import trigonometry {PI}
+
+struct RadialVector {
+  theta Float
+  radius Float
+}
+
+instance Ord RadialVector {
+  fn <=(a, b) => a.radius <= b.radius
+}
+
+fn main() {
+  let p = RadialVector(PI, 100.0)
+  let q = RadialVector(PI/2.0, 100.1)
+  assert(q > p)
+  assert(q >= q)
+  assert(compare(p, q) == LT)
+  print("PASS")
+}

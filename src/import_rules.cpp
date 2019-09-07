@@ -338,7 +338,8 @@ const TypeClass *rewrite_type_class(
       type_class->id, type_class->type_var_ids,
       rewrite_class_predicates(rewrite_import_rules,
                                type_class->class_predicates),
-      rewrite_type_map(rewrite_import_rules, type_class->overloads));
+      rewrite_type_map(rewrite_import_rules, type_class->overloads),
+      rewrite_decls(rewrite_import_rules, type_class->default_decls));
 }
 
 std::vector<const TypeClass *> rewrite_type_classes(

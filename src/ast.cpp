@@ -454,9 +454,10 @@ Location Decl::get_location() const {
 TypeClass::TypeClass(Identifier id,
                      const Identifiers &type_var_ids,
                      const types::ClassPredicates &class_predicates,
-                     const types::Map &overloads)
+                     const types::Map &overloads,
+                     const std::vector<const Decl *> &default_decls)
     : id(id), type_var_ids(type_var_ids), class_predicates(class_predicates),
-      overloads(overloads) {
+      overloads(overloads), default_decls(default_decls) {
 }
 
 std::string TypeClass::str() const {
