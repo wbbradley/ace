@@ -1,0 +1,8 @@
+# test: pass
+# expect: 3\.14159
+
+import math {PI}
+
+fn main() {
+  print(PI)
+}

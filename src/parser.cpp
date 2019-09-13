@@ -2629,6 +2629,8 @@ const Module *parse_module(ParseState &ps,
                            "variables into other modules");
         }
         /* record this import */
+        debug_above(3, log_location(ps.token.location, "recording import of %s",
+                                    symbol.str().c_str()));
         ps.symbol_imports[ps.module_name][module_name.name].insert(symbol);
         assert(symbol.name.find(".") == std::string::npos);
         ps.add_term_map(symbol.location, symbol.name,
