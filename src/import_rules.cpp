@@ -10,9 +10,19 @@ RewriteImportRules solve_rewriting_imports(
     const parser::SymbolExports &symbol_exports) {
   std::map<Identifier, Identifier> graph;
   std::set<std::string> legal_exports;
+#ifdef ZION_DEBUG
+  for (auto &module_pair : symbol_imports) {
+    for (auto &pair_ids : module_pair.second) {
+      debug_above(3,
+                  log("import: %s: %s -> %s", module_pair.first.c_str(),
+                      pair_ids.first.c_str(), join(pair_ids.second).c_str()));
+    }
+  }
+#endif
+
   for (auto &module_pair : symbol_exports) {
     for (auto &id_pair : module_pair.second) {
-      debug_above(3, log("%s: %s -> %s", module_pair.first.c_str(),
+      debug_above(2, log("export: %s: %s -> %s", module_pair.first.c_str(),
                          id_pair.first.str().c_str(),
                          id_pair.second.str().c_str()));
       if (id_pair.second.name != id_pair.first.name) {
@@ -23,8 +33,9 @@ RewriteImportRules solve_rewriting_imports(
                            graph.at(id_pair.first).str().c_str());
         }
         graph[id_pair.first] = id_pair.second;
+        legal_exports.insert(id_pair.first.name);
       } else {
-        debug_above(2, log("%s looks authentic in the context of module %s",
+        debug_above(3, log("%s looks authentic in the context of module %s",
                            id_pair.first.str().c_str(),
                            module_pair.first.c_str()));
         legal_exports.insert(id_pair.first.name);
@@ -61,6 +72,7 @@ RewriteImportRules solve_rewriting_imports(
     for (auto &id : visited_list) {
       graph[id] = resolved_id;
     }
+
     rewriting.insert({symbol_id, resolved_id});
   }
 
@@ -69,6 +81,9 @@ RewriteImportRules solve_rewriting_imports(
     debug_above(1, log("rewriting %s -> %s", pair.first.str().c_str(),
                        pair.second.str().c_str()));
     if (legal_exports.count(pair.second.name) == 0) {
+      debug_above(3,
+                  log("couldn't find %s in legal_exports. found %s",
+                      pair.second.name.c_str(), join(legal_exports).c_str()));
       illegal_imports.push_back(pair);
     }
   }
@@ -80,11 +95,12 @@ RewriteImportRules solve_rewriting_imports(
       const std::string &dest_module = dest_pair.first;
       const std::set<Identifier> &symbols = dest_pair.second;
       for (auto &symbol : symbols) {
-        debug_above(2,
-                    log("checking {%s: {..., %s: %s, ...} for illegal import",
-                        source_module.c_str(), dest_module.c_str(),
-                        symbol.str().c_str()));
-        if (legal_exports.count(dest_module + "." + symbol.name) == 0) {
+        log("checking {%s: {..., %s: %s, ...} for illegal import",
+            source_module.c_str(), dest_module.c_str(), symbol.str().c_str());
+        auto fqn = dest_module + "." + symbol.name;
+        if (legal_exports.count(fqn) == 0) {
+          debug_above(3, log("couldn't find %s in legal_exports. found %s",
+                             fqn.c_str(), join(legal_exports).c_str()));
           illegal_imports.push_back(
               {Identifier{source_module + "." + symbol.name, symbol.location},
                Identifier{dest_module + "." + symbol.name, symbol.location}});
