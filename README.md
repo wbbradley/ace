@@ -50,7 +50,7 @@ available via reader macros within the parser.
 
 #### Examples
 
-Deterministic cleanup.
+##### Deterministic cleanup
 
 ```
 fn main() {
@@ -66,7 +66,7 @@ fn main() {
 }
 ```
 
-For comprehensions and iterators...
+##### For comprehensions and iterators
 
 ```
 import itertools {zip}
@@ -78,29 +78,24 @@ fn main() {
 }
 ```
 
-Implicit lambdas for partial or reordered function argument application.
+##### Lambdas (anonymous function expressions)
 
 ```
-a(b, $, $)
+fn main() {
+  let double = fn (x) => x * 2
+  assert(double(25) == 50)
+}
 ```
 
-which expands to (pseudocode)
+##### Lambda shorthand
 
 ```
-  (let v1 = a in
-   let v2 = b in
-   fn (v3, v4) => v1(v2, v3, v4))
+fn main() {
+  let double = |x| => x * 2
+  assert(double(25) == 50)
+}
 ```
 
-Allowing partial application in a concise syntax.
-
-Implicit parameters can be indexed and reordered.
-`d($2, $1)` is equivalent to d with its parameters flipped.
-
-Indexed implicit parameters can be mentioned more than once.
-
-`add($1, $1)` is equivalent to `fn (x) => x * 2`
-          
 ### Semantics
 
 The evaluation of Zion is strict, not lazy. The call-by-value method of passing

@@ -10,11 +10,24 @@
 
 #include <gc/gc.h>
 
-void zion_init() {
+const char **zion_argv;
+int zion_argc;
+
+void zion_init(int argc, const char *argv[]) {
 	/* initialize the collector */
 	GC_INIT();
 
+	zion_argc = argc;
+	zion_argv = argv;
 	/* start mutator ... */
+}
+
+int64_t zion_sys_argc() {
+	return (int64_t)zion_argc;
+}
+
+const char **zion_sys_argv() {
+	return zion_argv;
 }
 
 int64_t zion_errno() {

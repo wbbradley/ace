@@ -26,7 +26,7 @@ fn parse_csv_line(ps ParseState) Maybe (Step [String]) {
   let term_parser = lift(
     strip,
     choice([
-      lift(get_indexed_item($, 1),
+      lift(|x| => x[1],
         sequence([
           char('"'),
           lift(span_concat, many(choice([escaped_quote, not_char('"')]))),
@@ -37,12 +37,11 @@ fn parse_csv_line(ps ParseState) Maybe (Step [String]) {
 
   let comma = char(',')
   let parse_terms = lift(
-    compose(fmap(str, $), flatten),
+    |x| => fmap(str, flatten(x)),
     sequence([
       many(
-        lift(get_indexed_item($, 0),
-          sequence([term_parser, comma]))),
-      lift(fn (x) => [x], term_parser),
+        lift(|x| => x[0], sequence([term_parser, comma]))),
+      lift(|x| => [x], term_parser),
     ]))
 
   return parse_terms(ps)

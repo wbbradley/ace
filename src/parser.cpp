@@ -529,6 +529,8 @@ const Expr *parse_base_expr(ParseState &ps) {
   } else if (ps.token.is_ident(K(fn))) {
     ps.advance();
     return parse_lambda(ps);
+  } else if (ps.token.tk == tk_pipe) {
+    return parse_lambda(ps, tk_pipe, tk_pipe);
   } else if (ps.token.is_ident(K(match))) {
     return parse_match(ps);
   } else if (ps.token.is_ident(K(null))) {
@@ -1087,109 +1089,16 @@ const Expr *parse_postfix_expr(ParseState &ps) {
         expr = new Application(expr, {unit_expr(ps.token.location)});
       } else {
         std::vector<const Expr *> callsite_refs;
-        std::map<int, Identifier> implicit_param_ids;
-        std::unordered_set<int> partially_applied_indices;
-        bool saw_explicit_indexing = false;
         for (int index = 0; ps.token.tk != tk_rparen; ++index) {
-          if (ps.token.tk == tk_dollar) {
-            auto location = ps.token_and_advance().location;
-            int param_ref_index = implicit_param_ids.size() + 1;
-            if (ps.token.tk == tk_integer) {
-              if (!saw_explicit_indexing && implicit_param_ids.size() != 0) {
-                throw user_error(ps.token.location,
-                                 "mixing implicit and explicit lambda param "
-                                 "indexes is not allowed");
-              }
-              saw_explicit_indexing = true;
-              param_ref_index = parse_int_value(ps.token_and_advance());
-            } else {
-              if (saw_explicit_indexing) {
-                throw user_error(ps.token.location,
-                                 "mixing implicit and explicit lambda param "
-                                 "indexes is not allowed");
-              }
-            }
-            if (implicit_param_ids.count(param_ref_index) == 0) {
-              implicit_param_ids[param_ref_index] = Identifier{fresh(),
-                                                               location};
-            }
-            callsite_refs.push_back(
-                new Var(implicit_param_ids.at(param_ref_index)));
-          } else {
-            callsite_refs.push_back(
-                parse_expr(ps, true /*allow_for_comprehensions*/));
-            partially_applied_indices.insert(index);
-          }
+          callsite_refs.push_back(
+              parse_expr(ps, true /*allow_for_comprehensions*/));
           if (ps.token.tk == tk_comma) {
             ps.advance();
           } else {
             expect_token(tk_rparen);
           }
         }
-        if (implicit_param_ids.size() != 0) {
-          /* we are creating an implicit lambda. syntax looks like:
-           * a(b, $, $)
-           * which expands to
-           * let v1 = a in
-           *   let v2 = b in
-           *     fn (v3, v4) => v1(v2, v3, v4)
-           * allowing partial application in a concise syntax.
-           *
-           * implicit parameters can be indexed and reordered.
-           * d($2, $1) is equivalent to d with its parameters flipped.
-           *
-           * indexed implicit parameters can be mentioned more than once.
-           * add($1, $1) is equivalent to (* 2)
-           */
-          std::vector<const Expr *> internal_callsite_params;
-
-          /* construct a let expression wherein we first evaluate all of the
-           * non-implicit params */
-          Identifiers param_ids;
-          types::Refs param_types;
-          std::vector<const Expr *> internal_callsite_refs;
-          for (int i = 1; i <= int(implicit_param_ids.size()); ++i) {
-            if (implicit_param_ids.count(i) == 0) {
-              throw user_error(implicit_param_ids.begin()->second.location,
-                               "missing implicit param id %d", i);
-            }
-            param_ids.push_back(implicit_param_ids.at(i));
-            param_types.push_back(
-                type_variable(implicit_param_ids.at(i).location));
-          }
-          std::vector<std::pair<Identifier, const Expr *>>
-              partially_applied_ids;
-          for (auto i = 0; i < callsite_refs.size(); ++i) {
-            if (partially_applied_indices.count(i) != 0) {
-              partially_applied_ids.push_back(
-                  {Identifier{fresh(), callsite_refs[i]->get_location()},
-                   callsite_refs[i]});
-              internal_callsite_params.push_back(
-                  new Var(partially_applied_ids.back().first));
-            } else {
-              internal_callsite_params.push_back(callsite_refs[i]);
-            }
-          }
-          Identifier partial_name{string_format("__partial%s", fresh().c_str()),
-                                  expr->get_location()};
-          debug_above(5, log("making an implicit lambda %s(%s)",
-                             partial_name.str().c_str(),
-                             join(param_ids, ", ").c_str()));
-          Identifier callee_id{fresh(), expr->get_location()};
-          expr = new Let(
-              callee_id, expr,
-              new Lambda(param_ids, param_types,
-                         type_variable(ps.token.location) /*return_type*/,
-                         new ReturnStatement(new Application(
-                             new Var(callee_id), {internal_callsite_params}))));
-
-          for (auto iter = partially_applied_ids.rbegin();
-               iter != partially_applied_ids.rend(); ++iter) {
-            expr = new Let(iter->first, iter->second, expr);
-          }
-        } else {
-          expr = new Application(expr, {callsite_refs});
-        }
+        expr = new Application(expr, {callsite_refs});
 
         chomp_token(tk_rparen);
       }
@@ -2023,7 +1932,9 @@ std::pair<Identifier, types::Ref> parse_lambda_param_core(ParseState &ps) {
   }
 }
 
-const Expr *parse_lambda(ParseState &ps) {
+const Expr *parse_lambda(ParseState &ps,
+                         TokenKind tk_start_param_list,
+                         TokenKind tk_end_param_list) {
   if (ps.token.tk == tk_identifier) {
     throw user_error(ps.token.location, "identifiers are unexpected here");
   }
@@ -2031,9 +1942,9 @@ const Expr *parse_lambda(ParseState &ps) {
   BoundVarLifetimeTracker bvlt(ps);
   std::vector<Identifier> param_ids;
   types::Refs param_types;
-  chomp_token(tk_lparen);
+  chomp_token(tk_start_param_list);
 
-  while (!maybe_chomp_token(tk_rparen)) {
+  while (!maybe_chomp_token(tk_end_param_list)) {
     if (param_ids.size() != 0 && ps.token.tk != tk_rparen) {
       /* chomp any delimiting commas */
       chomp_token(tk_comma);
@@ -2502,7 +2413,7 @@ types::ClassPredicateRef parse_class_predicate(ParseState &ps) {
   return std::make_shared<types::ClassPredicate>(classname, type_parameters);
 }
 
-std::vector<const Decl *> parse_decls(ParseState & ps) {
+std::vector<const Decl *> parse_decls(ParseState &ps) {
   chomp_token(tk_lcurly);
 
   std::vector<const Decl *> decls;

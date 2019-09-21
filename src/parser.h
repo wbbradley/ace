@@ -68,7 +68,9 @@ const ast::Expr *parse_let(ParseState &ps, Identifier var_id, bool is_let);
 const ast::Expr *parse_block(ParseState &ps, bool expression_means_return);
 const ast::Expr *parse_if(ParseState &ps);
 const ast::While *parse_while(ParseState &ps);
-const ast::Expr *parse_lambda(ParseState &ps);
+const ast::Expr *parse_lambda(ParseState &ps,
+                              TokenKind tk_start_param_list = tk_lparen,
+                              TokenKind tk_end_param_list = tk_rparen);
 const ast::Match *parse_match(ParseState &ps);
 const ast::Predicate *parse_predicate(ParseState &ps,
                                       bool allow_else,

@@ -1,7 +1,0 @@
-# test: pass
-# expect: Yellow
-
-fn main() {
-  let rconcat = concat($2, $1)
-  print(rconcat("low", "Yel"))
-}

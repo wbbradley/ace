@@ -1,0 +1,82 @@
+import itertools {repeat}
+import string {Strippable}
+import parser {Parser, step, destructure_step, lift, sequence}
+export {
+  ArgParseState, ArgSpan, arg_span_concat, literal, term, parse_args,
+  flag}
+
+# The immutable most-recent state of the parser, sans AST state
+newtype ArgParseState = ArgParseState([String], Int)
+
+# ArgSpan is a slice of the source args
+struct ArgSpan {
+  args [String]
+  pos  Int
+}
+
+fn arg_span_concat(arg_spans [ArgSpan]) ArgSpan {
+  return ArgSpan([arg_span.args for arg_span in arg_spans],
+                 len(arg_spans) > 0 ? arg_spans[0].pos : 0)
+}
+
+newtype ArgStep a = ArgStep(a, ArgParseState)
+
+instance Parser ArgParseState (ArgStep a) {
+  fn step(node, parse_state) {
+    return ArgStep(node, parse_state)
+  }
+  fn destructure_step(step) {
+    let ArgStep(node, parse_state) = step
+    return (node, parse_state)
+  }
+}
+
+instance Functor ArgStep {
+  fn fmap(f fn (a) b, step ArgStep a) ArgStep b {
+    let ArgStep(a, ps) = step
+    return ArgStep(f(a), ps)
+  }
+}
+
+instance Str ArgSpan {
+  fn str(arg_span) => "${join(" ", arg_span.args)}"
+}
+
+fn parse_args(parser, args) WithElseResource opts String {
+  if parser(ArgParseState(args, 0)) is Just(ArgStep(opts, ArgParseState(_, pos))) {
+    if pos != len(args) {
+      return ResourceFailure("Failed to parse all args: ${args[pos:]} were not parsed")
+    }
+
+    return resource_acquired(opts, fn () {})
+  } else {
+    return ResourceFailure("Failed to parse args: ${args}")
+  }
+}
+
+fn literal(k String) fn (ArgParseState) Maybe (ArgStep ArgSpan) {
+  return fn (parse_state) {
+    let ArgParseState(args, index) = parse_state
+    if len(args) <= index {
+      return Nothing
+    }
+    return (
+      args[index] == k
+      ? Just(ArgStep(ArgSpan(args[index:index+1], index), ArgParseState(args, index+1)))
+      : Nothing)
+  }
+}
+
+fn term(parse_state ArgParseState) Maybe (ArgStep ArgSpan) {
+  let ArgParseState(args, index) = parse_state
+  if len(args) <= index {
+    return Nothing
+  }
+  return Just(ArgStep(ArgSpan(args[index:index+1], index), ArgParseState(args, index+1)))
+}
+
+fn flag(flag_name, ctor) {
+  return lift(
+    |x| => ctor(str(x[1])),
+    sequence([literal(flag_name), term]))
+}

@@ -5,5 +5,5 @@ import itertools {takewhile}
 import math {sum}
 
 fn main() {
-    print(sum(takewhile(fn (x) => x < 6, [0..])))
+    print(sum(takewhile(|x| => x < 6, [0..])))
 }
