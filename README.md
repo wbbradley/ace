@@ -43,10 +43,10 @@ fn main() {
 }
 ```
 
-The syntax resembles C or Python (with braces.) The type system is
-based on System F with extensions for Type Classes, newtypes and pattern
-matching. There is no macro system but there is a rich syntax
-available via reader macros within the parser.
+The syntax resembles C or Python (with braces.) The type system is based on
+[System F](https://en.wikipedia.org/wiki/System_F) with extensions for Type
+Classes, newtypes and pattern matching. There is no macro system but there is a
+rich syntax available via reader macros within the parser.
 
 #### Examples
 

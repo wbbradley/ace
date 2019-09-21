@@ -1,3 +1,7 @@
+#ifdef linux
+#define _GNU_SOURCE
+#endif
+
 #include <inttypes.h>
 #include <math.h>
 #include <stdint.h>
