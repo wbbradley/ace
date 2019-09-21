@@ -22,7 +22,7 @@ bool is_restricted_var_name(std::string x) {
   return false;
 }
 
-bool is_assignment_operator(token_kind tk) {
+bool is_assignment_operator(TokenKind tk) {
   switch (tk) {
   case tk_assign:
   case tk_plus_eq:
@@ -37,7 +37,7 @@ bool is_assignment_operator(token_kind tk) {
   }
 }
 
-bool tkvisible(token_kind tk) {
+bool tkvisible(TokenKind tk) {
   switch (tk) {
   default:
     return true;
@@ -60,7 +60,7 @@ std::string Token::str() const {
   case tk_##x:                                                                 \
     return #x
 
-const char *tkstr(token_kind tk) {
+const char *tkstr(TokenKind tk) {
   switch (tk) {
     tk_case(about);
     tk_case(ampersand);

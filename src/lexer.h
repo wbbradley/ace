@@ -11,7 +11,7 @@
 namespace zion {
 
 struct token_pair {
-  token_kind tk;
+  TokenKind tk;
   std::string text;
 };
 
@@ -24,12 +24,12 @@ public:
   bool _get_tokens();
   bool eof();
 
-  std::list<std::pair<Location, token_kind>> nested_tks;
+  std::list<std::pair<Location, TokenKind>> nested_tks;
 
 private:
   void reset_token();
-  bool handle_nests(token_kind tk);
-  void pop_nested(token_kind tk);
+  bool handle_nests(TokenKind tk);
+  void pop_nested(TokenKind tk);
 
   std::string m_filename;
   std::istream &m_is;

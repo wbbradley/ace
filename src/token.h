@@ -9,7 +9,7 @@ namespace zion {
 
 typedef StackString<(1024 * 4) - sizeof(char) - sizeof(size_t)> ZionString;
 
-enum token_kind {
+enum TokenKind {
   tk_none, /* NULL TOKEN */
 
   // Comment
@@ -132,12 +132,12 @@ bool is_restricted_var_name(std::string x);
 
 struct Token {
   Token(const Location &location = Location{{""}, -1, -1},
-        token_kind tk = tk_none,
+        TokenKind tk = tk_none,
         std::string text = "")
       : location(location), tk(tk), text(text) {
   }
   Location location;
-  token_kind tk = tk_none;
+  TokenKind tk = tk_none;
   std::string text;
   std::string str() const;
 
@@ -146,7 +146,7 @@ struct Token {
   bool follows_after(const Token &a) const;
 };
 
-const char *tkstr(token_kind tk);
+const char *tkstr(TokenKind tk);
 int64_t parse_int_value(Token token);
-bool is_assignment_operator(token_kind tk);
+bool is_assignment_operator(TokenKind tk);
 } // namespace zion

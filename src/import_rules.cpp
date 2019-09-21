@@ -95,8 +95,10 @@ RewriteImportRules solve_rewriting_imports(
       const std::string &dest_module = dest_pair.first;
       const std::set<Identifier> &symbols = dest_pair.second;
       for (auto &symbol : symbols) {
-        log("checking {%s: {..., %s: %s, ...} for illegal import",
-            source_module.c_str(), dest_module.c_str(), symbol.str().c_str());
+        debug_above(3,
+                    log("checking {%s: {..., %s: %s, ...} for illegal import",
+                        source_module.c_str(), dest_module.c_str(),
+                        symbol.str().c_str()));
         auto fqn = dest_module + "." + symbol.name;
         if (legal_exports.count(fqn) == 0) {
           debug_above(3, log("couldn't find %s in legal_exports. found %s",

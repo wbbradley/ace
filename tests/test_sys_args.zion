@@ -1,0 +1,9 @@
+# test: pass
+# expect: PASS
+
+import sys {get_args}
+
+fn main() {
+  print(get_args())
+  print("PASS")
+}

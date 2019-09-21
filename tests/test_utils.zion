@@ -11,7 +11,7 @@ class ExportedClass a {
 
 fn make_indexed_logger() fn (String) () {
     var index = 0
-    return fn (s String) () {
+    return |s| {
         print("${index}: ${s}")
         index += 1
     }

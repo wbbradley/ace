@@ -2,7 +2,7 @@ import itertools {repeat}
 import string {Strippable}
 export {
   text, sequence, choice, many, many1, ParseState, Step, char, not_char, Span,
-  until_one_of, lift, span_concat}
+  until_one_of, lift, span_concat, Parser, step, destructure_step}
 
 # The immutable most-recent state of the parser, sans AST state
 newtype ParseState = ParseState(String, Int)
@@ -79,23 +79,36 @@ fn text(k String) fn (ParseState) Maybe (Step Span) {
     }
 }
 
-fn sequence(parsers [fn (ParseState) Maybe (Step a)]) fn (ParseState) Maybe (Step [a]) {
-    return fn (parse_state) {
-        let nodes = []
-        var parse_state = parse_state
-        for parser in parsers {
-            match parser(parse_state) {
-                Just(Step(node, next_parse_state)) {
-                    parse_state = next_parse_state
-                    append(nodes, node)
-                }
-                Nothing {
-                    return Nothing
-                }
-            }
+class Parser parsestate step {
+  fn step(node, parsestate) step
+  fn destructure_step(step) (node, parsestate)
+}
+
+instance Parser ParseState (Step a) {
+  step = Step
+  fn destructure_step(step) => match step {
+    Step(node, parse_state) => (node, parse_state)
+  }
+}
+
+fn sequence(parsers [fn (parsestate) Maybe (step a)]) fn (parsestate) Maybe (step [a]) {
+  return fn (parse_state) {
+    let nodes = [] as [a]
+    var parse_state = parse_state
+    for parser in parsers {
+      match parser(parse_state) {
+        Just(step) {
+          let (node, next_parse_state) = destructure_step(step)
+          parse_state = next_parse_state
+          append(nodes, node)
         }
-        return Just(Step(nodes, parse_state))
+        Nothing {
+          return Nothing
+        }
+      }
     }
+    return Just(step(nodes, parse_state))
+  }
 }
 
 fn until_one_of(chars String) {
@@ -114,8 +127,9 @@ fn until_one_of(chars String) {
   }
 }
 
-fn lift(f fn (a) b, parser fn (ParseState) Maybe (Step a)) fn (ParseState) Maybe (Step b) {
-  return fn (ps) => fmap(fmap(f, $), parser(ps))
+fn lift(f, parser) {
+  # Returns a new parser that has lifted the value by applying f.
+  return |ps| => fmap(|x| => fmap(f, x), parser(ps))
 }
 
 fn choice(parsers) {

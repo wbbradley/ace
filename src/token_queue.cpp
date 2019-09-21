@@ -7,16 +7,16 @@ namespace zion {
 
 struct token_matcher {
   const char *text;
-  token_kind tk;
+  TokenKind tk;
 };
 
-void TokenQueue::enqueue(const Location &location, token_kind tk) {
+void TokenQueue::enqueue(const Location &location, TokenKind tk) {
   ZionString token_text;
   enqueue(location, tk, token_text);
 }
 
 void TokenQueue::enqueue(const Location &location,
-                         token_kind tk,
+                         TokenKind tk,
                          const ZionString &token_text) {
   m_last_tk = tk;
   m_queue.push_back({location, tk, token_text.str()});
@@ -47,11 +47,11 @@ Token TokenQueue::pop() {
   }
 }
 
-token_kind TokenQueue::last_tk() const {
+TokenKind TokenQueue::last_tk() const {
   return m_last_tk;
 }
 
-void TokenQueue::set_last_tk(token_kind tk) {
+void TokenQueue::set_last_tk(TokenKind tk) {
   m_last_tk = tk;
 }
 

@@ -1,14 +1,29 @@
 import bufio {BufferedFileIO}
-export {FileDescriptor, File, open, close, unlink, read, stdin, stdout, stderr, Errno,
-        get_errno, write, BufferedFileIO, readlines, CreateMode, O_RDONLY,
-        O_WRONLY, O_RDWR, O_ACCMODE, O_CREAT, O_EXCL, O_NOCTTY, O_TRUNC,
-        O_APPEND, O_NONBLOCK, S_IRWXU, S_IRUSR, S_IWUSR, S_IXUSR, S_IRWXG,
-        S_IRGRP, S_IWGRP, S_IXGRP, S_IRWXO, S_IROTH, S_IWOTH, S_IXOTH}
+export {
+  get_args, FileDescriptor, File, open, close, unlink, read, stdin, stdout,
+  stderr, Errno, get_errno, write, BufferedFileIO, readlines, CreateMode,
+  O_RDONLY, O_WRONLY, O_RDWR, O_ACCMODE, O_CREAT, O_EXCL, O_NOCTTY, O_TRUNC,
+  O_APPEND, O_NONBLOCK, S_IRWXU, S_IRUSR, S_IWUSR, S_IXUSR, S_IRWXG, S_IRGRP,
+  S_IWGRP, S_IXGRP, S_IRWXO, S_IROTH, S_IWOTH, S_IXOTH}
 
 link pkg "bdw-gc"
 
 newtype FileDescriptor = FileDescriptor(Int)
 newtype LineReader stream = LineReader(BufferedFileIO stream)
+
+fn get_args() [String] {
+  let argc = __builtin_ffi_0("zion_sys_argc") as Int
+  let argv = __builtin_ffi_0("zion_sys_argv") as *(*Char)
+  let args = []
+  reserve(args, argc)
+  print("argc = ${argc}")
+  var i = 0
+  while i < argc {
+    append(args, String(argv[i], strlen(argv[i])))
+    i += 1
+  }
+  return args
+}
 
 fn readlines(stream) => LineReader(BufferedFileIO(stream))
 

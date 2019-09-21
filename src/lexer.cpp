@@ -159,7 +159,7 @@ bool Lexer::_get_tokens() {
   char ch = 0;
   size_t sequence_length = 0;
   ZionString token_text;
-  token_kind tk = tk_none;
+  TokenKind tk = tk_none;
   int line = m_line;
   int col = m_col;
   int multiline_comment_depth = 0;
@@ -809,7 +809,7 @@ bool Lexer::_get_tokens() {
   return false;
 }
 
-bool Lexer::handle_nests(token_kind tk) {
+bool Lexer::handle_nests(TokenKind tk) {
   bool was_empty = nested_tks.empty();
 
   switch (tk) {
@@ -843,7 +843,7 @@ bool Lexer::handle_nests(token_kind tk) {
   return !was_empty;
 }
 
-void Lexer::pop_nested(token_kind tk) {
+void Lexer::pop_nested(TokenKind tk) {
   auto back_tk = nested_tks.size() > 0 ? nested_tks.back().second : tk_none;
   if (back_tk == tk) {
     nested_tks.pop_back();

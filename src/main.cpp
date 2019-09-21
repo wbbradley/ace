@@ -42,7 +42,7 @@ types::Ref program_main_type = type_arrows(
     {type_unit(INTERNAL_LOC()), type_unit(INTERNAL_LOC())});
 types::Scheme::Ref program_main_scheme = program_main_type->generalize({});
 
-int run_program(std::string executable, std::vector<const char *> args) {
+int run_program(std::string executable, std::vector<std::string> args) {
   pid_t pid = fork();
 
   if (pid == -1) {
@@ -74,8 +74,16 @@ int run_program(std::string executable, std::vector<const char *> args) {
     }
   } else {
     /* child */
-    int ret = execvp(("./" + executable).c_str(),
-                     const_cast<char **>(&args[0]));
+    std::string executable_path = "./" + executable;
+    std::vector<const char *> raw_args;
+    raw_args.reserve(args.size() + 1);
+    raw_args.push_back(executable_path.c_str());
+    for (auto &arg : args) {
+      raw_args.push_back(arg.c_str());
+    }
+    raw_args.push_back(nullptr);
+    int ret = execvp(executable_path.c_str(),
+                     const_cast<char **>(&raw_args[0]));
     if (ret == -1) {
       printf("failed to launch %s %s. quitting...\n", executable.c_str(),
              join(args, " ").c_str());
@@ -481,7 +489,8 @@ const Decl *find_overload_for_instance(std::string name,
                                        const TypeClass *type_class,
                                        const Instance *instance) {
   /* type class defaults are plumbed down here so that if this instance does not
-   * override a particular symbol, we can fall back about trying the "default" impl.
+   * override a particular symbol, we can fall back about trying the "default"
+   * impl.
    */
   for (const Decl *decl : instance->decls) {
     assert(name.find(".") != std::string::npos);
@@ -1070,12 +1079,12 @@ void build_main_function(llvm::IRBuilder<> &builder,
   llvm::Type *llvm_main_args_types[] = {
       builder.getInt32Ty(),
       builder.getInt8Ty()->getPointerTo()->getPointerTo()};
+  llvm::FunctionType *llvm_main_function_type = llvm::FunctionType::get(
+      builder.getInt32Ty(), llvm::ArrayRef<llvm::Type *>(llvm_main_args_types),
+      false /*isVarArgs*/);
   llvm::Function *llvm_function = llvm::Function::Create(
-      llvm::FunctionType::get(
-          builder.getInt32Ty(),
-          llvm::ArrayRef<llvm::Type *>(llvm_main_args_types),
-          false /*isVarArgs*/),
-      llvm::Function::ExternalLinkage, "main", llvm_module);
+      llvm_main_function_type, llvm::Function::ExternalLinkage, "main",
+      llvm_module);
 
   llvm_function->setDoesNotThrow();
 
@@ -1085,10 +1094,14 @@ void build_main_function(llvm::IRBuilder<> &builder,
 
   // Initialize the process
   auto llvm_zion_init_func_decl = llvm::cast<llvm::Function>(
-      llvm_module->getOrInsertFunction(
-          "zion_init",
-          llvm::FunctionType::get(builder.getVoidTy(), false /*isVarArg*/)));
-  builder.CreateCall(llvm_zion_init_func_decl);
+      llvm_module->getOrInsertFunction("zion_init", llvm_main_function_type));
+  auto arg_iter = llvm_function->args().begin();
+  llvm::Value *llvm_argc = *&arg_iter;
+  ++arg_iter;
+  llvm::Value *llvm_argv = *&arg_iter;
+  std::vector<llvm::Value *> zion_main_args{llvm_argc, llvm_argv};
+  builder.CreateCall(llvm_zion_init_func_decl,
+                     llvm::ArrayRef<llvm::Value *>(zion_main_args));
 
   llvm::Value *llvm_main_closure = gen::get_env_var(
       builder, gen_env, make_iid(main_closure), main_type);
@@ -1469,7 +1482,8 @@ int run_job(const Job &job) {
         throw user_error(INTERNAL_LOC(), "failed to compile binary");
       }
 
-      return run_program(phase_4.phase_3.phase_2.compilation->program_name, {});
+      return run_program(phase_4.phase_3.phase_2.compilation->program_name,
+                         vec_slice(job.args, 1, job.args.size()));
     } else {
       return EXIT_FAILURE;
     }

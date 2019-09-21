@@ -1,0 +1,30 @@
+# test: pass
+# expect: Filename\(filename.txt\)
+
+import parser {many, choice, sequence, lift}
+import argparser {parse_args, term, literal, flag}
+
+data Opts {
+  Filename(String)
+  Stdin
+}
+
+instance Str Opts {
+  fn str(opts) => match opts {
+    Filename(s) => "Filename(${s})"
+    Stdin => "Stdin"
+  }
+}
+
+
+fn main() {
+  let filename_parser = flag("-f", Filename)
+  let stdin_parser = lift(|_| => Stdin, literal("-"))
+
+  with let opts = parse_args(choice([stdin_parser, filename_parser]),
+      ["-f", "filename.txt"]) {
+    print(opts)
+  } else error {
+    print(error)
+  }
+}
