@@ -1,5 +1,11 @@
 export {Vector, array, size, capacity, flatten}
 
+instance Repr [a] {
+  fn repr(xs) {
+    return "[${join(",", repr(x) for x in xs)}]"
+  }
+}
+
 struct Vector a {
     # TODO: make sure offset in struct is correct RE dim_offset
     array var (*a)

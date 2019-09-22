@@ -1,7 +1,3 @@
-#ifdef linux
-#define _GNU_SOURCE
-#endif
-
 #include <inttypes.h>
 #include <math.h>
 #include <stdint.h>
@@ -42,8 +38,35 @@ int64_t zion_memcmp(const char *a, const char *b, int64_t len) {
 	return memcmp(a, b, len);
 }
 
-const char * zion_memmem(const char *big, int64_t big_len, const char *little, int64_t little_len) {
-	return memmem(big, big_len, little, little_len);
+const char *zion_memmem(const char *big, int64_t big_len, const char *little, int64_t little_len) {
+	/* we need something to compare */
+	if (little_len == 0) {
+		return NULL;
+	}
+
+	if (big_len < little_len) {
+		/* little block can't possibly exist in big block */
+		return NULL;
+	}
+
+	if (big_len == 0) {
+		return NULL;
+	}
+
+	if (little_len == sizeof(char)) {
+		return memchr(big, *little, big_len);
+	} else {
+		const char *max_big = big + big_len - little_len + 1;
+
+		while (big < max_big) {
+			if (memcmp(big, little, little_len) == 0) {
+				return big;
+			}
+			++big;
+		}
+
+		return NULL;
+	}
 }
 
 const char *zion_strerror(int errnum, char *buf, int64_t bufsize) {
@@ -66,7 +89,7 @@ void *zion_malloc(uint64_t cb) {
 }
 
 int zion_strlen(const char *sz) {
-  return strlen(sz);
+	return strlen(sz);
 }
 
 void *zion_print_int64(int64_t x) {
