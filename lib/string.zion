@@ -326,22 +326,28 @@ fn memmem(big *Char, big_len Int, little *Char, little_len Int) *Char {
 fn split(input String, delim String) [String] {
   let String(orig_big, orig_big_len) = input
   let String(little, little_len) = delim
-  var big = orig_big
-  var big_len = orig_big_len
+  if little_len == 0 {
+    return [input]
+  }
+  var cur_big = orig_big
+  var big_len_left = orig_big_len
   let result = []
-  while big_len > 0 {
-    let pch = memmem(big, big_len, little, little_len)
-    if pch == null {
+  while big_len_left > 0 {
+    let next_little = memmem(cur_big, big_len_left, little, little_len)
+    if next_little == null {
       # no more delims, just add the remainder
-      append(result, String(big, big_len))
-      break
-    } else if (big != pch) {
-      let span_len = __ptr_sub(pch, big)
-      append(result, String(big, span_len))
-    }
+      append(result, String(cur_big, big_len_left))
+      return result
+    } else {
+      append(result, String(cur_big, __ptr_sub(next_little, cur_big)))
 
-    big = __builtin_ptr_add(pch, little_len)
-    big_len = orig_big_len - __ptr_sub(big, orig_big)
+      cur_big = __builtin_ptr_add(next_little, little_len)
+      big_len_left = orig_big_len - __ptr_sub(cur_big, orig_big)
+      if big_len_left == 0 {
+        append(result, "")
+        return result
+      }
+    }
   }
   return result
 }
