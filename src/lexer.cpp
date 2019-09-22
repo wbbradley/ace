@@ -740,7 +740,7 @@ bool Lexer::_get_tokens() {
         token_text += '\'';
         break;
       case '0':
-        token_text.append(0);
+        token_text.append(1, '\0');
         break;
       case '"':
         token_text += '"';
