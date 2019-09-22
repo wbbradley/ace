@@ -158,7 +158,7 @@ bool Lexer::_get_tokens() {
 
   char ch = 0;
   size_t sequence_length = 0;
-  ZionString token_text;
+  std::string token_text;
   TokenKind tk = tk_none;
   int line = m_line;
   int col = m_col;
@@ -594,7 +594,7 @@ bool Lexer::_get_tokens() {
       } else if (ch == '.') {
         assert(tk != tk_char);
         m_token_queue.enqueue(Location{m_filename, line, col}, tk, token_text);
-        token_text.reset();
+        token_text.clear();
         col = m_col;
         gts = gts_start;
         scan_ahead = false;
@@ -610,7 +610,7 @@ bool Lexer::_get_tokens() {
         gts = gts_expon_symbol;
       } else if (ch == '.') {
         m_token_queue.enqueue(Location{m_filename, line, col}, tk, token_text);
-        token_text.reset();
+        token_text.clear();
         col = m_col;
         gts = gts_start;
         scan_ahead = false;
@@ -699,54 +699,54 @@ bool Lexer::_get_tokens() {
         gts = gts_error;
       } else {
         gts = gts_single_quoted_got_char;
-        token_text.reset();
-        token_text.append(ch);
+        token_text.clear();
+        token_text += ch;
         scan_ahead = false;
         m_is.get(ch);
       }
       break;
     case gts_single_quoted_escape:
       gts = gts_single_quoted_got_char;
-      token_text.reset();
+      token_text.clear();
       switch (ch) {
       case 'a':
-        token_text.append('\a');
+        token_text += '\a';
         break;
       case 'b':
-        token_text.append('\b');
+        token_text += '\b';
         break;
       case 'e':
-        token_text.append('\e');
+        token_text += '\e';
         break;
       case 'f':
-        token_text.append('\f');
+        token_text += '\f';
         break;
       case 'n':
-        token_text.append('\n');
+        token_text += '\n';
         break;
       case 'r':
-        token_text.append('\r');
+        token_text += '\r';
         break;
       case 't':
-        token_text.append('\t');
+        token_text += '\t';
         break;
       case 'v':
-        token_text.append('\v');
+        token_text += '\v';
         break;
       case '\\':
-        token_text.append('\\');
+        token_text += '\\';
         break;
       case '\'':
-        token_text.append('\'');
+        token_text += '\'';
         break;
       case '0':
         token_text.append(0);
         break;
       case '"':
-        token_text.append('"');
+        token_text += '"';
         break;
       case '?':
-        token_text.append('?');
+        token_text += '?';
         break;
       case 'x':
         assert(!!"handle hex-encoded chars");
@@ -791,10 +791,13 @@ bool Lexer::_get_tokens() {
       }
       assert(ch == ch_old);
 
-      if (!m_is.fail() && !token_text.append(ch)) {
+      token_text += ch;
+#if 0
+      if (!m_is.fail()) && !token_text.append(ch)) {
         log(log_error, "symbol too long? [line %d: col %d]", m_line, m_col);
         return false;
       }
+#endif
     }
     scan_ahead = true;
   }
