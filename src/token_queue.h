@@ -9,7 +9,7 @@ struct TokenQueue {
   TokenKind m_last_tk = tk_none;
   void enqueue(const Location &location,
                TokenKind tk,
-               const ZionString &token_text);
+               const std::string &token_text);
   void enqueue(const Location &location, TokenKind tk);
   bool empty() const;
   TokenKind last_tk() const;

@@ -7,8 +7,6 @@
 
 namespace zion {
 
-typedef StackString<(1024 * 4) - sizeof(char) - sizeof(size_t)> ZionString;
-
 enum TokenKind {
   tk_none, /* NULL TOKEN */
 

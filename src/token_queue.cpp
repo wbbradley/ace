@@ -11,15 +11,15 @@ struct token_matcher {
 };
 
 void TokenQueue::enqueue(const Location &location, TokenKind tk) {
-  ZionString token_text;
+  std::string token_text;
   enqueue(location, tk, token_text);
 }
 
 void TokenQueue::enqueue(const Location &location,
                          TokenKind tk,
-                         const ZionString &token_text) {
+                         const std::string &token_text) {
   m_last_tk = tk;
-  m_queue.push_back({location, tk, token_text.str()});
+  m_queue.push_back({location, tk, token_text});
 }
 
 bool TokenQueue::empty() const {
