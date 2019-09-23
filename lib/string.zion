@@ -280,7 +280,7 @@ fn concat(a String, b String) String {
 }
 
 instance CanSliceFrom String String {
-    fn get_slice_from(s, index) {
+    fn get_slice_from(s String, index Int) String {
         let String(sz, cb) = s
         var index = min(index, cb)
         if index < 0 or index >= cb {
@@ -293,7 +293,7 @@ instance CanSliceFrom String String {
 }
 
 instance CanSliceFromTo String String {
-  fn get_slice_from_to(s, index, lim) {
+  fn get_slice_from_to(s String, index Int, lim Int) String {
     if index >= lim {
       return ""
     }

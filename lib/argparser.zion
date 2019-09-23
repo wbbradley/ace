@@ -2,8 +2,8 @@ import itertools {repeat}
 import string {Strippable}
 import parser {Parser, step, destructure_step, lift, sequence}
 export {
-  ArgParseState, ArgSpan, arg_span_concat, literal, term, parse_args,
-  flag}
+  ArgStep, ArgParseState, ArgSpan, arg_span_concat, const, literal, term,
+  parse_args, flag}
 
 # The immutable most-recent state of the parser, sans AST state
 newtype ArgParseState = ArgParseState([String], Int)
@@ -52,6 +52,10 @@ fn parse_args(parser, args) WithElseResource opts String {
   } else {
     return ResourceFailure("Failed to parse args: ${args}")
   }
+}
+
+fn const(k String, value) fn (ArgParseState) Maybe (ArgStep value) {
+  return lift(|_| => value, literal(k))
 }
 
 fn literal(k String) fn (ArgParseState) Maybe (ArgStep ArgSpan) {

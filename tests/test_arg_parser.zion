@@ -2,7 +2,7 @@
 # expect: Filename\(filename.txt\)
 
 import parser {many, choice, sequence, lift}
-import argparser {parse_args, term, literal, flag}
+import argparser {parse_args, literal, flag}
 
 data Opts {
   Filename(String)

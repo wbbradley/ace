@@ -1,4 +1,4 @@
-export {hash}
+export {hash, Hashable}
 
 link pkg "libsodium"
 
