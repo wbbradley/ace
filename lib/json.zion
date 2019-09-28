@@ -51,9 +51,15 @@ fn convert_quote(span Span) Span {
 
 fn parse_number(ps ParseState) {
   let ParseState(content, index) = skip_space(ps)
-  let start = index
+  var start = index
   var cur = index
   let content_len = len(content)
+  var sign = 1.0
+  if cur < content_len and content[cur] == '-' {
+    sign = -1.0
+    cur += 1
+    start += 1
+  }
   while cur < content_len and isdigit(content[cur]) {
     cur += 1
   }
@@ -73,11 +79,11 @@ fn parse_number(ps ParseState) {
       cur += 1
     }
   }
-  if cur == start {
+  if cur == start or (cur == start + 1 and content[cur] == '-') {
     return Fail
   } else {
     return OK(ParseState(content, cur),
-              JNumber(float(content[start:cur])))
+              JNumber(sign*float(content[start:cur])))
   }
 }
 
@@ -122,13 +128,14 @@ fn get_parse_object(parse_json, parse_text) {
     bracket("{", "}", many_delimited(",", lift(make_pair_from_triplet,
                                                sequence([
                                                  parse_text,
-                                                 lift(|_| => JNull,
+                                                 lift(jnull,
                                                       text(":", True)),
                                                  parse_json])))))
 }
 
 fn get_json_parser() fn (ParseState) Progress ParseState J {
-  # Create a fixpoint placeholder because JSON is an infinite language.
+  # Create a mutable fixpoint recursion placeholder because JSON allows infinite
+  # language.
   var parser = |ps| => Fail
   # Make sure the placeholder is evaluated lazily.
   let parse_json = |ps| => parser(ps)
