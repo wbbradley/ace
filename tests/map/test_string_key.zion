@@ -1,5 +1,5 @@
 # test: pass
-# expect: "Hello": "\\"Wor\\nld\\"."
+# expect: "Hello": "Wor
 
 fn main() {
     print({"Hello": "\"Wor\nld\".", "This": "Might be working"})

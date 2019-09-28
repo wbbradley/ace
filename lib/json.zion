@@ -1,0 +1,181 @@
+import string {has_substring_at}
+import parser {
+  ParseState, Span, Progress, char, not_char, choice, until_one_of, sequence,
+  many, lift, span_concat, text, skip_space_then, digit, skip_space, OK, Fail,
+  word, many_delimited, parse_string}
+export {
+  parse_json, get_json_parser, J, JText, JNumber, JNull, JVector, JObject,
+  JBool, JsonReader, from_json}
+
+               
+data J {
+  JText(String)
+  JNumber(Float)
+  JVector([J])
+  JObject(Map String J)
+  JBool(Bool)
+  JNull
+}
+
+class JsonReader a {
+  fn from_json(J) Maybe a
+}
+
+instance Str J {
+  fn str(j) => match j {
+    JText(s) => "${repr(s)}"
+    JNumber(x) => "${x}"
+    JVector(js) => "${js}"
+    JObject(obj) => "${obj}"
+    JBool(b) => b ? "true" : "false"
+    JNull => "null"
+  }
+}
+
+instance Repr J {
+  fn repr(j) => match j {
+    JText(s) => "JText(${repr(s)})"
+    JNumber(x) => "JNumber(${repr(x)})"
+    JVector(js) => "JVector(${repr(js)})"
+    JObject(obj) => "JObject(${obj})"
+    JBool(b) => "JBool(${repr(b)})"
+    JNull => "JNull"
+  }
+}
+
+
+fn convert_quote(span Span) Span {
+  let Span(q, i) = span
+  return Span("\"", i)
+}
+
+fn parse_number(ps ParseState) {
+  let ParseState(content, index) = skip_space(ps)
+  let start = index
+  var cur = index
+  let content_len = len(content)
+  while cur < content_len and isdigit(content[cur]) {
+    cur += 1
+  }
+  if cur < content_len and content[cur] == '.' {
+    cur += 1
+    while cur < content_len and isdigit(content[cur]) {
+      cur += 1
+    }
+    if cur - start == 1 {
+      # this is just a dot "."
+      return Fail
+    }
+  }
+  if cur < content_len and tolower(content[cur]) == 'e' {
+    cur += 1
+    while cur < content_len and isdigit(content[cur]) {
+      cur += 1
+    }
+  }
+  if cur == start {
+    return Fail
+  } else {
+    return OK(ParseState(content, cur),
+              JNumber(float(content[start:cur])))
+  }
+}
+
+fn get_parse_text() {
+  let escaped_quote = lift(convert_quote, text("\\\"", False))
+  return skip_space_then(
+    lift(
+      |x| => JText(str(x[1])),
+      sequence([
+        char('"'),
+        lift(span_concat, many(choice([escaped_quote, not_char('"')]))),
+        char('"'),
+      ])))
+}
+
+# jbool assumes that token is Str-able, and that it is either "true" or "false"
+fn jbool(token) J => JBool(str(token)[0] == 't')
+fn jnull(_) J => JNull
+fn get_parse_bool() => lift(jbool, choice([text("true", True), text("false", True)]))
+fn get_parse_null() => lift(jnull, text("null", True))
+
+fn get_parse_vector(parse_json) {
+  return lift(
+    |xs| => JVector(xs),
+    bracket("[", "]", many_delimited(",", parse_json)))
+}
+
+fn make_pair_from_triplet(js [J]) (String, J) {
+  assert(len(js) == 3)
+  let value = js[2]
+  if js[0] is JText(key) {
+    return (key, value)
+  } else {
+    assert(False)
+    return (str(js[0]), value)
+  }
+}
+
+fn get_parse_object(parse_json, parse_text) {
+  return lift(
+    |pairs| => JObject({key: value for (key, value) in pairs}),
+    bracket("{", "}", many_delimited(",", lift(make_pair_from_triplet,
+                                               sequence([
+                                                 parse_text,
+                                                 lift(|_| => JNull,
+                                                      text(":", True)),
+                                                 parse_json])))))
+}
+
+fn get_json_parser() fn (ParseState) Progress ParseState J {
+  # Create a fixpoint placeholder because JSON is an infinite language.
+  var parser = |ps| => Fail
+  # Make sure the placeholder is evaluated lazily.
+  let parse_json = |ps| => parser(ps)
+
+
+  # The text parser is shared. Pull it out.
+  let parse_text = get_parse_text()
+
+  # The following assignment is important because it closes the cycle in the
+  # function's definition back to itself.
+  parser = choice([
+    parse_text,
+    parse_number,
+    get_parse_bool(),
+    get_parse_null(),
+    get_parse_vector(parse_json),
+    get_parse_object(parse_json, parse_text),
+  ])
+  return parser
+}
+
+fn parse_json(input String) Maybe J {
+  let parser = get_json_parser()
+  let parse_state = ParseState(input, 0)
+  return match parser(parse_state) {
+    OK(_, jvalue) => Just(jvalue)
+    Fail => Nothing
+  }
+}
+
+fn bracket(begin String, end String, parser) {
+  assert(len(begin) > 0)
+  assert(len(end) > 0)
+
+  return |ps| {
+    let ParseState(content, index) = skip_space(ps)
+    if has_substring_at(content, index, begin) {
+      let progress = parser(ParseState(content, index + 1))
+
+      if progress is OK(ps, node) {
+        let ParseState(content, index) = skip_space(ps)
+        if has_substring_at(content, index, end) {
+          return OK(ParseState(content, index + 1), node)
+        }
+      }
+    }
+    return Fail
+  }
+}
+

@@ -53,6 +53,17 @@ class Str a {
   fn str(a) String
 }
 
+instance Str Bool {
+  fn str(b) => match b {
+    True => "True"
+    False => "False"
+  }
+}
+
+instance Repr Bool {
+  repr = str
+}
+
 instance Str () {
   fn str(a) => "()"
 }
@@ -397,19 +408,30 @@ class ConvertibleToInt a {
 }
 
 instance ConvertibleToInt Char {
-    fn int(a) Int {
-        return __builtin_ffi_1("zion_char_to_int", a)
-    }
+  fn int(a) Int {
+    return __builtin_ffi_1("zion_char_to_int", a)
+  }
 }
 
 instance ConvertibleToInt Float {
-    fn int(a) Int {
-        return __builtin_float_to_int(a)
-    }
+  fn int(a) Int {
+    return __builtin_float_to_int(a)
+  }
+}
+
+class ConvertibleToFloat a {
+  fn float(a) Float
+}
+
+instance ConvertibleToFloat String {
+  fn float(a) Float {
+    let String(sz, n) = a
+    return __builtin_ffi_2("zion_atof", sz, n)
+  }
 }
 
 class Modular a {
-    fn %(a, a) a
+  fn %(a, a) a
 }
 
 instance Modular Int {
@@ -639,6 +661,10 @@ fn isspace(ch Char) Bool {
     return __builtin_ffi_1("isspace", int(ch))
 }
 
+fn isdigit(ch Char) Bool {
+    return __builtin_ffi_1("isdigit", int(ch))
+}
+  
 fn isalpha(ch Char) Bool {
     return __builtin_ffi_1("isalpha", int(ch))
 }
@@ -799,9 +825,7 @@ fn enumerate(xs) fn () Maybe (Int, a) {
 # WithResources are expected by `with` blocks without `else` blocks. In other
 # words, `with` blocks without follow-up `else` blocks cannot fail to provide
 # the resource.
-newtype
-    WithResource resource =
-        WithResource(resource, fn () ())
+newtype WithResource resource = WithResource(resource, fn () ())
 
 # `WithElseResource`s are expected by `with` blocks that have `else` blocks. The
 # input to a `with` block can fail to acquire the resource, and thus pass

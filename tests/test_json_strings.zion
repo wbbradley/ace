@@ -1,0 +1,10 @@
+# test: pass
+# expect: \"Hello \\"World\"
+
+import json {parse_json}
+
+fn main() {
+  if parse_json("\"Hello \\\"World\"") is Just(json) {
+    print(json)
+  }
+}

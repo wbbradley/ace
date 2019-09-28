@@ -1,0 +1,12 @@
+# test: pass
+# expect: \[hey, you, guys\]
+
+import parser {parse_string, many_delimited, word}
+
+fn main() {
+  let data = parse_string(many_delimited("|", word), "hey|you|guys")
+  if data is Just(words) {
+    print(words)
+    print("PASS")
+  }
+}
