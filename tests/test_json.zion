@@ -8,6 +8,8 @@ fn main() {
   let phrases = [
     " \n  \"1\"",
     "12342.34",
+    "-1.3",
+    "-1.3 ",
     "true",
     "false",
     "[false, true]",
@@ -25,14 +27,16 @@ fn main() {
     "{\"brick\": {}}",
     "{\"brick\": null}",
   ]
+  let results = []
   for phrase in phrases {
     if parse_string(parser, phrase) is Just(j) {
       print(j)
+      append(results, j)
     } else {
-      print("ERROR: Failed to parse JSON: ${phrase}")
-      return
+      print("ERROR: Failed to parse JSON: '${phrase}'")
     }
   }
+  assert(len(results) == len(phrases))
   print("PASS")
 }
 
