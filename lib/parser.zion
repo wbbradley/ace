@@ -1,8 +1,8 @@
-import itertools {repeat}
-import string {Strippable}
+import string {Strippable, has_substring_at}
 export {
-  text, sequence, choice, many, many1, ParseState, Step, char, not_char, Span,
-  until_one_of, lift, span_concat, Parser, step, destructure_step}
+  text, sequence, choice, many, many1, Progress, ParseState, char, not_char,
+  Span, until_one_of, lift, span_concat, Parser, digit, skip_space_then,
+  word, skip_space, OK, Fail, many_delimited, parse_string}
 
 # The immutable most-recent state of the parser, sans AST state
 newtype ParseState = ParseState(String, Int)
@@ -18,13 +18,9 @@ fn span_concat(spans [Span]) Span {
               len(spans) > 0 ? spans[0].pos : 0)
 }
 
-newtype Step a = Step(a, ParseState)
-
-instance Functor Step {
-  fn fmap(f fn (a) b, step Step a) Step b {
-    let Step(a, ps) = step
-    return Step(f(a), ps)
-  }
+data Progress parsestate node {
+  OK(parsestate, node)
+  Fail
 }
 
 instance Str Span {
@@ -38,76 +34,119 @@ instance Strippable Span {
   }
 }
 
-fn char(ch Char) fn (ParseState) Maybe (Step Span) {
+fn digit(ps ParseState) Progress ParseState Span {
+  let ParseState(content, index) = ps
+  if index < len(content) and isdigit(content[index]) {
+    return OK(ParseState(content, index + 1),
+              Span(str(content[index]), index))
+
+  } else {
+    return Fail
+  }
+}
+
+fn char(ch Char) fn (ParseState) Progress ParseState Span {
   return fn (ps) {
     let ParseState(content, index) = ps
     if index < len(content) and content[index] == ch {
-      return Just(Step(Span(str(ch), index), ParseState(content, index + 1)))
+      return OK(
+        ParseState(content, index + 1),
+        Span(str(ch), index))
+    } else {
+      return Fail
     }
-    return Nothing
   }
 }
 
-fn not_char(ch Char) fn (ParseState) Maybe (Step Span) {
+fn not_char(ch Char) fn (ParseState) Progress ParseState Span {
   return fn (ps) {
     let ParseState(content, index) = ps
     if index < len(content) and content[index] != ch {
-      return Just(Step(Span(content[index:index+1], index), ParseState(content, index + 1)))
+      return OK(
+        ParseState(content, index + 1),
+        Span(content[index:index+1], index))
+    } else {
+      return Fail
     }
-    return Nothing
   }
 }
 
-fn text(k String) fn (ParseState) Maybe (Step Span) {
-    return fn (parse_state) {
-        let ParseState(content, index) = parse_state
-        var start = index
-        while start < len(content) and isspace(content[start]) {
-            start += 1
-        }
-        var i = start
-        while i < len(content) and i-start < len(k) and k[i-start] == content[i] {
-            i += 1
-        }
-        if start != i {
-            let symbol = content[start:i]
-            if symbol == k {
-                return Just(Step(Span(symbol, start), ParseState(content, i)))
-            }
-        }
-        return Nothing
-    }
-}
-
-class Parser parsestate step {
-  fn step(node, parsestate) step
-  fn destructure_step(step) (node, parsestate)
-}
-
-instance Parser ParseState (Step a) {
-  step = Step
-  fn destructure_step(step) => match step {
-    Step(node, parse_state) => (node, parse_state)
+fn word(ps) {
+  let ParseState(content, index) = skip_space(ps)
+  var cur = index
+  while cur < len(content) and isalpha(content[cur]) {
+    cur += 1
+  }
+  if index == cur {
+    return Fail
+  } else {
+    return OK(ParseState(content, cur), Span(content[index:cur], index))
   }
 }
 
-fn sequence(parsers [fn (parsestate) Maybe (step a)]) fn (parsestate) Maybe (step [a]) {
+fn text(k String, skip_leading_space Bool) fn (ParseState) Progress ParseState Span {
+  return fn (parse_state) {
+    let ParseState(content, index) = parse_state
+    var start = index
+    if skip_leading_space {
+      # TODO: make skipping leading whitespace optional
+      while start < len(content) and isspace(content[start]) {
+        start += 1
+      }
+    }
+    var i = start
+    while i < len(content) and i-start < len(k) and k[i-start] == content[i] {
+      i += 1
+    }
+    if start != i {
+      let symbol = content[start:i]
+      if symbol == k {
+        return OK(ParseState(content, i), Span(symbol, start))
+      }
+    }
+    return Fail
+  }
+}
+
+fn skip_space(ps ParseState) ParseState {
+    let ParseState(content, index) = ps
+    var start = index
+    let content_len = len(content)
+    while start < content_len and isspace(content[start]) {
+        start += 1
+    }
+    if start != index {
+      return ParseState(content, start)
+    } else {
+      return ps
+    }
+}
+
+fn advance(progress, skipper) => match progress {
+  OK(parsestate, node) => OK(skipper(parsestate), node)
+  Fail => Fail
+}
+
+fn maybe_skip_space(skip Bool) => skip ? skip_space : id
+
+fn skip_space_then(parser) => |ps| => parser(skip_space(ps))
+
+fn sequence(parsers [fn (parsestate) Progress parsestate a]) fn (parsestate) Progress parsestate [a] {
   return fn (parse_state) {
     let nodes = [] as [a]
     var parse_state = parse_state
     for parser in parsers {
       match parser(parse_state) {
-        Just(step) {
-          let (node, next_parse_state) = destructure_step(step)
+        OK(next_parse_state, node) {
           parse_state = next_parse_state
           append(nodes, node)
         }
-        Nothing {
-          return Nothing
+        Fail {
+          return Fail
         }
       }
     }
-    return Just(step(nodes, parse_state))
+    return OK(parse_state, nodes)
   }
 }
 
@@ -123,49 +162,94 @@ fn until_one_of(chars String) {
       cur += 1
     }
     let span = Span(content[index:cur], index)
-    return Just(Step(span, ParseState(content, cur)))
+    return OK(ParseState(content, cur), span)
   }
 }
 
-fn lift(f, parser) {
-  # Returns a new parser that has lifted the value by applying f.
-  return |ps| => fmap(|x| => fmap(f, x), parser(ps))
+instance Functor (Progress parsestate) {
+  fn fmap(f, progress) => match progress {
+    OK(parsestate, node) => OK(parsestate, f(node))
+    Fail => Fail
+  }
 }
+
+# Returns a new parser that has lifted the value by applying f.
+fn lift(f, parser) => |ps| => fmap(f, parser(ps))
 
 fn choice(parsers) {
   return fn (parse_state) {
     for parser in parsers {
-      if parser(parse_state) is just_step@Just(_) {
-        return just_step
+      if parser(parse_state) is progress@OK(_, _) {
+        return progress
       }
     }
-    return Nothing
+    return Fail
   }
 }
 
-fn many(parser) fn (ParseState) Maybe (Step [a]) {
-  let nodes = []
+fn many(parser) fn (parsestate) Progress parsestate [a] {
   return fn (parse_state) {
+    let nodes = [] as [a]
     var parse_state = parse_state
     while True {
-      if parser(parse_state) is Just(Step(node, next_parse_state)) {
+      if parser(parse_state) is OK(next_parse_state, node) {
         parse_state = next_parse_state
         append(nodes, node)
       } else {
         break
       }
     }
-    return Just(Step(nodes, parse_state))
+    return OK(parse_state, nodes)
   }
 }
 
-fn many1(parser) fn (ParseState) Maybe (Step [a]) {
+fn many_delimited(delim, parser) {
+  let delim_len = len(delim)
+  return fn (ps) {
+    let nodes = [] as [a]
+    var ps = ps
+    while True {
+      if len(nodes) != 0 {
+        # Look for delimiter
+        let ParseState(content, index) = skip_space(ps)
+        if has_substring_at(content, index, delim) {
+          # Found delimiter, eat it
+          ps = ParseState(content, index + delim_len)
+        } else {
+          # No delim, we are done with this list
+          return OK(ParseState(content, index), nodes)
+        }
+      }
+
+      if parser(ps) is OK(next_parse_state, node) {
+        ps = next_parse_state
+        append(nodes, node)
+      } else if len(nodes) != 0 {
+        return Fail
+      } else {
+        assert(len(nodes) <= 1)
+        return OK(ps, nodes)
+      }
+    }
+    return Fail
+  }
+}
+
+fn many1(parser) fn (parsestate) Progress parsestate [a] {
   let ks_parser = many(parser)
   return fn (ps) {
-    let maybe_step = ks_parser(ps)
-    return match maybe_step {
-      Just(Step(xs, ps)) => len(xs) > 0 ? maybe_step : Nothing
-      Nothing => Nothing
+    let progress = ks_parser(ps)
+    return match progress {
+      OK(ps, xs) => len(xs) > 0 ? progress : Fail
+      Fail => Fail
     }
   }
 }
+
+fn parse_string(parser fn (ParseState) Progress ParseState a, s String) Maybe a {
+  return match parser(ParseState(s, 0)) {
+    OK(ParseState(content, index), node) => Just(node)
+    Fail => Nothing
+  }
+}
+

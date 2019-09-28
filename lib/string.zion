@@ -1,5 +1,5 @@
 export {String, Strippable, chomp, strip, concat, split, has_substring,
-        has_prefix, has_suffix, replace, join}
+        has_prefix, has_suffix, replace, join, has_substring_at}
 
 # The default string type. Strings are stored null-terminated and the length is
 # cached.
@@ -171,6 +171,18 @@ fn has_substring(haystack String, needle String) Bool {
     let String(needle, _) = needle
     return __builtin_ffi_2("strstr", haystack, needle) != null as *Char
 }
+
+fn has_substring_at(haystack String, index Int, needle String) Bool {
+    let String(haystack, haystack_len) = haystack
+    let String(needle, needle_len) = needle
+    if haystack_len - index >= needle_len {
+      let haystack_ptr = __builtin_ptr_add(haystack, index) as *Char
+      return __builtin_ffi_3("memcmp", haystack_ptr, needle, needle_len) == 0
+    } else {
+      return False
+    }
+}
+
 
 fn strstr_index(haystack *Char, haystack_len Int, needle *Char, needle_len Int) Int {
     if haystack_len < needle_len {

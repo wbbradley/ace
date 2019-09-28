@@ -8,170 +8,179 @@ newtype MapKeyValueCell key value = MapKeyValueCell(Int, key, var value)
 newtype MapStorage key value = MapStorage([List (MapKeyValueCell key value)])
 newtype Map key value = Map(MapStorage key value, var Int)
 
-instance Str (Map key value) {
-    fn str(map) {
-        let Map(MapStorage(storage), _) = map
-        let results = []
-        for match Cons(MapKeyValueCell(_, key, var value), var next) in storage {
-            append(results, "${repr(key)}: ${repr(value)}")
-            var next_list = next
-            while match next_list {
-                Cons(MapKeyValueCell(_, key, var value), var next_next) {
-                    append(results, "${repr(key)}: ${repr(value)}")
-                    next_list = next_next
-                }
-                Nil {
-                    break
-                }
-            }
-        }
-        return "{${join(", ", results)}}"
+fn str_tuple_show(key, value) => "${repr(key)}: ${value}"
+fn repr_tuple_show(key, value) => "${repr(key)}: ${repr(value)}"
+
+fn map_render(map, tuple_show) {
+  let Map(MapStorage(storage), _) = map
+  let results = []
+  for match Cons(MapKeyValueCell(_, key, var value), var next) in storage {
+    append(results, tuple_show(key, value))
+    var next_list = next
+    while match next_list {
+      Cons(MapKeyValueCell(_, key, var value), var next_next) {
+        append(results, tuple_show(key, value))
+        next_list = next_next
+      }
+      Nil {
+        break
+      }
     }
+  }
+  return "{${join(", ", results)}}"
+}
+
+instance Str (Map key value) {
+  fn str(map) => map_render(map, str_tuple_show)
+}
+
+instance Repr (Map key value) {
+  fn repr(map) => map_render(map, repr_tuple_show)
 }
 
 instance HasSetMembership (Map key value) key {
-    fn in(key, map) Bool {
-        let Map(map_storage, var size) = map
-        return match find_key_value(map_storage, hash(key), key) {
-            Just(_) => True
-            Nothing => False
-        }
+  fn in(key, map) Bool {
+    let Map(map_storage, var size) = map
+    return match find_key_value(map_storage, hash(key), key) {
+      Just(_) => True
+      Nothing => False
     }
-    fn not_in(key, map) Bool {
-        return not (key in map)
-    }
+  }
+  fn not_in(key, map) Bool {
+    return not (key in map)
+  }
 }
 
 instance Str (MapKeyValueCell key value) {
-    fn str(key_value_cell) String {
-        let MapKeyValueCell(hash_value, key, var value) = key_value_cell
-        return "MapKeyValueCell(${hash_value}, ${key}, ${value})"
-    }
+  fn str(key_value_cell) String {
+    let MapKeyValueCell(hash_value, key, var value) = key_value_cell
+    return "MapKeyValueCell(${hash_value}, ${key}, ${value})"
+  }
 }
 
 instance HasDefault (Map key value) {
-    fn new() => Map(MapStorage([]), Ref(0))
+  fn new() => Map(MapStorage([]), Ref(0))
 }
 
 instance HasLength (Map key value) {
-    fn len(map) Int {
-        let Map(_, var size) = map
-        return size
-    }
+  fn len(map) Int {
+    let Map(_, var size) = map
+    return size
+  }
 }
 
 instance HasIndexableItems (Map key value) key (Maybe value) {
-    fn get_indexed_item(map, key) {
-        let Map(map_storage, var size) = map
-        match find_key_value(map_storage, hash(key), key) {
-            Just(MapKeyValueCell(_, _, var value)) {
-                return Just(value)
-            }
-            Nothing { return Nothing }
-        }
+  fn get_indexed_item(map, key) {
+    let Map(map_storage, var size) = map
+    match find_key_value(map_storage, hash(key), key) {
+      Just(MapKeyValueCell(_, _, var value)) {
+        return Just(value)
+      }
+      Nothing { return Nothing }
     }
+  }
 }
 
 instance HasIndexableItems (MapStorage key value) Int (List (MapKeyValueCell key value)) {
-    fn get_indexed_item(map_storage, index) {
-        let MapStorage(map_storage) = map_storage
-        assert(len(map_storage) > index)
-        return map_storage[index]
-    }
+  fn get_indexed_item(map_storage, index) {
+    let MapStorage(map_storage) = map_storage
+    assert(len(map_storage) > index)
+    return map_storage[index]
+  }
 }
 
 instance HasRemovableItems (Map key value) key {
-    fn remove(map, key) {
-        let Map(map_storage@MapStorage(storage), var size) = map
-        if size == 0 {
-            return
-        }
-        let hash_key = hash(key)
-        let index = hash_key % len(storage)
-        let (new_list, removed_count) = remove_if(storage[index], fn (key_value_cell MapKeyValueCell key value) Bool {
-            let MapKeyValueCell(existing_key_hash, existing_key, _) = key_value_cell
-            return existing_key_hash == hash_key and existing_key == key
-        })
-        map_storage[index] = new_list
-        assert(size >= removed_count)
-        size -= removed_count
+  fn remove(map, key) {
+    let Map(map_storage@MapStorage(storage), var size) = map
+    if size == 0 {
+      return
     }
+    let hash_key = hash(key)
+    let index = hash_key % len(storage)
+    let (new_list, removed_count) = remove_if(storage[index], fn (key_value_cell MapKeyValueCell key value) Bool {
+      let MapKeyValueCell(existing_key_hash, existing_key, _) = key_value_cell
+      return existing_key_hash == hash_key and existing_key == key
+    })
+    map_storage[index] = new_list
+    assert(size >= removed_count)
+    size -= removed_count
+  }
 }
 
 instance HasDefaultGet (Map key value) key value {
-    fn get(map Map key value, key key, default value) value => match map[key] {
-        Just(a) => a
-        Nothing => default
-    }
+  fn get(map Map key value, key key, default value) value => match map[key] {
+    Just(a) => a
+    Nothing => default
+  }
 }
 
 instance Iterable (Map key value) (key, value) {
-    fn iter(map) {
-        let Map(MapStorage(storage), var size) = map
-        let results = [] as [(key, value)]
-        reserve(results, size)
-        for match Cons(MapKeyValueCell(_, key, var value), var next) in storage {
-            append(results, (key, value))
-            var next_list = next
-            while match next_list {
-                Cons(MapKeyValueCell(_, key, var value), var next_next) {
-                    append(results, (key, value))
-                    next_list = next_next
-                }
-                Nil {
-                    break
-                }
-            }
+  fn iter(map) {
+    let Map(MapStorage(storage), var size) = map
+    let results = [] as [(key, value)]
+    reserve(results, size)
+    for match Cons(MapKeyValueCell(_, key, var value), var next) in storage {
+      append(results, (key, value))
+      var next_list = next
+      while match next_list {
+        Cons(MapKeyValueCell(_, key, var value), var next_next) {
+          append(results, (key, value))
+          next_list = next_next
         }
-        return iter(results)
+        Nil {
+          break
+        }
+      }
     }
+    return iter(results)
+  }
 }
 
 fn find_key_value(map_storage MapStorage key value,
                   map_key_hash Int,
                   key key) Maybe (MapKeyValueCell key value) {
-    let MapStorage(storage) = map_storage
-    if len(storage) == 0 {
-        return Nothing
-    }
-
-    let index = map_key_hash % len(storage)
-    for mkvc@MapKeyValueCell(key_hash, existing_key, ss) in storage[index] {
-        if key_hash == map_key_hash and existing_key == key {
-            return Just(mkvc)
-        }
-    }
+  let MapStorage(storage) = map_storage
+  if len(storage) == 0 {
     return Nothing
+  }
+
+  let index = map_key_hash % len(storage)
+  for mkvc@MapKeyValueCell(key_hash, existing_key, ss) in storage[index] {
+    if key_hash == map_key_hash and existing_key == key {
+      return Just(mkvc)
+    }
+  }
+  return Nothing
 }
 
 fn needs_to_grow(map) {
-    let Map(MapStorage(storage), var size) = map
-    return size + 1 > len(storage)
+  let Map(MapStorage(storage), var size) = map
+  return size + 1 > len(storage)
 }
 
 fn grow_storage(map_storage MapStorage key value, new_size) {
-    let MapStorage(storage) = map_storage
-    assert(len(storage) < new_size)
-    let new_storage = []
-    reserve(new_storage, new_size)
-    for i in [0..new_size-1] {
-        append(new_storage, Nil)
+  let MapStorage(storage) = map_storage
+  assert(len(storage) < new_size)
+  let new_storage = []
+  reserve(new_storage, new_size)
+  for i in [0..new_size-1] {
+    append(new_storage, Nil)
+  }
+  assert(len(new_storage) == new_size)
+  for key_value_cell_list in storage {
+    for key_value_cell in key_value_cell_list {
+      let MapKeyValueCell(key_hash, key, var value) = key_value_cell
+      let index = key_hash % new_size
+      new_storage[index] = Cons(key_value_cell, Ref(new_storage[index]))
     }
-    assert(len(new_storage) == new_size)
-    for key_value_cell_list in storage {
-        for key_value_cell in key_value_cell_list {
-            let MapKeyValueCell(key_hash, key, var value) = key_value_cell
-            let index = key_hash % new_size
-            new_storage[index] = Cons(key_value_cell, Ref(new_storage[index]))
-        }
-    }
+  }
 
-    /* replace the existing storage with the newly allocated storage */
-    let Vector(var array, var size, var capacity) = storage
-    let Vector(var new_array, var new_size, var new_capacity) = new_storage
-    array = new_array
-    size = new_size
-    capacity = new_capacity
+  /* replace the existing storage with the newly allocated storage */
+  let Vector(var array, var size, var capacity) = storage
+  let Vector(var new_array, var new_size, var new_capacity) = new_storage
+  array = new_array
+  size = new_size
+  capacity = new_capacity
 }
 
 instance HasAssignableIndexableItems (MapStorage key value) Int (List (MapKeyValueCell key value)) {

@@ -1,8 +1,8 @@
 import itertools {repeat}
 import string {Strippable}
-import parser {Parser, step, destructure_step, lift, sequence}
+import parser {Parser, lift, sequence, Progress, OK, Fail}
 export {
-  ArgStep, ArgParseState, ArgSpan, arg_span_concat, const, literal, term,
+  ArgParseState, ArgSpan, arg_span_concat, const, literal, term,
   parse_args, flag}
 
 # The immutable most-recent state of the parser, sans AST state
@@ -19,31 +19,12 @@ fn arg_span_concat(arg_spans [ArgSpan]) ArgSpan {
                  len(arg_spans) > 0 ? arg_spans[0].pos : 0)
 }
 
-newtype ArgStep a = ArgStep(a, ArgParseState)
-
-instance Parser ArgParseState (ArgStep a) {
-  fn step(node, parse_state) {
-    return ArgStep(node, parse_state)
-  }
-  fn destructure_step(step) {
-    let ArgStep(node, parse_state) = step
-    return (node, parse_state)
-  }
-}
-
-instance Functor ArgStep {
-  fn fmap(f fn (a) b, step ArgStep a) ArgStep b {
-    let ArgStep(a, ps) = step
-    return ArgStep(f(a), ps)
-  }
-}
-
 instance Str ArgSpan {
   fn str(arg_span) => "${join(" ", arg_span.args)}"
 }
 
 fn parse_args(parser, args) WithElseResource opts String {
-  if parser(ArgParseState(args, 0)) is Just(ArgStep(opts, ArgParseState(_, pos))) {
+  if parser(ArgParseState(args, 0)) is OK(ArgParseState(_, pos), opts) {
     if pos != len(args) {
       return ResourceFailure("Failed to parse all args: ${args[pos:]} were not parsed")
     }
@@ -54,29 +35,29 @@ fn parse_args(parser, args) WithElseResource opts String {
   }
 }
 
-fn const(k String, value) fn (ArgParseState) Maybe (ArgStep value) {
+fn const(k String, value) fn (ArgParseState) Progress ArgParseState value {
   return lift(|_| => value, literal(k))
 }
 
-fn literal(k String) fn (ArgParseState) Maybe (ArgStep ArgSpan) {
+fn literal(k String) fn (ArgParseState) Progress ArgParseState ArgSpan {
   return fn (parse_state) {
     let ArgParseState(args, index) = parse_state
     if len(args) <= index {
-      return Nothing
+      return Fail
     }
     return (
       args[index] == k
-      ? Just(ArgStep(ArgSpan(args[index:index+1], index), ArgParseState(args, index+1)))
-      : Nothing)
+        ? OK(ArgParseState(args, index+1), ArgSpan(args[index:index+1], index))
+        : Fail)
   }
 }
 
-fn term(parse_state ArgParseState) Maybe (ArgStep ArgSpan) {
+fn term(parse_state ArgParseState) Progress ArgParseState ArgSpan {
   let ArgParseState(args, index) = parse_state
   if len(args) <= index {
-    return Nothing
+    return Fail
   }
-  return Just(ArgStep(ArgSpan(args[index:index+1], index), ArgParseState(args, index+1)))
+  return OK(ArgParseState(args, index+1), ArgSpan(args[index:index+1], index))
 }
 
 fn flag(flag_name, ctor) {

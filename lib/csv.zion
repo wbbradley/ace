@@ -1,11 +1,12 @@
 import itertools {zip}
-import parser {ParseState, Span, Step, char, not_char, choice, until_one_of, sequence,
-               many, lift, span_concat, text}
+import parser {
+  ParseState, Span, Progress, OK, Fail, char, not_char, choice, until_one_of,
+  sequence, many, lift, span_concat, text}
 
 export {read_csv_dicts, HasHeaderRow, UseFieldNames}
 
 fn split_csvs(line String) [String] {
-  if parse_csv_line(ParseState(line, 0)) is Just(Step(fields, _)) {
+  if parse_csv_line(ParseState(line, 0)) is OK(_, fields) {
     return fields
   }
   return []
@@ -21,8 +22,8 @@ fn convert_quote(span Span) Span {
   return Span("\"", i)
 }
 
-fn parse_csv_line(ps ParseState) Maybe (Step [String]) {
-  let escaped_quote = lift(convert_quote, text("\\\""))
+fn parse_csv_line(ps ParseState) Progress ParseState [String] {
+  let escaped_quote = lift(convert_quote, text("\\\"", False))
   let term_parser = lift(
     strip,
     choice([

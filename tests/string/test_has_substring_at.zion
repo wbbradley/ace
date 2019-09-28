@@ -1,0 +1,9 @@
+# test: pass
+import string {has_substring_at}
+
+fn main() {
+  assert(has_substring_at("Jello pudding", 6, "pudding"))
+  assert(has_substring_at("Jello, pudding", 5, ","))
+  assert(not has_substring_at("Jello, pudding", 5, "popscicle"))
+  print("PASS")
+}
