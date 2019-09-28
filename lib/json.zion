@@ -106,9 +106,7 @@ fn get_parse_bool() => lift(jbool, choice([text("true", True), text("false", Tru
 fn get_parse_null() => lift(jnull, text("null", True))
 
 fn get_parse_vector(parse_json) {
-  return lift(
-    |xs| => JVector(xs),
-    bracket("[", "]", many_delimited(",", parse_json)))
+  return lift(JVector, bracket("[", "]", many_delimited(",", parse_json)))
 }
 
 fn make_pair_from_triplet(js [J]) (String, J) {
