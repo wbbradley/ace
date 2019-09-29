@@ -41,7 +41,7 @@ instance Repr (Map key value) {
 instance HasSetMembership (Map key value) key {
   fn in(key, map) Bool {
     let Map(map_storage, var size) = map
-    return match find_key_value(map_storage, hash(key), key) {
+    return match find_key_value(map_storage, abs(hash(key)), key) {
       Just(_) => True
       Nothing => False
     }
@@ -72,7 +72,7 @@ instance HasLength (Map key value) {
 instance HasIndexableItems (Map key value) key (Maybe value) {
   fn get_indexed_item(map, key) {
     let Map(map_storage, var size) = map
-    match find_key_value(map_storage, hash(key), key) {
+    match find_key_value(map_storage, abs(hash(key)), key) {
       Just(MapKeyValueCell(_, _, var value)) {
         return Just(value)
       }
@@ -95,7 +95,7 @@ instance HasRemovableItems (Map key value) key {
     if size == 0 {
       return
     }
-    let hash_key = hash(key)
+    let hash_key = abs(hash(key))
     let index = hash_key % len(storage)
     let (new_list, removed_count) = remove_if(storage[index], fn (key_value_cell MapKeyValueCell key value) Bool {
       let MapKeyValueCell(existing_key_hash, existing_key, _) = key_value_cell
@@ -198,7 +198,7 @@ instance HasAssignableIndexableItems (Map key value) key value {
         # get access to the inside of the map
         let Map(map_storage, var size) = map
         # compute the given key's hash
-        let map_key_hash = hash(key)
+        let map_key_hash = abs(hash(key))
 
         # See if this key already exists
         # otherwise, we'll need to deal with growing the storage.

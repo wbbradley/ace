@@ -45,7 +45,7 @@ $(BUILD_DIR)/Makefile: $(LLVM_DIR)/LLVMConfig.cmake CMakeLists.txt
 ZION_LIBS=$(shell cd lib && find *.zion)
 
 .PHONY: install
-install: $(BUILT_BINARY) $(addprefix $(SRCDIR)/lib/,$(ZION_LIBS)) $(SRCDIR)/src/zion_rt.c $(SRCDIR)/$(PN).1
+install: $(BUILT_BINARY) $(addprefix $(SRCDIR)/lib/,$(ZION_LIBS)) $(SRCDIR)/src/zion_rt.c $(SRCDIR)/src/zion_sodium.c $(SRCDIR)/$(PN).1
 	-@echo "Making sure that various installation dirs exist..." 
 	@mkdir -p $(bindir)
 	-@rm -rf $(stdlibdir)
@@ -59,6 +59,7 @@ install: $(BUILT_BINARY) $(addprefix $(SRCDIR)/lib/,$(ZION_LIBS)) $(SRCDIR)/src/
 	@cp $(addprefix $(SRCDIR)/lib/,$(ZION_LIBS)) $(stdlibdir)
 	@cp $(SRCDIR)/$(PN).1 $(man1dir)
 	@cp $(SRCDIR)/src/zion_rt.c $(runtimedir)
+	@cp $(SRCDIR)/src/zion_sodium.c $(runtimedir)
 
 .PHONY: clean
 clean:
