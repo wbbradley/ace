@@ -1,6 +1,7 @@
 export {hash, Hashable}
 
 link pkg "libsodium"
+link in "zion_sodium.c"
 
 class Hashable a {
     fn hash(a) Int # NB: probably should be an uint but we don't have
@@ -9,16 +10,13 @@ class Hashable a {
 
 instance Hashable String {
     fn hash(s) {
-        # TODO: hook this up to libsodium's crypto_hash function via
-        # __builtin_ffi...
-        return 1
+        let String(sz, len) = s
+        return __builtin_ffi_2("zion_hash", sz, len) as Int
     }
 }
 
 instance Hashable Int {
     fn hash(i) {
-        # TODO: hook this up to libsodium's crypto_hash function via
-        # __builtin_ffi...
-        return 2
+        return __builtin_ffi_1("zion_hash_int", i) as Int
     }
 }

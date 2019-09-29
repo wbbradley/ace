@@ -8,6 +8,7 @@ namespace zion {
 enum LinkInType {
   lit_pkgconfig,
   lit_link,
+  lit_compile,
 };
 
 struct LinkIn {

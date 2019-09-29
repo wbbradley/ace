@@ -33,6 +33,7 @@ namespace {
 bool get_help = false;
 bool fast_fail = true && (getenv("ZION_SHOW_ALL_ERRORS") == nullptr);
 bool debug_compiled_env = getenv("SHOW_ENV") != nullptr;
+bool debug_compile_step = getenv("SHOW_CC") != nullptr;
 bool debug_specialized_env = getenv("SHOW_ENV2") != nullptr;
 bool debug_types = getenv("SHOW_TYPES") != nullptr;
 bool debug_all_expr_types = getenv("SHOW_EXPR_TYPES") != nullptr;
@@ -1437,17 +1438,22 @@ int run_job(const Job &job) {
 
     if (!user_error::errors_occurred()) {
       std::stringstream ss_c_flags;
+      std::stringstream ss_compilands;
       std::stringstream ss_lib_flags;
+      ss_compilands << "\"${ZION_RT}/zion_rt.c\" ";
       for (auto link_in : phase_4.phase_3.phase_2.compilation->link_ins) {
+        std::string link_text = unescape_json_quotes(link_in.name.text);
         switch (link_in.lit) {
         case lit_pkgconfig: {
-          std::string pkg_name = unescape_json_quotes(link_in.name.text);
-          ss_c_flags << get_pkg_config("--cflags-only-I", pkg_name) << " ";
-          ss_lib_flags << get_pkg_config("--libs --static", pkg_name) << " ";
+          ss_c_flags << get_pkg_config("--cflags-only-I", link_text) << " ";
+          ss_lib_flags << get_pkg_config("--libs --static", link_text) << " ";
           break;
         }
         case lit_link:
-          ss_lib_flags << "-l\"" << link_in.name.text << "\" ";
+          ss_lib_flags << "-l\"" << link_text << "\" ";
+          break;
+        case lit_compile:
+          ss_compilands << "\"${ZION_RT}/" << link_text << "\" ";
           break;
         }
       }
@@ -1466,18 +1472,23 @@ int run_job(const Job &job) {
           "-Wno-override-module "
           // TODO: plumb host targeting through clang here
           "--target=$(llvm-config --host-target) "
-          "${ZION_RT}/zion_rt.c "
+          // Include extra compilands
+          "%s "
           // Add linker flags
           "-lm %s "
           // Don't forget the built .ll file from our frontend here.
           "%s "
           // Give the binary a name.
           "-o %s",
-          ss_c_flags.str().c_str(), phase_4.output_llvm_filename.c_str(),
+          ss_c_flags.str().c_str(),
+          ss_compilands.str().c_str(),
           ss_lib_flags.str().c_str(),
+          phase_4.output_llvm_filename.c_str(),
           phase_4.phase_3.phase_2.compilation->program_name.c_str(),
           phase_4.phase_3.phase_2.compilation->program_name.c_str());
-      debug_above(1, log("running %s", command_line.c_str()));
+      if (debug_compile_step) {
+        log("running %s", command_line.c_str());
+      }
       if (std::system(command_line.c_str()) != 0) {
         throw user_error(INTERNAL_LOC(), "failed to compile binary");
       }
