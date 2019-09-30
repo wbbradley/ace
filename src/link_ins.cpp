@@ -16,7 +16,8 @@ LinkIn::LinkIn(LinkInType lit, Token name) : lit(lit), name(name) {
     } else if (ch == '_' || ch == '-' || ch == '.') {
       continue;
     } else {
-      throw user_error(name.location, "illegal character '%c' encountered in link directive",
+      throw user_error(name.location,
+                       "illegal character '%c' encountered in link directive",
                        ch);
     }
   }
