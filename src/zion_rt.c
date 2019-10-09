@@ -114,6 +114,12 @@ char *zion_itoa(int64_t x) {
   return GC_strndup(sz, strlen(sz));
 }
 
+const char *zion_dup_free(const char *src) {
+  const char *sz = GC_strndup(src, strlen(src));
+  free((void *)src);
+  return sz;
+}
+
 char *zion_ftoa(double x) {
   char sz[128];
   /* IEEE double precision floats have about 15 decimal digits of precision */
