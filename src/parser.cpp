@@ -1895,7 +1895,7 @@ const Match *parse_match(ParseState &ps) {
 
   if (pattern_blocks.size() == 0) {
     throw user_error(ps.token.location,
-                     "when block did not have subsequent patterns to match");
+                     "match block did not have any patterns to match");
   }
 
   return new Match(scrutinee, pattern_blocks);
