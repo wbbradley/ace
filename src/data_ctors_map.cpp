@@ -82,10 +82,14 @@ std::map<std::string, types::Ref> get_data_ctors_types(
 int get_ctor_id(const DataCtorsMap &data_ctors_map, std::string ctor_name) {
   auto iter = data_ctors_map.ctor_id_map.find(ctor_name);
   if (iter == data_ctors_map.ctor_id_map.end()) {
-    dbg();
-    throw user_error(INTERNAL_LOC(),
+    // dbg();
+    auto error = user_error(INTERNAL_LOC(),
                      "bad ctor name requested during translation (%s)",
                      ctor_name.c_str());
+    for (auto pair: data_ctors_map.ctor_id_map) {
+      error.add_info(INTERNAL_LOC(), "it's not %s", pair.first.c_str());
+    }
+    throw error;
   } else {
     return iter->second;
   }

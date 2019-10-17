@@ -1,8 +1,10 @@
-export {Vector, array, size, capacity, flatten}
+export {
+  Vector, vector, array, size, capacity, flatten, reserve, reset,
+  resize}
 
 instance Repr [a] {
   fn repr(xs) {
-    return "[${join(",", repr(x) for x in xs)}]"
+    return "[${join(", ", repr(x) for x in xs)}]"
   }
 }
 
@@ -55,3 +57,71 @@ instance Functor Vector {
     return ys
   }
 }
+
+instance MutatingAppend [a] a {
+  fn append(vec [a], val a) {
+    let Vector(var array, var size, var capacity) = vec
+    if array == null {
+      array = alloc(4)
+      size = 1
+      capacity = 4
+      array[0] = val
+      return
+    }
+
+    if capacity <= size {
+      reserve(vec, capacity * 2)
+    }
+
+    if capacity == 0 {
+      __builtin_goodbye
+    }
+
+    __builtin_store_ptr(__builtin_ptr_add(array, size), val)
+    size = size + 1
+    assert(size <= capacity)
+  }
+}
+
+fn reserve(vec [a], new_capacity Int) {
+    let Vector(var array, var size, var capacity) = vec
+    if capacity >= new_capacity {
+        return
+    }
+    let new_array = alloc(new_capacity)
+    __builtin_memcpy(
+        new_array as! *Char,
+        array as! *Char,
+        sizeof(a) * size)
+    capacity = new_capacity
+    array = new_array
+}
+
+instance HasDefault [a] {
+    fn new() => Vector(Ref(null), Ref(0), Ref(0))
+}
+
+fn vector(xs) {
+    let rg = []
+    for x in xs {
+        append(rg, x)
+    }
+    return rg
+}
+
+fn reset(xs [a]) {
+    let Vector(_, var size, _) = xs
+    size = 0
+}
+
+fn resize(xs [a], new_len Int, default a) () {
+    let Vector(_, var size, _) = xs
+    assert(not (new_len < 0))
+    while size < new_len {
+        append(xs, default)
+    }
+    if new_len < size {
+        size = new_len
+    }
+}
+

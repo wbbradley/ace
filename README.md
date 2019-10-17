@@ -195,3 +195,6 @@ the target host.
 
 The best way to learn more at this time is to read through the
 `tests/test_*.zion` code.
+
+TODO: struct types do not support pattern matching. proposed solution: eliminate
+structs, but add names to newtypes.
