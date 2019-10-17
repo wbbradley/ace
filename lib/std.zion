@@ -3,7 +3,7 @@ import map {Map, keys, values}
 import math {+, -, *, /, abs, negate, Num, Bounded, from_int}
 import set {Set, set}
 import sys {open, read, write, close, readlines, stdin, stdout, stderr}
-import vector {Vector, flatten}
+import vector {Vector, flatten, reserve, vector, reset, resize}
 import string {String, split, chomp, strip, concat, has_substring, has_prefix, has_suffix,
                replace, join}
 
@@ -11,7 +11,7 @@ export {Maybe, Nothing, Just}
 export {open, read, write, close, readlines, stdin, stdout, stderr}
 export {Map, keys, values, Set, set}
 export {+, -, *, /, abs, negate, Num, Bounded, from_int}
-export {Vector, flatten}
+export {Vector, flatten, reserve, vector, reset, resize}
 export {String, split, chomp, strip, concat, has_substring, has_prefix, has_suffix, replace,
         join}
 
@@ -449,30 +449,6 @@ data Either a b {
     Right(b)
 }
 
-fn vector(xs) {
-    let rg = []
-    for x in xs {
-        append(rg, x)
-    }
-    return rg
-}
-
-fn reset(xs [a]) {
-    let Vector(_, var size, _) = xs
-    size = 0
-}
-
-fn resize(xs [a], new_len Int, default a) () {
-    let Vector(_, var size, _) = xs
-    assert(not (new_len < 0))
-    while size < new_len {
-        append(xs, default)
-    }
-    if new_len < size {
-        size = new_len
-    }
-}
-
 instance Str Char {
     fn str(ch) {
         let ys = __builtin_calloc(1)
@@ -592,47 +568,6 @@ instance Eq [a] {
         }
         return False
     }
-}
-
-fn append(vec [a], val a) {
-    let Vector(var array, var size, var capacity) = vec
-    if array == null {
-        array = alloc(4)
-        size = 1
-        capacity = 4
-        array[0] = val
-        return
-    }
-
-    if capacity <= size {
-        reserve(vec, capacity * 2)
-    }
-
-    if capacity == 0 {
-        __builtin_goodbye
-    }
-
-    __builtin_store_ptr(__builtin_ptr_add(array, size), val)
-    size = size + 1
-    assert(size <= capacity)
-}
-
-fn reserve(vec [a], new_capacity Int) {
-    let Vector(var array, var size, var capacity) = vec
-    if capacity >= new_capacity {
-        return
-    }
-    let new_array = alloc(new_capacity)
-    __builtin_memcpy(
-        new_array as! *Char,
-        array as! *Char,
-        sizeof(a) * size)
-    capacity = new_capacity
-    array = new_array
-}
-
-instance HasDefault [a] {
-    fn new() => Vector(Ref(null), Ref(0), Ref(0))
 }
 
 class Iterable collection item {
@@ -855,4 +790,8 @@ fn __ptr_sub(p1 *Char, p2 *Char) Int {
 class FoldFromLeft container elem initial {
   # Left fold
   fn foldl(fn (initial, elem) initial, container, initial) initial
+}
+
+class MutatingAppend collection item {
+  fn append(collection, item) ()
 }
