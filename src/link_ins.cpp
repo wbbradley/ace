@@ -10,7 +10,7 @@ LinkIn::LinkIn(const LinkIn &link_in) : lit(link_in.lit), name(link_in.name) {
 }
 
 LinkIn::LinkIn(LinkInType lit, Token name) : lit(lit), name(name) {
-  for (auto ch: unescape_json_quotes(name.text)) {
+  for (auto ch : unescape_json_quotes(name.text)) {
     if (isalpha(ch) || isdigit(ch)) {
       continue;
     } else if (ch == '_' || ch == '-' || ch == '.') {

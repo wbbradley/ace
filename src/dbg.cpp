@@ -4,7 +4,9 @@
 #include <signal.h>
 #include <sstream>
 #include <stdbool.h>
+#ifdef __APPLE_API_UNSTABLE
 #include <sys/sysctl.h>
+#endif
 #include <sys/types.h>
 #include <unistd.h>
 

@@ -14,6 +14,7 @@ RUN apt-get update -y && apt-get install -y \
 	libgc-dev \
 	make \
 	man \
+	parallel \
 	pkg-config \
 	shellcheck \
 	time \

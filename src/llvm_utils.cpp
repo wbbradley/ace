@@ -112,9 +112,11 @@ llvm::CallInst *llvm_create_call_inst(llvm::IRBuilder<> &builder,
     /* before we can call a function, we must make sure it either exists in
      * this module, or a declaration exists */
     llvm_func_decl = llvm::cast<llvm::Function>(
-        llvm_module->getOrInsertFunction(llvm_callee_fn->getName(),
-                                         llvm_callee_fn->getFunctionType(),
-                                         llvm_callee_fn->getAttributes()));
+        llvm_module
+            ->getOrInsertFunction(llvm_callee_fn->getName(),
+                                  llvm_callee_fn->getFunctionType(),
+                                  llvm_callee_fn->getAttributes())
+            .getCallee());
 
     llvm_function_type = llvm::dyn_cast<llvm::FunctionType>(
         llvm_func_decl->getType()->getElementType());
@@ -616,10 +618,12 @@ llvm::Value *llvm_tuple_alloc(llvm::IRBuilder<> &builder,
     debug_above(6, log("need to allocate a tuple of type %s",
                        llvm_print(llvm_tuple_type).c_str()));
     auto llvm_alloc_func_decl = llvm::cast<llvm::Function>(
-        llvm_module->getOrInsertFunction(
-            "zion_malloc",
-            llvm::FunctionType::get(builder.getInt8Ty()->getPointerTo(),
-                                    alloc_terms, false /*isVarArg*/)));
+        llvm_module
+            ->getOrInsertFunction(
+                "zion_malloc",
+                llvm::FunctionType::get(builder.getInt8Ty()->getPointerTo(),
+                                        alloc_terms, false /*isVarArg*/))
+            .getCallee());
     llvm::Value *llvm_allocated_tuple = builder.CreateBitCast(
         builder.CreateCall(llvm_alloc_func_decl,
                            std::vector<llvm::Value *>{

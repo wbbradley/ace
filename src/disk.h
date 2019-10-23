@@ -9,7 +9,6 @@
 #include <string>
 #include <vector>
 
-void print_dir(FILE *fp, const char *directory, const char *match);
 bool folder_exists(const std::string &path);
 bool file_exists(const std::string &file_path);
 bool get_line_col(const std::string &file_path,
