@@ -30,7 +30,7 @@ zion:
 
 .PHONY: $(BUILT_BINARY)
 $(BUILT_BINARY): $(BUILD_DIR)/Makefile
-	@(cd $(BUILD_DIR) && make $(PN))
+	@(cd $(BUILD_DIR) && make -j16 $(PN))
 
 $(BUILD_DIR)/Makefile: $(LLVM_DIR)/LLVMConfig.cmake CMakeLists.txt
 	-mkdir -p $(BUILD_DIR)
@@ -74,6 +74,7 @@ install-test:
 test:
 	@make $(BUILT_BINARY)
 	@make install-test
+	@echo "ZION_ROOT=$(test_destdir)/$(prefix)/share/$(PN)"
 	@ZION_ROOT="$(test_destdir)/$(prefix)/share/$(PN)" \
 		"$(SRCDIR)/tests/run-tests.sh" \
 			"$(test_destdir)/$(prefix)/bin" \

@@ -174,48 +174,6 @@ bool move_files(const std::string &source, const std::string &dest) {
   return true;
 }
 
-void print_dir(FILE *fp, const char *directory, const char *match) {
-#ifdef ZION_DEBUG
-  struct stat stDirInfo;
-  struct dirent *stFiles;
-  DIR *stDirIn;
-  char szFullName[MAXPATHLEN];
-  char szDirectory[MAXPATHLEN];
-  struct stat stFileInfo;
-
-  strncpy(szDirectory, directory, MAXPATHLEN - 1);
-
-  if (lstat(szDirectory, &stDirInfo) < 0) {
-    perror(szDirectory);
-    return;
-  }
-  if (!S_ISDIR(stDirInfo.st_mode)) {
-    return;
-  }
-  if ((stDirIn = opendir(szDirectory)) == NULL) {
-    perror(szDirectory);
-    return;
-  }
-  while ((stFiles = readdir(stDirIn)) != NULL) {
-    sprintf(szFullName, "%s/%s", szDirectory, stFiles->d_name);
-
-    if (lstat(szFullName, &stFileInfo) < 0)
-      perror(szFullName);
-
-    /* is the file a directory? */
-    if (S_ISDIR(stFileInfo.st_mode)) {
-      debug(write_fp(fp, "Directory: %s\n", szFullName));
-    } else {
-      if (match == NULL || strstr(szFullName, match) != NULL) {
-        debug(write_fp(fp, "File: %s\n", szFullName));
-      }
-    }
-  }
-  closedir(stDirIn);
-  return;
-#endif
-}
-
 std::string ensure_ext(std::string name, std::string ext) {
   assert(ext[0] == '.');
   assert(ext.size() > 1);
