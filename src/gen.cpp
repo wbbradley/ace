@@ -557,11 +557,13 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
 
     // libc dependency
     auto llvm_func_decl = llvm::cast<llvm::Function>(
-        llvm_module->getOrInsertFunction(
-            "zion_pass_test",
-            llvm::FunctionType::get(builder.getInt8Ty()->getPointerTo(),
-                                    llvm::ArrayRef<llvm::Type *>(),
-                                    false /*isVarArg*/)));
+        llvm_module
+            ->getOrInsertFunction(
+                "zion_pass_test",
+                llvm::FunctionType::get(builder.getInt8Ty()->getPointerTo(),
+                                        llvm::ArrayRef<llvm::Type *>(),
+                                        false /*isVarArg*/))
+            .getCallee());
     return builder.CreateCall(llvm_func_decl, params);
   } else if (name == "__builtin_print_int") {
     /* scheme({}, {}, type_arrows({*Char, type_unit(INTERNAL_LOC())})) */
@@ -572,12 +574,14 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
 
     // libc dependency
     auto llvm_print_int_func_decl = llvm::cast<llvm::Function>(
-        llvm_module->getOrInsertFunction(
-            "zion_print_int64",
-            llvm::FunctionType::get(
-                builder.getInt8Ty()->getPointerTo(),
-                llvm::ArrayRef<llvm::Type *>(print_int_terms),
-                false /*isVarArg*/)));
+        llvm_module
+            ->getOrInsertFunction(
+                "zion_print_int64",
+                llvm::FunctionType::get(
+                    builder.getInt8Ty()->getPointerTo(),
+                    llvm::ArrayRef<llvm::Type *>(print_int_terms),
+                    false /*isVarArg*/))
+            .getCallee());
     return builder.CreateCall(llvm_print_int_func_decl, params);
   } else if (name == "__builtin_ftoa") {
     /* scheme({}, {}, type_arrows({Float, *Char})) */
@@ -587,11 +591,13 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
     assert(params.size() == 1);
     assert(params[0]->getType() == builder.getDoubleTy());
     auto func_decl = llvm::cast<llvm::Function>(
-        llvm_module->getOrInsertFunction(
-            "zion_ftoa",
-            llvm::FunctionType::get(builder.getInt8Ty()->getPointerTo(),
-                                    llvm::ArrayRef<llvm::Type *>(terms),
-                                    false /*isVarArg*/)));
+        llvm_module
+            ->getOrInsertFunction(
+                "zion_ftoa",
+                llvm::FunctionType::get(builder.getInt8Ty()->getPointerTo(),
+                                        llvm::ArrayRef<llvm::Type *>(terms),
+                                        false /*isVarArg*/))
+            .getCallee());
     return builder.CreateCall(func_decl, params);
   } else if (name == "__builtin_calloc") {
     /* scheme({"a"}, {}, type_arrows({Int, tp_a})) */
@@ -601,11 +607,13 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
     assert(params.size() == 1);
 
     auto ffi_function = llvm::cast<llvm::Function>(
-        llvm_module->getOrInsertFunction(
-            "zion_malloc",
-            llvm::FunctionType::get(builder.getInt8Ty()->getPointerTo(),
-                                    llvm::ArrayRef<llvm::Type *>(param_types),
-                                    false /*isVarArg*/)));
+        llvm_module
+            ->getOrInsertFunction("zion_malloc",
+                                  llvm::FunctionType::get(
+                                      builder.getInt8Ty()->getPointerTo(),
+                                      llvm::ArrayRef<llvm::Type *>(param_types),
+                                      false /*isVarArg*/))
+            .getCallee());
     return llvm_maybe_pointer_cast(
         builder, builder.CreateCall(ffi_function, params),
         get_llvm_type(builder, type_env, type_builtin));
@@ -652,11 +660,13 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
     assert(params.size() == 3);
 
     auto ffi_function = llvm::cast<llvm::Function>(
-        llvm_module->getOrInsertFunction(
-            "memcpy",
-            llvm::FunctionType::get(builder.getInt8Ty()->getPointerTo(),
-                                    llvm::ArrayRef<llvm::Type *>(param_types),
-                                    false /*isVarArg*/)));
+        llvm_module
+            ->getOrInsertFunction("memcpy",
+                                  llvm::FunctionType::get(
+                                      builder.getInt8Ty()->getPointerTo(),
+                                      llvm::ArrayRef<llvm::Type *>(param_types),
+                                      false /*isVarArg*/))
+            .getCallee());
     return builder.CreateCall(ffi_function, params);
   } else if (name == "__builtin_memcmp") {
     /* scheme({}, {}, type_arrows({PtrToChar, PtrToChar, Int, Int})) */
@@ -668,11 +678,13 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
     assert(params.size() == 3);
 
     auto ffi_function = llvm::cast<llvm::Function>(
-        llvm_module->getOrInsertFunction(
-            "memcmp",
-            llvm::FunctionType::get(builder.getInt64Ty(),
-                                    llvm::ArrayRef<llvm::Type *>(param_types),
-                                    false /*isVarArg*/)));
+        llvm_module
+            ->getOrInsertFunction("memcmp",
+                                  llvm::FunctionType::get(
+                                      builder.getInt64Ty(),
+                                      llvm::ArrayRef<llvm::Type *>(param_types),
+                                      false /*isVarArg*/))
+            .getCallee());
     return builder.CreateCall(ffi_function, params);
   } else if (name == "__builtin_hello" || name == "__builtin_goodbye") {
     /* scheme({}, {}, Unit) */
@@ -686,11 +698,13 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
 
     // libc dependency
     auto llvm_write_func_decl = llvm::cast<llvm::Function>(
-        llvm_module->getOrInsertFunction(
-            "zion_puts",
-            llvm::FunctionType::get(builder.getInt64Ty(),
-                                    llvm::ArrayRef<llvm::Type *>(write_terms),
-                                    false /*isVarArg*/)));
+        llvm_module
+            ->getOrInsertFunction("zion_puts",
+                                  llvm::FunctionType::get(
+                                      builder.getInt64Ty(),
+                                      llvm::ArrayRef<llvm::Type *>(write_terms),
+                                      false /*isVarArg*/))
+            .getCallee());
     return builder.CreateIntToPtr(
         builder.CreateCall(llvm_write_func_decl, params),
         builder.getInt8Ty()->getPointerTo());
@@ -714,11 +728,13 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
     }
 
     auto llvm_func_decl = llvm::cast<llvm::Function>(
-        llvm_module->getOrInsertFunction(
-            ffi_name.c_str(),
-            llvm::FunctionType::get(
-                get_llvm_type(builder, type_env, type_builtin),
-                llvm::ArrayRef<llvm::Type *>(terms), false /*isVarArg*/)));
+        llvm_module
+            ->getOrInsertFunction(
+                ffi_name.c_str(),
+                llvm::FunctionType::get(
+                    get_llvm_type(builder, type_env, type_builtin),
+                    llvm::ArrayRef<llvm::Type *>(terms), false /*isVarArg*/))
+            .getCallee());
     return builder.CreateCall(llvm_func_decl, params);
   }
 

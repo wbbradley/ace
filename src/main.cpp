@@ -1015,20 +1015,17 @@ struct Phase4 {
   Phase4(Phase3 phase_3,
          gen::GenEnv &&gen_env,
          llvm::Module *llvm_module,
-         llvm::DIBuilder *dbuilder,
          std::string output_llvm_filename)
       : phase_3(phase_3), gen_env(std::move(gen_env)), llvm_module(llvm_module),
-        dbuilder(dbuilder), output_llvm_filename(output_llvm_filename) {
+        output_llvm_filename(output_llvm_filename) {
   }
   Phase4(Phase4 &&rhs)
       : phase_3(rhs.phase_3), gen_env(std::move(rhs.gen_env)),
-        llvm_module(rhs.llvm_module), dbuilder(rhs.dbuilder),
+        llvm_module(rhs.llvm_module),
         output_llvm_filename(rhs.output_llvm_filename) {
     rhs.llvm_module = nullptr;
-    rhs.dbuilder = nullptr;
   }
   ~Phase4() {
-    delete dbuilder;
     delete llvm_module;
     // FUTURE: unlink(output_llvm_filename.c_str());
   }
@@ -1036,13 +1033,9 @@ struct Phase4 {
   Phase3 phase_3;
   gen::GenEnv gen_env;
   llvm::Module *llvm_module = nullptr;
-  llvm::DIBuilder *dbuilder = nullptr;
   std::string output_llvm_filename;
 
   std::ostream &dump(std::ostream &os) {
-    if (dbuilder != nullptr) {
-      dbuilder->finalize();
-    }
     return os << llvm_print_module(*llvm_module);
   }
 };
@@ -1095,7 +1088,8 @@ void build_main_function(llvm::IRBuilder<> &builder,
 
   // Initialize the process
   auto llvm_zion_init_func_decl = llvm::cast<llvm::Function>(
-      llvm_module->getOrInsertFunction("zion_init", llvm_main_function_type));
+      llvm_module->getOrInsertFunction("zion_init", llvm_main_function_type)
+          .getCallee());
   auto arg_iter = llvm_function->args().begin();
   llvm::Value *llvm_argc = *&arg_iter;
   ++arg_iter;
@@ -1121,7 +1115,6 @@ void build_main_function(llvm::IRBuilder<> &builder,
 
 Phase4 ssa_gen(llvm::LLVMContext &context, const Phase3 &phase_3) {
   llvm::Module *llvm_module = new llvm::Module("program", context);
-  llvm::DIBuilder *dbuilder = nullptr; // new llvm::DIBuilder(*module);
   llvm::IRBuilder<> builder(context);
 
   gen::GenEnv gen_env;
@@ -1228,8 +1221,7 @@ Phase4 ssa_gen(llvm::LLVMContext &context, const Phase3 &phase_3) {
     /* and continue */
   }
 
-  return Phase4(phase_3, std::move(gen_env), llvm_module, dbuilder,
-                output_filename);
+  return Phase4(phase_3, std::move(gen_env), llvm_module, output_filename);
 }
 
 struct Job {
@@ -1416,23 +1408,6 @@ int run_job(const Job &job) {
       return EXIT_FAILURE;
     }
 
-    bool have_root_dir = getenv("ZION_ROOT") != nullptr;
-    if (have_root_dir) {
-      std::stringstream ss;
-      ss << getenv("ZION_ROOT") << "/lib";
-      setenv("ZION_PATH", ss.str().c_str(), false /*overwrite*/);
-      ss.str("");
-      ss << getenv("ZION_ROOT") << "/runtime";
-      setenv("ZION_RT", ss.str().c_str(), false /*overwrite*/);
-    }
-
-    if (getenv("ZION_RT") == nullptr) {
-      log(log_error,
-          "ZION_RT is not set. It should be set to the dirname of zion_rt.c. "
-          "That is typically /usr/local/share/zion/runtime.");
-      return EXIT_FAILURE;
-    }
-
     llvm::LLVMContext context;
     Phase4 phase_4 = ssa_gen(context, specialize(compile(job.args[0])));
 
@@ -1483,10 +1458,8 @@ int run_job(const Job &job) {
           "%s "
           // Give the binary a name.
           "-o %s",
-          ss_c_flags.str().c_str(),
-          ss_compilands.str().c_str(),
-          ss_lib_flags.str().c_str(),
-          phase_4.output_llvm_filename.c_str(),
+          ss_c_flags.str().c_str(), ss_compilands.str().c_str(),
+          ss_lib_flags.str().c_str(), phase_4.output_llvm_filename.c_str(),
           phase_4.phase_3.phase_2.compilation->program_name.c_str(),
           phase_4.phase_3.phase_2.compilation->program_name.c_str());
       if (debug_compile_step) {
@@ -1517,7 +1490,33 @@ int run_job(const Job &job) {
 
 } // namespace zion
 
+namespace {
+void append_env(std::string var_name, std::string value) {
+  std::string existing_value = getenv(var_name.c_str())
+                                   ? getenv(var_name.c_str())
+                                   : "";
+  if (existing_value.size() != 0) {
+    std::stringstream ss;
+    ss << existing_value << ":" << value;
+    setenv("ZION_PATH", ss.str().c_str(), true /*overwrite*/);
+    std::cout << "Setting ZION_PATH to " << ss.str() << std::endl;
+  } else {
+    setenv("ZION_PATH", value.c_str(), true /*overwrite*/);
+  }
+}
+} // namespace
+
 int main(int argc, char *argv[]) {
+  bool have_root_dir = getenv("ZION_ROOT") != nullptr;
+  if (have_root_dir) {
+    std::stringstream ss;
+    ss << getenv("ZION_ROOT") << "/lib";
+    append_env("ZION_PATH", ss.str());
+    ss.str("");
+    ss << getenv("ZION_ROOT") << "/runtime";
+    setenv("ZION_RT", ss.str().c_str(), false /*overwrite*/);
+  }
+
   init_dbg();
   zion::init_host();
   std::shared_ptr<logger> logger(std::make_shared<standard_logger>("", "."));
@@ -1535,6 +1534,13 @@ int main(int argc, char *argv[]) {
     }
   } else {
     job.cmd = "help";
+  }
+
+  if (getenv("ZION_RT") == nullptr) {
+    log(log_error,
+        "ZION_RT is not set. It should be set to the dirname of zion_rt.c. "
+        "That is typically /usr/local/share/zion/runtime.");
+    return EXIT_FAILURE;
   }
 
   try {
