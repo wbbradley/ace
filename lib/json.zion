@@ -1,4 +1,5 @@
 import string {has_substring_at}
+import map {from_pairs}
 import parser {
   ParseState, Span, Progress, char, not_char, choice, until_one_of, sequence,
   many, lift, span_concat, text, skip_space_then, digit, skip_space, OK, Fail,
@@ -102,6 +103,8 @@ fn get_parse_text() {
 # jbool assumes that token is Str-able, and that it is either "true" or "false"
 fn jbool(token) J => JBool(str(token)[0] == 't')
 fn jnull(_) J => JNull
+fn jobject_from_pairs(key_value_pairs [(String, J)]) J => JObject(from_pairs(key_value_pairs))
+
 fn get_parse_bool() => lift(jbool, choice([text("true", True), text("false", True)]))
 fn get_parse_null() => lift(jnull, text("null", True))
 
@@ -122,7 +125,7 @@ fn make_pair_from_triplet(js [J]) (String, J) {
 
 fn get_parse_object(parse_json, parse_text) {
   return lift(
-    |pairs| => JObject({key: value for (key, value) in pairs}),
+    jobject_from_pairs,
     bracket("{", "}", many_delimited(",", lift(make_pair_from_triplet,
                                                sequence([
                                                  parse_text,
