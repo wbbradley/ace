@@ -6,6 +6,7 @@
 #include <sys/errno.h>
 #include <time.h>
 #include <unistd.h>
+#include <inttypes.h>
 
 #include <gc/gc.h>
 
