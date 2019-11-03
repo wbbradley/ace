@@ -1439,6 +1439,9 @@ int run_job(const Job &job) {
           "clang "
           // Include any necessary include dirs for C dependencies.
           "%s "
+#ifdef APPLE
+          "-I $(xcrun --sdk macosx --show-sdk-path)/usr/include
+#endif
           // Allow for the user to specify optimizations
           "${ZION_OPT_FLAGS} "
           // NB: we don't embed the target triple into the LL, so any

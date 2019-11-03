@@ -245,25 +245,6 @@ V get(const C &t, K1 k1, K2 k2, V default_) {
   }
 }
 
-static inline std::string &ltrim(std::string &s) {
-  s.erase(s.begin(),
-          ::find_if(s.begin(), s.end(),
-                    std::not1(std::ptr_fun<int, int>(std::isspace))));
-  return s;
-}
-
-static inline std::string &rtrim(std::string &s) {
-  s.erase(::find_if(s.rbegin(), s.rend(),
-                    std::not1(std::ptr_fun<int, int>(std::isspace)))
-              .base(),
-          s.end());
-  return s;
-}
-
-static inline std::string &trim(std::string &s) {
-  return ltrim(rtrim(s));
-}
-
 std::string join(int argc, const char *argv[], std::string delim = ", ");
 
 template <typename X> std::string join(const X &xs, std::string delim = ", ") {
