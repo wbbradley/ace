@@ -1448,6 +1448,8 @@ int run_job(const Job &job) {
           // targeted triple causes an ugly error from clang, so I just
           // ignore it here.
           "-Wno-override-module "
+          // HACKHACK: temporary workaround to allow libsodium to compile
+          "-Wno-nullability-completeness "
           // TODO: plumb host targeting through clang here
           "--target=$(llvm-config --host-target) "
           // Include extra compilands
