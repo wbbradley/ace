@@ -1506,9 +1506,7 @@ void append_env(std::string var_name, std::string value) {
     setenv("ZION_PATH", value.c_str(), true /*overwrite*/);
   }
 }
-} // namespace
-
-int main(int argc, char *argv[]) {
+void setup_environment_variables() {
   bool have_root_dir = getenv("ZION_ROOT") != nullptr;
   if (have_root_dir) {
     std::stringstream ss;
@@ -1518,7 +1516,11 @@ int main(int argc, char *argv[]) {
     ss << getenv("ZION_ROOT") << "/runtime";
     setenv("ZION_RT", ss.str().c_str(), false /*overwrite*/);
   }
+}
+} // namespace
 
+int main(int argc, char *argv[]) {
+  setup_environment_variables();
   init_dbg();
   zion::init_host();
   std::shared_ptr<logger> logger(std::make_shared<standard_logger>("", "."));
