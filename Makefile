@@ -1,7 +1,7 @@
 PN = zion
 BUILD_DIR ?= $(HOME)/var/$(PN)
 SRCDIR = $(shell pwd)
-LLVM_DIR ?= $(shell llvm-config --prefix)/share/llvm/cmake
+LLVM_DIR ?= $(shell llvm-config --cmakedir)
 prefix ?= /usr/local
 BUILT_BINARY = $(BUILD_DIR)/zion
 MAKEFLAGS=--no-print-directory
