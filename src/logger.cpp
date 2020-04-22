@@ -6,9 +6,10 @@
 #include <iomanip>
 #include <iostream>
 #include <sstream>
-#include <stdarg.h>
-#include <stdio.h>
-#include <string.h>
+#include <cstdarg>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <sys/time.h>
 #include <unistd.h>
 

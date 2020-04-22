@@ -40,7 +40,6 @@ fn no_conflict(new_row Int, new_column Int, solution [Int]) bool {
             solution[row]       != new_column           and
             solution[row] + row != new_column + new_row and
             solution[row] - row != new_column - new_row)
-                        
         if not condition {
             return False
         }

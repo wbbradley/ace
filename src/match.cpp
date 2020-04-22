@@ -765,6 +765,12 @@ Pattern::ref Literal::get_pattern(
       return std::make_shared<Scalars<int64_t>>(
           token.location, Scalars<int64_t>::Exclude, std::set<int64_t>{});
     }
+  } else if (type_equality(type, type_id(make_iid(CHAR_TYPE)))) {
+    if (token.tk == tk_char) {
+      uint8_t value = token.text[0];
+      return std::make_shared<Scalars<uint8_t>>(
+          token.location, Scalars<uint8_t>::Include, std::set<uint8_t>{value});
+    }
   }
 
   throw zion::user_error(token.location,
