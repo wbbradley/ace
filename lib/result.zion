@@ -1,0 +1,20 @@
+export {Result, Ok, Err}
+
+data Result error ok {
+  Ok(ok)
+  Err(error)
+}
+
+instance Str (Result a b) {
+  fn str(result) => match result {
+    Ok(a) => "Ok(${a})"
+    Err(b) => "Err(${b})"
+  }
+}
+
+instance Functor (Result error) {
+  fn fmap(f, result) => match result {
+    Ok(a)  => Ok(f(a))
+    Err(b) => Err(b)
+  }
+}

@@ -1440,7 +1440,7 @@ int run_job(const Job &job) {
           // Include any necessary include dirs for C dependencies.
           "%s "
 #ifdef __APPLE__
-          "-I $(xcrun --sdk macosx --show-sdk-path)/usr/include "
+          "-I \"$(xcrun --sdk macosx --show-sdk-path)/usr/include\" "
 #endif
           // Allow for the user to specify optimizations
           "${ZION_OPT_FLAGS} "

@@ -1,0 +1,13 @@
+# test: pass
+
+fn main() {
+    var y = 0
+    for x in range(10) {
+        y += x
+    }
+    for x in ["hi", "ho"] {
+        y += len(x)
+    }
+    assert(y == 49)
+    print("PASS")
+}

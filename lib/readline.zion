@@ -2,10 +2,14 @@ export {readline}
 
 link "readline"
 
-fn readline(prompt String) String {
+fn readline(prompt String) Maybe String {
   let String(prompt_sz, _) = prompt
   let raw_line = __builtin_ffi_1("readline", prompt_sz) as *Char
-  let line = __builtin_ffi_1("zion_dup_free", raw_line)
-  return String(line, strlen(line))
+  if raw_line == null {
+    return Nothing
+  } else {
+    let line = __builtin_ffi_1("zion_dup_free", raw_line)
+    return Just(String(line, strlen(line)))
+  }
 }
 

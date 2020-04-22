@@ -1,3 +1,4 @@
+import result {Result, Ok, Err}
 import maybe {Maybe, Nothing, Just}
 import map {Map, keys, values}
 import math {+, -, *, /, abs, negate, Num, Bounded, from_int}
@@ -14,6 +15,7 @@ export {+, -, *, /, abs, negate, Num, Bounded, from_int}
 export {Vector, flatten, reserve, vector, reset, resize}
 export {String, split, chomp, strip, concat, has_substring, has_prefix, has_suffix, replace,
         join}
+export {Result, Ok, Err}
 
 link pkg "bdw-gc"
 
@@ -423,6 +425,10 @@ class ConvertibleToFloat a {
   fn float(a) Float
 }
 
+instance ConvertibleToFloat Int {
+  fn float(a) => __builtin_ffi_1("zion_itof", a)
+}
+
 instance ConvertibleToFloat String {
   fn float(a) Float {
     let String(sz, n) = a
@@ -794,4 +800,22 @@ class FoldFromLeft container elem initial {
 
 class MutatingAppend collection item {
   fn append(collection, item) ()
+}
+
+fn all(pred, xs) Bool {
+  for x in xs {
+    if not pred(x) {
+      return False
+    }
+  }
+  return True
+}
+
+fn any(pred, xs) Bool {
+  for x in xs {
+    if pred(x) {
+      return True
+    }
+  }
+  return False
 }

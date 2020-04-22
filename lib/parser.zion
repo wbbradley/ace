@@ -2,7 +2,7 @@ import string {Strippable, has_substring_at}
 export {
   text, sequence, choice, many, many1, Progress, ParseState, char, not_char,
   Span, until_one_of, lift, span_concat, Parser, digit, skip_space_then,
-  word, skip_space, OK, Fail, many_delimited, parse_string}
+  word, skip_while, skip_space, OK, Fail, many_delimited, parse_string}
 
 # The immutable most-recent state of the parser, sans AST state
 newtype ParseState = ParseState(String, Int)
@@ -108,11 +108,11 @@ fn text(k String, skip_leading_space Bool) fn (ParseState) Progress ParseState S
   }
 }
 
-fn skip_space(ps ParseState) ParseState {
+fn skip_while(ps ParseState, pred fn (Char) Bool) ParseState {
     let ParseState(content, index) = ps
     var start = index
     let content_len = len(content)
-    while start < content_len and isspace(content[start]) {
+    while start < content_len and pred(content[start]) {
         start += 1
     }
     if start != index {
@@ -121,6 +121,7 @@ fn skip_space(ps ParseState) ParseState {
       return ps
     }
 }
+fn skip_space(ps ParseState) ParseState => skip_while(ps, isspace)
 
 fn advance(progress, skipper) => match progress {
   OK(parsestate, node) => OK(skipper(parsestate), node)
