@@ -4,7 +4,7 @@ import map {Map, keys, values}
 import math {+, -, *, /, abs, negate, Num, Bounded, from_int}
 import set {Set, set}
 import sys {open, read, write, close, readlines, stdin, stdout, stderr}
-import vector {Vector, flatten, reserve, vector, reset, resize}
+import vector {Vector, flatten, reserve, vector, reset, resize, append}
 import string {String, split, chomp, strip, concat, has_substring, has_prefix, has_suffix,
                replace, join}
 
@@ -12,7 +12,7 @@ export {Maybe, Nothing, Just}
 export {open, read, write, close, readlines, stdin, stdout, stderr}
 export {Map, keys, values, Set, set}
 export {+, -, *, /, abs, negate, Num, Bounded, from_int}
-export {Vector, flatten, reserve, vector, reset, resize}
+export {Vector, flatten, reserve, vector, reset, resize, append}
 export {String, split, chomp, strip, concat, has_substring, has_prefix, has_suffix, replace,
         join}
 export {Result, Ok, Err}
@@ -797,11 +797,6 @@ class FoldFromLeft container elem initial {
   # Left fold
   fn foldl(fn (initial, elem) initial, container, initial) initial
 }
-
-class MutatingAppend collection item {
-  fn append(collection, item) ()
-}
-
 fn all(pred, xs) Bool {
   for x in xs {
     if not pred(x) {
