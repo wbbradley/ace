@@ -10,7 +10,6 @@ test_[_a-z]*
 a.out
 test.c
 test
-build-*
 env
 zion
 !zion.*
@@ -19,6 +18,9 @@ logs
 *.log
 .*.swp
 tags
+ztags
+*.ppm
+.clangd/
 *.ir
 *.bc
 *.o

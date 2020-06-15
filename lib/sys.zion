@@ -196,10 +196,10 @@ newtype File = File(String, OpenFlags, CreateMode)
 instance FileOpen File Errno {
     fn open(params) {
         let File(String(sz_filename, _), OpenFlags(flags), CreateMode(mode)) = params
-        return match __builtin_ffi_3("open", sz_filename, flags, mode) {
+        return match __builtin_ffi_3("zion_open", sz_filename, flags, mode) {
             -1 => ResourceFailure(get_errno())
             fd => ResourceAcquired(WithResource(FileDescriptor(fd), fn () {
-                (__builtin_ffi_1("close", fd) as Int)!
+                (__builtin_ffi_1("zion_close", fd) as Int)!
             }))
         }
     }
@@ -218,17 +218,17 @@ instance FileOpen String Errno {
 
 fn unlink(filename String) Int {
     let String(filename, _) = filename
-    return __builtin_ffi_1("unlink", filename)
+    return __builtin_ffi_1("zion_unlink", filename)
 }
 
 fn close(fd Int) Int {
-    return __builtin_ffi_1("close", fd)
+    return __builtin_ffi_1("zion_close", fd)
 }
 
 fn creat(filename, mode CreateMode) Int {
     let String(filename, _) = filename
     let CreateMode(mode) = mode
-    return __builtin_ffi_2("creat", filename, mode)
+    return __builtin_ffi_2("zion_creat", filename, mode)
 }
 
 class Readable a {
@@ -238,7 +238,7 @@ class Readable a {
 instance Readable FileDescriptor {
     fn read(fd FileDescriptor, buffer *Char, nbyte Int) Errno {
         let FileDescriptor(fd) = fd
-        return __builtin_ffi_3("read", fd, buffer, nbyte)
+        return __builtin_ffi_3("zion_read", fd, buffer, nbyte)
     }
 }
 
@@ -266,7 +266,7 @@ class WriteBuffer file {
 instance WriteBuffer FileDescriptor {
     fn write_buffer(fd, pb, cb) {
         let FileDescriptor(fd) = fd
-        return match __builtin_ffi_3("write", fd, pb, cb) {
+        return match __builtin_ffi_3("zion_write", fd, pb, cb) {
             -1 => Right(Errno(__builtin_ffi_0("zion_errno")))
             cb => Left(cb)
         }

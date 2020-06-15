@@ -2,7 +2,7 @@
 
 import list {List, Cons, Nil, remove_if}
 import hash {hash}
-export {Map, keys, values, from_pairs}
+export {Map, MapStorage, keys, values, from_pairs}
 
 newtype MapKeyValueCell key value = MapKeyValueCell(Int, key, var value)
 newtype MapStorage key value = MapStorage([List (MapKeyValueCell key value)])
@@ -108,9 +108,9 @@ instance HasRemovableItems (Map key value) key {
 }
 
 instance HasDefaultGet (Map key value) key value {
-  fn get(map Map key value, key key, default value) value => match map[key] {
+  fn get(m, k, d) => match m[k] {
     Just(a) => a
-    Nothing => default
+    Nothing => d
   }
 }
 

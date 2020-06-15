@@ -1415,7 +1415,7 @@ int run_job(const Job &job) {
       std::stringstream ss_c_flags;
       std::stringstream ss_compilands;
       std::stringstream ss_lib_flags;
-      ss_compilands << "\"${ZION_RT}/zion_rt.c\" ";
+      ss_compilands << "\"$ZION_RUNTIME/zion_rt.c\" ";
       for (auto link_in : phase_4.phase_3.phase_2.compilation->link_ins) {
         std::string link_text = unescape_json_quotes(link_in.name.text);
         switch (link_in.lit) {
@@ -1428,7 +1428,7 @@ int run_job(const Job &job) {
           ss_lib_flags << "-l\"" << link_text << "\" ";
           break;
         case lit_compile:
-          ss_compilands << "\"${ZION_RT}/" << link_text << "\" ";
+          ss_compilands << "\"$ZION_RUNTIME/" << link_text << "\" ";
           break;
         }
       }
@@ -1443,7 +1443,7 @@ int run_job(const Job &job) {
           "-I \"$(xcrun --sdk macosx --show-sdk-path)/usr/include\" "
 #endif
           // Allow for the user to specify optimizations
-          "${ZION_OPT_FLAGS} "
+          "$ZION_OPT_FLAGS "
           // NB: we don't embed the target triple into the LL, so any
           // targeted triple causes an ugly error from clang, so I just
           // ignore it here.
@@ -1507,15 +1507,13 @@ void append_env(std::string var_name, std::string value) {
   }
 }
 void setup_environment_variables() {
-  bool have_root_dir = getenv("ZION_ROOT") != nullptr;
-  if (have_root_dir) {
-    std::stringstream ss;
-    ss << getenv("ZION_ROOT") << "/lib";
-    append_env("ZION_PATH", ss.str());
-    ss.str("");
-    ss << getenv("ZION_ROOT") << "/runtime";
-    setenv("ZION_RT", ss.str().c_str(), false /*overwrite*/);
-  }
+  setenv("ZION_ROOT", ".", false /*overwrite*/);
+  std::stringstream ss;
+  ss << getenv("ZION_ROOT") << "/lib";
+  append_env("ZION_PATH", ss.str());
+  ss.str("");
+  ss << getenv("ZION_ROOT") << "/runtime";
+  setenv("ZION_RUNTIME", ss.str().c_str(), false /*overwrite*/);
 }
 } // namespace
 
@@ -1538,13 +1536,6 @@ int main(int argc, char *argv[]) {
     }
   } else {
     job.cmd = "help";
-  }
-
-  if (getenv("ZION_RT") == nullptr) {
-    log(log_error,
-        "ZION_RT is not set. It should be set to the dirname of zion_rt.c. "
-        "That is typically /usr/local/share/zion/runtime.");
-    return EXIT_FAILURE;
   }
 
   try {

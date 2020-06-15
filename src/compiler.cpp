@@ -272,12 +272,23 @@ std::shared_ptr<Compilation> merge_compilation(
     }
 
     for (auto pair : module_rebound->ctor_id_map) {
-      assert(!in(pair.first, ctor_id_map));
+      if (in(pair.first, ctor_id_map)) {
+        throw user_error(INTERNAL_LOC(),
+            "ctor_id %s already exists in ctor_id_map but is trying to be added by module %s!",
+            pair.first.c_str(),
+            module_rebound->name.c_str());
+      }
       ctor_id_map[pair.first] = pair.second;
     }
 
     for (auto pair : module_rebound->data_ctors_map) {
-      assert(!in(pair.first, data_ctors_map));
+      if (in(pair.first, data_ctors_map)) {
+        throw user_error(INTERNAL_LOC(),
+                         "data constructor %s already exists in data_ctors_map "
+                         "but is trying to be added by module %s as %s!",
+                         pair.first.c_str(), module_rebound->name.c_str(),
+                         str(data_ctors_map.at(pair.first)).c_str());
+      }
       data_ctors_map[pair.first] = pair.second;
     }
 

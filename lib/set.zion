@@ -2,8 +2,8 @@ export {Set, set}
 
 newtype Set a = Set(Map a ())
 
-fn set(xs) {
-    let set = Set({})
+fn set(xs) Set a {
+    let set
     for x in xs {
         insert(set, x)
     }
@@ -55,7 +55,5 @@ instance Iterable (Set a) a {
 }
 
 instance Str (Set a) {
-    fn str(xs) {
-        return "{${join(", ", xs)}}"
-    }
+  fn str(xs) => "{${join(", ", xs)}}"
 }

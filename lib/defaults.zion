@@ -1,0 +1,13 @@
+export {HasDefault, HasDefaultGet, new, get}
+
+class HasDefault a {
+  fn new() a
+}
+
+class HasDefaultGet collection key value {
+  # Get an item from the collection, falling back to the
+  # default if the key does not allow the implementation to
+  # resolve the value otherwise.
+  fn get(collection, key, value) value
+}
+

@@ -2,10 +2,10 @@
 
 if [[ -t 1 ]] && [[ -t 2 ]] && [[ "$VIMRUNTIME" == "" ]]; then
 	export WMAKE_INTERACTIVE="1"
-	export C_RED="\e[1;31m"
-	export C_GREEN="\e[1;32m"
-	export C_YELLOW="\e[1;33m"
-	export C_RESET="\e[0m"
+	export C_RED="\\e[1;31m"
+	export C_GREEN="\\e[1;32m"
+	export C_YELLOW="\\e[1;33m"
+	export C_RESET="\\e[0m"
 else
 	export WMAKE_INTERACTIVE="0"
 	export C_RED=""
@@ -75,7 +75,7 @@ done
 
 if [[ ${#failed_tests[*]} != 0 ]]; then
 		echo "$0:$LINENO:1: Tests failed ($((runs-passed))/${runs}):"
-		printf "\t${C_RED}%s${C_RESET}\n" "${failed_tests[@]}"
+		printf "\\t${C_RED}%s${C_RESET}\\n" "${failed_tests[@]}"
 		exit 1
 else
 		echo "Tests passed (${passed}/${runs})!"
