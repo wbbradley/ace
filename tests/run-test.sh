@@ -7,7 +7,7 @@ test_file=$3
 ECHO='printf'
 
 if ! [[ -e ${test_file} ]]; then
-	$ECHO "${source_dir}/tests/run-test.sh:1:1: ${test_file} does not exist!\n"
+	$ECHO "${source_dir}/tests/run-test.sh:1:1: ${test_file} does not exist!\\n"
 	exit 1
 fi
 
@@ -17,8 +17,8 @@ mapfile -t test_flags < <((grep '^# test: ' "${test_file}" |
 	grep -v '^test$') 2>/dev/null)
 
 if [[ ${#test_flags[*]} == 0 ]]; then
-	$ECHO "${test_file}:1:1: missing test flags directive (# test: pass, or # test: fail, etc...)\n"
-	$ECHO "run-test.sh: ${C_RED}FAILED${C_RESET} ${test_file}!\n"
+	$ECHO "${test_file}:1:1: missing test flags directive (# test: pass, or # test: fail, etc...)\\n"
+	$ECHO "run-test.sh: ${C_RED}FAILED${C_RESET} ${test_file}!\\n"
 	exit 1
 fi
 
@@ -52,7 +52,7 @@ else
 fi
 
 if [[ "${test_flags[*]}" =~ "skip" ]]; then
-	$ECHO "run-test.sh: ${C_YELLOW}SKIPPED${C_RESET} $(basename "${test_file}")!\n"
+	$ECHO "run-test.sh: ${C_YELLOW}SKIPPED${C_RESET} $(basename "${test_file}")!\\n"
 	exit 0
 fi
 
@@ -61,7 +61,7 @@ if [[ "${test_flags[*]}" =~ "noprelude" ]]; then
 fi
 
 if [[ $should_pass = "$should_fail" ]]; then
-	$ECHO "${test_file}:1:1: ${C_RED}error${C_RESET}: you must specify one and only one of pass or fail for tests\n"
+	$ECHO "${test_file}:1:1: ${C_RED}error${C_RESET}: you must specify one and only one of pass or fail for tests\\n"
 	exit 1
 fi
 
@@ -72,7 +72,7 @@ trap 'rm -f $output' EXIT
 # The next line is intended to ease the path from seeing a bunch of failing tests, to narrowing in
 # on reproducible test failure. This should save future humans time in trying to reproduce the
 # test-run in their debugger.
-[ "$DEBUG_TESTS" != "" ] && $ECHO ZION_ROOT="\"${ZION_ROOT}\"" "'${bin_dir}/zion'" "'${test_file}'\n"
+[ "$DEBUG_TESTS" != "" ] && $ECHO ZION_ROOT="\"${ZION_ROOT}\"" "'${bin_dir}/zion'" "'${test_file}'\\n"
 
 ("${bin_dir}/zion" run "${test_file}" 2>&1) > "$output"
 res=$?
@@ -84,9 +84,9 @@ else
 fi
 
 if [ $passed != "${should_pass}" ]; then
-	$ECHO "run-test.sh: $(basename "${test_file}") output was:\n"
+	$ECHO "run-test.sh: $(basename "${test_file}") output was:\\n"
 	cat "$output"
-	$ECHO "run-test.sh: ${C_RED}FAILED${C_RESET} ${test_file}!\n"
+	$ECHO "run-test.sh: ${C_RED}FAILED${C_RESET} ${test_file}!\\n"
 	exit 1
 fi
 
@@ -94,10 +94,10 @@ for ((i=0;i < ${#expects[*]}; ++i)); do
 	expect="${expects[$i]}"
 	# $ECHO "Expecting \"${expect}\"..."
 	if ! grep -E "$expect" "$output" >/dev/null; then
-		$ECHO "run-test.sh: $(basename "${test_file}") output was:\n"
+		$ECHO "run-test.sh: $(basename "${test_file}") output was:\\n"
 		cat "$output"
-		$ECHO "$0:$LINENO:1: error: Could not find '$expect' in output.\n"
-		$ECHO "run-test.sh: ${C_RED}FAILED${C_RESET} ${test_file}!\n"
+		$ECHO "$0:$LINENO:1: error: Could not find '$expect' in output.\\n"
+		$ECHO "run-test.sh: ${C_RED}FAILED${C_RESET} ${test_file}!\\n"
 		exit 1
 	fi
 done
@@ -106,13 +106,13 @@ for ((i=0;i < ${#rejects[*]}; ++i)); do
 	reject="${rejects[$i]}"
 	# $ECHO "Expecting \"${reject}\"..."
 	if grep -E "$reject" "$output"; then
-		$ECHO "run-test.sh: $(basename "${test_file}") output was:\n"
+		$ECHO "run-test.sh: $(basename "${test_file}") output was:\\n"
 		cat "$output"
-		$ECHO "$0:$LINENO:1: error: Found '$reject' in output.\n"
-		$ECHO "run-test.sh: ${C_RED}FAILED${C_RESET} ${test_file}!\n"
+		$ECHO "$0:$LINENO:1: error: Found '$reject' in output.\\n"
+		$ECHO "run-test.sh: ${C_RED}FAILED${C_RESET} ${test_file}!\\n"
 		exit 1
 	fi
 done
 
-$ECHO "run-test.sh: ${C_GREEN}PASSED!${C_RESET} $(basename "${test_file}")\n"
+$ECHO "run-test.sh: ${C_GREEN}PASSED!${C_RESET} $(basename "${test_file}")\\n"
 exit 0

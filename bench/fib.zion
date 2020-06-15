@@ -1,5 +1,3 @@
-module _
-
 fn fib(n uint64) uint64 {
     if n <= 1 {
         return 1

@@ -1,10 +1,6 @@
 #!/bin/bash
 
-# wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
-# echo "deb http://apt.llvm.org/stretch/ llvm-toolchain-stretch-8 main" >> /etc/apt/sources.list
-# echo "deb-src http://apt.llvm.org/stretch/ llvm-toolchain-stretch-8 main" >> /etc/apt/sources.list
-
-LLVM_VERSION="9"
+LLVM_VERSION="10"
 if [ "$(uname -s)" = "Darwin" ]; then
   brew install \
     "llvm@$LLVM_VERSION" \
@@ -12,14 +8,33 @@ if [ "$(uname -s)" = "Darwin" ]; then
     pkg-config \
     libsodium
 else
-  (apt-get update -y && apt-get install -y \
+  apt update -y
+  apt install -y \
+    apt-utils \
+    cmake \
+    shellcheck \
+    gnupg2 \
+    libgc-dev \
+    libsodium-dev \
+    lsb-release \
+    make \
+    pkg-config \
+    software-properties-common \
+    wget
+
+  # Use the ordained script from https://apt.llvm.org/
+	bash -c "LLVM_VERSION=$LLVM_VERSION $(wget -O - https://apt.llvm.org/llvm.sh)"
+
+  # Ensure the rest of the LLVM dependencies are available and mapped to sane
+  # names.
+  (apt-get install -y \
     clang-"${LLVM_VERSION}" \
     clang-format-"${LLVM_VERSION}" \
     clang-tools-"${LLVM_VERSION}" \
     libclang-"${LLVM_VERSION}"-dev \
     libclang-common-"${LLVM_VERSION}"-dev \
     libllvm${LLVM_VERSION} \
-    lldb-9 \
+    lldb-${LLVM_VERSION} \
     llvm-"${LLVM_VERSION}" \
     llvm-"${LLVM_VERSION}"-dev \
     llvm-"${LLVM_VERSION}"-runtime \

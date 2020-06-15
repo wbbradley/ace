@@ -96,18 +96,6 @@ const Expr *parse_let(ParseState &ps, Identifier var_id, bool is_let) {
         {unit_expr(INTERNAL_LOC())});
   }
 
-#if 0
-  if (ps.token.is_ident(K(as))) {
-    /* allow type specifications in decls to help with inference */
-    ps.advance();
-    initializer = new As(initializer,
-                         parse_type(ps, true /*allow_top_level_application*/),
-                         false /*force_cast*/);
-  }
-#else
-  assert(!ps.token.is_ident(K(as)));
-#endif
-
   BoundVarLifetimeTracker bvlt(ps);
 
   ps.term_map.erase(var_id.name);

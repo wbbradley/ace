@@ -1,21 +1,24 @@
 import result {Result, Ok, Err}
+import defaults {HasDefault, HasDefaultGet, new, get}
 import maybe {Maybe, Nothing, Just}
 import map {Map, keys, values}
 import math {+, -, *, /, abs, negate, Num, Bounded, from_int}
 import set {Set, set}
 import sys {open, read, write, close, readlines, stdin, stdout, stderr}
-import vector {Vector, flatten, reserve, vector, reset, resize}
+import vector {Vector, flatten, reserve, vector, reset, resize, append}
 import string {String, split, chomp, strip, concat, has_substring, has_prefix, has_suffix,
                replace, join}
 
+export {HasDefault, HasDefaultGet, new, get}
 export {Maybe, Nothing, Just}
 export {open, read, write, close, readlines, stdin, stdout, stderr}
 export {Map, keys, values, Set, set}
 export {+, -, *, /, abs, negate, Num, Bounded, from_int}
-export {Vector, flatten, reserve, vector, reset, resize}
+export {Vector, flatten, reserve, vector, reset, resize, make, Makeable}
 export {String, split, chomp, strip, concat, has_substring, has_prefix, has_suffix, replace,
-        join}
+        join, append}
 export {Result, Ok, Err}
+export {u8, i8}
 
 link pkg "bdw-gc"
 
@@ -32,19 +35,11 @@ fn not(x Bool) {
   }
 }
 
-class HasDefault a {
-  fn new() a
-}
+fn i8(x) Int8 => int(x) as! Int8
+fn u8(x) UInt8 => int(x) as! UInt8
 
 instance HasDefault Int {
   fn new() => 0
-}
-
-class HasDefaultGet collection key value {
-  # Get an item from the collection, falling back to the
-  # default if the key does not allow the implementation to
-  # resolve the value otherwise.
-  fn get(collection, key, value) value
 }
 
 class Repr a {
@@ -85,6 +80,14 @@ instance Str Int {
 
 instance Repr Int {
   repr = str
+}
+
+instance Str Int8 {
+  fn str(x) => str(x as! Int)
+}
+
+instance Str UInt8 {
+  fn str(x) => str(x as! Int)
 }
 
 instance Str Float {
@@ -407,6 +410,10 @@ instance Num Float {
 
 class ConvertibleToInt a {
     fn int(a) Int
+}
+
+instance ConvertibleToInt Int {
+  int = id
 }
 
 instance ConvertibleToInt Char {
@@ -796,10 +803,6 @@ fn __ptr_sub(p1 *Char, p2 *Char) Int {
 class FoldFromLeft container elem initial {
   # Left fold
   fn foldl(fn (initial, elem) initial, container, initial) initial
-}
-
-class MutatingAppend collection item {
-  fn append(collection, item) ()
 }
 
 fn all(pred, xs) Bool {

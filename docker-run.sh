@@ -12,8 +12,6 @@ docker kill "${NAME}" 2>/dev/null
 docker rm "${NAME}" 2>/dev/null
 
 docker run \
-	-e ZION_RT=/usr/local/share/zion/runtime \
-	-e ZION_PATH=/opt/zion/tests:/opt/zion/lib \
 	--rm \
 	--name "${NAME}" \
 	-v "$(pwd)/tests:/opt/zion/tests" \

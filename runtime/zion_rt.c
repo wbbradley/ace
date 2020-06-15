@@ -1,9 +1,11 @@
+#include <fcntl.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/errno.h>
+#include <sys/socket.h>
 #include <time.h>
 #include <unistd.h>
 #include <inttypes.h>
@@ -36,6 +38,34 @@ int64_t zion_errno() {
 
 int64_t zion_memcmp(const char *a, const char *b, int64_t len) {
 	return memcmp(a, b, len);
+}
+
+int64_t zion_open(const char *path, int64_t flags, int64_t mode) {
+    return open(path, flags, mode);
+}
+
+int64_t zion_creat(const char *path, int64_t mode) {
+    return creat(path, mode);
+}
+
+int64_t zion_close(int64_t fd) {
+  return close(fd);
+}
+
+int64_t zion_read(int64_t fd, char *pb, int64_t nbyte) {
+  return read(fd, pb, nbyte);
+}
+
+int64_t zion_write(int64_t fd, char *pb, int64_t nbyte) {
+  return write(fd, pb, nbyte);
+}
+
+int64_t zion_unlink(const char *filename) {
+  return unlink(filename);
+}
+
+int64_t zion_socket(int64_t domain, int64_t type, int64_t protocol) {
+  return socket(domain, type, protocol);
 }
 
 const char *zion_memmem(const char *big, int64_t big_len, const char *little, int64_t little_len) {
