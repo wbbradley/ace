@@ -198,3 +198,5 @@ The best way to learn more at this time is to read through the
 
 TODO: struct types do not support pattern matching. proposed solution: eliminate
 structs, but add names to newtypes.
+
+[![HitCount](http://hits.dwyl.com/zionlang/zion.svg)](http://hits.dwyl.com/zionlang/zion)
