@@ -9,9 +9,10 @@ MAKEFLAGS=--no-print-directory
 # Installation-related directories
 installdir = $(DESTDIR)/$(prefix)
 bindir = $(DESTDIR)/$(prefix)/bin
-stdlibdir = $(DESTDIR)/$(prefix)/share/$(PN)/lib
+sharedir = $(DESTDIR)/$(prefix)/share/$(PN)
+stdlibdir = $(sharedir)/lib
+runtimedir = $(sharedir)/runtime
 man1dir = $(DESTDIR)/$(prefix)/share/man/man1
-runtimedir = $(DESTDIR)/$(prefix)/share/$(PN)/runtime
 
 test_destdir ?= $(HOME)/var/zion-test
 
@@ -47,7 +48,7 @@ ZION_LIBS=$(shell cd lib && find *.zion)
 RUNTIME_C_FILES=$(shell find runtime -regex '.*\.c$$')
 
 .PHONY: install
-install: $(BUILT_BINARY) $(addprefix $(SRCDIR)/lib/,$(ZION_LIBS)) $(RUNTIME_C_FILES) $(SRCDIR)/$(PN).1
+install: $(BUILT_BINARY) $(addprefix $(SRCDIR)/lib/,$(ZION_LIBS)) $(RUNTIME_C_FILES) $(SRCDIR)/$(PN).1 zion-tags
 	-@echo "Installing Zion to ${DESTDIR}..."
 	-@echo "Making sure that various installation dirs exist..." 
 	@mkdir -p $(bindir)
@@ -59,9 +60,11 @@ install: $(BUILT_BINARY) $(addprefix $(SRCDIR)/lib/,$(ZION_LIBS)) $(RUNTIME_C_FI
 	@mkdir -p $(runtimedir)
 	-@echo "Copying compiler binary from $(BUILT_BINARY) to $(bindir)..."
 	@cp $(BUILT_BINARY) $(bindir)
+	@cp ./zion-tags $(bindir)
+	@for f in $(RUNTIME_C_FILES); do cp "$$f" "$(runtimedir)"; done
 	@cp $(addprefix $(SRCDIR)/lib/,$(ZION_LIBS)) $(stdlibdir)
 	@cp $(SRCDIR)/$(PN).1 $(man1dir)
-	@for f in $(RUNTIME_C_FILES); do cp "$$f" "$(runtimedir)"; done
+	@cp $(SRCDIR)/$(PN).1 $(man1dir)
 
 .PHONY: clean
 clean:
