@@ -1,6 +1,8 @@
 #!/bin/bash
 set +x
 
+./docker-build.sh
+
 # Running docker tests by default, add a parameter to execute that command
 # instead of the tests.
 
