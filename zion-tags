@@ -50,6 +50,7 @@ gather-zion-tags "class" "s"
 gather-zion-tags "instance" "s"
 gather-zion-tags "newtype" "s"
 gather-zion-tags "struct" "s"
+# TODO: support data-ctors
 
 cat "$tags_file" >> "$ztags"
 sort "$ztags" > "$tags_file"
