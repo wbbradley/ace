@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 bin_dir=$1
 source_dir=$2
-test_file=$3
+test_file=${3/\/\//\/}
 
 # ECHO='echo -e'
 ECHO='printf'

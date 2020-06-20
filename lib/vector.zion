@@ -1,6 +1,6 @@
 export {
   Vector, vector, array, size, capacity, flatten, reserve, reset,
-  resize, append}
+  resize}
 
 instance Repr [a] {
   fn repr(xs) {
@@ -27,6 +27,31 @@ instance HasSetMembership [a] a {
   fn not_in(value, collection) => not (value in collection)
 }
 
+instance MutatingAppend Vector a {
+  fn append(vec [a], val a) {
+    let Vector(var array, var size, var capacity) = vec
+    if array == null {
+      array = alloc(4)
+      size = 1
+      capacity = 4
+      array[0] = val
+      return
+    }
+
+    if capacity <= size {
+      reserve(vec, capacity * 2)
+    }
+
+    if capacity == 0 {
+      __builtin_goodbye
+    }
+
+    __builtin_store_ptr(__builtin_ptr_add(array, size), val)
+    size = size + 1
+    assert(size <= capacity)
+  }
+}
+
 fn flatten(xss [[a]]) [a] {
   let ys = []
   for xs in xss {
@@ -37,7 +62,7 @@ fn flatten(xss [[a]]) [a] {
   return ys
 }
 
-instance FoldFromLeft [a] a b {
+instance FoldFromLeft Vector a b {
   fn foldl(binop, xs, initial b) b {
     var value = initial
     for x in xs {
@@ -56,29 +81,6 @@ instance Functor Vector {
     }
     return ys
   }
-}
-
-fn append(vec [a], val a) {
-  let Vector(var array, var size, var capacity) = vec
-  if array == null {
-    array = alloc(4)
-    size = 1
-    capacity = 4
-    array[0] = val
-    return
-  }
-
-  if capacity <= size {
-    reserve(vec, capacity * 2)
-  }
-
-  if capacity == 0 {
-    __builtin_goodbye
-  }
-
-  __builtin_store_ptr(__builtin_ptr_add(array, size), val)
-  size = size + 1
-  assert(size <= capacity)
 }
 
 fn reserve(vec [a], new_capacity Int) {

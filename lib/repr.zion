@@ -1,0 +1,5 @@
+export {Repr, repr}
+
+class Repr a {
+  fn repr(a) String
+}

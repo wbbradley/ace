@@ -26,6 +26,7 @@ fi
 
 run_test="$(dirname "$0")/run-test.sh"
 
+# Check all the shell scripts.
 if command -v shellcheck; then
 	if ! logged_run shellcheck "$0"; then
 			echo "$0: shellcheck $0 failed."
@@ -53,24 +54,24 @@ runs=0
 failed_tests=()
 for test_file in tests/{*,}/test_*.zion
 do
-	if [ "$TEST_FILTER" != "" ]; then
-		if ! grep "$TEST_FILTER" <(echo "$test_file"); then
-			continue
-		fi
-	fi
-	runs+=1
-	[[ "$DEBUG_TESTS" != "" ]] && echo "$0: Invoking run-test.sh on ${test_file}..."
-	if logged_run ZION_PATH="${ZION_PATH}:$(dirname "${test_file}")" \
-		"${run_test}" "${bin_dir}" "${source_dir}" "${test_file}"; then
-		passed+=1
-	else
-		failed_tests+=( "$test_file" )
-		echo "$0:$LINENO:1: error: test ${test_file} failed"
-		if [ "${FAIL_FAST}" != "" ]; then
-			echo "FAIL_FAST was specified. Quitting..."
-			exit 1
-		fi
-	fi
+  test_file="${test_file/\/\//\/}"
+  if [ "$TEST_FILTER" != "" ]; then
+    if ! grep "$TEST_FILTER" <(echo "$test_file"); then
+      continue
+    fi
+  fi
+  runs+=1
+  [[ "$DEBUG_TESTS" != "" ]] && echo "$0: Invoking run-test.sh on ${test_file}..."
+  if logged_run ZION_PATH="${ZION_PATH}:$(dirname "${test_file}")" "${run_test}" "${bin_dir}" "${source_dir}" "${test_file}"; then
+    passed+=1
+  else
+    failed_tests+=( "$test_file" )
+    echo "$0:$LINENO:1: error: test ${test_file} failed"
+    if [ "${FAIL_FAST}" != "" ]; then
+      echo "FAIL_FAST was specified. Quitting..."
+      exit 1
+    fi
+  fi
 done
 
 if [[ ${#failed_tests[*]} != 0 ]]; then

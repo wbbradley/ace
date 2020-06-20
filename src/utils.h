@@ -322,8 +322,8 @@ bool contains_value(const std::unordered_map<K, V> &map, V value) {
   return false;
 }
 
-template <typename U, typename COLL> bool in(U item, const COLL &set) {
-  return set.find(item) != set.end();
+template <typename U, typename COLL> bool in(U item, const COLL &coll) {
+  return coll.find(item) != coll.end();
 }
 
 template <typename C1, typename C2>
