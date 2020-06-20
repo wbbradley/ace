@@ -23,6 +23,4 @@ jobs:
     - uses: actions/checkout@v2
 
     - name: Run the build and tests
-      run: |
-        ./docker-build.sh
-        ./docker-run.sh
+      run: ./docker-run.sh
