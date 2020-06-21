@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.4.3)
 project(Zion)
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 #-----------------------------------------------------------------------------
 # Enable ccache if not already enabled by symlink masquerading and if no other
 # CMake compiler launchers are already defined
@@ -34,12 +37,13 @@ option(DEBUG "Build a Debug build" OFF)
 if(DEBUG)
 	message("Compiling in Debug mode...")
 	add_definitions(-DZION_DEBUG)
-	add_compile_options(-std=c++14 -g -O0 -Wall -Werror ${option_flags})
+	add_compile_options(-std=c++17 -g -O0 -Wall -Werror ${option_flags})
 else()
 	message("Compiling in Release mode...")
-	add_compile_options(-std=c++14 -g -O3 -Wall -Werror ${option_flags})
+	add_compile_options(-std=c++17 -g -O3 -Wall -Werror ${option_flags})
 endif()
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-rpath,${LLVM_INSTALL_PREFIX}/lib")
+
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -std=c++17 -Wl,-rpath,${LLVM_INSTALL_PREFIX}/lib")
 
 add_executable(zion
 	src/ast.cpp

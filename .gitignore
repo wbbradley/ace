@@ -1,7 +1,8 @@
 *.trace
 camelize
 .swp
-# Remove test binary executables that may have been generated in the source tree during testing
+# Remove test binary executables that may have been generated in the source
+# tree during testing
 test_[_a-z]*
 !test_[_a-z]*.*
 

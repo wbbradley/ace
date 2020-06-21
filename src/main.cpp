@@ -1204,7 +1204,9 @@ Phase4 ssa_gen(llvm::LLVMContext &context, const Phase3 &phase_3) {
       debug_above(2, log("resolved to %s", llvm_print(value).c_str()));
     }
 
-    output_filename = "./" + phase_3.phase_2.compilation->program_name + ".ll";
+    auto temp_dir = std::string(getenv("TMPDIR") ? getenv("TMPDIR") : ".");
+    output_filename = temp_dir + "/" +
+                      phase_3.phase_2.compilation->program_name + ".ll";
     llvm::IRBuilder<> builder(context);
     build_main_function(builder, llvm_module, gen_env,
                         phase_3.phase_2.compilation->program_name);
