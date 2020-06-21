@@ -18,5 +18,5 @@ docker run \
 	--name "${NAME}" \
 	-v "$(pwd)/tests:/opt/zion/tests" \
 	-v "$(pwd)/lib:/opt/zion/lib" \
-	-it "${IMAGE}:${VERSION}" \
+	-t "${IMAGE}:${VERSION}" \
 	"${1:-/opt/zion/docker-test.sh}"
