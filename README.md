@@ -1,6 +1,6 @@
 # Zion Language
 
-[![Build Status](https://travis-ci.org/zionlang/zion.svg?branch=master)](https://travis-ci.org/zionlang/zion)
+![CI](https://github.com/zionlang/zion/workflows/CI/badge.svg)
 
 ## Quick Start
 
