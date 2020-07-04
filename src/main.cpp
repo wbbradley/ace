@@ -1123,7 +1123,7 @@ Phase4 ssa_gen(llvm::LLVMContext &context, const Phase3 &phase_3) {
    * can be traversed in any order, and will automatically resolve in
    * dependency order based on a topological sorting. this could be a bit
    * intense on the stack, worst case is on the same order as the user's
-   * program stack depth.
+   * program stack depth OR the depth of the global object resolution graph.
    */
   std::list<std::shared_ptr<gen::Resolver>> resolvers;
   std::string output_filename;
@@ -1174,6 +1174,7 @@ Phase4 ssa_gen(llvm::LLVMContext &context, const Phase3 &phase_3) {
             name, type,
             [&builder, &llvm_module, name, translation, &phase_3, &gen_env,
              &globals](llvm::Value **llvm_value) -> gen::ResolutionStatus {
+
               gen::Publishable publishable(llvm_value);
               /* we are resolving a global object, so we should not be inside
                * of a basic block. */
@@ -1193,7 +1194,6 @@ Phase4 ssa_gen(llvm::LLVMContext &context, const Phase3 &phase_3) {
       }
     }
 
-    // TODO: differentiate between globals and functions...
     // global initialization will happen inside of the __program_init function
     for (auto resolver : resolvers) {
       debug_above(2, log("resolving %s...", resolver->str().c_str()));
@@ -1453,7 +1453,7 @@ int run_job(const Job &job) {
           // HACKHACK: temporary workaround to allow libsodium to compile
           "-Wno-nullability-completeness "
           // TODO: plumb host targeting through clang here
-          "--target=$(llvm-config --host-target) "
+          // "--target=$(llvm-config --host-target) "
           // Include extra compilands
           "%s "
           // Add linker flags

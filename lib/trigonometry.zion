@@ -1,5 +1,5 @@
 export {
-    PI,
+    pi,
     acos,
     asin,
     atan,
@@ -14,7 +14,7 @@ export {
 
 link "m"
 
-let PI = 3.141592653589793238
+let pi = 3.141592653589793238
 
 fn sin(x Float) Float {
     return __builtin_ffi_1("sin", x)

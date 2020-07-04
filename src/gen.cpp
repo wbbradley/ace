@@ -339,10 +339,10 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
     return builder.getInt64(64 / 8);
   } else if (name == "__builtin_min_int") {
     /* scheme({}, {}, Int) */
-    return builder.getInt64(static_cast<int64_t>(0x8000000000000000));
+    return builder.getInt64(static_cast<int64_t>(0x8000000000000000ll));
   } else if (name == "__builtin_max_int") {
     /* scheme({}, {}, Int) */
-    return builder.getInt64(static_cast<int64_t>(0x7FFFFFFFFFFFFFFF));
+    return builder.getInt64(static_cast<int64_t>(0x7FFFFFFFFFFFFFFFll));
   } else if (name == "__builtin_multiply_int") {
     /* scheme({}, {}, type_arrows({Int, Int, Int})) */
     return builder.CreateMul(params[0], params[1]);

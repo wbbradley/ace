@@ -1,0 +1,15 @@
+# test: pass
+
+fn get_tuple_of_functions() {
+  let p = 3
+  let f = |x| => x*2
+  let g = |y| => y + p
+  return (f, g)
+}
+
+fn main() {
+  let (f, g) = get_tuple_of_functions()
+  assert(f(2) == 4)
+  assert(g(2) == 5)
+  __builtin_pass_test
+}

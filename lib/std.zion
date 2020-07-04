@@ -23,6 +23,7 @@ export {String, split, chomp, strip, concat, has_substring, has_prefix, has_suff
         join}
 export {Result, Ok, Err}
 export {u8, i8}
+export {nothing}
 
 link pkg "bdw-gc"
 
@@ -585,6 +586,10 @@ instance Eq [a] {
 
 class Iterable collection item {
     fn iter(collection) fn () Maybe item
+}
+
+fn nothing() {
+  return Nothing
 }
 
 instance Iterable (fn () Maybe a) a {
