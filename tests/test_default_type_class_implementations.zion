@@ -1,6 +1,6 @@
 # test: pass
 
-import trigonometry {PI}
+import trigonometry {pi}
 
 struct RadialVector {
   theta Float
@@ -12,8 +12,8 @@ instance Ord RadialVector {
 }
 
 fn main() {
-  let p = RadialVector(PI, 100.0)
-  let q = RadialVector(PI/2.0, 100.1)
+  let p = RadialVector(pi, 100.0)
+  let q = RadialVector(pi/2.0, 100.1)
   assert(q > p)
   assert(q >= q)
   assert(compare(p, q) == LT)

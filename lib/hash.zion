@@ -11,12 +11,16 @@ class Hashable a {
 instance Hashable String {
     fn hash(s) {
         let String(sz, len) = s
-        return __builtin_ffi_2("zion_hash", sz, len) as Int
+        return __builtin_ffi_2("zion_hash", sz, len)
     }
 }
 
 instance Hashable Int {
     fn hash(i) {
-        return __builtin_ffi_1("zion_hash_int", i) as Int
+        return __builtin_ffi_1("zion_hash_int", i)
     }
+}
+
+fn hash_combine(seed Int, value Int) Int {
+  return __builtin_ffi_2("zion_hash_combine", seed, value)
 }

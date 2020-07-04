@@ -59,7 +59,11 @@ std::map<std::string, types::Ref> get_data_ctors_types(
                      int(data_ctors_map.data_ctors_type_map.size())));
   debug_above(7, log("%s", ::str(data_ctors_map).c_str()));
 
-  assert(data_ctors_map.data_ctors_type_map.count(id->id.name) != 0);
+  if (data_ctors_map.data_ctors_type_map.count(id->id.name) == 0) {
+    throw user_error(id->id.location,
+                     "ICE: unable to find ctor %s in data_ctors_type_map",
+                     id->str().c_str());
+  }
   auto &data_ctors = data_ctors_map.data_ctors_type_map.at(id->id.name);
 
   std::map<std::string, types::Ref> data_ctors_types;

@@ -1,6 +1,6 @@
-import trigonometry {PI, sin, cos, tan, acos, asin, sinh, cosh, tanh, atan,
+import trigonometry {pi, sin, cos, tan, acos, asin, sinh, cosh, tanh, atan,
                      atan2}
-export {PI, even, odd, sqrt, sum, sin, cos, tan, acos, asin, sinh, cosh, tanh,
+export {pi, even, odd, sqrt, sum, sin, cos, tan, acos, asin, sinh, cosh, tanh,
         atan, atan2, Num, +, *, -, /, abs, negate, Bounded, from_int,
         max_bound, min_bound}
 

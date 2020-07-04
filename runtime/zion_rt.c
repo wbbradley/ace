@@ -203,3 +203,7 @@ int64_t zion_epoch_millis() {
   }
   return (int64_t)s * 1000 + ms;
 }
+
+int64_t zion_hash_combine(uint64_t seed, uint64_t value) {
+  return seed ^ (value + 0x9e3779b97f4a7c15LLU + (seed << 12) + (seed >> 4));
+}

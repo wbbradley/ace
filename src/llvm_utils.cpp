@@ -205,7 +205,11 @@ std::string llvm_print(llvm::Value &llvm_value) {
   llvm_value.getType()->print(os);
   os.flush();
   ss << C_RESET;
-  assert(ss.str().find("<badref>") == std::string::npos);
+
+  if (ss.str().find("<badref>") != std::string::npos) {
+    std::cerr << "Found: " << ss.str() << std::endl;
+    assert(false);
+  }
   return ss.str();
 }
 

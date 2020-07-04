@@ -1,8 +1,8 @@
 # test: pass
 # expect: 3\.14159
 
-import math {PI}
+import math {pi}
 
 fn main() {
-  print(PI)
+  print(pi)
 }
