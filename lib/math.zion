@@ -2,29 +2,29 @@ import trigonometry {pi, sin, cos, tan, acos, asin, sinh, cosh, tanh, atan,
                      atan2}
 export {pi, even, odd, sqrt, sum, sin, cos, tan, acos, asin, sinh, cosh, tanh,
         atan, atan2, Num, +, *, -, /, abs, negate, Bounded, from_int,
-        max_bound, min_bound}
+        max_bound, min_bound, Monoid, identity}
 
 link "m"
 
 class Num a {
-    has Eq a
-    fn from_int(Int) a
-    fn +(a, a) a
-    fn *(a, a) a
-    fn -(a, a) a
-    fn /(a, a) a
-    fn abs(a) a
-    fn negate(a) a
+  has Eq a
+  fn from_int(Int) a
+  fn +(a, a) a
+  fn *(a, a) a
+  fn -(a, a) a
+  fn /(a, a) a
+  fn abs(a) a
+  fn negate(a) a
 }
 
 class Bounded a {
-    fn min_bound() a
-    fn max_bound() a
+  fn min_bound() a
+  fn max_bound() a
 }
 
 instance Bounded Int {
-    fn min_bound() => __builtin_min_int
-    fn max_bound() => __builtin_max_int
+  fn min_bound() => __builtin_min_int
+  fn max_bound() => __builtin_max_int
 }
 
 fn even(x Int) Bool => x % 2 == 0
@@ -32,35 +32,35 @@ fn odd(x Int) Bool => x % 2 == 1
 fn sqrt(x Float) Float => __builtin_ffi_1("sqrt", x)
 
 fn sum(xs) {
-    var s = from_int(0)
-    for x in xs {
-        s += x
-    }
-    return s
+  var s = from_int(0)
+  for x in xs {
+    s += x
+  }
+  return s
 }
 
 class Magma a {
-    # Gives closure
-    fn op(a, a) a
+  # Gives closure
+  fn op(a, a) a
 }
 
 class Semigroup a {
-    # Gives associativity
-    has Magma a
-    fn associative_op(a, a) a
-    /* default {
-        associative_op = op
-    } */
+  # Gives associativity
+  has Magma a
+  fn associative_op(a, a) a
+  default {
+    associative_op = op
+  }
 }
 
 class Monoid a {
-    # Gives identity
-    has Semigroup a
-    fn identity() a
+  # Gives identity
+  has Semigroup a
+  fn identity() a
 }
 
 class Group a {
-    # Gives inverses
-    has Monoid a
-    fn inverse(a) a
+  # Gives inverses
+  has Monoid a
+  fn inverse(a) a
 }

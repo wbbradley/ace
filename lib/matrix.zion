@@ -1,0 +1,76 @@
+import math {Monoid, identity}
+
+export {Matrix3}
+
+struct Matrix3 {
+  m1 Float
+  m2 Float
+  m3 Float
+  m4 Float
+  m5 Float
+  m6 Float
+  m7 Float
+  m8 Float
+  m9 Float
+}
+
+instance Str Matrix3 {
+  fn str(m) {
+    let Matrix3(m1, m2, m3, m4, m5, m6, m7, m8, m9) = m
+    return "{\n\t${m1} ${m2} ${m3}\n\t${m4} ${m5} ${m6}\n\t${m7} ${m8} ${m9}\n}"
+  }
+}
+
+fn id_matrix3() {
+  return Matrix3(1.0, 0.0, 0.0,
+                 0.0, 1.0, 0.0,
+                 0.0, 0.0, 1.0)
+}
+
+instance Monoid Matrix3 {
+  fn identity() {
+    return Matrix3(1.0, 0.0, 0.0,
+                   0.0, 1.0, 0.0,
+                   0.0, 0.0, 1.0)
+  }
+}
+
+instance Num Matrix3 {
+  fn from_int(n) {
+    panic("Matrix3 from int!")
+    return id_matrix3()
+  }
+
+  fn +(a, b) {
+    let Matrix3(a1, a2, a3, a4, a5, a6, a7, a8, a9) = a
+    let Matrix3(b1, b2, b3, b4, b5, b6, b7, b8, b9) = b
+    return Matrix3(a1+b1, a2+b2, a3+b3, a4+b4, a5+b5, a6+b6, a7+b7, a8+b8, a9+b9)
+  }
+
+  fn *(s, t) {
+    let Matrix3(a, b, c, d, e, f, g, h, i) = s
+    let Matrix3(j, k, l, m, n, o, p, q, r) = t
+    return Matrix3(
+      a*j + b*m + c*p, a*k + b*n + c*q, a*l + b*o + c*r,
+      d*j + e*m + f*p, d*k + e*n + f*q, d*l + e*o + f*r,
+      g*j + h*m + i*p, g*k + h*n + i*q, g*l + h*o + i*r)
+  }
+
+  fn -(a, b) {
+    let Matrix3(a1, a2, a3, a4, a5, a6, a7, a8, a9) = a
+    let Matrix3(b1, b2, b3, b4, b5, b6, b7, b8, b9) = b
+    return Matrix3(a1-b1, a2-b2, a3-b3, a4-b4, a5-b5, a6-b6, a7-b7, a8-b8, a9-b9)
+  }
+  fn /(a, b) {
+    panic("TODO: Invert the LHS and multiply it times the RHS")
+    return a
+  }
+  fn abs(a) {
+    panic("No such thing as an absolute value of a Matrix3")
+    return a
+  }
+  fn negate(a) {
+    panic("No such thing as a negation of a Matrix3")
+    return a
+  }
+}
