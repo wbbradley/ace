@@ -1,3 +1,5 @@
+import copy {Copy, copy}
+
 export {
   Vector, vector, array, size, capacity, flatten, reserve, reset,
   resize}
@@ -123,4 +125,15 @@ fn resize(xs [a], new_len Int, default a) () {
     if new_len < size {
         size = new_len
     }
+}
+
+instance Copy [a] {
+  fn copy(xs [a]) [a] {
+    let ys = []
+    reserve(ys, len(xs))
+    for x in xs {
+      append(ys, x)
+    }
+    return ys
+  }
 }

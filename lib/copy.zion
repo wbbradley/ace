@@ -1,21 +1,18 @@
-export {Deepcopy, deepcopy}
+export {Deepcopy, deepcopy, Copy, copy}
 
-link in "bdw-gc"
+link pkg "bdw-gc"
 
 class Copy a {
-    fn copy(a) a
-    default {
-      copy = deepcopy
-    }
+  fn copy(a) a
 }
 
 class Deepcopy a {
-    fn deepcopy(a) a
+  fn deepcopy(a) a
 }
 
 instance Deepcopy String {
-    fn deepcopy(s) {
-        let String(sz, cb) = s
-        return String(__builtin_ffi_2("GC_strndup", sz, cb), cb)
-    }
+  fn deepcopy(s) {
+    let String(sz, cb) = s
+    return String(__builtin_ffi_2("GC_strndup", sz, cb), cb)
+  }
 }

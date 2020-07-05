@@ -1,0 +1,13 @@
+import math {identity}
+import matrix {Matrix3}
+
+fn main() {
+  let i = identity()
+  print(i)
+
+  let dx = 1.5
+  let dy = -3.4
+  let translation = Matrix3(1.0, 0.0, dx, 0.0, 1.0, dy, 0.0, 0.0, 1.0)
+
+  print(i * translation * translation)
+}
