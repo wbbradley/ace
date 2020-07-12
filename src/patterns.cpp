@@ -196,7 +196,7 @@ const Expr *Literal::translate(
   types::Ref type = get_tracked_type(tracked_types, this);
   auto Bool = type_id(make_iid(BOOL_TYPE));
   Var *literal_cmp = new Var(make_iid("std.=="));
-  types::Ref cmp_type = type_arrow(type_params({type, type}), Bool);
+  types::Ref cmp_type = type_arrow(type_tuple({type, type}), Bool);
 
   typing[literal_cmp] = cmp_type;
   insert_needed_defn(needed_defns, types::DefnId{literal_cmp->id, cmp_type},
@@ -422,7 +422,7 @@ const Expr *CtorPredicate::translate(
       typing[condition] = type_bool(INTERNAL_LOC());
     } else {
       Var *cmp_ctor_id = new Var(make_iid("__builtin_cmp_ctor_id"));
-      typing[cmp_ctor_id] = type_arrow(type_params({scrutinee_type, Int}),
+      typing[cmp_ctor_id] = type_arrow(type_tuple({scrutinee_type, Int}),
                                        Bool);
 
       condition = new Builtin(cmp_ctor_id, {scrutinee, ctor_id_literal});

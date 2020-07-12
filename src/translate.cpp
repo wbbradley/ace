@@ -120,9 +120,7 @@ const Expr *texpr(const types::DefnId &for_defn_id,
       }
     } else if (auto lambda = dcast<const Lambda *>(expr)) {
       auto new_bound_vars = bound_vars;
-      for (auto &var : lambda->vars) {
-        new_bound_vars.insert(var.name);
-      }
+      new_bound_vars.insert(lambda->var.name);
       bool lambda_returns = false;
       auto new_body = texpr(for_defn_id, lambda->body, data_ctors_map,
                             new_bound_vars, tracked_types,
@@ -139,7 +137,7 @@ const Expr *texpr(const types::DefnId &for_defn_id,
                        lambda_terms.back()->str().c_str());
         throw error;
       }
-      auto new_lambda = new Lambda(lambda->vars, {}, nullptr, new_body);
+      auto new_lambda = new Lambda(lambda->var, nullptr, nullptr, new_body);
       typing[new_lambda] = type;
       return new_lambda;
     } else if (auto application = dcast<const Application *>(expr)) {

@@ -194,13 +194,11 @@ std::ostream &Block::render(std::ostream &os, int parent_precedence) const {
 }
 
 Location Lambda::get_location() const {
-  assert(vars.size() != 0);
-  return vars[0].location;
+  return var.location;
 }
 
 std::ostream &Lambda::render(std::ostream &os, int parent_precedence) const {
-  os << "(λ"
-     << join_with(vars, ",", [](const Identifier &id) { return id.name; });
+  os << "(λ" << var.name;
   os << " . ";
   body->render(os, 0);
   os << ")";
@@ -502,9 +500,7 @@ tarjan::Vertices get_free_vars(
     /* bind the params so that they do not appear as free variables from lower
      * scoping */
     auto new_bound_vars = bound_vars;
-    for (auto &var : lambda->vars) {
-      new_bound_vars.insert(var.name);
-    }
+    new_bound_vars.insert(lambda->var.name);
     return get_free_vars(lambda->body, new_bound_vars);
   } else if (auto application = dcast<const ast::Application *>(expr)) {
     tarjan::Vertices free_vars = get_free_vars(application->a, bound_vars);

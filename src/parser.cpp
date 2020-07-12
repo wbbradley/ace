@@ -1956,8 +1956,33 @@ const Expr *parse_lambda(ParseState &ps,
     return_type = parse_type(ps, true /*allow_top_level_application*/);
   }
 
-  return new Lambda(param_ids, param_types, return_type,
-                    parse_block(ps, true /*expression_means_return*/));
+  if (param_types.size() == 0) {
+    return new Lambda(gensym(INTERNAL_LOC()), type_unit(INTERNAL_LOC()),
+                      return_type,
+                      parse_block(ps, true /*expression_means_return*/));
+  } else if (param_types.size() == 1) {
+    return new Lambda(param_ids[0], param_types[0], return_type,
+                      parse_block(ps, true /*expression_means_return*/));
+  } else {
+    types::Ref param_type = type_tuple({param_types});
+    Identifier param_id = gensym(param_ids[0].location);
+
+    std::vector<const Predicate *> params;
+    for (auto id : param_ids) {
+      params.push_back(
+          new IrrefutablePredicate(id.location, maybe<Identifier>(id)));
+    }
+    auto predicate = new TuplePredicate(ps.token.location, params,
+                                        maybe<Identifier>());
+    // TODO: convert the lambda params to a tuple if they are >=2 and
+    // destructure their names into the given ids.
+    return new Lambda(
+        param_id, param_type, return_type,
+        new Match(new Var(param_id),
+                  {new PatternBlock(
+                      predicate,
+                      parse_block(ps, true /*expression_means_return*/))}));
+  }
 }
 
 types::Ref parse_function_type(ParseState &ps) {
@@ -2148,21 +2173,39 @@ const Expr *create_ctor(Location location,
   dims.push_back(
       new Literal({location, tk_integer, string_format("%d", ctor_id)}));
 
-  std::vector<Identifier> params;
+  std::vector<Identifier> param_ids;
   for (size_t i = 0; i < param_types.size(); ++i) {
     /* enumerate the nested lambda variables */
-    params.push_back(Identifier{fresh(), param_types[i]->get_location()});
-    dims.push_back(new Var(params.back()));
+    param_ids.push_back(Identifier{fresh(), param_types[i]->get_location()});
+    dims.push_back(new Var(param_ids.back()));
   }
 
   const Expr *expr = new As(new Tuple(location, dims), type_decl->get_type(),
                             true /*force_cast*/);
 
-  if (params.size() > 0) {
+  if (param_ids.size() == 1) {
+    expr = new Lambda(param_ids[0], param_types[0], nullptr,
+                      new ReturnStatement(expr));
+  } else if (param_ids.size() > 0) {
     /* this ctor takes parameters, so it needs a lambda */
-    assert(dims.size() == params.size() + 1);
+    assert(dims.size() == param_ids.size() + 1);
     /* (λx y z . return! (ctor_id, x, y, z) as! type_decl) */
-    expr = new Lambda(params, param_types, nullptr, new ReturnStatement(expr));
+
+    types::Ref param_type = type_tuple({param_types});
+    Identifier param_id = gensym(location);
+
+    std::vector<const Predicate *> params;
+    for (auto id : param_ids) {
+      params.push_back(
+          new IrrefutablePredicate(id.location, maybe<Identifier>(id)));
+    }
+    auto predicate = new TuplePredicate(location, params, maybe<Identifier>());
+    // TODO: convert the lambda params to a tuple if they are >=2 and
+    // destructure their names into the given ids.
+    expr = new Lambda(
+        param_id, param_type, nullptr,
+        new Match(new Var(param_id),
+                  {new PatternBlock(predicate, new ReturnStatement(expr))}));
   }
 
   return expr;

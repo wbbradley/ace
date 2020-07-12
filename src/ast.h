@@ -302,20 +302,19 @@ struct Application : public Expr {
 };
 
 struct Lambda : public Expr {
-  Lambda(Identifiers vars,
-         types::Refs param_types,
+  Lambda(Identifier var,
+         types::Ref param_type,
          types::Ref return_type,
          const Expr *body)
-      : vars(vars), body(body), param_types(param_types),
+      : var(var), body(body), param_type(param_type),
         return_type(return_type) {
-    assert(vars.size() != 0);
   }
   Location get_location() const override;
   std::ostream &render(std::ostream &os, int parent_precedence) const override;
 
-  Identifiers vars;
+  Identifier var;
   const Expr *body;
-  types::Refs param_types;
+  types::Ref param_type;
   types::Ref return_type;
 };
 
