@@ -795,16 +795,6 @@ types::Ref type_map(types::Ref a, types::Ref b) {
       type_operator(type_id(Identifier{"Map", a->get_location()}), a), b);
 }
 
-types::Ref type_params(const types::Refs &params) {
-#ifdef ZION_DEBUG
-  for (auto &param : params) {
-    assert(!dyncast<const types::TypeParams>(param));
-  }
-#endif
-  assert(params.size() > 0);
-  return std::make_shared<types::TypeParams>(params[0]->get_location(), params);
-}
-
 types::TypeTuple::Ref type_tuple(types::Refs dimensions) {
   assert(dimensions.size() != 0);
   return type_tuple(dimensions[0]->get_location(), dimensions);
@@ -835,6 +825,8 @@ types::Ref type_arrows(types::Refs types) {
 }
 
 types::Refs unfold_arrows(types::Ref type) {
+  assert(false);
+#if 0
   auto op = dyncast<const types::TypeOperator>(type);
   if (op != nullptr) {
     auto nested_op = dyncast<const types::TypeOperator>(op->oper);
@@ -849,6 +841,7 @@ types::Refs unfold_arrows(types::Ref type) {
       }
     }
   }
+#endif
   return {type};
 }
 

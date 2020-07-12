@@ -728,10 +728,12 @@ void destructure_closure(llvm::IRBuilder<> &builder,
 llvm::Value *llvm_create_closure_callsite(Location location,
                                           llvm::IRBuilder<> &builder,
                                           llvm::Value *closure,
-                                          std::vector<llvm::Value *> args) {
+                                          llvm::Value *arg) {
   llvm::Value *llvm_function_to_call = nullptr;
   destructure_closure(builder, closure, &llvm_function_to_call, nullptr);
 
+  std::vector<llvm::Value *> args;
+  args.push_back(arg);
   args.push_back(builder.CreateBitCast(
       closure, builder.getInt8Ty()->getPointerTo(), "closure_cast"));
 

@@ -154,10 +154,6 @@ namespace {
 
 using namespace ::zion::ast;
 
-std::vector<const Expr *> rewrite_exprs(
-    const RewriteImportRules &rewrite_import_rules,
-    const std::vector<const Expr *> &exprs);
-
 const Predicate *rewrite_predicate(
     const RewriteImportRules &rewrite_import_rules,
     const Predicate *predicate) {
@@ -190,9 +186,8 @@ PatternBlocks rewrite_pattern_blocks(
 const Application *rewrite_application(
     const RewriteImportRules &rewrite_import_rules,
     const Application *application) {
-  return new Application(
-      rewrite_expr(rewrite_import_rules, application->a),
-      rewrite_exprs(rewrite_import_rules, application->params));
+  return new Application(rewrite_expr(rewrite_import_rules, application->a),
+                         rewrite_expr(rewrite_import_rules, application->b));
 }
 
 const Expr *rewrite_expr(const RewriteImportRules &rewrite_import_rules,
@@ -275,17 +270,6 @@ const Expr *rewrite_expr(const RewriteImportRules &rewrite_import_rules,
   }
   assert(false);
   return {};
-}
-
-std::vector<const Expr *> rewrite_exprs(
-    const RewriteImportRules &rewrite_import_rules,
-    const std::vector<const Expr *> &exprs) {
-  std::vector<const Expr *> new_exprs;
-  new_exprs.reserve(exprs.size());
-  for (auto expr : exprs) {
-    new_exprs.push_back(rewrite_expr(rewrite_import_rules, expr));
-  }
-  return new_exprs;
 }
 
 std::vector<const Decl *> rewrite_decls(
