@@ -84,31 +84,27 @@ std::ostream &Application::render(std::ostream &os,
                                   int parent_precedence) const {
   const int precedence = 9;
 
-  if (params.size() == 2)
-    if (auto oper = dcast<const Var *>(a)) {
-      if (strspn(oper->id.name.c_str(), MATHY_SYMBOLS) ==
-          oper->id.name.size()) {
-        os << "(";
-        params[0]->render(os, precedence + 1);
-        os << " ";
-        oper->render(os, precedence);
-        os << " ";
-        params[1]->render(os, precedence + 1);
-        os << ")";
-        return os;
-      }
+#if 0
+  // TODO: find a cleaner way of rendering binary ops
+  if (auto oper = dcast<const Var *>(a)) {
+    if (strspn(oper->id.name.c_str(), MATHY_SYMBOLS) == oper->id.name.size()) {
+      os << "(";
+      params[0]->render(os, precedence + 1);
+      os << " ";
+      oper->render(os, precedence);
+      os << " ";
+      params[1]->render(os, precedence + 1);
+      os << ")";
+      return os;
     }
+  }
+#endif
 
   Parens parens(os, parent_precedence, precedence);
   a->render(os, 10);
-  os << "(";
-  const char *delim = "";
-  for (auto &param : params) {
-    os << delim;
-    param->render(os, 0);
-    delim = ", ";
-  }
-  return os << ")";
+  os << " ";
+  b->render(os, 0);
+  return os;
 }
 
 Location Continue::get_location() const {

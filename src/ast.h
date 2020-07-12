@@ -15,6 +15,12 @@
 
 namespace zion {
 namespace ast {
+struct Expr;
+}
+
+ast::Expr *unit_expr(Location location);
+
+namespace ast {
 
 std::string fresh();
 
@@ -25,6 +31,17 @@ struct Expr {
   virtual std::ostream &render(std::ostream &os,
                                int parent_precedence) const = 0;
   std::string str() const;
+};
+
+struct Tuple : public Expr {
+  Tuple(Location location, std::vector<const Expr *> dims)
+      : location(location), dims(dims) {
+  }
+  Location get_location() const override;
+  std::ostream &render(std::ostream &os, int parent_precedence) const override;
+
+  Location const location;
+  std::vector<const Expr *> const dims;
 };
 
 struct StaticPrint : public Expr {
@@ -266,14 +283,22 @@ struct Sizeof : public Expr {
 };
 
 struct Application : public Expr {
-  Application(const Expr *a, const Expr *param)
-      : a(a), param {
+  Application(const Expr *a, const Expr *b) : a(a), b(b) {
+  }
+  Application(const Expr *a, const std::vector<const Expr *> &&tuple) : a(a) {
+    if (tuple.size() == 0) {
+      b = unit_expr(INTERNAL_LOC());
+    } else if (tuple.size() == 1) {
+      assert(false);
+    } else {
+      b = new Tuple(tuple[0]->get_location(), tuple);
+    }
   }
   Location get_location() const override;
   std::ostream &render(std::ostream &os, int parent_precedence) const override;
 
   const Expr *a;
-  std::vector<const Expr *> params;
+  const Expr *b;
 };
 
 struct Lambda : public Expr {
@@ -304,17 +329,6 @@ struct Let : public Expr {
   Identifier var;
   const Expr *value;
   const Expr *body;
-};
-
-struct Tuple : public Expr {
-  Tuple(Location location, std::vector<const Expr *> dims)
-      : location(location), dims(dims) {
-  }
-  Location get_location() const override;
-  std::ostream &render(std::ostream &os, int parent_precedence) const override;
-
-  Location const location;
-  std::vector<const Expr *> const dims;
 };
 
 struct TupleDeref : public Expr {
@@ -535,7 +549,6 @@ struct Program {
 };
 } // namespace ast
 
-ast::Expr *unit_expr(Location location);
 tarjan::Vertices get_free_vars(
     const ast::Expr *expr,
     const std::unordered_set<std::string> &bound_vars);
