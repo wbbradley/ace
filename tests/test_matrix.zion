@@ -1,5 +1,8 @@
+# test: pass
+# expect: V2.7.0.*-0.8.*1.0
+
 import math {identity}
-import matrix {Matrix3}
+import matrix {Matrix3, translation2d, scale2d, V3, multiply_vec3}
 
 fn main() {
   let i = identity()
@@ -7,7 +10,9 @@ fn main() {
 
   let dx = 1.5
   let dy = -3.4
-  let translation = Matrix3(1.0, 0.0, dx, 0.0, 1.0, dy, 0.0, 0.0, 1.0)
-
-  print(i * translation * translation)
+  let start = V3(2.0, 3.0, 1.0)
+  let t = translation2d(1.5, -3.4)
+  let s = scale2d(2.0, 2.0)
+  print(multiply_vec3(s * t, start))
+  print("PASS")
 }

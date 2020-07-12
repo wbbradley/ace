@@ -334,7 +334,7 @@ void llvm_verify_function(Location location, llvm::Function *llvm_function) {
 #ifdef ZION_DEBUG
   debug_above(5, log("writing to function-verification-failure.ll..."));
   std::string llir_filename = "function-verification-failure.ll";
-#if 0
+#if 1
   FILE *fp = fopen(llir_filename.c_str(), "wt");
   fprintf(fp, "%s\n", llvm_print_module(*llvm_function->getParent()).c_str());
   fclose(fp);

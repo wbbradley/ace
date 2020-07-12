@@ -257,13 +257,8 @@ Location Tuple::get_location() const {
 
 std::ostream &Tuple::render(std::ostream &os, int parent_precedence) const {
   os << "(";
-  const char *delim = "";
   for (auto dim : dims) {
-    os << delim;
     dim->render(os, 0);
-    delim = ", ";
-  }
-  if (dims.size() == 1) {
     os << ",";
   }
   return os << ")";
@@ -367,11 +362,9 @@ std::ostream &TuplePredicate::render(std::ostream &os) const {
     os << C_ID << name_assignment.t << C_RESET << "@";
   }
   os << "(";
-  const char *delim = "";
   for (auto predicate : params) {
-    os << delim;
     predicate->render(os);
-    delim = ", ";
+    os << ",";
   }
   return os << ")";
 }

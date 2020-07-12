@@ -52,6 +52,7 @@ const Expr *texpr(const types::DefnId &for_defn_id,
                   types::NeededDefns &needed_defns,
                   // TODO: pass in overloads in order to perform resolution
                   bool &returns) {
+  // TODO: consider turning this back on or deleting it.
   TTC ttc(string_format("texpr(%s, %s, ..., %s, ...)",
                         for_defn_id.str().c_str(), expr->str().c_str(),
                         type->str().c_str()),

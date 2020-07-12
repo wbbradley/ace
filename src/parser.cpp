@@ -764,8 +764,10 @@ const Expr *parse_string_literal(const Token &token) {
   int string_len = str.size();
   return new Application(
       new Var(Identifier{STRING_TYPE, token.location}),
-      {new Literal(token), new Literal(Token{token.location, tk_integer,
-                                             std::to_string(string_len)})});
+      {new Tuple(token.location,
+                 {new Literal(token),
+                  new Literal(Token{token.location, tk_integer,
+                                    std::to_string(string_len)})})});
 }
 
 const Expr *parse_string_expr_prefix(const Token &token) {
@@ -856,7 +858,9 @@ const Expr *parse_string_expr(ParseState &ps) {
     const Expr *str_array = build_array_literal(location, exprs);
     return new Application(
         new Var(ps.id_mapped(Identifier{"join", location})),
-        {parse_string_literal(Token{location, tk_string, "\"\""}), str_array});
+        {new Tuple(location,
+                   {parse_string_literal(Token{location, tk_string, "\"\""}),
+                    str_array})});
   }
 }
 
@@ -882,7 +886,9 @@ const Expr *build_associative_array_literal(
       assert(expr.second == nullptr);
       stmts.push_back(new Application(
           new Var(Identifier{"std.insert", expr.first->get_location()}),
-          {map_var, new As(expr.first, value_type, false /*force_cast*/)}));
+          {new Tuple(expr.first->get_location(),
+                     {map_var,
+                      new As(expr.first, value_type, false /*force_cast*/)})}));
     } else {
       if (key_type == nullptr) {
         key_type = type_variable(expr.first->get_location());
@@ -890,8 +896,9 @@ const Expr *build_associative_array_literal(
       stmts.push_back(new Application(
           new Var(
               Identifier{"std.set_indexed_item", expr.first->get_location()}),
-          {map_var, new As(expr.first, key_type, false /*force_cast*/),
-           new As(expr.second, value_type, false /*force_cast*/)}));
+          new Tuple(expr.first->get_location(),
+            {map_var, new As(expr.first, key_type, false /*force_cast*/),
+           new As(expr.second, value_type, false /*force_cast*/)})));
     }
   }
 
@@ -2251,7 +2258,17 @@ DataTypeDecl parse_newtype_decl(ParseState &ps,
   const Decl *decl;
   std::vector<types::Ref> ctor_parts;
   if (auto tuple_type = dyncast<const types::TypeTuple>(rhs_type)) {
-    debug_above(3, log("build decl for tuple newtype ctor :: " c_id("%s") "%s",
+    if (tuple_type->dimensions.size() == 1) {
+      std::cerr << "neutering unary tuple" << std::endl;
+      /* simply disallow unary tuples in newtypes */
+      rhs_type = tuple_type->dimensions.at(0);
+    }
+  }
+
+  // This is so hacky.
+#if 0
+  if (auto tuple_type = dyncast<const types::TypeTuple>(rhs_type)) {
+    debug_above(2, log("build decl for tuple newtype ctor :: " c_id("%s") "%s",
                        type_name.text.c_str(), tuple_type->str().c_str()));
     ctor_parts = tuple_type->dimensions;
     std::vector<Identifier> dim_names;
@@ -2269,7 +2286,9 @@ DataTypeDecl parse_newtype_decl(ParseState &ps,
                    new ReturnStatement(
                        new As(new Tuple(tuple_type->get_location(), dims),
                               type_decl->get_type(), true /*force_cast*/))));
-  } else {
+  } else 
+#endif
+  {
     ctor_parts.push_back(rhs_type);
     Identifier param_iid = Identifier{ast::fresh(), rhs_type->get_location()};
     decl = new Decl(type_decl->id,
@@ -2278,6 +2297,7 @@ DataTypeDecl parse_newtype_decl(ParseState &ps,
                                    new Var(param_iid), type_decl->get_type(),
                                    true /*force_cast*/))));
   }
+  /* add this newtype's data ctor to the registered set */
   data_ctors[type_decl->id.name] = create_ctor_type(type_decl->id.location,
                                                     type_decl, ctor_parts);
   assert(!in(type_decl->id.name, ps.type_env));
@@ -2290,8 +2310,8 @@ DataTypeDecl parse_newtype_decl(ParseState &ps,
     auto param = *param_iter;
     body = type_lambda(param, body);
   }
-  debug_above(4, log_location(type_decl->id.location,
-                              "adding %s to the type_env as %s",
+  debug_above(2, log_location(type_decl->id.location,
+                              "adding " c_id("%s") " to the type_env as %s",
                               type_decl->id.name.c_str(), body->str().c_str()));
   ps.type_env[type_decl->id.name] = body;
   return {type_decl, {decl}};

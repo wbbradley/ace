@@ -338,9 +338,7 @@ const Expr *CtorPredicate::translate(
 
   types::Ref resolved_scrutinee_type = scrutinee_type->eval(type_env,
                                                             true /*shallow*/);
-
-  debug_above(
-      2,
+  debug_above(2,
       log_location(get_location(),
                    "in ctor %s scrutinee type %s resolved to %s with terms %s",
                    ctor_name.str().c_str(), scrutinee_type->str().c_str(),
