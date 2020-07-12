@@ -46,22 +46,13 @@ types::Ref infer_core(const Expr *expr,
     set_concat(instance_requirements, scheme->predicates);
     return scheme->type;
   } else if (auto lambda = dcast<const Lambda *>(expr)) {
-    types::Refs tvs;
-    int i = 0;
-    assert(lambda->param_types.size() == lambda->vars.size());
-    for (auto &param_type : lambda->param_types) {
-      assert(param_type != nullptr);
-      tvs.push_back(param_type);
-    }
+    types::Ref tv = lambda->param_type;
     auto local_return_type = type_variable(lambda->get_location());
     /* lambdas are monomorphic at the time of initialization/definition/capture.
      * so, we do not include the vars |tvs| in the scheme. this way, when the
      * scheme freshens, it will not erase the reference to this variable. */
     types::SchemeResolver local_scheme_resolver(&scheme_resolver);
-    i = 0;
-    for (const Identifier &var : lambda->vars) {
-      local_scheme_resolver.insert_scheme(var.name, scheme({}, {}, tvs[i++]));
-    }
+    local_scheme_resolver.insert_scheme(lambda->var.name, scheme({}, {}, tv));
     auto body_type = infer(lambda->body, data_ctors_map, local_return_type,
                            local_scheme_resolver, tracked_types, constraints,
                            instance_requirements);
@@ -76,7 +67,7 @@ types::Ref infer_core(const Expr *expr,
                        "return type does not match type annotation :: %s",
                        lambda->return_type->str().c_str()));
     }
-    return type_arrow(type_params(tvs), local_return_type);
+    return type_arrow(tv, local_return_type);
   } else if (auto application = dcast<const Application *>(expr)) {
     auto t1 = infer(application->a, data_ctors_map, return_type,
                     scheme_resolver, tracked_types, constraints,
@@ -140,10 +131,9 @@ types::Ref infer_core(const Expr *expr,
                           make_context(defer->get_location(),
                                        "defer must call nullary function"));
 
-    auto param_type = infer(defer->application->b, data_ctors_map, return_type,
+    auto t2 = infer(defer->application->b, data_ctors_map, return_type,
                             scheme_resolver, tracked_types, constraints,
                             instance_requirements);
-    auto t2 = type_params({param_type});
     append_to_constraints(
         constraints, t1,
         type_arrow(defer->application->get_location(), t2,
@@ -151,7 +141,7 @@ types::Ref infer_core(const Expr *expr,
         make_context(defer->application->get_location(),
                      "deferred application should have type () -> ()"));
     append_to_constraints(
-        constraints, param_type, type_unit(INTERNAL_LOC()),
+        constraints, t2, type_unit(INTERNAL_LOC()),
         make_context(defer->application->get_location(),
                      "only () may be applied at a deferred callsite"));
     tracked_types[defer->application] = type_unit(INTERNAL_LOC());

@@ -96,18 +96,6 @@ bool type_equality(types::Ref a, types::Ref b) {
     } else {
       return false;
     }
-  } else if (auto tpa_a = dyncast<const TypeParams>(a)) {
-    if (auto tpa_b = dyncast<const TypeParams>(b)) {
-      if (tpa_a->dimensions.size() != tpa_b->dimensions.size()) {
-        return false;
-      }
-      for (size_t i = 0; i < tpa_a->dimensions.size(); ++i) {
-        if (!type_equality(tpa_a->dimensions[i], tpa_b->dimensions[i])) {
-          return false;
-        }
-      }
-      return true;
-    }
   } else if (auto tup_a = dyncast<const TypeTuple>(a)) {
     if (auto tup_b = dyncast<const TypeTuple>(b)) {
       if (tup_a->dimensions.size() != tup_b->dimensions.size()) {
@@ -167,10 +155,6 @@ Unification unify(Ref a, Ref b) {
     if (auto to_b = dyncast<const TypeOperator>(b)) {
       return unify_many({to_a->oper, to_a->operand},
                         {to_b->oper, to_b->operand});
-    }
-  } else if (auto tpa_a = dyncast<const TypeParams>(a)) {
-    if (auto tpa_b = dyncast<const TypeParams>(b)) {
-      return unify_many(tpa_a->dimensions, tpa_b->dimensions);
     }
   } else if (auto tup_a = dyncast<const TypeTuple>(a)) {
     if (auto tup_b = dyncast<const TypeTuple>(b)) {

@@ -202,7 +202,7 @@ const Expr *rewrite_expr(const RewriteImportRules &rewrite_import_rules,
     return new Var(rewrite_identifier(rewrite_import_rules, var->id));
   } else if (auto lambda = dcast<const Lambda *>(expr)) {
     return new Lambda(
-        lambda->vars, rewrite_types(rewrite_import_rules, lambda->param_types),
+        lambda->var, lambda->param_type->rewrite_ids(rewrite_import_rules),
         (lambda->return_type != nullptr)
             ? lambda->return_type->rewrite_ids(rewrite_import_rules)
             : nullptr,

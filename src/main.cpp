@@ -417,7 +417,7 @@ CheckedDefinitionsByName check_decls(std::string entry_point_name,
           append_to_constraints(
               constraints, ty,
               type_arrow(INTERNAL_LOC(),
-                         type_params({type_unit(INTERNAL_LOC())}),
+                         type_unit(INTERNAL_LOC()),
                          type_unit(INTERNAL_LOC())),
               make_context(INTERNAL_LOC(),
                            "main function must have signature fn () ()"));

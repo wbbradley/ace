@@ -160,6 +160,13 @@ types::Ref prefix(const std::set<std::string> &bindings,
 }
 
 std::set<std::string> without(const std::set<std::string> &s,
+                              const Identifier &var) {
+  std::set<std::string> c = s;
+  c.erase(var.name);
+  return c;
+}
+
+std::set<std::string> without(const std::set<std::string> &s,
                               const Identifiers &vars) {
   std::set<std::string> c = s;
   for (auto &var : vars) {
@@ -195,9 +202,9 @@ const Expr *prefix(const std::set<std::string> &bindings,
     return prefix_application(bindings, pre, application);
   } else if (auto lambda = dcast<const Lambda *>(value)) {
     return new Lambda(
-        lambda->vars, prefix(bindings, pre, lambda->param_types),
+        lambda->var, prefix(bindings, pre, lambda->param_type),
         prefix(bindings, pre, lambda->return_type),
-        prefix(without(bindings, lambda->vars), pre, lambda->body));
+        prefix(without(bindings, lambda->var), pre, lambda->body));
   } else if (auto let = dcast<const Let *>(value)) {
     return new Let(let->var,
                    prefix(::without(bindings, let->var.name), pre, let->value),

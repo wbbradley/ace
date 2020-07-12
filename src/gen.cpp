@@ -134,30 +134,22 @@ void get_free_vars(const ast::Expr *expr,
     auto lambda_type = typing.at(lambda);
     std::vector<bool> already_has_lambda_vars;
     int i = 0;
-    for (auto &var : lambda->vars) {
-      already_has_lambda_vars.push_back(free_vars.contains(
-          var, get_nth_type_in_lambda_type(lambda_type, i++)));
-    }
+    already_has_lambda_vars.push_back(free_vars.contains(
+        lambda->var, get_nth_type_in_lambda_type(lambda_type, 0)));
 #endif
 
     /* bind the params so that they do not appear as free variables from lower
      * scoping */
     auto new_globals = globals;
-    for (auto &var : lambda->vars) {
-      new_globals.insert(var.name);
-    }
+    new_globals.insert(lambda->var.name);
     get_free_vars(lambda->body, typing, new_globals, {}, free_vars);
 
 #ifdef ZION_DEBUG
     /* we should never be adding a bound variable name to the closure if it is
      * being overwritten at a lower scope prior to capture */
-    i = 0;
-    for (auto &var : lambda->vars) {
-      assert_implies(!already_has_lambda_vars[i],
-                     !free_vars.contains(
-                         var, get_nth_type_in_lambda_type(lambda_type, i)));
-      ++i;
-    }
+    assert_implies(!already_has_lambda_vars[i],
+                   !free_vars.contains(lambda->var, get_nth_type_in_lambda_type(
+                                                        lambda_type, 0)));
 #endif
   } else if (auto application = dcast<const ast::Application *>(expr)) {
     get_free_vars(application->a, typing, globals, locals, free_vars);
@@ -880,12 +872,9 @@ void gen_lambda(std::string name,
       // set_env_var(new_env, name, type, opaque_closure);
     }
 
-    assert(type_terms.size() - 1 == lambda->vars.size());
+    assert(type_terms.size() - 1 == 1);
     auto args_iter = llvm_function->args().begin();
-    for (size_t i = 0; i < type_terms.size() - 1; ++i) {
-      set_env_var(new_env_locals, lambda->vars[i].name, type_terms[i],
-                  &*args_iter++);
-    }
+    set_env_var(new_env_locals, lambda->var.name, type_terms[0], &*args_iter++);
 
     if (closure != nullptr) {
       assert(free_vars.typed_ids.size() != 0);

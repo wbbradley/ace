@@ -396,7 +396,11 @@ void logv_location(LogLevel level,
     return;
   }
 
-  _logger->logv(level, &location, format, args);
+  if (!_logger) {
+    vfprintf(stderr, format, args);
+  } else {
+    _logger->logv(level, &location, format, args);
+  }
 }
 
 void logv(LogLevel level, const char *format, va_list args) {
