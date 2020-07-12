@@ -81,13 +81,10 @@ types::Ref infer_core(const Expr *expr,
     auto t1 = infer(application->a, data_ctors_map, return_type,
                     scheme_resolver, tracked_types, constraints,
                     instance_requirements);
-    std::vector<types::Ref> param_types;
-    param_types.reserve(application->params.size());
-    for (auto &param : application->params) {
-      param_types.push_back(infer(param, data_ctors_map, return_type,
-                                  scheme_resolver, tracked_types, constraints,
-                                  instance_requirements));
-    }
+    types::Ref param_type;
+    param_type = infer(application->b, data_ctors_map, return_type,
+                       scheme_resolver, tracked_types, constraints,
+                       instance_requirements);
     auto t2 = type_params(param_types);
     auto tv = type_variable(expr->get_location());
     append_to_constraints(
