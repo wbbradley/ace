@@ -266,8 +266,8 @@ struct Sizeof : public Expr {
 };
 
 struct Application : public Expr {
-  Application(const Expr *a, const std::vector<const Expr *> &params)
-      : a(a), params(params) {
+  Application(const Expr *a, const Expr *param)
+      : a(a), param {
   }
   Location get_location() const override;
   std::ostream &render(std::ostream &os, int parent_precedence) const override;

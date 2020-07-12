@@ -1,6 +1,87 @@
 import math {Monoid, identity}
+import trigonometry {sin, cos}
 
-export {Matrix3}
+export {
+  V2, V3, Matrix3, translation2d, rotate2d, scale2d, multiply_vec3,
+  multiply_vec2, translation2d_vec2}
+
+newtype V2 = V2(Float, Float)
+
+instance Str V2 {
+  fn str(v) {
+    let V2(x, y) = v
+    return "V2(${x}, ${y})"
+  }
+}
+
+instance Num V2 {
+  fn from_int(i) => V2(float(i), 0.0)
+  fn +(a, b) {
+    let V2(x, y) = a
+    let V2(p, q) = b
+    return V2(x + p, y + q)
+  }
+  fn *(a, b) {
+    panic("Undefined operation (V2 multiplication)")
+    return a
+  }
+  fn -(a, b) {
+    let V2(x, y) = a
+    let V2(p, q) = b
+    return V2(x - p, y - q)
+  }
+  fn /(a, b) {
+    panic("Undefined operation (V2 division)")
+    return a
+  }
+  fn abs(a) {
+    panic("Undefined operation (V2 abs)")
+    return a
+  }
+  fn negate(a) {
+    let V2(x, y) = a
+    return V2(-x, -y)
+  }
+}
+
+newtype V3 = V3(Float, Float, Float)
+
+instance Num V3 {
+  fn from_int(i) => V3(float(i), 0.0, 0.0)
+  fn +(a, b) {
+    let V3(p, q, r) = a
+    let V3(s, t, u) = b
+    return V3(p + s, q + t, r + u)
+  }
+  fn *(a, b) {
+    panic("Undefined operation (V3 multiplication)")
+    return a
+  }
+  fn -(a, b) {
+    let V3(p, q, r) = a
+    let V3(s, t, u) = b
+    return V3(p - s, q - t, r - u)
+  }
+  fn /(a, b) {
+    panic("Undefined operation (V3 division)")
+    return a
+  }
+  fn abs(a) {
+    panic("Undefined operation (V3 abs)")
+    return a
+  }
+  fn negate(a) {
+    let V3(p, q, r) = a
+    return V3(-p, -q, -r)
+  }
+}
+
+instance Str V3 {
+  fn str(v) {
+    let V3(x, y, z) = v
+    return "V2(${x}, ${y}, ${z})"
+  }
+}
 
 struct Matrix3 {
   m1 Float
@@ -73,4 +154,32 @@ instance Num Matrix3 {
     panic("No such thing as a negation of a Matrix3")
     return a
   }
+}
+
+fn translation2d(dx, dy) => Matrix3(1.0, 0.0, dx, 0.0, 1.0, dy, 0.0, 0.0, 1.0)
+fn translation2d_vec2(v2) {
+  let V2(dx, dy) = v2
+  return Matrix3(1.0, 0.0, dx, 0.0, 1.0, dy, 0.0, 0.0, 1.0)
+}
+fn scale2d(sx, sy) => Matrix3(sx, 0.0, 0.0, 0.0, sy, 0.0, 0.0, 0.0, 1.0)
+fn rotate2d(radians) {
+  let cos_radians = cos(radians)
+  let sin_radians = sin(radians)
+  return Matrix3(cos_radians, -sin_radians, 0.0, sin_radians, cos_radians, 0.0, 0.0, 0.0, 1.0)
+}
+
+fn multiply_vec3(m Matrix3, v3 V3) {
+  let Matrix3(a, b, c, d, e, f, g, h, i) = m
+  let V3(x, y, z) = v3
+  return V3(a*x + b*y + c*z,
+            d*x + e*y + f*z,
+            g*x + h*y + i*z)
+}
+
+fn multiply_vec2(m Matrix3, v2 V2) {
+  # Assuming homogeneous coordinate = 1.
+  let Matrix3(a, b, c, d, e, f, _, _, _) = m
+  let V2(x, y) = v2
+  return V2(a*x + b*y + c,
+            d*x + e*y + f)
 }

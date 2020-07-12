@@ -1,7 +1,7 @@
 # test: pass
 # expect: Number of solutions is 92
 
-fn queens(rows Int, columns Int) [[Int]] {
+fn queens(rows, columns) {
     var solutions = [[]]
 
     for row in range(rows) {
@@ -20,7 +20,7 @@ fn copy_and_extend(solution, value) {
     return ret
 }
 
-fn add_one_queen(new_row Int, columns Int, prev_solutions [[Int]]) [[Int]] {
+fn add_one_queen(new_row, columns, prev_solutions) {
     let solutions = []
 
     for solution in prev_solutions {
@@ -34,7 +34,7 @@ fn add_one_queen(new_row Int, columns Int, prev_solutions [[Int]]) [[Int]] {
     return solutions
 }
 
-fn no_conflict(new_row Int, new_column Int, solution [Int]) bool {
+fn no_conflict(new_row, new_column, solution) {
     for row in range(new_row) {
         let condition = (
             solution[row]       != new_column           and

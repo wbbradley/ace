@@ -771,8 +771,9 @@ void gen_lambda(std::string name,
   llvm::FunctionType *llvm_function_type = get_llvm_arrow_function_type(
       builder, type_env, type_terms);
 
-  debug_above(4, log("created function type %s",
-                     llvm_print(llvm_function_type).c_str()));
+  debug_above(2,
+              log("created function %s :: %s with LLVM type %s", name.c_str(),
+                  type->str().c_str(), llvm_print(llvm_function_type).c_str()));
 
   llvm::Function *llvm_function = llvm::Function::Create(
       llvm_function_type, llvm::Function::ExternalLinkage, name,
@@ -1328,7 +1329,7 @@ ResolutionStatus gen(std::string name,
       auto td = gen(builder, llvm_module, defer_guard, break_to_block,
                     continue_to_block, tuple_deref->expr, typing, type_env,
                     gen_env_globals, gen_env_locals, globals);
-      debug_above(10, log_location(tuple_deref->expr->get_location(),
+      debug_above(2, log_location(tuple_deref->expr->get_location(),
                                    "created tuple deref %s from %s",
                                    llvm_print(td).c_str(),
                                    tuple_deref->expr->str().c_str()));
