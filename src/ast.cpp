@@ -508,9 +508,7 @@ tarjan::Vertices get_free_vars(
     return get_free_vars(lambda->body, new_bound_vars);
   } else if (auto application = dcast<const ast::Application *>(expr)) {
     tarjan::Vertices free_vars = get_free_vars(application->a, bound_vars);
-    for (auto &param : application->params) {
-      set_merge(free_vars, get_free_vars(param, bound_vars));
-    }
+    set_merge(free_vars, get_free_vars(application->b, bound_vars));
     return free_vars;
   } else if (auto let = dcast<const ast::Let *>(expr)) {
     tarjan::Vertices free_vars = get_free_vars(let->value, bound_vars);

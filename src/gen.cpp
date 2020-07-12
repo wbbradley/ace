@@ -44,10 +44,9 @@ struct DeferGuard {
     /* emit calls to deferred closures */
     for (auto closure_iter = defer_closures.rbegin();
          closure_iter != defer_closures.rend(); ++closure_iter) {
-      std::vector<llvm::Value *> args{
-          llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo())};
-      llvm_create_closure_callsite(INTERNAL_LOC(), builder, *closure_iter,
-                                   args);
+      llvm::Value *arg = llvm::Constant::getNullValue(
+          builder.getInt8Ty()->getPointerTo());
+      llvm_create_closure_callsite(INTERNAL_LOC(), builder, *closure_iter, arg);
     }
 
     called = true;
@@ -162,9 +161,7 @@ void get_free_vars(const ast::Expr *expr,
 #endif
   } else if (auto application = dcast<const ast::Application *>(expr)) {
     get_free_vars(application->a, typing, globals, locals, free_vars);
-    for (auto &param : application->params) {
-      get_free_vars(param, typing, globals, locals, free_vars);
-    }
+    get_free_vars(application->b, typing, globals, locals, free_vars);
   } else if (auto let = dcast<const ast::Let *>(expr)) {
     // TODO: allow let-rec
     get_free_vars(let->value, typing, globals, locals, free_vars);
@@ -1097,22 +1094,20 @@ ResolutionStatus gen(std::string name,
       debug_above(4, log("applying (%s :: %s) (%s :: ...TODO...)...",
                          application->a->str().c_str(),
                          typing.at(application->a)->str().c_str(),
-                         join_str(application->params, ", ").c_str()));
+                         typing.at(application->b)->str().c_str()));
 
       llvm::Value *closure = gen(builder, llvm_module, defer_guard,
                                  break_to_block, continue_to_block,
                                  application->a, typing, type_env,
                                  gen_env_globals, gen_env_locals, globals);
 
-      std::vector<llvm::Value *> args;
-      for (auto &param : application->params) {
-        args.push_back(gen(builder, llvm_module, defer_guard, break_to_block,
-                           continue_to_block, param, typing, type_env,
-                           gen_env_globals, gen_env_locals, globals));
-      }
+      llvm::Value *arg = gen(builder, llvm_module, defer_guard, break_to_block,
+                             continue_to_block, application->b, typing,
+                             type_env, gen_env_globals, gen_env_locals,
+                             globals);
 
       publish(llvm_create_closure_callsite(application->get_location(), builder,
-                                           closure, args));
+                                           closure, arg));
       return rs_cache_resolution;
     } else if (auto let = dcast<const ast::Let *>(expr)) {
       llvm::Value *let_value = nullptr;

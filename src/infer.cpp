@@ -81,19 +81,17 @@ types::Ref infer_core(const Expr *expr,
     auto t1 = infer(application->a, data_ctors_map, return_type,
                     scheme_resolver, tracked_types, constraints,
                     instance_requirements);
-    types::Ref param_type;
-    param_type = infer(application->b, data_ctors_map, return_type,
-                       scheme_resolver, tracked_types, constraints,
-                       instance_requirements);
-    auto t2 = type_params(param_types);
+    auto t2 = infer(application->b, data_ctors_map, return_type,
+                    scheme_resolver, tracked_types, constraints,
+                    instance_requirements);
     auto tv = type_variable(expr->get_location());
     append_to_constraints(
         constraints, t1, type_arrow(application->get_location(), t2, tv),
         make_context(application->get_location(),
-                     "(%s :: %s) applied to ((%s) :: %s) results in type %s",
+                     "(%s :: %s) applied to (%s :: %s) results in type %s",
                      application->a->str().c_str(), t1->str().c_str(),
-                     join_str(application->params, ", ").c_str(),
-                     t2->str().c_str(), tv->str().c_str()));
+                     application->b->str().c_str(), t2->str().c_str(),
+                     tv->str().c_str()));
     return tv;
   } else if (auto let = dcast<const Let *>(expr)) {
     auto t1 = infer(let->value, data_ctors_map, return_type, scheme_resolver,
@@ -142,13 +140,9 @@ types::Ref infer_core(const Expr *expr,
                           make_context(defer->get_location(),
                                        "defer must call nullary function"));
 
-    if (defer->application->params.size() != 1) {
-      throw user_error(defer->get_location(),
-                       "incorrect number of arguments passed to deferred call");
-    }
-    auto param_type = infer(defer->application->params[0], data_ctors_map,
-                            return_type, scheme_resolver, tracked_types,
-                            constraints, instance_requirements);
+    auto param_type = infer(defer->application->b, data_ctors_map, return_type,
+                            scheme_resolver, tracked_types, constraints,
+                            instance_requirements);
     auto t2 = type_params({param_type});
     append_to_constraints(
         constraints, t1,

@@ -1072,7 +1072,7 @@ const Expr *parse_postfix_expr(ParseState &ps) {
                     true /*force_cast*/);
       break;
     case tk_lparen: {
-      /* function call or implicit partial application (implicit lambda) */
+      /* function call */
       auto location = ps.token.location;
       ps.advance();
       if (ps.token.tk == tk_rparen) {
@@ -1089,8 +1089,7 @@ const Expr *parse_postfix_expr(ParseState &ps) {
             expect_token(tk_rparen);
           }
         }
-        expr = new Application(expr, callsite_refs);
-
+        expr = new Application(expr, std::move(callsite_refs));
         chomp_token(tk_rparen);
       }
       break;

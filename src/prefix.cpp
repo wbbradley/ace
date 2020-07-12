@@ -172,7 +172,7 @@ const Application *prefix_application(const std::set<std::string> &bindings,
                                       std::string pre,
                                       const Application *application) {
   return new Application(prefix(bindings, pre, application->a),
-                         prefix(bindings, pre, application->params));
+                         prefix(bindings, pre, application->b));
 }
 
 const Expr *prefix(const std::set<std::string> &bindings,

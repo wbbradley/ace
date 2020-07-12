@@ -145,11 +145,7 @@ const Expr *texpr(const types::DefnId &for_defn_id,
     } else if (auto application = dcast<const Application *>(expr)) {
       types::Ref operator_type = get_tracked_type(tracked_types,
                                                   application->a);
-      types::Refs operand_types;
-      for (auto &param : application->params) {
-        operand_types.push_back(get_tracked_type(tracked_types, param));
-      }
-      types::Ref operand_type = type_params(operand_types);
+      types::Ref operand_type = get_tracked_type(tracked_types, application->b);
 
       /* if we have unresolved types below us in the tree, we need to
        * propagate our known types down into them */
@@ -164,17 +160,12 @@ const Expr *texpr(const types::DefnId &for_defn_id,
       auto a = texpr(for_defn_id, application->a, data_ctors_map, bound_vars,
                      tracked_types, operator_type, type_env, typing,
                      needed_defns, returns);
-      std::vector<const Expr *> new_params;
-      assert(operand_types.size() == application->params.size());
-      for (size_t i = 0; i < application->params.size(); ++i) {
-        /* translate all the parameters */
-        auto &param = application->params[i];
-        new_params.push_back(
-            texpr(for_defn_id, param, data_ctors_map, bound_vars, tracked_types,
-                  operand_types[i]->rebind(unification.bindings), type_env,
-                  typing, needed_defns, returns));
-      }
-      auto new_app = new Application(a, {new_params});
+      /* translate the parameter */
+      const Expr *new_param = texpr(for_defn_id, application->b, data_ctors_map,
+                                    bound_vars, tracked_types,
+                                    operand_type->rebind(unification.bindings),
+                                    type_env, typing, needed_defns, returns);
+      auto new_app = new Application(a, new_param);
       typing[new_app] = type;
       return new_app;
     } else if (auto let = dcast<const Let *>(expr)) {
