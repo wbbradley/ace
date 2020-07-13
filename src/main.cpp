@@ -764,7 +764,7 @@ struct Phase2 {
 };
 
 static int get_builtin_arity(const types::Refs &terms) {
-  return terms.size() - 1;
+  return int(terms.size()) - 1;
 }
 
 std::map<std::string, int> get_builtin_arities() {

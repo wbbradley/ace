@@ -70,11 +70,11 @@ instance Repr () {
   fn repr(a) => "()"
 }
 
-fn strlen(sz *Char) Int => __builtin_ffi_1("zion_strlen", sz)
+fn strlen(sz *Char) Int => ffi zion_strlen(sz)
 
 instance Str Int {
   fn str(x Int) {
-    let sz = __builtin_ffi_1("zion_itoa", x)
+    let sz = ffi zion_itoa(x)
     return String(sz, strlen(sz))
   }
 }
@@ -93,8 +93,8 @@ instance Str UInt8 {
 
 instance Str Float {
   fn str(x) {
-    let sz = __builtin_ffi_1("zion_ftoa", x)
-    let length = __builtin_ffi_1("zion_strlen", sz)
+    let sz = ffi zion_ftoa(x)
+    let length = ffi zion_strlen(sz)
     return String(sz, length)
   }
 }
@@ -108,7 +108,7 @@ instance Str (var a) {
 }
 
 instance Str (* Char) {
-  fn str(a) => String(a, __builtin_ffi_1("zion_strlen", a))
+  fn str(a) => String(a, ffi zion_strlen(a))
 }
 
 instance Str [a] {
@@ -122,12 +122,12 @@ instance Str [a] {
 }
 
 fn putch(ch Char) () {
-  (__builtin_ffi_2("zion_write_char", 1, ch) as Int)!
+  (ffi zion_write_char(1, ch) as Int)!
 }
 
 fn print(x) () {
   let String(sz, length) = "${x}\n"
-  (__builtin_ffi_3("write", 1, sz, length) as Int)!
+  (ffi zion_write(1, sz, length) as Int)!
 }
 
 data Ref a {
@@ -419,7 +419,7 @@ instance ConvertibleToInt Int {
 
 instance ConvertibleToInt Char {
   fn int(a) Int {
-    return __builtin_ffi_1("zion_char_to_int", a)
+    return ffi zion_char_to_int(a)
   }
 }
 
@@ -434,13 +434,13 @@ class ConvertibleToFloat a {
 }
 
 instance ConvertibleToFloat Int {
-  fn float(a) => __builtin_ffi_1("zion_itof", a)
+  fn float(a) => ffi zion_itof(a)
 }
 
 instance ConvertibleToFloat String {
   fn float(a) Float {
     let String(sz, n) = a
-    return __builtin_ffi_2("zion_atof", sz, n)
+    return ffi zion_atof(sz, n)
   }
 }
 
@@ -611,33 +611,33 @@ instance Iterable [a] a {
 }
 
 fn isspace(ch Char) Bool {
-    return __builtin_ffi_1("isspace", int(ch))
+    return ffi isspace(int(ch))
 }
 
 fn isdigit(ch Char) Bool {
-    return __builtin_ffi_1("isdigit", int(ch))
+    return ffi isdigit(int(ch))
 }
   
 fn isalpha(ch Char) Bool {
-    return __builtin_ffi_1("isalpha", int(ch))
+    return ffi isalpha(int(ch))
 }
 
 fn islower(ch Char) Bool {
-    return __builtin_ffi_1("islower", int(ch))
+    return ffi islower(int(ch))
 }
 
 fn isupper(ch Char) Bool {
-    return __builtin_ffi_1("isupper", int(ch))
+    return ffi isupper(int(ch))
 }
 
 fn tolower(ch Char) Char {
     # Only good for ASCII as is.
-    return __builtin_ffi_1("tolower", int(ch))
+    return ffi tolower(int(ch))
 }
 
 fn toupper(ch Char) Char {
     # Only good for ASCII as is.
-    return __builtin_ffi_1("toupper", int(ch))
+    return ffi toupper(int(ch))
 }
 
 class CanSliceFrom collection sliced_collection  {
@@ -683,7 +683,7 @@ fn id(x) => x
 
 fn panic(x) {
     print(x)
-    __builtin_ffi_1("exit", 1)
+    ffi exit(1)
 }
 
 struct Range a {

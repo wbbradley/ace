@@ -98,6 +98,7 @@ K(defer);
 K(default);
 K(else);
 K(export);
+K(ffi);
 K(fn);
 K(for);
 K(has);

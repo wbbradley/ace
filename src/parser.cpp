@@ -414,6 +414,43 @@ const Expr *parse_statement(ParseState &ps) {
   }
 }
 
+const Expr *parse_ffi(ParseState &ps) {
+  auto location = ps.token.location;
+  chomp_ident(K(ffi));
+
+  if (ps.line_broke()) {
+    throw user_error(
+        location,
+        "there cannot be a line break splitting an ffi invocation. this is to "
+        "make grepping for ffi dependencies easier.");
+  }
+  /* get the name of the FFI user wants to call. Non-quoted is fine, but quotes
+   * are allowed in case of system linker/Zion lexer compatibility issues. */
+  Identifier id;
+  if (ps.token.tk == tk_identifier) {
+    id = iid(ps.token);
+  } else {
+    expect_token(tk_string);
+
+    id = Identifier(unescape_json_quotes(ps.token.text), ps.token.location);
+  }
+
+  ps.advance();
+
+  chomp_token(tk_lparen);
+  std::vector<const Expr *> exprs;
+  while (ps.token.tk != tk_rparen) {
+    exprs.push_back(parse_expr(ps, false /*allow_for_comprehensions*/));
+    if (ps.token.tk == tk_rparen) {
+      break;
+    }
+    chomp_token(tk_comma);
+  }
+  chomp_token(tk_rparen);
+
+  return new FFI(id, exprs);
+}
+
 const Expr *parse_var_ref(ParseState &ps) {
   if (ps.token.tk != tk_identifier) {
     throw user_error(ps.token.location, "expected an identifier");
@@ -518,6 +555,8 @@ const Expr *parse_base_expr(ParseState &ps) {
     return new As(
         new Literal(Token{ps.token_and_advance().location, tk_integer, "0"}),
         type_ptr(type_variable(ps.prior_token.location)), true /*force_cast*/);
+  } else if (ps.token.is_ident(K(ffi))) {
+    return parse_ffi(ps);
   } else if (ps.token.tk == tk_identifier) {
     return parse_var_ref(ps);
   } else {
@@ -1314,7 +1353,7 @@ const Expr *parse_bitwise_or(ParseState &ps) {
 }
 
 const Expr *fold_and_exprs(std::vector<const Expr *> exprs, int index) {
-  if (index < int(exprs.size() - 1)) {
+  if (index < int(exprs.size()) - 1) {
     Identifier term_id = make_iid(fresh());
     return new Let(term_id, exprs[index],
                    new Conditional(new Var(term_id),
@@ -1326,7 +1365,7 @@ const Expr *fold_and_exprs(std::vector<const Expr *> exprs, int index) {
 }
 
 const Expr *fold_or_exprs(std::vector<const Expr *> exprs, int index) {
-  if (index < int(exprs.size() - 1)) {
+  if (index < int(exprs.size()) - 1) {
     Identifier term_id = make_iid(fresh());
     return new Let(term_id, exprs[index],
                    new Conditional(new Var(term_id),
@@ -2163,7 +2202,7 @@ types::Ref create_ctor_type(Location location,
   param_types.push_back(type_decl->get_type());
   auto type = type_arrows(param_types);
 
-  for (int i = type_decl->params.size() - 1; i >= 0; --i) {
+  for (int i = int(type_decl->params.size()) - 1; i >= 0; --i) {
     type = type_lambda(type_decl->params[i], type);
   }
   return type;

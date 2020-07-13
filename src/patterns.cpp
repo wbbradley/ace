@@ -43,7 +43,7 @@ const Expr *build_patterns(const types::DefnId &for_defn_id,
 
     /* because we have coverage analysis for the patterns, we know we can
      * sometimes skip the checks, and just do the destructuring. */
-    bool do_checks = (index != int(pattern_blocks.size() - 1));
+    bool do_checks = (index != int(pattern_blocks.size()) - 1);
 
     auto scrutinee = new Var(scrutinee_id);
     typing[scrutinee] = scrutinee_type;
@@ -334,7 +334,7 @@ const Expr *CtorPredicate::translate(
   types::Refs ctor_terms = unfold_arrows(ctor_type);
 
   assert(ctor_terms.size() >= 1);
-  ctor_terms = vec_slice(ctor_terms, 0, ctor_terms.size() - 1);
+  ctor_terms = vec_slice(ctor_terms, 0, int(ctor_terms.size()) - 1);
 
   types::Ref resolved_scrutinee_type = scrutinee_type->eval(type_env,
                                                             true /*shallow*/);
@@ -519,6 +519,7 @@ const Expr *IrrefutablePredicate::translate(
     bool &returns,
     TranslateContinuationFn &matched,
     TranslateContinuationFn &) const {
+  assert(scrutinee_type != nullptr);
   debug_above(3, log_location(get_location(),
                               "matched irrefutable predicate for %s. "
                               "scrutinee_id = %s :: %s",

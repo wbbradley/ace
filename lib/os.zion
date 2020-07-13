@@ -2,7 +2,7 @@ export {getenv}
 
 fn getenv(s String) Maybe String {
   let String(sz, _) = s
-  let env = __builtin_ffi_1("getenv", sz) as *Char
+  let env = ffi getenv(sz) as *Char
   if env != null {
     return Just(str(env))
   } else {

@@ -49,6 +49,7 @@ types::Ref get_data_ctor_type(const DataCtorsMap &data_ctors_map,
 std::map<std::string, types::Ref> get_data_ctors_types(
     const DataCtorsMap &data_ctors_map,
     types::Ref type) {
+  std::cerr << "unfolding " << type->str() << std::endl;
   types::Refs type_terms;
   unfold_ops_lassoc(type, type_terms);
   assert(type_terms.size() != 0);
