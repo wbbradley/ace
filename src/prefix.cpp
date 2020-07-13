@@ -237,6 +237,13 @@ const Expr *prefix(const std::set<std::string> &bindings,
       exprs.push_back(prefix(bindings, pre, expr));
     }
     return new Builtin(new Var(builtin->var->id), exprs);
+  } else if (auto ffi = dcast<const FFI *>(value)) {
+    // NOTE: We do not prefix "C" FFI names.
+    std::vector<const Expr *> exprs;
+    for (auto expr : ffi->exprs) {
+      exprs.push_back(prefix(bindings, pre, expr));
+    }
+    return new FFI(ffi->id, exprs);
   } else if (auto defer = dcast<const Defer *>(value)) {
     return new Defer(prefix_application(bindings, pre, defer->application));
   } else {

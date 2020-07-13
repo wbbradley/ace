@@ -92,8 +92,7 @@ const Expr *parse_let(ParseState &ps, Identifier var_id, bool is_let) {
     initializer = parse_expr(ps, false /*allow_for_comprehensions*/);
   } else {
     initializer = new Application(
-        new Var(ps.id_mapped(Identifier{"new", location})),
-        unit_expr(INTERNAL_LOC()));
+        new Var(ps.id_mapped(Identifier{"new", location})), {});
   }
 
   BoundVarLifetimeTracker bvlt(ps);
@@ -174,8 +173,7 @@ const Expr *parse_for_block(ParseState &ps) {
           new Var(ps.id_mapped(Identifier{"iter", in_token.location})),
           iterable),
       new While(new Var(ps.id_mapped(Identifier{"True", in_token.location})),
-                new Match(new Application(new Var(iterator_id),
-                                          unit_expr(iterator_id.location)),
+                new Match(new Application(new Var(iterator_id), {}),
                           pattern_blocks)));
 }
 
@@ -183,7 +181,7 @@ const Expr *parse_new_expr(ParseState &ps) {
   ps.advance();
   return new As(new Application(new Var(ps.id_mapped(Identifier{
                                     "new", ps.prior_token.location})),
-                                unit_expr(ps.token.location)),
+                                {}),
                 parse_type(ps, true /*allow_top_level_application*/),
                 false /*force_cast*/);
 }
@@ -211,27 +209,22 @@ const Expr *parse_assert(ParseState &ps) {
       condition, // The condition we are asserting
       unit_expr(ps.token.location),
       new Block({
-          new As(new As(new Builtin(
-                            new Var(Identifier{"__builtin_ffi_3",
-                                               ps.token.location}),
-                            {
-                                new Literal(Token{ps.token.location, tk_string,
-                                                  "\"write\""}),
-                                new Literal(Token{ps.token.location, tk_integer,
-                                                  "2" /*stderr*/}),
-                                new Literal(
-                                    Token{ps.token.location, tk_string,
-                                          escape_json_quotes(assert_message)}),
-                                new Literal(Token{
-                                    ps.token.location, tk_integer,
-                                    std::to_string(assert_message.size())}),
-                            }),
-                        type_id(make_iid(INT_TYPE)), false /*force_cast*/),
-                 type_unit(INTERNAL_LOC()), true /*force_cast*/),
-          new Builtin(
-              new Var(make_iid("__builtin_ffi_1")),
-              {new Literal(Token{assert_token.location, tk_string, "\"exit\""}),
-               new Literal(Token{assert_token.location, tk_integer, "1"})}),
+          new As(
+              new As(new FFI(Identifier{"write", ps.token.location},
+                             {
+                                 new Literal(Token{ps.token.location,
+                                                   tk_integer, "2" /*stderr*/}),
+                                 new Literal(
+                                     Token{ps.token.location, tk_string,
+                                           escape_json_quotes(assert_message)}),
+                                 new Literal(Token{
+                                     ps.token.location, tk_integer,
+                                     std::to_string(assert_message.size())}),
+                             }),
+                     type_id(make_iid(INT_TYPE)), false /*force_cast*/),
+              type_unit(INTERNAL_LOC()), true /*force_cast*/),
+          new FFI(Identifier{"exit", assert_token.location},
+                  {new Literal(Token{assert_token.location, tk_integer, "1"})}),
           unit_expr(ps.token.location),
       }));
   chomp_token(tk_rparen);
@@ -322,7 +315,7 @@ const Expr *parse_with(ParseState &ps) {
      * block */
     std::vector<const Expr *> statements = {
         new Defer(
-            new Application(new Var(defer_id), unit_expr(defer_id.location))),
+            new Application(new Var(defer_id), {})),
         block};
     return new Match(
         context_manager_expr,
@@ -352,7 +345,7 @@ const Expr *parse_with(ParseState &ps) {
     /* construct the defer statement prior to the evaluation of the block */
     std::vector<const Expr *> statements = {
         new Defer(
-            new Application(new Var(defer_id), unit_expr(defer_id.location))),
+            new Application(new Var(defer_id), {})),
         block};
     return new Match(
         context_manager_expr,
@@ -561,8 +554,7 @@ const Expr *build_array_literal(Location location,
 
   return new Let(
       array_var->id,
-      new As(new Application(new Var(Identifier{"std.new", location}),
-                             unit_expr(location)),
+      new As(new Application(new Var(Identifier{"std.new", location}), {}),
              type_vector_type(type_variable(location)), false /*force_cast*/),
       new Block(stmts));
 }
@@ -635,8 +627,7 @@ const Expr *build_generator(Location location,
               {new While(
                    new Var(Identifier{"std.True", location}),
                    new Match(
-                       new Application(new Var(iterator_id),
-                                       unit_expr(location)),
+                       new Application(new Var(iterator_id), {}),
                        {new PatternBlock(
                             new CtorPredicate(
                                 location, {generator_for.predicate},
@@ -714,7 +705,7 @@ const Expr *parse_array_literal(ParseState &ps) {
               ? parse_expr(ps, false /*allow_for_comprehensions*/)
               : new Application(
                     new Var(Identifier{"math.max_bound", ps.token.location}),
-                    unit_expr(location)),
+                    {}),
           range_body);
 
       auto let_range_next = new Let(
@@ -1080,16 +1071,30 @@ const Expr *parse_postfix_expr(ParseState &ps) {
         expr = new Application(expr, unit_expr(ps.token.location));
       } else {
         std::vector<const Expr *> callsite_refs;
+        int commas = 0;
         for (int index = 0; ps.token.tk != tk_rparen; ++index) {
           callsite_refs.push_back(
               parse_expr(ps, true /*allow_for_comprehensions*/));
           if (ps.token.tk == tk_comma) {
+            ++commas;
             ps.advance();
           } else {
             expect_token(tk_rparen);
           }
         }
-        expr = new Application(expr, std::move(callsite_refs));
+        if (commas == 1 && callsite_refs.size() == 1) {
+          throw user_error(ps.prior_token.location,
+                           "unary tuples at callsites are not allowed (remove "
+                           "the trailing comma)");
+        } else if ((commas + 1) / 2 != callsite_refs.size() / 2) {
+          throw user_error(ps.prior_token.location,
+                           "strange number of commas!");
+        }
+        if (callsite_refs.size() == 1) {
+          expr = new Application(expr, callsite_refs[0]);
+        } else {
+          expr = new Application(expr, std::move(callsite_refs));
+        }
         chomp_token(tk_rparen);
       }
       break;
