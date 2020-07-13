@@ -493,7 +493,7 @@ llvm::FunctionType *get_llvm_arrow_function_type(llvm::IRBuilder<> &builder,
                                                  const types::TypeEnv &type_env,
                                                  const types::Refs &terms) {
   std::vector<llvm::Type *> llvm_param_types;
-  for (size_t i = 0; i < terms.size() - 1; ++i) {
+  for (size_t i = 0; i + 1 < terms.size(); ++i) {
     auto &term = terms[i];
     llvm_param_types.push_back(get_llvm_type(builder, type_env, term));
   }

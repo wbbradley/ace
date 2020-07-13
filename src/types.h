@@ -280,3 +280,8 @@ std::ostream &join_dimensions(std::ostream &os,
                               const types::Map &bindings);
 std::string get_name_from_index(const types::NameIndex &name_index, int i);
 bool is_valid_udt_initial_char(int ch);
+types::Refs get_ctor_terms(const types::Refs &outer_ctor_terms);
+types::Refs get_ctor_terms(Location location,
+                           std::string ctor_name,
+                           const types::Refs &outer_ctor_terms,
+                           int params_count);

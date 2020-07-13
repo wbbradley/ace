@@ -21,7 +21,7 @@ let SOCK_DGRAM = __host_int(SOCK_STREAM) as! Type
 fn socket(domain Domain, type Type) {
     let Domain(domain) = domain
     let Type(type) = type
-    let ret = __builtin_ffi_3("zion_socket", domain, type, 0)
+    let ret = ffi zion_socket(domain, type, 0)
     if ret == -1 {
         return ResourceFailure(get_errno())
     } else {

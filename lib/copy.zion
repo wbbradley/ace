@@ -13,6 +13,6 @@ class Deepcopy a {
 instance Deepcopy String {
   fn deepcopy(s) {
     let String(sz, cb) = s
-    return String(__builtin_ffi_2("GC_strndup", sz, cb), cb)
+    return String(ffi GC_strndup(sz, cb), cb)
   }
 }

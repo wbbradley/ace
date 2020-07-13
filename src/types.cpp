@@ -1001,3 +1001,40 @@ types::Ref tuple_deref_type(Location location,
   }
   return tuple->dimensions[index];
 }
+
+types::Refs get_ctor_terms(Location location,
+                           std::string ctor_name,
+                           const types::Refs &outer_ctor_terms,
+                           int params_count) {
+  assert(outer_ctor_terms.size() >= 1);
+
+  types::Refs ctor_terms = get_ctor_terms(outer_ctor_terms);
+
+  if (ctor_terms.size() != params_count) {
+    throw zion::user_error(
+        location, "incorrect number of sub-patterns given to %s (%d vs. %d)",
+        ctor_name.c_str(), ctor_terms.size(), params_count);
+  }
+
+  return ctor_terms;
+}
+
+types::Refs get_ctor_terms(const types::Refs &outer_ctor_terms) {
+  assert(outer_ctor_terms.size() >= 1);
+
+  types::Refs ctor_terms;
+
+  if (outer_ctor_terms.size() > 1) {
+    assert(outer_ctor_terms.size() == 2);
+    if (auto ctor_tuple = dyncast<const types::TypeTuple>(
+            outer_ctor_terms[0])) {
+      ctor_terms = ctor_tuple->dimensions;
+    } else {
+      // Handle single parameter data ctors. This only works because we have
+      // banished unary tuples.
+      ctor_terms.push_back(outer_ctor_terms[0]);
+    }
+  }
+
+  return ctor_terms;
+}

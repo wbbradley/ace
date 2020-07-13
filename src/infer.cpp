@@ -214,6 +214,14 @@ types::Ref infer_core(const Expr *expr,
                                        "dereferencing tuple index %d of %d",
                                        tuple_deref->index, tuple_deref->max));
     return dims[tuple_deref->index];
+  } else if (auto ffi = dcast<const FFI *>(expr)) {
+    types::Refs ts;
+    for (auto expr : ffi->exprs) {
+      ts.push_back(infer(expr, data_ctors_map, return_type, scheme_resolver,
+                         tracked_types, constraints, instance_requirements));
+    }
+    ts.push_back(type_variable(ffi->get_location()));
+    return ts.back();
   } else if (auto builtin = dcast<const Builtin *>(expr)) {
     types::Refs ts;
     for (auto expr : builtin->exprs) {
@@ -366,27 +374,8 @@ types::Ref CtorPredicate::tracking_infer(
                               ctor_type->str().c_str()));
 
   types::Refs outer_ctor_terms = unfold_arrows(ctor_type);
-
-  assert(outer_ctor_terms.size() >= 1);
-  types::Refs ctor_terms;
-
-  if (outer_ctor_terms.size() > 1) {
-    assert(outer_ctor_terms.size() == 2);
-    if (auto ctor_tuple = dyncast<const types::TypeTuple>(
-            outer_ctor_terms[0])) {
-      ctor_terms = ctor_tuple->dimensions;
-    } else {
-      // Handle single parameter data ctors. This only works because we have
-      // banished unary tuples.
-      ctor_terms.push_back(outer_ctor_terms[0]);
-    }
-    if (ctor_terms.size() != this->params.size()) {
-      throw user_error(
-          get_location(),
-          "incorrect number of sub-patterns given to %s (%d vs. %d)",
-          ctor_name.str().c_str(), ctor_terms.size(), params.size());
-    }
-  }
+  types::Refs ctor_terms = get_ctor_terms(get_location(), ctor_name.str(),
+                                          outer_ctor_terms, params.size());
 
   types::Ref result_type;
   for (size_t i = 0; i < params.size(); ++i) {
