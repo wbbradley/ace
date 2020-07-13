@@ -223,7 +223,7 @@ types::Ref infer_core(const Expr *expr,
     ts.push_back(type_variable(builtin->get_location()));
     auto t1 = infer(builtin->var, data_ctors_map, return_type, scheme_resolver,
                     tracked_types, constraints, instance_requirements);
-    append_to_constraints(constraints, t1, type_arrows(ts),
+    append_to_constraints(constraints, t1, type_builtin_arrows(ts),
                           make_context(builtin->get_location(), "builtin %s",
                                        builtin->var->str().c_str()));
     return ts.back();
@@ -365,14 +365,27 @@ types::Ref CtorPredicate::tracking_infer(
   debug_above(5, log_location(ctor_type->get_location(), "got ctor_type = %s",
                               ctor_type->str().c_str()));
 
-  types::Refs ctor_terms = unfold_arrows(ctor_type);
+  types::Refs outer_ctor_terms = unfold_arrows(ctor_type);
 
-  assert(ctor_terms.size() >= 1);
-  if (ctor_terms.size() - 1 != params.size()) {
-    throw user_error(get_location(),
-                     "incorrect number of sub-patterns given to %s (%d vs. %d)",
-                     ctor_name.str().c_str(), ctor_terms.size() - 1,
-                     params.size());
+  assert(outer_ctor_terms.size() >= 1);
+  types::Refs ctor_terms;
+
+  if (outer_ctor_terms.size() > 1) {
+    assert(outer_ctor_terms.size() == 2);
+    if (auto ctor_tuple = dyncast<const types::TypeTuple>(
+            outer_ctor_terms[0])) {
+      ctor_terms = ctor_tuple->dimensions;
+    } else {
+      // Handle single parameter data ctors. This only works because we have
+      // banished unary tuples.
+      ctor_terms.push_back(outer_ctor_terms[0]);
+    }
+    if (ctor_terms.size() != this->params.size()) {
+      throw user_error(
+          get_location(),
+          "incorrect number of sub-patterns given to %s (%d vs. %d)",
+          ctor_name.str().c_str(), ctor_terms.size(), params.size());
+    }
   }
 
   types::Ref result_type;
@@ -385,14 +398,14 @@ types::Ref CtorPredicate::tracking_infer(
                                        "checking subpattern %s",
                                        params[i]->str().c_str()));
   }
-
+  auto ctor_return_type = outer_ctor_terms.back();
   debug_above(8, log("CtorPredicate::infer(...) -> %s",
-                     ctor_terms.back()->str().c_str()));
+                     ctor_return_type->str().c_str()));
   if (name_assignment.valid) {
     scheme_resolver.insert_scheme(name_assignment.t.name,
-                                  scheme({}, {}, ctor_terms.back()));
+                                  scheme({}, {}, ctor_return_type));
   }
-  return ctor_terms.back();
+  return ctor_return_type;
 }
 
 } // namespace zion

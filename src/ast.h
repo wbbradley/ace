@@ -283,13 +283,11 @@ struct Sizeof : public Expr {
 };
 
 struct Application : public Expr {
-  Application(const Expr *a, const Expr *b) : a(a), b(b) {
+  Application(const Expr *a, const Expr *b = nullptr) : a(a), b(b ? b : unit_expr(INTERNAL_LOC())) {
   }
   Application(const Expr *a, const std::vector<const Expr *> &&tuple) : a(a) {
     if (tuple.size() == 0) {
       b = unit_expr(INTERNAL_LOC());
-    } else if (tuple.size() == 1) {
-      assert(false);
     } else {
       b = new Tuple(tuple[0]->get_location(), tuple);
     }
@@ -340,6 +338,18 @@ struct TupleDeref : public Expr {
 
   const Expr *expr;
   int index, max;
+};
+
+struct FFI : public Expr {
+  FFI(const Identifier id, std::vector<const Expr *> exprs)
+      : id(id), exprs(exprs) {
+  }
+
+  Location get_location() const override;
+  std::ostream &render(std::ostream &os, int parent_precedence) const override;
+
+  const Identifier id;
+  std::vector<const Expr *> exprs;
 };
 
 struct Builtin : public Expr {

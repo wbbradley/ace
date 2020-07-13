@@ -283,6 +283,18 @@ std::ostream &Builtin::render(std::ostream &os, int parent_precedence) const {
   return os;
 }
 
+Location FFI::get_location() const {
+  return id.location;
+}
+
+std::ostream &FFI::render(std::ostream &os, int parent_precedence) const {
+  os << C_WARN << "ffi(" << escape_json_quotes(id.name);
+  for (auto expr : exprs) {
+    os << ", " << expr->str();
+  }
+  return os << ")";
+}
+
 Location Conditional::get_location() const {
   return cond->get_location();
 }
@@ -545,6 +557,12 @@ tarjan::Vertices get_free_vars(
     return get_free_vars(as->expr, bound_vars);
   } else if (dcast<const ast::Sizeof *>(expr)) {
     return {};
+  } else if (auto ffi = dcast<const ast::FFI *>(expr)) {
+    tarjan::Vertices free_vars;
+    for (auto expr : ffi->exprs) {
+      set_merge(free_vars, get_free_vars(expr, bound_vars));
+    }
+    return free_vars;
   } else if (auto builtin = dcast<const ast::Builtin *>(expr)) {
     tarjan::Vertices free_vars;
     for (auto expr : builtin->exprs) {

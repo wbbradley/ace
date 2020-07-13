@@ -1,15 +1,13 @@
 # test: pass
 
 fn main() {
-    match True {
-        True {
-            if True {
-                while False {
-                }
-            }
-        }
-        False {
-        }
+  match True {
+    True {
+      if True {
+        while False {}
+      }
     }
-    print("PASS")
+    False {}
+  }
+  print("PASS")
 }

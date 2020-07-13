@@ -169,6 +169,29 @@ struct TypeTuple final : public Type {
   Refs dimensions;
 };
 
+struct TypeParams final : public Type {
+  typedef std::shared_ptr<const TypeParams> Ref;
+
+  TypeParams(Location location, const Refs &dimensions);
+
+  std::ostream &emit(std::ostream &os,
+                     const Map &bindings,
+                     int parent_precedence) const override;
+  void compute_ftvs() const override;
+  types::Ref eval(const TypeEnv &type_env, bool shallow) const override;
+  types::Ref rebind(const Map &bindings) const override;
+  types::Ref remap_vars(
+      const std::map<std::string, std::string> &map) const override;
+  types::Ref rewrite_ids(
+      const std::map<Identifier, Identifier> &rewrite_rules) const override;
+  types::Ref prefix_ids(const std::set<std::string> &bindings,
+                        const std::string &pre) const override;
+  Location get_location() const override;
+
+  Location location;
+  Refs dimensions;
+};
+
 struct TypeLambda final : public Type {
   TypeLambda(Identifier binding, Ref body);
   Identifier binding;
@@ -219,6 +242,7 @@ types::Ref type_void(Location location);
 types::Ref type_map(types::Ref a, types::Ref b);
 types::Ref type_arrow(Location location, types::Ref a, types::Ref b);
 types::Ref type_arrow(types::Ref a, types::Ref b);
+types::Ref type_builtin_arrows(types::Refs types);
 types::Ref type_arrows(types::Refs types);
 types::Refs unfold_arrows(types::Ref type);
 types::Ref type_id(Identifier var);
@@ -230,6 +254,7 @@ types::Ref type_operator(const types::Refs &xs);
 types::Ref type_deref(types::Ref type);
 types::TypeTuple::Ref type_tuple(types::Refs dimensions);
 types::TypeTuple::Ref type_tuple(Location location, types::Refs dimensions);
+types::Ref type_params(const types::Refs &parameters);
 types::Ref type_ptr(types::Ref raw);
 types::Ref type_lambda(Identifier binding, types::Ref body);
 types::Ref type_vector_type(types::Ref element);
