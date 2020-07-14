@@ -196,7 +196,8 @@ const Expr *Literal::translate(
   types::Ref type = get_tracked_type(tracked_types, this);
   auto Bool = type_id(make_iid(BOOL_TYPE));
   Var *literal_cmp = new Var(make_iid("std.=="));
-  types::Ref cmp_type = type_arrow(type_tuple({type, type}), Bool);
+  types::Ref cmp_type = type_arrow(type_params({type_tuple({type, type})}),
+                                   Bool);
 
   typing[literal_cmp] = cmp_type;
   insert_needed_defn(needed_defns, types::DefnId{literal_cmp->id, cmp_type},
@@ -292,6 +293,9 @@ const Expr *translate_next(const types::DefnId &for_defn_id,
                             0 /*ignored in gen phase*/);
   typing[dim] = param_types[param_index];
 
+  assert(params.size() > param_index);
+  assert(param_types.size() > param_index);
+
   auto body = params[param_index]->translate(
       for_defn_id, param_id, param_types[param_index], do_checks,
       data_ctors_map, bound_vars, tracked_types, type_env, typing, needed_defns,
@@ -331,10 +335,15 @@ const Expr *CtorPredicate::translate(
   static auto Bool = type_bool(INTERNAL_LOC());
   types::Ref ctor_type = get_data_ctor_type(data_ctors_map, scrutinee_type,
                                             ctor_name);
-  types::Refs ctor_terms = unfold_arrows(ctor_type);
+  types::Refs ctor_terms = get_ctor_param_terms(unfold_arrows(ctor_type));
 
-  assert(ctor_terms.size() >= 1);
-  ctor_terms = vec_slice(ctor_terms, 0, int(ctor_terms.size()) - 1);
+  debug_above(2,
+      log_location(get_location(),
+                   "in ctor %s scrutinee type %s has terms %s",
+                   ctor_name.str().c_str(), scrutinee_type->str().c_str(),
+                   ::str(ctor_terms).c_str()));
+  // assert(ctor_terms.size() >= 1);
+  // ctor_terms = vec_slice(ctor_terms, 0, int(ctor_terms.size()) - 1);
 
   types::Ref resolved_scrutinee_type = scrutinee_type->eval(type_env,
                                                             true /*shallow*/);
@@ -422,8 +431,8 @@ const Expr *CtorPredicate::translate(
       typing[condition] = type_bool(INTERNAL_LOC());
     } else {
       Var *cmp_ctor_id = new Var(make_iid("__builtin_cmp_ctor_id"));
-      typing[cmp_ctor_id] = type_arrow(type_tuple({scrutinee_type, Int}),
-                                       Bool);
+      typing[cmp_ctor_id] = type_arrow(
+          type_params({type_tuple({scrutinee_type, Int})}), Bool);
 
       condition = new Builtin(cmp_ctor_id, {scrutinee, ctor_id_literal});
       typing[condition] = type_bool(INTERNAL_LOC());

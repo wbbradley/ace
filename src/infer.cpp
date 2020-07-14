@@ -67,14 +67,14 @@ types::Ref infer_core(const Expr *expr,
                        "return type does not match type annotation :: %s",
                        lambda->return_type->str().c_str()));
     }
-    return type_arrow(tv, local_return_type);
+    return type_arrow(type_params({tv}), local_return_type);
   } else if (auto application = dcast<const Application *>(expr)) {
     auto t1 = infer(application->a, data_ctors_map, return_type,
                     scheme_resolver, tracked_types, constraints,
                     instance_requirements);
-    auto t2 = infer(application->b, data_ctors_map, return_type,
-                    scheme_resolver, tracked_types, constraints,
-                    instance_requirements);
+    auto t2 = type_params(
+        {infer(application->b, data_ctors_map, return_type, scheme_resolver,
+               tracked_types, constraints, instance_requirements)});
     auto tv = type_variable(expr->get_location());
     append_to_constraints(
         constraints, t1, type_arrow(application->get_location(), t2, tv),
@@ -131,9 +131,9 @@ types::Ref infer_core(const Expr *expr,
                           make_context(defer->get_location(),
                                        "defer must call nullary function"));
 
-    auto t2 = infer(defer->application->b, data_ctors_map, return_type,
-                            scheme_resolver, tracked_types, constraints,
-                            instance_requirements);
+    auto t2 = type_params({infer(defer->application->b, data_ctors_map,
+                                 return_type, scheme_resolver, tracked_types,
+                                 constraints, instance_requirements)});
     append_to_constraints(
         constraints, t1,
         type_arrow(defer->application->get_location(), t2,
@@ -374,8 +374,8 @@ types::Ref CtorPredicate::tracking_infer(
                               ctor_type->str().c_str()));
 
   types::Refs outer_ctor_terms = unfold_arrows(ctor_type);
-  types::Refs ctor_terms = get_ctor_terms(get_location(), ctor_name.str(),
-                                          outer_ctor_terms, params.size());
+  types::Refs ctor_terms = get_ctor_param_terms(
+      get_location(), ctor_name.str(), outer_ctor_terms, params.size());
 
   types::Ref result_type;
   for (size_t i = 0; i < params.size(); ++i) {

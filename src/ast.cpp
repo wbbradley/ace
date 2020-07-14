@@ -252,7 +252,7 @@ Location Tuple::get_location() const {
 std::ostream &Tuple::render(std::ostream &os, int parent_precedence) const {
   os << "(";
   for (auto dim : dims) {
-    dim->render(os, 0);
+    dim->render(os, 10);
     os << ",";
   }
   return os << ")";
@@ -288,11 +288,7 @@ Location FFI::get_location() const {
 }
 
 std::ostream &FFI::render(std::ostream &os, int parent_precedence) const {
-  os << C_WARN << "ffi(" << escape_json_quotes(id.name);
-  for (auto expr : exprs) {
-    os << ", " << expr->str();
-  }
-  return os << ")";
+  return os << C_WARN << "ffi " << id.str() << "(" << join_str(exprs) << ")";
 }
 
 Location Conditional::get_location() const {

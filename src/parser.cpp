@@ -1740,6 +1740,7 @@ const Predicate *parse_ctor_predicate(ParseState &ps,
   Identifier ctor_name = ps.identifier_and_advance();
 
   std::vector<const Predicate *> params;
+  auto location = ps.token.location;
   if (ps.token.tk == tk_lparen) {
     ps.advance();
     while (ps.token.tk != tk_rparen) {
@@ -1751,8 +1752,15 @@ const Predicate *parse_ctor_predicate(ParseState &ps,
     }
     chomp_token(tk_rparen);
   }
-  return new CtorPredicate(ctor_name.location, params, ctor_name,
-                           name_assignment);
+  if (params.size() <= 1) {
+    return new CtorPredicate(ctor_name.location, params, ctor_name,
+                             name_assignment);
+  } else {
+    return new CtorPredicate(
+        ctor_name.location,
+        {new TuplePredicate(location, params, maybe<Identifier>())}, ctor_name,
+        name_assignment);
+  }
 }
 
 const Predicate *parse_tuple_predicate(ParseState &ps,
@@ -2018,8 +2026,6 @@ const Expr *parse_lambda(ParseState &ps,
     }
     auto predicate = new TuplePredicate(ps.token.location, params,
                                         maybe<Identifier>());
-    // TODO: convert the lambda params to a tuple if they are >=2 and
-    // destructure their names into the given ids.
     return new Lambda(
         param_id, param_type, return_type,
         new Match(new Var(param_id),

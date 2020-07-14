@@ -150,7 +150,7 @@ const Expr *texpr(const types::DefnId &for_defn_id,
       types::Refs terms = unfold_arrows(operator_type);
       assert(terms.size() > 1);
 
-      types::Ref resolution_type = type_arrow(operand_type, type);
+      types::Ref resolution_type = type_arrow(type_params({operand_type}), type);
       types::Unification unification = unify(operator_type, resolution_type);
       assert(unification.result);
       operator_type = operator_type->rebind(unification.bindings);
@@ -278,6 +278,17 @@ const Expr *texpr(const types::DefnId &for_defn_id,
         assert(typing.count(expr));
         return expr;
       }
+    } else if (auto ffi = dcast<const FFI *>(expr)) {
+      std::vector<const Expr *> exprs;
+      for (auto expr : ffi->exprs) {
+        exprs.push_back(texpr(for_defn_id, expr, data_ctors_map, bound_vars,
+                              tracked_types,
+                              get_tracked_type(tracked_types, expr), type_env,
+                              typing, needed_defns, returns));
+      }
+      auto new_ffi = new FFI(ffi->id, exprs);
+      typing[new_ffi] = type;
+      return new_ffi;
     } else if (auto builtin = dcast<const Builtin *>(expr)) {
       std::vector<const Expr *> exprs;
       for (auto expr : builtin->exprs) {
