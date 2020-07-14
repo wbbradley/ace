@@ -399,8 +399,8 @@ Pattern::ref from_type(Location location,
     return allFloats;
   } else if (unify(type, type_ptr(type_variable(location))).result) {
     return all_of(location, {}, data_ctors_map, type);
-  } else if (unify(type,
-                   type_arrow(type_variable(location), type_variable(location)))
+  } else if (unify(type, type_arrow(type_params({type_variable(location)}),
+                                    type_variable(location)))
                  .result) {
     return all_of(location, {}, data_ctors_map, type);
   } else {
@@ -410,7 +410,7 @@ Pattern::ref from_type(Location location,
 
     for (auto pair : ctors_types) {
       auto &ctor_name = pair.first;
-      auto ctor_terms = get_ctor_terms(unfold_arrows(pair.second));
+      auto ctor_terms = get_ctor_param_terms(unfold_arrows(pair.second));
 
       std::vector<Pattern::ref> args;
       if (ctor_terms.size() != 0) {
@@ -732,7 +732,7 @@ Pattern::ref CtorPredicate::get_pattern(
   auto outer_ctor_terms = unfold_arrows(
       get_data_ctor_type(data_ctors_map, type, ctor_name));
 
-  types::Refs ctor_terms = get_ctor_terms(get_location(), ctor_name.str(),
+  types::Refs ctor_terms = get_ctor_param_terms(get_location(), ctor_name.str(),
                                           outer_ctor_terms, params.size());
 
   std::vector<Pattern::ref> args;
@@ -740,8 +740,9 @@ Pattern::ref CtorPredicate::get_pattern(
     args.push_back(params[i]->get_pattern(ctor_terms[i], data_ctors_map));
   }
 
-  std::cerr << "Pattern for CtorPredicate for " << type->str() << " has args "
-            << join_str(args) << std::endl;
+  debug_above(4, log("pattern for CtorPredicate for %s has args %s",
+                     type->str().c_str(), join_str(args).c_str()));
+
   /* found the ctor we're matching on */
   return std::make_shared<CtorPattern>(
       location, CtorPatternValue{type->repr(), ctor_name.name, args});

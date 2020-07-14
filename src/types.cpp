@@ -841,9 +841,9 @@ types::Ref type_arrows(types::Refs types) {
   auto return_type = types.back();
   types.resize(types.size() - 1);
   if (types.size() == 1) {
-    return type_arrow(types[0], return_type);
+    return type_arrow(type_params({types[0]}), return_type);
   } else {
-    return type_arrow(type_tuple(types), return_type);
+    return type_arrow(type_params({type_tuple(types)}), return_type);
   }
 }
 
@@ -853,14 +853,11 @@ types::Refs unfold_arrows(types::Ref type) {
     auto nested_op = dyncast<const types::TypeOperator>(op->oper);
     if (nested_op != nullptr) {
       if (is_type_id(nested_op->oper, ARROW_TYPE_OPERATOR)) {
-        if (auto type_params = dyncast<const types::TypeParams>(
-                nested_op->operand)) {
-          types::Refs terms = type_params->dimensions;
-          terms.push_back(op->operand);
-          return terms;
-        } else {
-          return {nested_op->operand, op->operand};
-        }
+        auto type_params = safe_dyncast<const types::TypeParams>(
+            nested_op->operand);
+        types::Refs terms = type_params->dimensions;
+        terms.push_back(op->operand);
+        return terms;
       }
     }
   }
@@ -883,7 +880,7 @@ types::Ref type_tuple_accessor(int i,
   for (int j = 0; j < max; ++j) {
     dims.push_back(type_variable(make_iid(vars[j])));
   }
-  return type_arrow(type_tuple(dims),
+  return type_arrow(type_params({type_tuple(dims)}),
                     type_variable(make_iid(vars[i])));
 }
 
@@ -1002,39 +999,30 @@ types::Ref tuple_deref_type(Location location,
   return tuple->dimensions[index];
 }
 
-types::Refs get_ctor_terms(Location location,
-                           std::string ctor_name,
-                           const types::Refs &outer_ctor_terms,
-                           int params_count) {
+types::Refs get_ctor_param_terms(Location location,
+                                 std::string ctor_name,
+                                 const types::Refs &outer_ctor_terms,
+                                 int params_count) {
   assert(outer_ctor_terms.size() >= 1);
 
-  types::Refs ctor_terms = get_ctor_terms(outer_ctor_terms);
+  types::Refs ctor_param_terms = get_ctor_param_terms(outer_ctor_terms);
 
-  if (ctor_terms.size() != params_count) {
-    throw zion::user_error(
-        location, "incorrect number of sub-patterns given to %s (%d vs. %d)",
-        ctor_name.c_str(), ctor_terms.size(), params_count);
+  if (ctor_param_terms.size() != params_count) {
+    throw zion::user_error(location,
+                           "incorrect number of sub-patterns given to %s (%d "
+                           "vs. %d) (outer terms = %s)",
+                           ctor_name.c_str(), ctor_param_terms.size(),
+                           params_count, str(outer_ctor_terms).c_str());
   }
 
-  return ctor_terms;
+  return ctor_param_terms;
 }
 
-types::Refs get_ctor_terms(const types::Refs &outer_ctor_terms) {
-  assert(outer_ctor_terms.size() >= 1);
-
-  types::Refs ctor_terms;
-
+types::Refs get_ctor_param_terms(const types::Refs &outer_ctor_terms) {
   if (outer_ctor_terms.size() > 1) {
     assert(outer_ctor_terms.size() == 2);
-    if (auto ctor_tuple = dyncast<const types::TypeTuple>(
-            outer_ctor_terms[0])) {
-      ctor_terms = ctor_tuple->dimensions;
-    } else {
-      // Handle single parameter data ctors. This only works because we have
-      // banished unary tuples.
-      ctor_terms.push_back(outer_ctor_terms[0]);
-    }
+    return {outer_ctor_terms.front()};
+  } else {
+    return {};
   }
-
-  return ctor_terms;
 }

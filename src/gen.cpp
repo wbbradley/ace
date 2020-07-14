@@ -184,6 +184,10 @@ void get_free_vars(const ast::Expr *expr,
   } else if (auto as = dcast<const ast::As *>(expr)) {
     get_free_vars(as->expr, typing, globals, locals, free_vars);
   } else if (dcast<const ast::Sizeof *>(expr)) {
+  } else if (auto ffi = dcast<const ast::FFI *>(expr)) {
+    for (auto expr : ffi->exprs) {
+      get_free_vars(expr, typing, globals, locals, free_vars);
+    }
   } else if (auto builtin = dcast<const ast::Builtin *>(expr)) {
     for (auto expr : builtin->exprs) {
       get_free_vars(expr, typing, globals, locals, free_vars);
