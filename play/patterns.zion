@@ -22,19 +22,19 @@ type Pattern is {
 }
 
 fn pattern_from_type(t DataType) Pattern {
-	match t {
-        DataType(typename, ctors) {
-            ctor_patterns := new [CtorPatternValue]
-            for ctor in ctors {
-                arg_patterns := new [Pattern]
-                for arg_type in ctor.arg_types {
-                    append(arg_patterns, AllOf(arg_type))
-                }
-                append(ctor_patterns, CtorPatternValue(typename, ctor.name, arg_patterns))
-            }
-            return CtorPatterns(ctor_patterns)
+  match t {
+    DataType(typename, ctors) {
+      ctor_patterns := new [CtorPatternValue]
+      for ctor in ctors {
+        arg_patterns := new [Pattern]
+        for arg_type in ctor.arg_types {
+          append(arg_patterns, AllOf(arg_type))
         }
-	}
+        append(ctor_patterns, CtorPatternValue(typename, ctor.name, arg_patterns))
+      }
+      return CtorPatterns(ctor_patterns)
+    }
+  }
 }
 			
 type Pair T S is Pair(lhs T, rhs S)

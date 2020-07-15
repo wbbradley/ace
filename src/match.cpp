@@ -458,7 +458,10 @@ void difference(Location location,
   } else if (lhs.args.size() == 0) {
     send(theNothing);
   } else {
-    assert(lhs.args.size() == rhs.args.size());
+    if (lhs.args.size() != rhs.args.size()) {
+      throw zion::user_error(location, "pattern %s does not match pattern %s",
+                             lhs.str().c_str(), rhs.str().c_str());
+    }
     size_t i = 0;
     auto send_ctor_pattern = [location, &i, &lhs, &send](Pattern::ref arg) {
       if (dyncast<const Nothing>(arg)) {

@@ -1006,6 +1006,16 @@ types::Refs get_ctor_param_terms(Location location,
   assert(outer_ctor_terms.size() >= 1);
 
   types::Refs ctor_param_terms = get_ctor_param_terms(outer_ctor_terms);
+  if (params_count > 1) {
+    /* no-unary-tuple: ugh, this is so hacky */
+    if (ctor_param_terms.size() == 1) {
+      if (auto tuple_type = dyncast<const types::TypeTuple>(ctor_param_terms.front())) {
+        ctor_param_terms = tuple_type->dimensions;
+      } else {
+        throw zion::user_error(location, "wrong number of params given to pattern");
+      }
+    }
+  }
 
   if (ctor_param_terms.size() != params_count) {
     throw zion::user_error(location,
