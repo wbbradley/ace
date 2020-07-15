@@ -1758,7 +1758,8 @@ const Predicate *parse_ctor_predicate(ParseState &ps,
   } else {
     return new CtorPredicate(
         ctor_name.location,
-        {new TuplePredicate(location, params, maybe<Identifier>())}, ctor_name,
+        params,
+        ctor_name,
         name_assignment);
   }
 }
