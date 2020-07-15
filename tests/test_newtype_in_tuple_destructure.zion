@@ -1,0 +1,17 @@
+# test: pass
+# expect: 0
+
+newtype Q = Q(Int)
+
+instance Str Q {
+  fn str(q) {
+    let Q(x) = q
+    return "Q(${x})"
+  }
+}
+
+fn main() {
+  let s = Q(0)
+  let (Q(p),) = (s,)
+  print(p)
+}

@@ -160,6 +160,13 @@ types::Ref prefix(const std::set<std::string> &bindings,
 }
 
 std::set<std::string> without(const std::set<std::string> &s,
+                              const Identifier &var) {
+  std::set<std::string> c = s;
+  c.erase(var.name);
+  return c;
+}
+
+std::set<std::string> without(const std::set<std::string> &s,
                               const Identifiers &vars) {
   std::set<std::string> c = s;
   for (auto &var : vars) {
@@ -172,7 +179,7 @@ const Application *prefix_application(const std::set<std::string> &bindings,
                                       std::string pre,
                                       const Application *application) {
   return new Application(prefix(bindings, pre, application->a),
-                         prefix(bindings, pre, application->params));
+                         prefix(bindings, pre, application->b));
 }
 
 const Expr *prefix(const std::set<std::string> &bindings,
@@ -195,9 +202,9 @@ const Expr *prefix(const std::set<std::string> &bindings,
     return prefix_application(bindings, pre, application);
   } else if (auto lambda = dcast<const Lambda *>(value)) {
     return new Lambda(
-        lambda->vars, prefix(bindings, pre, lambda->param_types),
+        lambda->var, prefix(bindings, pre, lambda->param_type),
         prefix(bindings, pre, lambda->return_type),
-        prefix(without(bindings, lambda->vars), pre, lambda->body));
+        prefix(without(bindings, lambda->var), pre, lambda->body));
   } else if (auto let = dcast<const Let *>(value)) {
     return new Let(let->var,
                    prefix(::without(bindings, let->var.name), pre, let->value),
@@ -230,6 +237,13 @@ const Expr *prefix(const std::set<std::string> &bindings,
       exprs.push_back(prefix(bindings, pre, expr));
     }
     return new Builtin(new Var(builtin->var->id), exprs);
+  } else if (auto ffi = dcast<const FFI *>(value)) {
+    // NOTE: We do not prefix "C" FFI names.
+    std::vector<const Expr *> exprs;
+    for (auto expr : ffi->exprs) {
+      exprs.push_back(prefix(bindings, pre, expr));
+    }
+    return new FFI(ffi->id, exprs);
   } else if (auto defer = dcast<const Defer *>(value)) {
     return new Defer(prefix_application(bindings, pre, defer->application));
   } else {

@@ -155,6 +155,8 @@ Unification unify(Ref a, Ref b) {
   assert(a != nullptr);
   assert(b != nullptr);
   debug_above(8, log("unify(%s, %s)", a->str().c_str(), b->str().c_str()));
+  debug_above(9, log_location(a->get_location(), "%s", a->str().c_str()));
+  debug_above(10, log_location(b->get_location(), "%s", b->str().c_str()));
   if (type_equality(a, b)) {
     return Unification{true, INTERNAL_LOC(), "", {}};
   }

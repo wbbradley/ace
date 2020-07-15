@@ -46,22 +46,13 @@ types::Ref infer_core(const Expr *expr,
     set_concat(instance_requirements, scheme->predicates);
     return scheme->type;
   } else if (auto lambda = dcast<const Lambda *>(expr)) {
-    types::Refs tvs;
-    int i = 0;
-    assert(lambda->param_types.size() == lambda->vars.size());
-    for (auto &param_type : lambda->param_types) {
-      assert(param_type != nullptr);
-      tvs.push_back(param_type);
-    }
+    types::Ref tv = lambda->param_type;
     auto local_return_type = type_variable(lambda->get_location());
     /* lambdas are monomorphic at the time of initialization/definition/capture.
      * so, we do not include the vars |tvs| in the scheme. this way, when the
      * scheme freshens, it will not erase the reference to this variable. */
     types::SchemeResolver local_scheme_resolver(&scheme_resolver);
-    i = 0;
-    for (const Identifier &var : lambda->vars) {
-      local_scheme_resolver.insert_scheme(var.name, scheme({}, {}, tvs[i++]));
-    }
+    local_scheme_resolver.insert_scheme(lambda->var.name, scheme({}, {}, tv));
     auto body_type = infer(lambda->body, data_ctors_map, local_return_type,
                            local_scheme_resolver, tracked_types, constraints,
                            instance_requirements);
@@ -76,27 +67,22 @@ types::Ref infer_core(const Expr *expr,
                        "return type does not match type annotation :: %s",
                        lambda->return_type->str().c_str()));
     }
-    return type_arrow(type_params(tvs), local_return_type);
+    return type_arrow(type_params({tv}), local_return_type);
   } else if (auto application = dcast<const Application *>(expr)) {
     auto t1 = infer(application->a, data_ctors_map, return_type,
                     scheme_resolver, tracked_types, constraints,
                     instance_requirements);
-    std::vector<types::Ref> param_types;
-    param_types.reserve(application->params.size());
-    for (auto &param : application->params) {
-      param_types.push_back(infer(param, data_ctors_map, return_type,
-                                  scheme_resolver, tracked_types, constraints,
-                                  instance_requirements));
-    }
-    auto t2 = type_params(param_types);
+    auto t2 = type_params(
+        {infer(application->b, data_ctors_map, return_type, scheme_resolver,
+               tracked_types, constraints, instance_requirements)});
     auto tv = type_variable(expr->get_location());
     append_to_constraints(
         constraints, t1, type_arrow(application->get_location(), t2, tv),
         make_context(application->get_location(),
-                     "(%s :: %s) applied to ((%s) :: %s) results in type %s",
+                     "(%s :: %s) applied to (%s :: %s) results in type %s",
                      application->a->str().c_str(), t1->str().c_str(),
-                     join_str(application->params, ", ").c_str(),
-                     t2->str().c_str(), tv->str().c_str()));
+                     application->b->str().c_str(), t2->str().c_str(),
+                     tv->str().c_str()));
     return tv;
   } else if (auto let = dcast<const Let *>(expr)) {
     auto t1 = infer(let->value, data_ctors_map, return_type, scheme_resolver,
@@ -145,14 +131,9 @@ types::Ref infer_core(const Expr *expr,
                           make_context(defer->get_location(),
                                        "defer must call nullary function"));
 
-    if (defer->application->params.size() != 1) {
-      throw user_error(defer->get_location(),
-                       "incorrect number of arguments passed to deferred call");
-    }
-    auto param_type = infer(defer->application->params[0], data_ctors_map,
-                            return_type, scheme_resolver, tracked_types,
-                            constraints, instance_requirements);
-    auto t2 = type_params({param_type});
+    auto t2 = type_params({infer(defer->application->b, data_ctors_map,
+                                 return_type, scheme_resolver, tracked_types,
+                                 constraints, instance_requirements)});
     append_to_constraints(
         constraints, t1,
         type_arrow(defer->application->get_location(), t2,
@@ -160,7 +141,7 @@ types::Ref infer_core(const Expr *expr,
         make_context(defer->application->get_location(),
                      "deferred application should have type () -> ()"));
     append_to_constraints(
-        constraints, param_type, type_unit(INTERNAL_LOC()),
+        constraints, t2, type_unit(INTERNAL_LOC()),
         make_context(defer->application->get_location(),
                      "only () may be applied at a deferred callsite"));
     tracked_types[defer->application] = type_unit(INTERNAL_LOC());
@@ -233,6 +214,14 @@ types::Ref infer_core(const Expr *expr,
                                        "dereferencing tuple index %d of %d",
                                        tuple_deref->index, tuple_deref->max));
     return dims[tuple_deref->index];
+  } else if (auto ffi = dcast<const FFI *>(expr)) {
+    types::Refs ts;
+    for (auto expr : ffi->exprs) {
+      ts.push_back(infer(expr, data_ctors_map, return_type, scheme_resolver,
+                         tracked_types, constraints, instance_requirements));
+    }
+    ts.push_back(type_variable(ffi->get_location()));
+    return ts.back();
   } else if (auto builtin = dcast<const Builtin *>(expr)) {
     types::Refs ts;
     for (auto expr : builtin->exprs) {
@@ -242,7 +231,7 @@ types::Ref infer_core(const Expr *expr,
     ts.push_back(type_variable(builtin->get_location()));
     auto t1 = infer(builtin->var, data_ctors_map, return_type, scheme_resolver,
                     tracked_types, constraints, instance_requirements);
-    append_to_constraints(constraints, t1, type_arrows(ts),
+    append_to_constraints(constraints, t1, type_builtin_arrows(ts),
                           make_context(builtin->get_location(), "builtin %s",
                                        builtin->var->str().c_str()));
     return ts.back();
@@ -384,15 +373,9 @@ types::Ref CtorPredicate::tracking_infer(
   debug_above(5, log_location(ctor_type->get_location(), "got ctor_type = %s",
                               ctor_type->str().c_str()));
 
-  types::Refs ctor_terms = unfold_arrows(ctor_type);
-
-  assert(ctor_terms.size() >= 1);
-  if (ctor_terms.size() - 1 != params.size()) {
-    throw user_error(get_location(),
-                     "incorrect number of sub-patterns given to %s (%d vs. %d)",
-                     ctor_name.str().c_str(), ctor_terms.size() - 1,
-                     params.size());
-  }
+  types::Refs outer_ctor_terms = unfold_arrows(ctor_type);
+  types::Refs ctor_terms = get_ctor_param_terms(
+      get_location(), ctor_name.str(), outer_ctor_terms, params.size());
 
   types::Ref result_type;
   for (size_t i = 0; i < params.size(); ++i) {
@@ -404,14 +387,14 @@ types::Ref CtorPredicate::tracking_infer(
                                        "checking subpattern %s",
                                        params[i]->str().c_str()));
   }
-
+  auto ctor_return_type = outer_ctor_terms.back();
   debug_above(8, log("CtorPredicate::infer(...) -> %s",
-                     ctor_terms.back()->str().c_str()));
+                     ctor_return_type->str().c_str()));
   if (name_assignment.valid) {
     scheme_resolver.insert_scheme(name_assignment.t.name,
-                                  scheme({}, {}, ctor_terms.back()));
+                                  scheme({}, {}, ctor_return_type));
   }
-  return ctor_terms.back();
+  return ctor_return_type;
 }
 
 } // namespace zion

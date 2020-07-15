@@ -348,6 +348,10 @@ bool any_in(const C1 &needles, const C2 &haystack) {
 
 template <typename V>
 std::vector<V> vec_slice(const std::vector<V> &orig, int start, int lim) {
+  assert(start <= orig.size());
+  assert(lim <= orig.size());
+  assert(lim >= start);
+
   std::vector<V> output;
   output.reserve(lim - start);
   for (int i = start; i < lim; ++i) {

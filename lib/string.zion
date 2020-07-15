@@ -67,7 +67,7 @@ instance Ord String {
     fn compare(a, b) {
         let String(a, len_a) = a
         let String(b, len_b) = b
-        let ret = __builtin_ffi_3("zion_memcmp", a, b, min(len_a, len_b))
+        let ret = ffi zion_memcmp(a, b, min(len_a, len_b))
         if ret == 0 {
             if len_a == len_b {
                 return EQ
@@ -172,7 +172,7 @@ fn chomp(s String) String {
 fn has_substring(haystack String, needle String) Bool {
     let String(haystack, _) = haystack
     let String(needle, _) = needle
-    return __builtin_ffi_2("strstr", haystack, needle) != null as *Char
+    return ffi strstr(haystack, needle) != null as *Char
 }
 
 fn has_substring_at(haystack String, index Int, needle String) Bool {
@@ -180,7 +180,7 @@ fn has_substring_at(haystack String, index Int, needle String) Bool {
     let String(needle, needle_len) = needle
     if haystack_len - index >= needle_len {
       let haystack_ptr = __builtin_ptr_add(haystack, index) as *Char
-      return __builtin_ffi_3("memcmp", haystack_ptr, needle, needle_len) == 0
+      return ffi memcmp(haystack_ptr, needle, needle_len) == 0
     } else {
       return False
     }
@@ -192,14 +192,14 @@ fn strstr_index(haystack *Char, haystack_len Int, needle *Char, needle_len Int) 
         return -1
     }
 
-    let pos = __builtin_ffi_2("strstr", haystack, needle) as *Char
+    let pos = ffi strstr(haystack, needle) as *Char
     return pos != null ? (pos as! Int) - (haystack as! Int) : -1
 }
 
 fn has_prefix(haystack String, needle String) Bool {
     let String(haystack, _) = haystack
     let String(needle, len) = needle
-    return __builtin_ffi_3("strncmp", haystack, needle, len) == 0
+    return ffi strncmp(haystack, needle, len) == 0
 }
 
 fn has_suffix(haystack String, needle String) Bool {
@@ -208,11 +208,10 @@ fn has_suffix(haystack String, needle String) Bool {
     if len_haystack < len_needle {
         return False
     }
-    return __builtin_ffi_3(
-        "memcmp",
-        __builtin_ptr_add(haystack, len_haystack - len_needle),
-        needle,
-        len_needle) == 0
+    return ffi memcmp(
+      __builtin_ptr_add(haystack, len_haystack - len_needle),
+      needle,
+      len_needle) == 0
 }
 
 fn replace(source String, term String, new_term String) String {
@@ -241,40 +240,40 @@ fn replace(source String, term String, new_term String) String {
 }
 
 fn join(delim_ String, xs) String {
-    let results = [] as [String]
-    var total = 0
-    var cur_delim_len = 0
-    let delim_len = len(delim_)
-    var count = 0
-    for x in xs {
-        count += 1
-        let s = str(x)
-        append(results, s)
-        total = total + len(s)
-        cur_delim_len = delim_len
+  let results = [] as [String]
+  var total = 0
+  var cur_delim_len = 0
+  let delim_len = len(delim_)
+  var count = 0
+  for x in xs {
+    count += 1
+    let s = str(x)
+    append(results, s)
+    total = total + len(s)
+    cur_delim_len = delim_len
+  }
+  if count == 0 {
+    return ""
+  }
+  let len_delim = len(delim_)
+  total += len_delim * (count - 1)
+  let buf = alloc(total + 1)
+  var i = 0
+  for r in results {
+    if i * len_delim != 0 {
+      for ch in delim_ {
+        buf[i] = ch
+        i = i + 1
+      }
     }
-    if count == 0 {
-      return ""
+    for ch in r {
+      buf[i] = ch
+      i = i + 1
     }
-    let len_delim = len(delim_)
-    total += len_delim * (count - 1)
-    let buf = alloc(total + 1)
-    var i = 0
-    for r in results {
-        if i * len_delim != 0 {
-            for ch in delim_ {
-                buf[i] = ch
-                i = i + 1
-            }
-        }
-        for ch in r {
-            buf[i] = ch
-            i = i + 1
-        }
-    }
-    buf[i] = '\0'
+  }
+  buf[i] = '\0'
 
-    return String(buf, i)
+  return String(buf, i)
 }
 
 fn concat(a String, b String) String {
@@ -303,7 +302,7 @@ instance CanSliceFrom String String {
         }
         let new_len = cb - index
         assert(new_len > 0)
-        return String(__builtin_ffi_2("GC_strndup", __builtin_ptr_add(sz, index), new_len), new_len)
+        return String(ffi GC_strndup(__builtin_ptr_add(sz, index), new_len), new_len)
     }
 }
 
@@ -322,7 +321,7 @@ instance CanSliceFromTo String String {
     if new_len <= 0 {
       return ""
     }
-    return String(__builtin_ffi_2("GC_strndup", __builtin_ptr_add(sz, index), new_len), new_len)
+    return String(ffi GC_strndup(__builtin_ptr_add(sz, index), new_len), new_len)
   }
 }
 
@@ -335,7 +334,7 @@ instance Serializeable String {
 }
 
 fn memmem(big *Char, big_len Int, little *Char, little_len Int) *Char {
-  return __builtin_ffi_4("zion_memmem", big, big_len, little, little_len)
+  return ffi zion_memmem(big, big_len, little, little_len)
 }
 
 fn split(input String, delim String) [String] {

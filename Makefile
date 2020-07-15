@@ -27,7 +27,7 @@ debug:
 .PHONY: zion
 zion:
 	-@echo "Building Zion..."
-	make clean
+	@#make clean
 	make install
 
 .PHONY: $(BUILT_BINARY)
@@ -52,16 +52,18 @@ install: $(BUILT_BINARY) $(addprefix $(SRCDIR)/lib/,$(ZION_LIBS)) $(RUNTIME_C_FI
 	-@echo "Installing Zion to ${DESTDIR}..."
 	-@echo "Making sure that various installation dirs exist..." 
 	@mkdir -p $(bindir)
-	-@rm -rf $(stdlibdir)
-	@mkdir -p $(stdlibdir)
 	-@rm -rf $(man1dir)
 	@mkdir -p $(man1dir)
-	-@rm -rf $(runtimedir)
-	@mkdir -p $(runtimedir)
 	-@echo "Copying compiler binary from $(BUILT_BINARY) to $(bindir)..."
 	@cp $(BUILT_BINARY) $(bindir)
 	@cp ./zion-tags $(bindir)
+	-@rm -rf $(runtimedir)
+	@#ln -s "$(SRCDIR)/runtime" $(runtimedir)
+	@mkdir -p $(runtimedir)
 	@for f in $(RUNTIME_C_FILES); do cp "$$f" "$(runtimedir)"; done
+	-@rm -rf $(stdlibdir)
+	@#ln -s "$(SRCDIR)/lib" $(stdlibdir)
+	@mkdir -p $(stdlibdir)
 	@cp $(addprefix $(SRCDIR)/lib/,$(ZION_LIBS)) $(stdlibdir)
 	@cp $(SRCDIR)/$(PN).1 $(man1dir)
 	@cp $(SRCDIR)/$(PN).1 $(man1dir)

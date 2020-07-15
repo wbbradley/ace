@@ -1,0 +1,5 @@
+newtype A = A(Int)
+fn main() {
+  let A(x) = A(3)
+  print(x)
+}

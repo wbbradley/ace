@@ -15,6 +15,12 @@
 
 namespace zion {
 namespace ast {
+struct Expr;
+}
+
+ast::Expr *unit_expr(Location location);
+
+namespace ast {
 
 std::string fresh();
 
@@ -25,6 +31,17 @@ struct Expr {
   virtual std::ostream &render(std::ostream &os,
                                int parent_precedence) const = 0;
   std::string str() const;
+};
+
+struct Tuple : public Expr {
+  Tuple(Location location, std::vector<const Expr *> dims)
+      : location(location), dims(dims) {
+  }
+  Location get_location() const override;
+  std::ostream &render(std::ostream &os, int parent_precedence) const override;
+
+  Location const location;
+  std::vector<const Expr *> const dims;
 };
 
 struct StaticPrint : public Expr {
@@ -266,31 +283,36 @@ struct Sizeof : public Expr {
 };
 
 struct Application : public Expr {
-  Application(const Expr *a, const std::vector<const Expr *> &params)
-      : a(a), params(params) {
+  Application(const Expr *a, const Expr *b = nullptr) : a(a), b(b ? b : unit_expr(INTERNAL_LOC())) {
+  }
+  Application(const Expr *a, const std::vector<const Expr *> &&tuple) : a(a) {
+    if (tuple.size() == 0) {
+      b = unit_expr(INTERNAL_LOC());
+    } else {
+      b = new Tuple(tuple[0]->get_location(), tuple);
+    }
   }
   Location get_location() const override;
   std::ostream &render(std::ostream &os, int parent_precedence) const override;
 
   const Expr *a;
-  std::vector<const Expr *> params;
+  const Expr *b;
 };
 
 struct Lambda : public Expr {
-  Lambda(Identifiers vars,
-         types::Refs param_types,
+  Lambda(Identifier var,
+         types::Ref param_type,
          types::Ref return_type,
          const Expr *body)
-      : vars(vars), body(body), param_types(param_types),
+      : var(var), body(body), param_type(param_type),
         return_type(return_type) {
-    assert(vars.size() != 0);
   }
   Location get_location() const override;
   std::ostream &render(std::ostream &os, int parent_precedence) const override;
 
-  Identifiers vars;
+  Identifier var;
   const Expr *body;
-  types::Refs param_types;
+  types::Ref param_type;
   types::Ref return_type;
 };
 
@@ -306,17 +328,6 @@ struct Let : public Expr {
   const Expr *body;
 };
 
-struct Tuple : public Expr {
-  Tuple(Location location, std::vector<const Expr *> dims)
-      : location(location), dims(dims) {
-  }
-  Location get_location() const override;
-  std::ostream &render(std::ostream &os, int parent_precedence) const override;
-
-  Location const location;
-  std::vector<const Expr *> const dims;
-};
-
 struct TupleDeref : public Expr {
   TupleDeref(const Expr *expr, int index, int max)
       : expr(expr), index(index), max(max) {
@@ -327,6 +338,18 @@ struct TupleDeref : public Expr {
 
   const Expr *expr;
   int index, max;
+};
+
+struct FFI : public Expr {
+  FFI(const Identifier id, std::vector<const Expr *> exprs)
+      : id(id), exprs(exprs) {
+  }
+
+  Location get_location() const override;
+  std::ostream &render(std::ostream &os, int parent_precedence) const override;
+
+  const Identifier id;
+  std::vector<const Expr *> exprs;
 };
 
 struct Builtin : public Expr {
@@ -535,7 +558,6 @@ struct Program {
 };
 } // namespace ast
 
-ast::Expr *unit_expr(Location location);
 tarjan::Vertices get_free_vars(
     const ast::Expr *expr,
     const std::unordered_set<std::string> &bound_vars);

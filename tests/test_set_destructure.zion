@@ -1,0 +1,12 @@
+# test: pass
+# expect: 1
+
+struct State {
+  x Int
+  s Set Int
+}
+
+fn main() {
+  let State(x, s) = State(1, new Set Int)
+  print(s)
+}

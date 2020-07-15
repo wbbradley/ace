@@ -221,7 +221,7 @@ standard_logger::standard_logger(const std::string &name,
                                  const std::string &root_file_path)
     : m_name(name), m_fp(NULL) {
   m_root_file_path = root_file_path;
-  if (m_root_file_path[m_root_file_path.size() - 1] != '/') {
+  if (m_root_file_path.size() != 0 && m_root_file_path[m_root_file_path.size() - 1] != '/') {
     m_root_file_path.append("/");
   }
   m_root_file_path.append("logs");
@@ -289,7 +289,7 @@ void standard_logger::open() {
   assert(m_fp == NULL);
   if (m_name.size() > 0 && m_root_file_path.size() > 0) {
     std::string logfile(m_root_file_path);
-    if (logfile[logfile.size() - 1] != '/') {
+    if (logfile.size() != 0 && logfile[logfile.size() - 1] != '/') {
       logfile.append("/");
     }
 
@@ -396,7 +396,11 @@ void logv_location(LogLevel level,
     return;
   }
 
-  _logger->logv(level, &location, format, args);
+  if (!_logger) {
+    vfprintf(stderr, format, args);
+  } else {
+    _logger->logv(level, &location, format, args);
+  }
 }
 
 void logv(LogLevel level, const char *format, va_list args) {

@@ -92,8 +92,7 @@ const Expr *parse_let(ParseState &ps, Identifier var_id, bool is_let) {
     initializer = parse_expr(ps, false /*allow_for_comprehensions*/);
   } else {
     initializer = new Application(
-        new Var(ps.id_mapped(Identifier{"new", location})),
-        {unit_expr(INTERNAL_LOC())});
+        new Var(ps.id_mapped(Identifier{"new", location})), {});
   }
 
   BoundVarLifetimeTracker bvlt(ps);
@@ -102,7 +101,7 @@ const Expr *parse_let(ParseState &ps, Identifier var_id, bool is_let) {
 
   if (!is_let) {
     auto ref_id = Identifier{"std.Ref", location};
-    initializer = new Application(new Var(ref_id), {initializer});
+    initializer = new Application(new Var(ref_id), initializer);
     ps.mutable_vars.insert(var_id.name);
   } else {
     ps.mutable_vars.erase(var_id.name);
@@ -172,10 +171,9 @@ const Expr *parse_for_block(ParseState &ps) {
       iterator_id,
       new Application(
           new Var(ps.id_mapped(Identifier{"iter", in_token.location})),
-          {iterable}),
+          iterable),
       new While(new Var(ps.id_mapped(Identifier{"True", in_token.location})),
-                new Match(new Application(new Var(iterator_id),
-                                          {unit_expr(iterator_id.location)}),
+                new Match(new Application(new Var(iterator_id), {}),
                           pattern_blocks)));
 }
 
@@ -183,7 +181,7 @@ const Expr *parse_new_expr(ParseState &ps) {
   ps.advance();
   return new As(new Application(new Var(ps.id_mapped(Identifier{
                                     "new", ps.prior_token.location})),
-                                {unit_expr(ps.token.location)}),
+                                {}),
                 parse_type(ps, true /*allow_top_level_application*/),
                 false /*force_cast*/);
 }
@@ -211,27 +209,22 @@ const Expr *parse_assert(ParseState &ps) {
       condition, // The condition we are asserting
       unit_expr(ps.token.location),
       new Block({
-          new As(new As(new Builtin(
-                            new Var(Identifier{"__builtin_ffi_3",
-                                               ps.token.location}),
-                            {
-                                new Literal(Token{ps.token.location, tk_string,
-                                                  "\"write\""}),
-                                new Literal(Token{ps.token.location, tk_integer,
-                                                  "2" /*stderr*/}),
-                                new Literal(
-                                    Token{ps.token.location, tk_string,
-                                          escape_json_quotes(assert_message)}),
-                                new Literal(Token{
-                                    ps.token.location, tk_integer,
-                                    std::to_string(assert_message.size())}),
-                            }),
-                        type_id(make_iid(INT_TYPE)), false /*force_cast*/),
-                 type_unit(INTERNAL_LOC()), true /*force_cast*/),
-          new Builtin(
-              new Var(make_iid("__builtin_ffi_1")),
-              {new Literal(Token{assert_token.location, tk_string, "\"exit\""}),
-               new Literal(Token{assert_token.location, tk_integer, "1"})}),
+          new As(
+              new As(new FFI(Identifier{"write", ps.token.location},
+                             {
+                                 new Literal(Token{ps.token.location,
+                                                   tk_integer, "2" /*stderr*/}),
+                                 new Literal(
+                                     Token{ps.token.location, tk_string,
+                                           escape_json_quotes(assert_message)}),
+                                 new Literal(Token{
+                                     ps.token.location, tk_integer,
+                                     std::to_string(assert_message.size())}),
+                             }),
+                     type_id(make_iid(INT_TYPE)), false /*force_cast*/),
+              type_unit(INTERNAL_LOC()), true /*force_cast*/),
+          new FFI(Identifier{"exit", assert_token.location},
+                  {new Literal(Token{assert_token.location, tk_integer, "1"})}),
           unit_expr(ps.token.location),
       }));
   chomp_token(tk_rparen);
@@ -322,7 +315,7 @@ const Expr *parse_with(ParseState &ps) {
      * block */
     std::vector<const Expr *> statements = {
         new Defer(
-            new Application(new Var(defer_id), {unit_expr(defer_id.location)})),
+            new Application(new Var(defer_id), {})),
         block};
     return new Match(
         context_manager_expr,
@@ -352,7 +345,7 @@ const Expr *parse_with(ParseState &ps) {
     /* construct the defer statement prior to the evaluation of the block */
     std::vector<const Expr *> statements = {
         new Defer(
-            new Application(new Var(defer_id), {unit_expr(defer_id.location)})),
+            new Application(new Var(defer_id), {})),
         block};
     return new Match(
         context_manager_expr,
@@ -419,6 +412,43 @@ const Expr *parse_statement(ParseState &ps) {
   } else {
     return parse_assignment(ps);
   }
+}
+
+const Expr *parse_ffi(ParseState &ps) {
+  auto location = ps.token.location;
+  chomp_ident(K(ffi));
+
+  if (ps.line_broke()) {
+    throw user_error(
+        location,
+        "there cannot be a line break splitting an ffi invocation. this is to "
+        "make grepping for ffi dependencies easier.");
+  }
+  /* get the name of the FFI user wants to call. Non-quoted is fine, but quotes
+   * are allowed in case of system linker/Zion lexer compatibility issues. */
+  Identifier id;
+  if (ps.token.tk == tk_identifier) {
+    id = iid(ps.token);
+  } else {
+    expect_token(tk_string);
+
+    id = Identifier(unescape_json_quotes(ps.token.text), ps.token.location);
+  }
+
+  ps.advance();
+
+  chomp_token(tk_lparen);
+  std::vector<const Expr *> exprs;
+  while (ps.token.tk != tk_rparen) {
+    exprs.push_back(parse_expr(ps, false /*allow_for_comprehensions*/));
+    if (ps.token.tk == tk_rparen) {
+      break;
+    }
+    chomp_token(tk_comma);
+  }
+  chomp_token(tk_rparen);
+
+  return new FFI(id, exprs);
 }
 
 const Expr *parse_var_ref(ParseState &ps) {
@@ -505,7 +535,7 @@ const Expr *parse_var_ref(ParseState &ps) {
      * load it for the user. if they want to treat is as a ref, then they need
      * to preface it with & */
     return new Application(new Var(Identifier{"std.load_value", id.location}),
-                           {var_ref});
+                           var_ref);
   }
 }
 
@@ -525,6 +555,8 @@ const Expr *parse_base_expr(ParseState &ps) {
     return new As(
         new Literal(Token{ps.token_and_advance().location, tk_integer, "0"}),
         type_ptr(type_variable(ps.prior_token.location)), true /*force_cast*/);
+  } else if (ps.token.is_ident(K(ffi))) {
+    return parse_ffi(ps);
   } else if (ps.token.tk == tk_identifier) {
     return parse_var_ref(ps);
   } else {
@@ -561,8 +593,7 @@ const Expr *build_array_literal(Location location,
 
   return new Let(
       array_var->id,
-      new As(new Application(new Var(Identifier{"std.new", location}),
-                             {unit_expr(location)}),
+      new As(new Application(new Var(Identifier{"std.new", location}), {}),
              type_vector_type(type_variable(location)), false /*force_cast*/),
       new Block(stmts));
 }
@@ -626,7 +657,7 @@ const Expr *build_generator(Location location,
   return new Let(
       iterator_id,
       new Application(new Var(Identifier{"std.iter", location}),
-                      {generator_for.iterable}),
+                      generator_for.iterable),
       new Lambda(
           {Identifier{fresh(), location}}, {type_unit(location)},
           type_operator(type_id(Identifier{MAYBE_TYPE, expr->get_location()}),
@@ -635,8 +666,7 @@ const Expr *build_generator(Location location,
               {new While(
                    new Var(Identifier{"std.True", location}),
                    new Match(
-                       new Application(new Var(iterator_id),
-                                       {unit_expr(location)}),
+                       new Application(new Var(iterator_id), {}),
                        {new PatternBlock(
                             new CtorPredicate(
                                 location, {generator_for.predicate},
@@ -648,13 +678,13 @@ const Expr *build_generator(Location location,
                                       new ReturnStatement(new Application(
                                           new Var(Identifier{"maybe.Just",
                                                              location}),
-                                          {expr})),
+                                          expr)),
                                       unit_expr(location)))
                                 : static_cast<const Expr *>(
                                       new ReturnStatement(new Application(
                                           new Var(Identifier{"maybe.Just",
                                                              location}),
-                                          {expr})))),
+                                          expr)))),
                         new PatternBlock(new CtorPredicate(location, {},
                                                            Identifier{"std."
                                                                       "Nothing",
@@ -714,7 +744,7 @@ const Expr *parse_array_literal(ParseState &ps) {
               ? parse_expr(ps, false /*allow_for_comprehensions*/)
               : new Application(
                     new Var(Identifier{"math.max_bound", ps.token.location}),
-                    {unit_expr(location)}),
+                    {}),
           range_body);
 
       auto let_range_next = new Let(
@@ -736,7 +766,7 @@ const Expr *parse_array_literal(ParseState &ps) {
       if (i == 1) {
         const Expr *list_comprehension = new Application(
             new Var(Identifier{"std.vector", location}),
-            {parse_generator(ps, exprs[0])});
+            parse_generator(ps, exprs[0]));
         chomp_token(tk_rsquare);
         return list_comprehension;
 
@@ -830,7 +860,7 @@ const Expr *parse_string_expr(ParseState &ps) {
 
     const Expr *expr = parse_expr(ps, false /*allow_for_comprehensions*/);
     exprs.push_back(new Application(
-        new Var(Identifier{"std.str", expr->get_location()}), {expr}));
+        new Var(Identifier{"std.str", expr->get_location()}), expr));
 
     if (ps.token.tk == tk_string_expr_continuation) {
       const Expr *string_expr_continuation = parse_string_expr_continuation(
@@ -882,7 +912,9 @@ const Expr *build_associative_array_literal(
       assert(expr.second == nullptr);
       stmts.push_back(new Application(
           new Var(Identifier{"std.insert", expr.first->get_location()}),
-          {map_var, new As(expr.first, value_type, false /*force_cast*/)}));
+          new Tuple(expr.first->get_location(),
+                     {map_var,
+                      new As(expr.first, value_type, false /*force_cast*/)})));
     } else {
       if (key_type == nullptr) {
         key_type = type_variable(expr.first->get_location());
@@ -890,8 +922,10 @@ const Expr *build_associative_array_literal(
       stmts.push_back(new Application(
           new Var(
               Identifier{"std.set_indexed_item", expr.first->get_location()}),
-          {map_var, new As(expr.first, key_type, false /*force_cast*/),
-           new As(expr.second, value_type, false /*force_cast*/)}));
+          new Tuple(expr.first->get_location(),
+                    {map_var,
+                     new As(expr.first, key_type, false /*force_cast*/),
+                     new As(expr.second, value_type, false /*force_cast*/)})));
     }
   }
 
@@ -909,7 +943,7 @@ const Expr *build_associative_array_literal(
   return new Let(
       map_var->id,
       new As(new Application(new Var(Identifier{"std.new", location}),
-                             {unit_expr(location)}),
+                             unit_expr(location)),
              is_set ? type_set_type(value_type)
                     : type_map_type(key_type, value_type),
              false /*force_cast*/),
@@ -927,10 +961,10 @@ const Expr *build_map_from_generator(Location location, const Expr *generator) {
   return new Let(
       map_id,
       new As(new Application(new Var(Identifier{"std.new", location}),
-                             {unit_expr(location)}),
+                             unit_expr(location)),
              type_map_type(key_type, value_type), false /*force_cast*/),
       new Application(new Var(Identifier{"map.from_pairs", location}),
-                      {generator}));
+                      generator));
 }
 
 const Expr *parse_associative_array_literal(ParseState &ps) {
@@ -980,16 +1014,15 @@ const Expr *parse_associative_array_literal(ParseState &ps) {
       if (is_set) {
         const Expr *ret = new Application(
             new Var(Identifier{"set.set", exprs[0].first->get_location()}),
-            {parse_generator(ps, exprs[0].first)});
+            parse_generator(ps, exprs[0].first));
         chomp_token(tk_rcurly);
         return ret;
       } else {
         const Expr *ret = new Application(
             new Var(
                 Identifier{"map.from_pairs", exprs[0].first->get_location()}),
-            {parse_generator(ps,
-                             new Tuple(prior_token.location,
-                                       {exprs[0].first, exprs[0].second}))});
+            parse_generator(ps, new Tuple(prior_token.location,
+                                          {exprs[0].first, exprs[0].second})));
         chomp_token(tk_rcurly);
         return ret;
       }
@@ -1069,25 +1102,38 @@ const Expr *parse_postfix_expr(ParseState &ps) {
                     true /*force_cast*/);
       break;
     case tk_lparen: {
-      /* function call or implicit partial application (implicit lambda) */
+      /* function call */
       auto location = ps.token.location;
       ps.advance();
       if (ps.token.tk == tk_rparen) {
         ps.advance();
-        expr = new Application(expr, {unit_expr(ps.token.location)});
+        expr = new Application(expr, unit_expr(ps.token.location));
       } else {
         std::vector<const Expr *> callsite_refs;
+        int commas = 0;
         for (int index = 0; ps.token.tk != tk_rparen; ++index) {
           callsite_refs.push_back(
               parse_expr(ps, true /*allow_for_comprehensions*/));
           if (ps.token.tk == tk_comma) {
+            ++commas;
             ps.advance();
           } else {
             expect_token(tk_rparen);
           }
         }
-        expr = new Application(expr, {callsite_refs});
-
+        if (commas == 1 && callsite_refs.size() == 1) {
+          throw user_error(ps.prior_token.location,
+                           "unary tuples at callsites are not allowed (remove "
+                           "the trailing comma)");
+        } else if ((commas + 1) / 2 != callsite_refs.size() / 2) {
+          throw user_error(ps.prior_token.location,
+                           "strange number of commas!");
+        }
+        if (callsite_refs.size() == 1) {
+          expr = new Application(expr, callsite_refs[0]);
+        } else {
+          expr = new Application(expr, std::move(callsite_refs));
+        }
         chomp_token(tk_rparen);
       }
       break;
@@ -1102,7 +1148,7 @@ const Expr *parse_postfix_expr(ParseState &ps) {
       }
       auto iid = Identifier{"__get_" + ps.token_and_advance().text,
                             ps.prior_token.location};
-      expr = new Application(new Var(iid), {expr});
+      expr = new Application(new Var(iid), expr);
       break;
     }
     case tk_lsquare: {
@@ -1210,14 +1256,14 @@ const Expr *parse_prefix_expr(ParseState &ps) {
     if (prefix.t.text == "-") {
       return new Application(
           new Var(ps.id_mapped(Identifier{"negate", prefix.t.location})),
-          {rhs});
+          rhs);
     } else if (prefix.t.text == "!") {
       return new Application(
-          new Var(Identifier{"std.load_value", prefix.t.location}), {rhs});
+          new Var(Identifier{"std.load_value", prefix.t.location}), rhs);
     } else {
       return new Application(
           new Var(ps.id_mapped(Identifier{prefix.t.text, prefix.t.location})),
-          {rhs});
+          rhs);
     }
   } else {
     return rhs;
@@ -1307,7 +1353,7 @@ const Expr *parse_bitwise_or(ParseState &ps) {
 }
 
 const Expr *fold_and_exprs(std::vector<const Expr *> exprs, int index) {
-  if (index < int(exprs.size() - 1)) {
+  if (index < int(exprs.size()) - 1) {
     Identifier term_id = make_iid(fresh());
     return new Let(term_id, exprs[index],
                    new Conditional(new Var(term_id),
@@ -1319,7 +1365,7 @@ const Expr *fold_and_exprs(std::vector<const Expr *> exprs, int index) {
 }
 
 const Expr *fold_or_exprs(std::vector<const Expr *> exprs, int index) {
-  if (index < int(exprs.size() - 1)) {
+  if (index < int(exprs.size()) - 1) {
     Identifier term_id = make_iid(fresh());
     return new Let(term_id, exprs[index],
                    new Conditional(new Var(term_id),
@@ -1397,7 +1443,7 @@ const Expr *parse_not_expr(ParseState &ps) {
   if (ps.token.is_ident(K(not))) {
     Token not_token = ps.token_and_advance();
     return new Application(new Var(ps.id_mapped(iid(not_token))),
-                           {parse_comparison_expr(ps)});
+                           parse_comparison_expr(ps));
   } else {
     return parse_comparison_expr(ps);
   }
@@ -1518,7 +1564,7 @@ const Expr *parse_assignment(ParseState &ps) {
         {lhs, new Let(copy_value,
                       new Application(new Var(Identifier{"std.load_value",
                                                          op_token.location}),
-                                      {lhs}),
+                                      lhs),
                       new Application(
                           new Var(ps.id_mapped(Identifier{
                               op_token.text.substr(0, 1), op_token.location})),
@@ -1694,6 +1740,7 @@ const Predicate *parse_ctor_predicate(ParseState &ps,
   Identifier ctor_name = ps.identifier_and_advance();
 
   std::vector<const Predicate *> params;
+  auto location = ps.token.location;
   if (ps.token.tk == tk_lparen) {
     ps.advance();
     while (ps.token.tk != tk_rparen) {
@@ -1705,8 +1752,16 @@ const Predicate *parse_ctor_predicate(ParseState &ps,
     }
     chomp_token(tk_rparen);
   }
-  return new CtorPredicate(ctor_name.location, params, ctor_name,
-                           name_assignment);
+  if (params.size() <= 1) {
+    return new CtorPredicate(ctor_name.location, params, ctor_name,
+                             name_assignment);
+  } else {
+    return new CtorPredicate(
+        ctor_name.location,
+        params,
+        ctor_name,
+        name_assignment);
+  }
 }
 
 const Predicate *parse_tuple_predicate(ParseState &ps,
@@ -1954,8 +2009,31 @@ const Expr *parse_lambda(ParseState &ps,
     return_type = parse_type(ps, true /*allow_top_level_application*/);
   }
 
-  return new Lambda(param_ids, param_types, return_type,
-                    parse_block(ps, true /*expression_means_return*/));
+  if (param_types.size() == 0) {
+    return new Lambda(gensym(INTERNAL_LOC()), type_unit(INTERNAL_LOC()),
+                      return_type,
+                      parse_block(ps, true /*expression_means_return*/));
+  } else if (param_types.size() == 1) {
+    return new Lambda(param_ids[0], param_types[0], return_type,
+                      parse_block(ps, true /*expression_means_return*/));
+  } else {
+    types::Ref param_type = type_tuple({param_types});
+    Identifier param_id = gensym(param_ids[0].location);
+
+    std::vector<const Predicate *> params;
+    for (auto id : param_ids) {
+      params.push_back(
+          new IrrefutablePredicate(id.location, maybe<Identifier>(id)));
+    }
+    auto predicate = new TuplePredicate(ps.token.location, params,
+                                        maybe<Identifier>());
+    return new Lambda(
+        param_id, param_type, return_type,
+        new Match(new Var(param_id),
+                  {new PatternBlock(
+                      predicate,
+                      parse_block(ps, true /*expression_means_return*/))}));
+  }
 }
 
 types::Ref parse_function_type(ParseState &ps) {
@@ -2131,7 +2209,7 @@ types::Ref create_ctor_type(Location location,
   param_types.push_back(type_decl->get_type());
   auto type = type_arrows(param_types);
 
-  for (int i = type_decl->params.size() - 1; i >= 0; --i) {
+  for (int i = int(type_decl->params.size()) - 1; i >= 0; --i) {
     type = type_lambda(type_decl->params[i], type);
   }
   return type;
@@ -2146,21 +2224,39 @@ const Expr *create_ctor(Location location,
   dims.push_back(
       new Literal({location, tk_integer, string_format("%d", ctor_id)}));
 
-  std::vector<Identifier> params;
+  std::vector<Identifier> param_ids;
   for (size_t i = 0; i < param_types.size(); ++i) {
     /* enumerate the nested lambda variables */
-    params.push_back(Identifier{fresh(), param_types[i]->get_location()});
-    dims.push_back(new Var(params.back()));
+    param_ids.push_back(Identifier{fresh(), param_types[i]->get_location()});
+    dims.push_back(new Var(param_ids.back()));
   }
 
   const Expr *expr = new As(new Tuple(location, dims), type_decl->get_type(),
                             true /*force_cast*/);
 
-  if (params.size() > 0) {
+  if (param_ids.size() == 1) {
+    expr = new Lambda(param_ids[0], param_types[0], nullptr,
+                      new ReturnStatement(expr));
+  } else if (param_ids.size() > 0) {
     /* this ctor takes parameters, so it needs a lambda */
-    assert(dims.size() == params.size() + 1);
+    assert(dims.size() == param_ids.size() + 1);
     /* (λx y z . return! (ctor_id, x, y, z) as! type_decl) */
-    expr = new Lambda(params, param_types, nullptr, new ReturnStatement(expr));
+
+    types::Ref param_type = type_tuple({param_types});
+    Identifier param_id = gensym(location);
+
+    std::vector<const Predicate *> params;
+    for (auto id : param_ids) {
+      params.push_back(
+          new IrrefutablePredicate(id.location, maybe<Identifier>(id)));
+    }
+    auto predicate = new TuplePredicate(location, params, maybe<Identifier>());
+    // TODO: convert the lambda params to a tuple if they are >=2 and
+    // destructure their names into the given ids.
+    expr = new Lambda(
+        param_id, param_type, nullptr,
+        new Match(new Var(param_id),
+                  {new PatternBlock(predicate, new ReturnStatement(expr))}));
   }
 
   return expr;
@@ -2251,7 +2347,17 @@ DataTypeDecl parse_newtype_decl(ParseState &ps,
   const Decl *decl;
   std::vector<types::Ref> ctor_parts;
   if (auto tuple_type = dyncast<const types::TypeTuple>(rhs_type)) {
-    debug_above(3, log("build decl for tuple newtype ctor :: " c_id("%s") "%s",
+    if (tuple_type->dimensions.size() == 1) {
+      std::cerr << "neutering unary tuple" << std::endl;
+      /* simply disallow unary tuples in newtypes */
+      rhs_type = tuple_type->dimensions.at(0);
+    }
+  }
+
+  // This is so hacky.
+#if 0
+  if (auto tuple_type = dyncast<const types::TypeTuple>(rhs_type)) {
+    debug_above(2, log("build decl for tuple newtype ctor :: " c_id("%s") "%s",
                        type_name.text.c_str(), tuple_type->str().c_str()));
     ctor_parts = tuple_type->dimensions;
     std::vector<Identifier> dim_names;
@@ -2269,7 +2375,9 @@ DataTypeDecl parse_newtype_decl(ParseState &ps,
                    new ReturnStatement(
                        new As(new Tuple(tuple_type->get_location(), dims),
                               type_decl->get_type(), true /*force_cast*/))));
-  } else {
+  } else 
+#endif
+  {
     ctor_parts.push_back(rhs_type);
     Identifier param_iid = Identifier{ast::fresh(), rhs_type->get_location()};
     decl = new Decl(type_decl->id,
@@ -2278,6 +2386,7 @@ DataTypeDecl parse_newtype_decl(ParseState &ps,
                                    new Var(param_iid), type_decl->get_type(),
                                    true /*force_cast*/))));
   }
+  /* add this newtype's data ctor to the registered set */
   data_ctors[type_decl->id.name] = create_ctor_type(type_decl->id.location,
                                                     type_decl, ctor_parts);
   assert(!in(type_decl->id.name, ps.type_env));
@@ -2290,8 +2399,8 @@ DataTypeDecl parse_newtype_decl(ParseState &ps,
     auto param = *param_iter;
     body = type_lambda(param, body);
   }
-  debug_above(4, log_location(type_decl->id.location,
-                              "adding %s to the type_env as %s",
+  debug_above(2, log_location(type_decl->id.location,
+                              "adding " c_id("%s") " to the type_env as %s",
                               type_decl->id.name.c_str(), body->str().c_str()));
   ps.type_env[type_decl->id.name] = body;
   return {type_decl, {decl}};

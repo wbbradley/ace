@@ -410,12 +410,14 @@ Pattern::ref from_type(Location location,
 
     for (auto pair : ctors_types) {
       auto &ctor_name = pair.first;
-      auto ctor_terms = unfold_arrows(pair.second);
+      auto ctor_terms = get_ctor_param_terms(unfold_arrows(pair.second));
 
       std::vector<Pattern::ref> args;
-      args.reserve(ctor_terms.size() - 1);
+      if (ctor_terms.size() != 0) {
+        args.reserve(ctor_terms.size());
+      }
 
-      for (size_t i = 0; i < ctor_terms.size() - 1; ++i) {
+      for (size_t i = 0; i < ctor_terms.size(); ++i) {
         args.push_back(std::make_shared<AllOf>(location, maybe<Identifier>(),
                                                data_ctors_map, ctor_terms[i]));
       }
@@ -456,7 +458,10 @@ void difference(Location location,
   } else if (lhs.args.size() == 0) {
     send(theNothing);
   } else {
-    assert(lhs.args.size() == rhs.args.size());
+    if (lhs.args.size() != rhs.args.size()) {
+      throw zion::user_error(location, "pattern %s does not match pattern %s",
+                             lhs.str().c_str(), rhs.str().c_str());
+    }
     size_t i = 0;
     auto send_ctor_pattern = [location, &i, &lhs, &send](Pattern::ref arg) {
       if (dyncast<const Nothing>(arg)) {
@@ -660,7 +665,7 @@ std::string AllOf::str() const {
   if (name.valid) {
     ss << name.t;
   } else {
-    ss << "_";
+    ss << "_ as " << type->str();
   }
   return ss.str();
 }
@@ -727,23 +732,19 @@ Pattern::ref TuplePredicate::get_pattern(
 Pattern::ref CtorPredicate::get_pattern(
     types::Ref type,
     const zion::DataCtorsMap &data_ctors_map) const {
-  auto ctor_terms = unfold_arrows(
+  auto outer_ctor_terms = unfold_arrows(
       get_data_ctor_type(data_ctors_map, type, ctor_name));
 
-  std::vector<Pattern::ref> args;
-  if (ctor_terms.size() - 1 != params.size()) {
-    log("params = %s", join_str(params).c_str());
-    log("ctor_terms = %s", join_str(ctor_terms).c_str());
-    throw zion::user_error(
-        location,
-        "%s has an incorrect number of sub-patterns. there are "
-        "%d, there should be %d",
-        ctor_name.name.c_str(), int(params.size()), int(ctor_terms.size() - 1));
-  }
+  types::Refs ctor_terms = get_ctor_param_terms(get_location(), ctor_name.str(),
+                                          outer_ctor_terms, params.size());
 
+  std::vector<Pattern::ref> args;
   for (size_t i = 0; i < params.size(); ++i) {
     args.push_back(params[i]->get_pattern(ctor_terms[i], data_ctors_map));
   }
+
+  debug_above(4, log("pattern for CtorPredicate for %s has args %s",
+                     type->str().c_str(), join_str(args).c_str()));
 
   /* found the ctor we're matching on */
   return std::make_shared<CtorPattern>(

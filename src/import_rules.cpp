@@ -154,10 +154,6 @@ namespace {
 
 using namespace ::zion::ast;
 
-std::vector<const Expr *> rewrite_exprs(
-    const RewriteImportRules &rewrite_import_rules,
-    const std::vector<const Expr *> &exprs);
-
 const Predicate *rewrite_predicate(
     const RewriteImportRules &rewrite_import_rules,
     const Predicate *predicate) {
@@ -190,9 +186,8 @@ PatternBlocks rewrite_pattern_blocks(
 const Application *rewrite_application(
     const RewriteImportRules &rewrite_import_rules,
     const Application *application) {
-  return new Application(
-      rewrite_expr(rewrite_import_rules, application->a),
-      rewrite_exprs(rewrite_import_rules, application->params));
+  return new Application(rewrite_expr(rewrite_import_rules, application->a),
+                         rewrite_expr(rewrite_import_rules, application->b));
 }
 
 const Expr *rewrite_expr(const RewriteImportRules &rewrite_import_rules,
@@ -207,7 +202,7 @@ const Expr *rewrite_expr(const RewriteImportRules &rewrite_import_rules,
     return new Var(rewrite_identifier(rewrite_import_rules, var->id));
   } else if (auto lambda = dcast<const Lambda *>(expr)) {
     return new Lambda(
-        lambda->vars, rewrite_types(rewrite_import_rules, lambda->param_types),
+        lambda->var, lambda->param_type->rewrite_ids(rewrite_import_rules),
         (lambda->return_type != nullptr)
             ? lambda->return_type->rewrite_ids(rewrite_import_rules)
             : nullptr,
@@ -254,6 +249,14 @@ const Expr *rewrite_expr(const RewriteImportRules &rewrite_import_rules,
   } else if (auto sizeof_ = dcast<const Sizeof *>(expr)) {
     return new Sizeof(sizeof_->location,
                       sizeof_->type->rewrite_ids(rewrite_import_rules));
+  } else if (auto ffi = dcast<const FFI *>(expr)) {
+    // NOTE: we don't rewrite FFI "C" function names.
+    std::vector<const Expr *> exprs;
+    exprs.reserve(ffi->exprs.size());
+    for (auto expr : ffi->exprs) {
+      exprs.push_back(rewrite_expr(rewrite_import_rules, expr));
+    }
+    return new FFI(ffi->id, exprs);
   } else if (auto builtin = dcast<const Builtin *>(expr)) {
     std::vector<const Expr *> exprs;
     exprs.reserve(builtin->exprs.size());
@@ -275,17 +278,6 @@ const Expr *rewrite_expr(const RewriteImportRules &rewrite_import_rules,
   }
   assert(false);
   return {};
-}
-
-std::vector<const Expr *> rewrite_exprs(
-    const RewriteImportRules &rewrite_import_rules,
-    const std::vector<const Expr *> &exprs) {
-  std::vector<const Expr *> new_exprs;
-  new_exprs.reserve(exprs.size());
-  for (auto expr : exprs) {
-    new_exprs.push_back(rewrite_expr(rewrite_import_rules, expr));
-  }
-  return new_exprs;
 }
 
 std::vector<const Decl *> rewrite_decls(

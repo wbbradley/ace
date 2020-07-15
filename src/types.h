@@ -242,6 +242,7 @@ types::Ref type_void(Location location);
 types::Ref type_map(types::Ref a, types::Ref b);
 types::Ref type_arrow(Location location, types::Ref a, types::Ref b);
 types::Ref type_arrow(types::Ref a, types::Ref b);
+types::Ref type_builtin_arrows(types::Refs types);
 types::Ref type_arrows(types::Refs types);
 types::Refs unfold_arrows(types::Ref type);
 types::Ref type_id(Identifier var);
@@ -279,3 +280,8 @@ std::ostream &join_dimensions(std::ostream &os,
                               const types::Map &bindings);
 std::string get_name_from_index(const types::NameIndex &name_index, int i);
 bool is_valid_udt_initial_char(int ch);
+types::Refs get_ctor_param_terms(const types::Refs &outer_ctor_terms);
+types::Refs get_ctor_param_terms(Location location,
+                                 std::string ctor_name,
+                                 const types::Refs &outer_ctor_terms,
+                                 int params_count);

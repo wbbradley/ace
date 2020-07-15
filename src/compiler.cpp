@@ -274,9 +274,9 @@ std::shared_ptr<Compilation> merge_compilation(
     for (auto pair : module_rebound->ctor_id_map) {
       if (in(pair.first, ctor_id_map)) {
         throw user_error(INTERNAL_LOC(),
-            "ctor_id %s already exists in ctor_id_map but is trying to be added by module %s!",
-            pair.first.c_str(),
-            module_rebound->name.c_str());
+                         "ctor_id %s already exists in ctor_id_map but is "
+                         "trying to be added by module %s!",
+                         pair.first.c_str(), module_rebound->name.c_str());
       }
       ctor_id_map[pair.first] = pair.second;
     }
@@ -302,7 +302,7 @@ std::shared_ptr<Compilation> merge_compilation(
       program_filename, program_name,
       new Program(program_decls, program_type_classes, program_instances,
                   new Application(new Var(make_iid("main")),
-                                  {unit_expr(INTERNAL_LOC())})),
+                                  unit_expr(INTERNAL_LOC()))),
       comments, link_ins, DataCtorsMap{data_ctors_map, ctor_id_map}, type_env);
 }
 

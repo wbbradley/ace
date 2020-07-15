@@ -84,31 +84,27 @@ std::ostream &Application::render(std::ostream &os,
                                   int parent_precedence) const {
   const int precedence = 9;
 
-  if (params.size() == 2)
-    if (auto oper = dcast<const Var *>(a)) {
-      if (strspn(oper->id.name.c_str(), MATHY_SYMBOLS) ==
-          oper->id.name.size()) {
-        os << "(";
-        params[0]->render(os, precedence + 1);
-        os << " ";
-        oper->render(os, precedence);
-        os << " ";
-        params[1]->render(os, precedence + 1);
-        os << ")";
-        return os;
-      }
+#if 0
+  // TODO: find a cleaner way of rendering binary ops
+  if (auto oper = dcast<const Var *>(a)) {
+    if (strspn(oper->id.name.c_str(), MATHY_SYMBOLS) == oper->id.name.size()) {
+      os << "(";
+      params[0]->render(os, precedence + 1);
+      os << " ";
+      oper->render(os, precedence);
+      os << " ";
+      params[1]->render(os, precedence + 1);
+      os << ")";
+      return os;
     }
+  }
+#endif
 
   Parens parens(os, parent_precedence, precedence);
   a->render(os, 10);
-  os << "(";
-  const char *delim = "";
-  for (auto &param : params) {
-    os << delim;
-    param->render(os, 0);
-    delim = ", ";
-  }
-  return os << ")";
+  os << " ";
+  b->render(os, 0);
+  return os;
 }
 
 Location Continue::get_location() const {
@@ -198,13 +194,11 @@ std::ostream &Block::render(std::ostream &os, int parent_precedence) const {
 }
 
 Location Lambda::get_location() const {
-  assert(vars.size() != 0);
-  return vars[0].location;
+  return var.location;
 }
 
 std::ostream &Lambda::render(std::ostream &os, int parent_precedence) const {
-  os << "(λ"
-     << join_with(vars, ",", [](const Identifier &id) { return id.name; });
+  os << "(λ" << var.name;
   os << " . ";
   body->render(os, 0);
   os << ")";
@@ -257,13 +251,8 @@ Location Tuple::get_location() const {
 
 std::ostream &Tuple::render(std::ostream &os, int parent_precedence) const {
   os << "(";
-  const char *delim = "";
   for (auto dim : dims) {
-    os << delim;
-    dim->render(os, 0);
-    delim = ", ";
-  }
-  if (dims.size() == 1) {
+    dim->render(os, 10);
     os << ",";
   }
   return os << ")";
@@ -292,6 +281,14 @@ std::ostream &Builtin::render(std::ostream &os, int parent_precedence) const {
     os << ")";
   }
   return os;
+}
+
+Location FFI::get_location() const {
+  return id.location;
+}
+
+std::ostream &FFI::render(std::ostream &os, int parent_precedence) const {
+  return os << C_WARN << "ffi " << id.str() << "(" << join_str(exprs) << ")";
 }
 
 Location Conditional::get_location() const {
@@ -367,11 +364,9 @@ std::ostream &TuplePredicate::render(std::ostream &os) const {
     os << C_ID << name_assignment.t << C_RESET << "@";
   }
   os << "(";
-  const char *delim = "";
   for (auto predicate : params) {
-    os << delim;
     predicate->render(os);
-    delim = ", ";
+    os << ",";
   }
   return os << ")";
 }
@@ -513,15 +508,11 @@ tarjan::Vertices get_free_vars(
     /* bind the params so that they do not appear as free variables from lower
      * scoping */
     auto new_bound_vars = bound_vars;
-    for (auto &var : lambda->vars) {
-      new_bound_vars.insert(var.name);
-    }
+    new_bound_vars.insert(lambda->var.name);
     return get_free_vars(lambda->body, new_bound_vars);
   } else if (auto application = dcast<const ast::Application *>(expr)) {
     tarjan::Vertices free_vars = get_free_vars(application->a, bound_vars);
-    for (auto &param : application->params) {
-      set_merge(free_vars, get_free_vars(param, bound_vars));
-    }
+    set_merge(free_vars, get_free_vars(application->b, bound_vars));
     return free_vars;
   } else if (auto let = dcast<const ast::Let *>(expr)) {
     tarjan::Vertices free_vars = get_free_vars(let->value, bound_vars);
@@ -562,6 +553,12 @@ tarjan::Vertices get_free_vars(
     return get_free_vars(as->expr, bound_vars);
   } else if (dcast<const ast::Sizeof *>(expr)) {
     return {};
+  } else if (auto ffi = dcast<const ast::FFI *>(expr)) {
+    tarjan::Vertices free_vars;
+    for (auto expr : ffi->exprs) {
+      set_merge(free_vars, get_free_vars(expr, bound_vars));
+    }
+    return free_vars;
   } else if (auto builtin = dcast<const ast::Builtin *>(expr)) {
     tarjan::Vertices free_vars;
     for (auto expr : builtin->exprs) {

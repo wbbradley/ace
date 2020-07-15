@@ -12,3 +12,4 @@ let g:ale_cpp_clang_options=substitute(system("pkg-config bdw-gc --cflags") . ' 
       \ system("llvm-config --cxxflags"), '\n', '', 'g')
 let g:ale_c_clang_options=substitute(system("pkg-config bdw-gc --cflags") . ' ' . 
       \ system("llvm-config --cflags"), '\n', '', 'g')
+set makeprg=make\ debug
