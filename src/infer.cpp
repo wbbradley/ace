@@ -351,7 +351,8 @@ types::Ref TuplePredicate::tracking_infer(
                                           scheme_resolver, tracked_types,
                                           constraints, instance_requirements));
   }
-  auto type = type_tuple(types);
+  auto type = (types.size() == 0) ? type_unit(get_location())
+                                  : type_tuple(types);
   if (name_assignment.valid) {
     scheme_resolver.insert_scheme(name_assignment.t.name, scheme({}, {}, type));
   }

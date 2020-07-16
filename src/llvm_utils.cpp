@@ -519,11 +519,19 @@ llvm::Type *get_llvm_closure_type(llvm::IRBuilder<> &builder,
       ->getPointerTo();
 }
 
-llvm::Type *get_llvm_type(llvm::IRBuilder<> &builder,
-                          const types::TypeEnv &type_env,
-                          const types::Ref &type_) {
-  auto type = type_->eval(type_env);
-  debug_above(3, log("get_llvm_type(%s)...", type->str().c_str()));
+llvm::Type *get_llvm_type_(llvm::IRBuilder<> &builder,
+                           const types::TypeEnv &type_env,
+                           const types::Ref &type_) {
+  /* fully beta-reduce the type */
+  types::Ref type = type_;
+  types::Ref last_type;
+  while (type != last_type) {
+    last_type = type;
+    type = type->eval(type_env);
+  }
+  debug_above(1, log("get_llvm_type eval %s -> %s", type_->str().c_str(),
+                     type->str().c_str()));
+
   if (auto id = dyncast<const types::TypeId>(type)) {
     const std::string &name = id->id.name;
     if (name == CHAR_TYPE) {
@@ -570,6 +578,15 @@ llvm::Type *get_llvm_type(llvm::IRBuilder<> &builder,
     assert(false);
     return nullptr;
   }
+}
+
+llvm::Type *get_llvm_type(llvm::IRBuilder<> &builder,
+                          const types::TypeEnv &type_env,
+                          const types::Ref &type_) {
+  auto llvm_type = get_llvm_type_(builder, type_env, type_);
+  debug_above(3, log("get_llvm_type(%s) -> %s", type_->str().c_str(),
+                     llvm_print(llvm_type).c_str()));
+  return llvm_type;
 }
 
 std::vector<llvm::Type *> get_llvm_types(llvm::IRBuilder<> &builder,

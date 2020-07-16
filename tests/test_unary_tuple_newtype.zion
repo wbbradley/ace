@@ -1,0 +1,7 @@
+# test: pass,noprelude
+# expect: 3
+newtype A = A(Int)
+fn main() {
+  let A(x) = A(3)
+  __builtin_ffi_1("zion_print_int64", x)!
+}

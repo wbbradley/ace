@@ -1,0 +1,19 @@
+# test: pass,noprelude
+
+newtype M aa b = M(aa, b)
+newtype S a = S(M a ())
+
+struct State {
+  x Int
+  s S Int
+}
+
+fn p(s S Int) {
+  let _ = s
+}
+
+fn main() {
+  let State(x, s) = State(1, S(M(1, ())))
+  p(s)
+  __builtin_pass_test
+}

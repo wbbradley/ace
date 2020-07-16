@@ -1,0 +1,12 @@
+# test: pass,noprelude
+
+data T {
+  T(Int, Int)
+}
+
+fn main() {
+  let x = T(1, 2)
+  let T(y, _) = x
+  (__builtin_ffi_1("zion_print_int64", y))!
+  __builtin_pass_test
+}

@@ -27,7 +27,7 @@ debug:
 .PHONY: zion
 zion:
 	-@echo "Building Zion..."
-	make clean
+	# make clean
 	make install
 
 .PHONY: $(BUILT_BINARY)

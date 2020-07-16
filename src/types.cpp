@@ -165,9 +165,14 @@ void TypeId::compute_ftvs() const {
 }
 
 Ref TypeId::eval(const TypeEnv &type_env, bool shallow) const {
-  debug_above(10, log("trying to get %s from type_env {%s}", id.name.c_str(),
-                      ::str(type_env).c_str()));
-  return get(type_env, id.name, shared_from_this());
+  auto ref = get(type_env, id.name, shared_from_this());
+#ifdef DEBUG
+  if (ref != shared_from_this()) {
+    debug_above(10, log("found %s in type_env {%s}", id.name.c_str(),
+                        ::str(type_env).c_str()));
+  }
+#endif
+  return ref;
 }
 
 Ref TypeId::rebind(const Map &bindings) const {
