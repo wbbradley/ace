@@ -1,6 +1,6 @@
 # Zion Language
 
-![CI](https://github.com/zionlang/zion/workflows/CI/badge.svg)
+[![Tests](https://github.com/zionlang/zion/workflows/Tests/badge.svg)](https://github.com/zionlang/zion/actions?query=workflow%3ATests)
 
 ## Quick Start
 
