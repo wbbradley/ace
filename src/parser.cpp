@@ -426,6 +426,9 @@ const Expr *parse_ffi(ParseState &ps) {
         "there cannot be a line break splitting an ffi invocation. this is to "
         "make grepping for ffi dependencies easier.");
   }
+
+  RawParseMode rpm(ps);
+
   /* get the name of the FFI user wants to call. Non-quoted is fine, but quotes
    * are allowed in case of system linker/Zion lexer compatibility issues. */
   Identifier id;
