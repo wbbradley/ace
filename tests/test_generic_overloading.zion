@@ -28,10 +28,10 @@ instance Equal Int {
 fn p(a, b) {
     match is_equal(a, b) {
         True {
-            __builtin_ffi_1("puts", "equal")
+            ffi puts("equal")
         }
         False {
-            __builtin_ffi_1("puts", "inequal")
+            ffi puts("inequal")
         }
     }
 }

@@ -195,6 +195,10 @@ void get_free_vars(const ast::Expr *expr,
   } else if (auto as = dcast<const ast::As *>(expr)) {
     get_free_vars(as->expr, typing, globals, locals, free_vars);
   } else if (dcast<const ast::Sizeof *>(expr)) {
+  } else if (auto ffi = dcast<const ast::FFI *>(expr)) {
+    for (auto expr : ffi->exprs) {
+      get_free_vars(expr, typing, globals, locals, free_vars);
+    }
   } else if (auto builtin = dcast<const ast::Builtin *>(expr)) {
     for (auto expr : builtin->exprs) {
       get_free_vars(expr, typing, globals, locals, free_vars);
@@ -321,9 +325,36 @@ void set_env_var(GenLocalEnv &gen_env,
   gen_env[name] = llvm_value;
 }
 
+llvm::Value *gen_ffi_call(llvm::IRBuilder<> &builder,
+                          const Identifier &id,
+                          const std::vector<llvm::Value *> &params,
+                          const types::Refs &types,
+                          const types::Ref &type_ffi,
+                          const types::TypeEnv &type_env) {
+  debug_above(4, log("lowering ffi %s(%s)...", id.str().c_str(),
+                     join_with(params, ", ", [](llvm::Value *lv) {
+                       return llvm_print(lv);
+                     }).c_str()));
+
+  auto llvm_module = llvm_get_module(builder);
+  std::vector<llvm::Type *> terms;
+  for (size_t i = 0; i < params.size(); ++i) {
+    terms.push_back(params[i]->getType());
+  }
+
+  auto llvm_func_decl = llvm::cast<llvm::Function>(
+      llvm_module
+          ->getOrInsertFunction(id.name.c_str(),
+                                llvm::FunctionType::get(
+                                    get_llvm_type(builder, type_env, type_ffi),
+                                    llvm::ArrayRef<llvm::Type *>(terms),
+                                    false /*isVarArg*/))
+          .getCallee());
+  return builder.CreateCall(llvm_func_decl, params);
+}
+
 llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
                          const Identifier &id,
-                         const std::string &ffi_name,
                          const std::vector<llvm::Value *> &params,
                          const types::Refs &types,
                          const types::Ref &type_builtin,
@@ -708,34 +739,6 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
     return builder.CreateIntToPtr(
         builder.CreateCall(llvm_write_func_decl, params),
         builder.getInt8Ty()->getPointerTo());
-  } else if (starts_with(name, "__builtin_ffi_")) {
-    auto arity_str = name.substr(strlen("__builtin_ffi_"));
-    if (arity_str.size() == 0) {
-      throw user_error(id.location, "invalid arity for ffi");
-    }
-
-    size_t arity = atoi(arity_str.c_str());
-
-    if (params.size() != arity) {
-      throw user_error(id.location, "wrong number of parameters sent to %s",
-                       id.name.c_str());
-    }
-
-    auto llvm_module = llvm_get_module(builder);
-    std::vector<llvm::Type *> terms;
-    for (size_t i = 0; i < params.size(); ++i) {
-      terms.push_back(params[i]->getType());
-    }
-
-    auto llvm_func_decl = llvm::cast<llvm::Function>(
-        llvm_module
-            ->getOrInsertFunction(
-                ffi_name.c_str(),
-                llvm::FunctionType::get(
-                    get_llvm_type(builder, type_env, type_builtin),
-                    llvm::ArrayRef<llvm::Type *>(terms), false /*isVarArg*/))
-            .getCallee());
-    return builder.CreateCall(llvm_func_decl, params);
   }
 
   log("Need an impl for " c_id("%s"), name.c_str());
@@ -1374,34 +1377,39 @@ ResolutionStatus gen(std::string name,
       defer_guard->add_deferred(llvm_closure);
 
       return rs_cache_resolution;
-    } else if (auto builtin = dcast<const ast::Builtin *>(expr)) {
+    } else if (auto ffi = dcast<const ast::FFI *>(expr)) {
       std::vector<llvm::Value *> llvm_values;
       types::Refs types;
 
-      auto iter = builtin->exprs.begin();
-      std::string ffi_name;
-      if (starts_with(builtin->var->id.name, "__builtin_ffi_")) {
-        auto ffi_name_expr = dcast<const ast::Literal *>(*iter);
-        if (ffi_name_expr == nullptr || ffi_name_expr->token.tk != tk_string) {
-          throw user_error((*iter)->get_location(), "invalid FFI name");
-        }
-        ffi_name = unescape_json_quotes(ffi_name_expr->token.text);
-        assert(ffi_name.size() != 0);
-        debug_above(2, log_location(ffi_name_expr->get_location(),
-                                    "found FFI name %s", ffi_name.c_str()));
-        ++iter;
-      }
-
-      for (; iter != builtin->exprs.end(); ++iter) {
-        auto &expr = *iter;
+      std::string ffi_name = ffi->id.name;
+      for (auto expr : ffi->exprs) {
         llvm_values.push_back(gen(builder, llvm_module, defer_guard,
                                   break_to_block, continue_to_block, expr,
                                   typing, type_env, gen_env_globals,
                                   gen_env_locals, globals));
         types.push_back(typing.at(expr));
       }
-      publish(gen_builtin(builder, builtin->var->id, ffi_name, llvm_values,
-                          types, typing.at(builtin), type_env));
+      publish(gen_ffi_call(builder, ffi->id, llvm_values,
+                          types, typing.at(ffi), type_env));
+      return rs_cache_resolution;
+    } else if (auto builtin = dcast<const ast::Builtin *>(expr)) {
+      std::vector<llvm::Value *> llvm_values;
+      types::Refs types;
+
+      if (starts_with(builtin->var->id.name, "__builtin_ffi_")) {
+        throw user_error(builtin->var->id.location,
+                         "__builtin_ffi_* is deprecated");
+      }
+
+      for (auto expr : builtin->exprs) {
+        llvm_values.push_back(gen(builder, llvm_module, defer_guard,
+                                  break_to_block, continue_to_block, expr,
+                                  typing, type_env, gen_env_globals,
+                                  gen_env_locals, globals));
+        types.push_back(typing.at(expr));
+      }
+      publish(gen_builtin(builder, builtin->var->id, llvm_values, types,
+                          typing.at(builtin), type_env));
       return rs_cache_resolution;
     }
     throw user_error(expr->get_location(), "unhandled gen for %s :: %s",

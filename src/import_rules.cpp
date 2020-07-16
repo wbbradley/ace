@@ -254,6 +254,14 @@ const Expr *rewrite_expr(const RewriteImportRules &rewrite_import_rules,
   } else if (auto sizeof_ = dcast<const Sizeof *>(expr)) {
     return new Sizeof(sizeof_->location,
                       sizeof_->type->rewrite_ids(rewrite_import_rules));
+  } else if (auto ffi = dcast<const FFI *>(expr)) {
+    // NOTE: we don't rewrite FFI "C" function names.
+    std::vector<const Expr *> exprs;
+    exprs.reserve(ffi->exprs.size());
+    for (auto expr : ffi->exprs) {
+      exprs.push_back(rewrite_expr(rewrite_import_rules, expr));
+    }
+    return new FFI(ffi->id, exprs);
   } else if (auto builtin = dcast<const Builtin *>(expr)) {
     std::vector<const Expr *> exprs;
     exprs.reserve(builtin->exprs.size());

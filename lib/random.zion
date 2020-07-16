@@ -9,7 +9,7 @@ fn rand() Int {
   # borrowed) down the stack.
   let cb = sizeof(Int)
   let pb = alloc(cb) as *Char
-  __builtin_ffi_2("randombytes_buf", pb, cb)
+  ffi randombytes_buf(pb, cb)
   let x = (pb as! *Int)[0]
   if x < 0 {
     return -(x as! Int)

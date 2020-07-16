@@ -14,7 +14,7 @@ data TimeDelta {
 
 newtype EpochMilliseconds = EpochMilliseconds(Int)
 
-fn time() => EpochMilliseconds(__builtin_ffi_0("zion_epoch_millis"))
+fn time() => EpochMilliseconds(ffi zion_epoch_millis())
 
 instance Str EpochMilliseconds {
     fn str(e) {

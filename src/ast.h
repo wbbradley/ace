@@ -329,6 +329,18 @@ struct TupleDeref : public Expr {
   int index, max;
 };
 
+struct FFI : public Expr {
+  FFI(const Identifier id, std::vector<const Expr *> exprs)
+      : id(id), exprs(exprs) {
+  }
+
+  Location get_location() const override;
+  std::ostream &render(std::ostream &os, int parent_precedence) const override;
+
+  const Identifier id;
+  std::vector<const Expr *> exprs;
+};
+
 struct Builtin : public Expr {
   Builtin(const Var *var, std::vector<const Expr *> exprs)
       : var(var), exprs(exprs) {

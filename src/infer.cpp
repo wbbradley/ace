@@ -233,6 +233,14 @@ types::Ref infer_core(const Expr *expr,
                                        "dereferencing tuple index %d of %d",
                                        tuple_deref->index, tuple_deref->max));
     return dims[tuple_deref->index];
+  } else if (auto ffi = dcast<const FFI *>(expr)) {
+    types::Refs ts;
+    for (auto expr : ffi->exprs) {
+      ts.push_back(infer(expr, data_ctors_map, return_type, scheme_resolver,
+                         tracked_types, constraints, instance_requirements));
+    }
+    ts.push_back(type_variable(ffi->get_location()));
+    return ts.back();
   } else if (auto builtin = dcast<const Builtin *>(expr)) {
     types::Refs ts;
     for (auto expr : builtin->exprs) {

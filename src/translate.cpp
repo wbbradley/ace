@@ -288,6 +288,17 @@ const Expr *texpr(const types::DefnId &for_defn_id,
         assert(typing.count(expr));
         return expr;
       }
+    } else if (auto ffi = dcast<const FFI *>(expr)) {
+      std::vector<const Expr *> exprs;
+      for (auto expr : ffi->exprs) {
+        exprs.push_back(texpr(for_defn_id, expr, data_ctors_map, bound_vars,
+                              tracked_types,
+                              get_tracked_type(tracked_types, expr), type_env,
+                              typing, needed_defns, returns));
+      }
+      auto new_ffi = new FFI(ffi->id, exprs);
+      typing[new_ffi] = type;
+      return new_ffi;
     } else if (auto builtin = dcast<const Builtin *>(expr)) {
       std::vector<const Expr *> exprs;
       for (auto expr : builtin->exprs) {

@@ -4,11 +4,11 @@ link "readline"
 
 fn readline(prompt String) Maybe String {
   let String(prompt_sz, _) = prompt
-  let raw_line = __builtin_ffi_1("readline", prompt_sz) as *Char
+  let raw_line = ffi readline(prompt_sz) as *Char
   if raw_line == null {
     return Nothing
   } else {
-    let line = __builtin_ffi_1("zion_dup_free", raw_line)
+    let line = ffi zion_dup_free(raw_line)
     return Just(String(line, strlen(line)))
   }
 }

@@ -116,6 +116,6 @@ fn main() {
         Step(l)
         print("\x0c")
         print(l)
-        __builtin_ffi_1("sleep", 1)
+        ffi "sleep"(1)
     }
 }

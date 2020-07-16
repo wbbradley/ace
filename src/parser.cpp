@@ -211,27 +211,22 @@ const Expr *parse_assert(ParseState &ps) {
       condition, // The condition we are asserting
       unit_expr(ps.token.location),
       new Block({
-          new As(new As(new Builtin(
-                            new Var(Identifier{"__builtin_ffi_3",
-                                               ps.token.location}),
-                            {
-                                new Literal(Token{ps.token.location, tk_string,
-                                                  "\"write\""}),
-                                new Literal(Token{ps.token.location, tk_integer,
-                                                  "2" /*stderr*/}),
-                                new Literal(
-                                    Token{ps.token.location, tk_string,
-                                          escape_json_quotes(assert_message)}),
-                                new Literal(Token{
-                                    ps.token.location, tk_integer,
-                                    std::to_string(assert_message.size())}),
-                            }),
-                        type_id(make_iid(INT_TYPE)), false /*force_cast*/),
-                 type_unit(INTERNAL_LOC()), true /*force_cast*/),
-          new Builtin(
-              new Var(make_iid("__builtin_ffi_1")),
-              {new Literal(Token{assert_token.location, tk_string, "\"exit\""}),
-               new Literal(Token{assert_token.location, tk_integer, "1"})}),
+          new As(
+              new As(new FFI(Identifier("write", ps.token.location),
+                             {
+                                 new Literal(Token{ps.token.location,
+                                                   tk_integer, "2" /*stderr*/}),
+                                 new Literal(
+                                     Token{ps.token.location, tk_string,
+                                           escape_json_quotes(assert_message)}),
+                                 new Literal(Token{
+                                     ps.token.location, tk_integer,
+                                     std::to_string(assert_message.size())}),
+                             }),
+                     type_id(make_iid(INT_TYPE)), false /*force_cast*/),
+              type_unit(INTERNAL_LOC()), true /*force_cast*/),
+          new FFI(Identifier{"exit", assert_token.location},
+                  {new Literal(Token{assert_token.location, tk_integer, "1"})}),
           unit_expr(ps.token.location),
       }));
   chomp_token(tk_rparen);
@@ -421,6 +416,43 @@ const Expr *parse_statement(ParseState &ps) {
   }
 }
 
+const Expr *parse_ffi(ParseState &ps) {
+  auto location = ps.token.location;
+  chomp_ident(K(ffi));
+
+  if (ps.line_broke()) {
+    throw user_error(
+        location,
+        "there cannot be a line break splitting an ffi invocation. this is to "
+        "make grepping for ffi dependencies easier.");
+  }
+  /* get the name of the FFI user wants to call. Non-quoted is fine, but quotes
+   * are allowed in case of system linker/Zion lexer compatibility issues. */
+  Identifier id;
+  if (ps.token.tk == tk_identifier) {
+    id = iid(ps.token);
+  } else {
+    expect_token(tk_string);
+
+    id = Identifier(unescape_json_quotes(ps.token.text), ps.token.location);
+  }
+
+  ps.advance();
+
+  chomp_token(tk_lparen);
+  std::vector<const Expr *> exprs;
+  while (ps.token.tk != tk_rparen) {
+    exprs.push_back(parse_expr(ps, false /*allow_for_comprehensions*/));
+    if (ps.token.tk == tk_rparen) {
+      break;
+    }
+    chomp_token(tk_comma);
+  }
+  chomp_token(tk_rparen);
+
+  return new FFI(id, exprs);
+}
+
 const Expr *parse_var_ref(ParseState &ps) {
   if (ps.token.tk != tk_identifier) {
     throw user_error(ps.token.location, "expected an identifier");
@@ -525,6 +557,8 @@ const Expr *parse_base_expr(ParseState &ps) {
     return new As(
         new Literal(Token{ps.token_and_advance().location, tk_integer, "0"}),
         type_ptr(type_variable(ps.prior_token.location)), true /*force_cast*/);
+  } else if (ps.token.is_ident(K(ffi))) {
+    return parse_ffi(ps);
   } else if (ps.token.tk == tk_identifier) {
     return parse_var_ref(ps);
   } else {
