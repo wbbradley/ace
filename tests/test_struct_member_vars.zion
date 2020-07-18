@@ -1,13 +1,13 @@
 # test: pass
 
 struct MutableVector {
-    x var Float
-    y var Float
+    mx var Float
+    my var Float
 }
 
 instance Str MutableVector {
     fn str(mv) {
-        return "<${mv.x}, ${mv.y}>"
+        return "<${mv.mx}, ${mv.my}>"
     }
 }
 
@@ -15,8 +15,8 @@ fn main() {
     var x = 1.2
     var y = 2.3
     let mv = MutableVector(var x, var y)
-    mv.x = 2.09
-    print(mv.x)
+    mv.mx = 2.09
+    print(mv.mx)
     print(mv)
     print("PASS")
 }

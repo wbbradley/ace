@@ -2,6 +2,7 @@
 
 import list {List, Cons, Nil, remove_if}
 import hash {hash}
+import copy {Copy, copy}
 export {Map, MapStorage, keys, values, from_pairs}
 
 newtype MapKeyValueCell key value = MapKeyValueCell(Int, key, var value)
@@ -97,7 +98,7 @@ instance HasRemovableItems (Map key value) key {
     }
     let hash_key = abs(hash(key))
     let index = hash_key % len(storage)
-    let (new_list, removed_count) = remove_if(storage[index], fn (key_value_cell MapKeyValueCell key value) Bool {
+    let (new_list, removed_count) = remove_if(storage[index], |key_value_cell| {
       let MapKeyValueCell(existing_key_hash, existing_key, _) = key_value_cell
       return existing_key_hash == hash_key and existing_key == key
     })
@@ -271,4 +272,14 @@ fn from_pairs(xys) Map a b {
     map[x] = y
   }
   return map
+}
+
+instance Copy (Map a b) {
+  fn copy(m) {
+    let new_map = {}
+    for (k, v) in m {
+      new_map[k] = v
+    }
+    return new_map
+  }
 }

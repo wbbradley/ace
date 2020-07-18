@@ -1,0 +1,13 @@
+# test: pass
+# expect: \b0\.0.*\.50
+
+import matrix {V2}
+import geometry {Segment, segments_intersect}
+
+fn main() {
+  let segment1 = Segment(V2(0.0, 0.5), V2(1.0, 0.0))
+  let segment2 = Segment(V2(0.0, 0.5), V2(0.0, 1.0))
+  if segments_intersect(segment1, segment2) is Just(pt) {
+    print(pt)
+  }
+}

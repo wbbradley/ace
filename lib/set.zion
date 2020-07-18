@@ -1,3 +1,4 @@
+import copy {Copy, copy}
 export {Set, set}
 
 newtype Set a = Set(Map a ())
@@ -56,4 +57,11 @@ instance Iterable (Set a) a {
 
 instance Str (Set a) {
   fn str(xs) => "{${join(", ", xs)}}"
+}
+
+instance Copy (Set a) {
+  fn copy(xs) {
+    let Set(m) = xs
+    return Set(copy(m))
+  }
 }

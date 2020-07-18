@@ -9,12 +9,12 @@ newtype ParseState = ParseState(String, Int)
 
 # Span is a run of text within the source content
 struct Span {
-  text String
+  span_text String
   pos  Int
 }
 
 fn span_concat(spans [Span]) Span {
-  return Span(join("", span.text for span in spans),
+  return Span(join("", span.span_text for span in spans),
               len(spans) > 0 ? spans[0].pos : 0)
 }
 
@@ -24,7 +24,7 @@ data Progress parsestate node {
 }
 
 instance Str Span {
-  fn str(span) => span.text
+  fn str(span) => span.span_text
 }
 
 instance Strippable Span {

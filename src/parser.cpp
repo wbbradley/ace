@@ -39,7 +39,7 @@ private:
 };
 
 Identifier make_accessor_id(Identifier id) {
-  return Identifier{"__get_" + id.name, id.location};
+  return id; // Identifier{"__get_" + id.name, id.location};
 }
 
 bool token_begins_type(const Token &token) {
@@ -704,6 +704,8 @@ const Expr *build_generator(Location location,
 }
 
 const Expr *parse_generator(ParseState &ps, const Expr *expr) {
+  // TODO: symbols in expr might have already been mapped into the wrong
+  // namespace if they conflict with the imports. Find a way to handle this...
   BoundVarLifetimeTracker bvlt(ps);
   GeneratorFor generator_for = parse_generator_for(ps);
   if (ps.token.is_ident(K(for))) {
@@ -1137,8 +1139,7 @@ const Expr *parse_postfix_expr(ParseState &ps) {
             ps.token.location,
             "property accessors must start with lowercase letters");
       }
-      auto iid = Identifier{"__get_" + ps.token_and_advance().text,
-                            ps.prior_token.location};
+      auto iid = ps.identifier_and_advance();
       expr = new Application(new Var(iid), {expr});
       break;
     }

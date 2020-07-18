@@ -1,0 +1,25 @@
+import matrix {V2}
+
+export {Segment, segments_intersect}
+
+newtype Segment = Segment(V2, V2)
+
+fn segments_intersect(s1 Segment, s2 Segment) Maybe V2  {
+  let Segment(V2(p0_x, p0_y), V2(p1_x, p1_y)) = s1
+  let Segment(V2(p2_x, p2_y), V2(p3_x, p3_y)) = s2
+
+  let s1_x = p1_x - p0_x
+  let s1_y = p1_y - p0_y
+  let s2_x = p3_x - p2_x
+  let s2_y = p3_y - p2_y
+
+  let s = (-s1_y * (p0_x - p2_x) + s1_x * (p0_y - p2_y)) / (-s2_x * s1_y + s1_x * s2_y)
+  let t = ( s2_x * (p0_y - p2_y) - s2_y * (p0_x - p2_x)) / (-s2_x * s1_y + s1_x * s2_y)
+
+  if s >= 0.0 and s <= 1.0 and t >= 0.0 and t <= 1.0 {
+    # Collision detected
+    return Just(V2(p0_x + (t * s1_x), p0_y + (t * s1_y)))
+  }
+
+  return Nothing
+}
