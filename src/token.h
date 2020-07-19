@@ -147,5 +147,6 @@ struct Token {
 
 const char *tkstr(TokenKind tk);
 int64_t parse_int_value(Token token);
+double parse_float_value(Token token);
 bool is_assignment_operator(TokenKind tk);
 } // namespace zion

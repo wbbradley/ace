@@ -71,12 +71,13 @@ Token ParseState::token_and_advance() {
   return prior_token;
 }
 
-Identifier ParseState::identifier_and_advance() {
+Identifier ParseState::identifier_and_advance(bool map_id) {
   if (token.tk != tk_identifier) {
     throw user_error(token.location, "expected an identifier here");
   }
   advance();
-  return id_mapped(Identifier{prior_token.text, prior_token.location});
+  auto id = Identifier{prior_token.text, prior_token.location};
+  return map_id ? id_mapped(id) : id;
 }
 
 Identifier ParseState::id_mapped(Identifier id) {

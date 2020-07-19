@@ -1,4 +1,5 @@
 import matrix {V2}
+import svg {ToSvg, to_svg}
 
 export {Segment, segments_intersect}
 
@@ -22,4 +23,12 @@ fn segments_intersect(s1 Segment, s2 Segment) Maybe V2  {
   }
 
   return Nothing
+}
+
+instance ToSvg Segment {
+  fn to_svg(s, options) String {
+    let Segment(V2(p0_x, p0_y), V2(p1_x, p1_y)) = s
+    # TODO: utilize an xml_quote function
+    return "<line x1='${p0_x}' y1='${p0_y}' x2='${p1_x}' y2='${p1_y}' ${join(" ", "${k}='${v}'" for (k, v) in options)} />"
+  }
 }

@@ -398,7 +398,7 @@ types::Ref CtorPredicate::tracking_infer(
   assert(ctor_terms.size() >= 1);
   if (ctor_terms.size() - 1 != params.size()) {
     throw user_error(get_location(),
-                     "incorrect number of sub-patterns given to %s (%d vs. %d)",
+                     "incorrect number of sub-patterns given to %s (should be %d not %d)",
                      ctor_name.str().c_str(), ctor_terms.size() - 1,
                      params.size());
   }

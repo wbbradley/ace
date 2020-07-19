@@ -403,7 +403,7 @@ const Expr *CtorPredicate::translate(
 
   if (do_checks) {
     Expr *condition;
-    int ctor_id = get_ctor_id(data_ctors_map, ctor_name.name);
+    int ctor_id = get_ctor_id(ctor_name.location, data_ctors_map, ctor_name.name);
     auto ctor_id_literal = new Literal(
         Token{location, tk_integer, std::to_string(ctor_id)});
     typing[ctor_id_literal] = Int;

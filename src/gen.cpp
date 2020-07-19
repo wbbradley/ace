@@ -965,13 +965,7 @@ ResolutionStatus gen_literal(std::string name,
     }
     return rs_resolve_again;
   } else if (type_equality(type, type_id(make_iid(FLOAT_TYPE)))) {
-    double value;
-    std::istringstream iss(token.text);
-    iss >> value;
-    if (value != value) {
-      throw user_error(token.location, "%s is not a number",
-                       token.text.c_str());
-    }
+    double value = parse_float_value(token);
     auto llvm_value = llvm::ConstantFP::get(builder.getDoubleTy(), value);
     if (publisher != nullptr) {
       publisher->publish(llvm_value);

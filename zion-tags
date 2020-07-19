@@ -35,7 +35,7 @@ gather-zion-tags() {
   # shellcheck disable=SC2068
   for target in ${targets[@]}; do
     # shellcheck disable=SC2038
-    find "$target" -regex '.*\.zion$' \
+    find -L "$target" -regex '.*\.zion$' \
       | xargs grep -ERn "^$indent$keyword$spacePlus.*" \
       | sed \
         -Ene \

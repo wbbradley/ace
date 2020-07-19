@@ -1,0 +1,5 @@
+export {ToSvg, to_svg}
+
+class ToSvg a {
+  fn to_svg(a, Map String String) String
+}

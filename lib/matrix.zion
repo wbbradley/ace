@@ -3,7 +3,7 @@ import trigonometry {sin, cos}
 
 export {
   V2, V3, Matrix3, translation2d, rotate2d, scale2d, multiply_vec3,
-  multiply_vec2, translation2d_vec2}
+  multiply_vec2, translation2d_vec2, svg_matrix}
 
 newtype V2 = V2(Float, Float)
 
@@ -182,4 +182,12 @@ fn multiply_vec2(m Matrix3, v2 V2) {
   let V2(x, y) = v2
   return V2(a*x + b*y + c,
             d*x + e*y + f)
+}
+
+fn svg_matrix(m Matrix3) String {
+  let Matrix3(a, b, c, d, e, f, g, h, i) = m
+  assert(g == 0.0)
+  assert(h == 0.0)
+  assert(i == 1.0)
+  return "matrix(${a}, ${d}, ${b}, ${e}, ${c}, ${f})"
 }

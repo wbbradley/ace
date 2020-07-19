@@ -158,7 +158,8 @@ const char *zion_dup_free(const char *src) {
 char *zion_ftoa(double x) {
   char sz[128];
   /* IEEE double precision floats have about 15 decimal digits of precision */
-  if (snprintf(sz, sizeof(sz), "%.15f", x) < 1) {
+  // For now, let's use 6.
+  if (snprintf(sz, sizeof(sz), "%.6f", x) < 1) {
     perror("Failed in zion_ftoa");
     exit(1);
   }

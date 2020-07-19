@@ -145,6 +145,16 @@ bool Token::follows_after(const Token &a) const {
          location.line == a.location.line;
 }
 
+double parse_float_value(Token token) {
+  double value;
+  std::istringstream iss(token.text);
+  iss >> value;
+  if (value != value) {
+    throw user_error(token.location, "%s is not a number", token.text.c_str());
+  }
+  return value;
+}
+
 int64_t parse_int_value(Token token) {
   switch (token.tk) {
   case tk_integer: {

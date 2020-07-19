@@ -1,6 +1,6 @@
 # test: pass
-# expect: 1.570796326794897
-# expect: 0.785398163397448
+# expect: 1.570796
+# expect: 0.785398
 
 import trigonometry {pi}
 

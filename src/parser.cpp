@@ -2564,13 +2564,18 @@ const Module *parse_module(ParseState &ps,
           throw user_error(symbol.location,
                            "it is not possible to import module-scoped "
                            "variables into other modules");
+        } 
+        Identifier import_as = symbol;
+        if (ps.token.is_ident(K(as))) {
+          ps.advance();
+          import_as = ps.identifier_and_advance(false/*map_id*/);
         }
         /* record this import */
-        debug_above(3, log_location(ps.token.location, "recording import of %s",
-                                    symbol.str().c_str()));
+        debug_above(3, log_location(ps.token.location, "recording import of %s as %s",
+                                    symbol.str().c_str(), import_as.str().c_str()));
         ps.symbol_imports[ps.module_name][module_name.name].insert(symbol);
         assert(symbol.name.find(".") == std::string::npos);
-        ps.add_term_map(symbol.location, symbol.name,
+        ps.add_term_map(symbol.location, import_as.name,
                         module_name.name + "." + symbol.name,
                         false /*allow_override*/);
         if (ps.token.tk == tk_comma) {

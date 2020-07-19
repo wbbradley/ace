@@ -769,6 +769,12 @@ Pattern::ref Literal::get_pattern(
       return std::make_shared<Scalars<int64_t>>(
           token.location, Scalars<int64_t>::Exclude, std::set<int64_t>{});
     }
+  } else if (type_equality(type, type_id(make_iid(FLOAT_TYPE)))) {
+    if (token.tk == tk_float) {
+      double value = parse_float_value(token);
+      return std::make_shared<Scalars<double>>(
+          token.location, Scalars<double>::Include, std::set<double>{value});
+    }
   } else if (type_equality(type, type_id(make_iid(CHAR_TYPE)))) {
     if (token.tk == tk_char) {
       uint8_t value = token.text[0];
@@ -777,9 +783,9 @@ Pattern::ref Literal::get_pattern(
     }
   }
 
-  throw zion::user_error(token.location,
-                         "invalid type for literal '%s'. should be a %s",
-                         token.text.c_str(), type->str().c_str());
+  throw zion::user_error(
+      token.location, "invalid type for literal '%s' (%s). should be a %s",
+      token.text.c_str(), tkstr(token.tk), type->str().c_str());
   return nullptr;
 }
 } // namespace ast
