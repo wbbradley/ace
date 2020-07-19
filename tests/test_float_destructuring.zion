@@ -1,0 +1,10 @@
+# test: pass
+# expect: 3.4
+
+newtype V2 = V2(Float, Float)
+fn main() {
+  match (0.0, 3.4) {
+    (0.0, g) => print(g)
+    _ => ()
+  }
+}
