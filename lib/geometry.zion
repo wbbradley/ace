@@ -1,8 +1,9 @@
 import matrix {V2}
-import svg {ToSvg, to_svg}
+import svg {ToSvg, to_svg, inline_styles}
 
-export {Segment, segments_intersect}
+export {Segment, segments_intersect, Circle}
 
+newtype Circle = Circle(V2, Float)
 newtype Segment = Segment(V2, V2)
 
 fn segments_intersect(s1 Segment, s2 Segment) Maybe V2  {
@@ -29,6 +30,14 @@ instance ToSvg Segment {
   fn to_svg(s, options) String {
     let Segment(V2(p0_x, p0_y), V2(p1_x, p1_y)) = s
     # TODO: utilize an xml_quote function
-    return "<line x1='${p0_x}' y1='${p0_y}' x2='${p1_x}' y2='${p1_y}' ${join(" ", "${k}='${v}'" for (k, v) in options)} />"
+    return "<line x1='${p0_x}' y1='${p0_y}' x2='${p1_x}' y2='${p1_y}' ${inline_styles(options)} />"
+  }
+}
+
+
+instance ToSvg Circle {
+  fn to_svg(c, options) String {
+    let Circle(V2(x, y), radius) = c
+    return "<circle cx='${x}' cy='${y}' r='${radius}' ${inline_styles(options)}/>\n"
   }
 }
