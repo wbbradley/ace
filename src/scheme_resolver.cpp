@@ -29,25 +29,30 @@ void SchemeResolver::insert_scheme(std::string name,
   state[name] = scheme;
 }
 
-types::SchemeRef SchemeResolver::lookup_scheme(const Identifier &id) const {
+types::SchemeRef SchemeResolver::lookup_scheme(
+    const Identifier &id,
+    std::set<Identifier> &candidates) const {
   auto iter = state.find(id.name);
   if (iter != state.end()) {
     return iter->second;
-  } else if (parent != nullptr) {
-    return parent->lookup_scheme(id);
   } else {
-    // TODO: get results from stacked resolvers
-    auto user_error = zion::user_error(
-        id.location, "symbol " c_id("%s") " is undefined", id.name.c_str());
     std::string upper_name = to_upper(id.name);
     for (auto &pair : state) {
       /* look for a substring match in another symbol */
-      if (ends_with(to_upper(pair.first), "." + upper_name)) {
-        user_error.add_info(pair.second->get_location(),
-                            "did you mean " c_id("%s") "?", pair.first.c_str());
+      if (regex_match(to_upper(pair.first), "[^.]+\\.?" + upper_name)) {
+        candidates.insert(Identifier{pair.first, pair.second->get_location()});
       }
     }
-    throw user_error;
+    if (parent != nullptr) {
+      return parent->lookup_scheme(id, candidates);
+    } else {
+      auto user_error = zion::user_error(
+          id.location, "symbol " c_id("%s") " is undefined", id.name.c_str());
+      for (auto &id : candidates) {
+        user_error.add_info(id.location, "did you mean %s?", id.str().c_str());
+      }
+      throw user_error;
+    }
   }
 }
 

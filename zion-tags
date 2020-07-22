@@ -1,6 +1,7 @@
 #!/bin/bash
 # This script builds the tags for use when doing
 # development on the compiler or on a user-project.
+echo "$0"
 tags_file="./tags"
 
 if [ $# -eq 0 ]; then
@@ -55,3 +56,5 @@ gather-zion-tags "struct" "s"
 cat "$tags_file" >> "$ztags"
 sort "$ztags" > "$tags_file"
 rm "$ztags"
+wc -l "$tags_file"
+# cat "$tags_file" | grep -Ev '^!' | awk '{ print $2 }' | xargs -n 1 dirname 2>/dev/null | sort | uniq -c | sort -rn

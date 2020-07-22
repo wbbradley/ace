@@ -4,7 +4,7 @@ import result {Result, Ok, Err}
 import defaults {HasDefault, HasDefaultGet, new, get}
 import maybe {Maybe, Nothing, Just}
 import map {Map, keys, values}
-import math {+, -, *, /, abs, negate, Num, Bounded, from_int}
+import math {+, -, *, /, abs, negate, Num, Bounded, from_int, identity}
 import set {Set, set}
 import sys {open, read, write, close, readlines, stdin, stdout, stderr}
 import vector {Vector, flatten, reserve, vector, reset, resize}
@@ -17,13 +17,13 @@ export {Repr, repr}
 export {Maybe, Nothing, Just}
 export {open, read, write, close, readlines, stdin, stdout, stderr}
 export {Map, keys, values, Set, set}
-export {+, -, *, /, abs, negate, Num, Bounded, from_int}
+export {+, -, *, /, abs, negate, Num, Bounded, from_int, identity}
 export {Vector, flatten, reserve, vector, reset, resize, make, Makeable}
 export {String, split, chomp, strip, concat, has_substring, has_prefix, has_suffix, replace,
         join}
 export {Result, Ok, Err}
 export {u8, i8}
-export {nothing}
+# export {nothing}
 
 link pkg "bdw-gc"
 
@@ -49,6 +49,11 @@ instance HasDefault Int {
 
 class Str a {
   fn str(a) String
+}
+
+class ObjectId a b {
+  # Would be nice to have functional dependencies for a -> b.
+  fn object_id(a) b
 }
 
 instance Str Bool {
@@ -118,6 +123,13 @@ instance Str [a] {
       append(strs, str(x))
     }
     return "[${join(", ", strs)}]"
+  }
+}
+
+instance Str (a, b) {
+  fn str(pair) {
+    let (a, b) = pair
+    return "(${a}, ${b})"
   }
 }
 

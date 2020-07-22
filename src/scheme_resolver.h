@@ -21,7 +21,8 @@ struct SchemeResolver final {
 
   bool scheme_exists(std::string name) const;
   void insert_scheme(std::string name, const types::SchemeRef &scheme);
-  types::SchemeRef lookup_scheme(const Identifier &id) const;
+  types::SchemeRef lookup_scheme(const Identifier &id,
+                                 std::set<Identifier> &candidates) const;
   void rebind(const types::Map &bindings) const;
 
   std::string str() const;
