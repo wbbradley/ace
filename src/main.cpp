@@ -391,8 +391,9 @@ CheckedDefinitionsByName check_decls(std::string entry_point_name,
         if (debug_level() > 2) {
           log("found a reference to " c_id("%s") " in SCCs that has no decl",
               name.c_str());
+          std::set<Identifier> candidates;
           auto scheme = scheme_resolver.lookup_scheme(
-              Identifier{name, INTERNAL_LOC()});
+              Identifier{name, INTERNAL_LOC()}, candidates);
           if (scheme != nullptr) {
             log("looked up scheme %s :: %s", name.c_str(),
                 scheme->str().c_str());

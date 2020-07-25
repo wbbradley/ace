@@ -5,10 +5,6 @@ export {
   V2, V3, Matrix3, translation2d, rotate2d, scale2d, multiply_vec3,
   multiply_vec2, translation2d_vec2, svg_matrix, Transform2D, transform2d}
 
-class Transform2D a {
-  fn transform2d(a, Matrix3) a
-}
-
 newtype V2 = V2(Float, Float)
 
 instance Str V2 {
@@ -97,6 +93,14 @@ struct Matrix3 {
   m7 Float
   m8 Float
   m9 Float
+}
+
+class Transform2D a {
+  fn transform2d(a, Matrix3) a
+}
+
+instance Transform2D V2 {
+  fn transform2d(a, b) => multiply_vec2(b, a)
 }
 
 instance Str Matrix3 {

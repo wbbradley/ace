@@ -1,4 +1,4 @@
-import matrix {V2}
+import matrix {V2, Transform2D, transform2d}
 import svg {ToSvg, to_svg, inline_styles}
 
 export {Segment, segments_intersect, Circle, midpoint, Text}
@@ -30,6 +30,18 @@ fn segments_intersect(s1 Segment, s2 Segment) Maybe V2  {
 fn midpoint(s Segment) => match s {
   Segment(V2(x1, y1), V2(x2, y2)) => V2((x1 + x2) * 0.5,
                                         (y1 + y2) * 0.5)
+}
+
+instance Transform2D Segment {
+  fn transform2d(s Segment, m3) Segment => match s {
+    Segment(p1, p2) => Segment(transform2d(p1, m3), transform2d(p2, m3))
+  }
+}
+
+instance Str Segment {
+  fn str(s) => match s {
+    Segment(p1, p2) => "Segment(${p1}, ${p2})"
+  }
 }
 
 instance ToSvg Segment {
