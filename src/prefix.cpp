@@ -1,6 +1,7 @@
 #include "prefix.h"
 
 #include "class_predicate.h"
+#include "parser.h"
 #include "ptr.h"
 
 namespace zion {
@@ -17,7 +18,7 @@ std::string prefix(const std::set<std::string> &bindings,
   }
 
   if (in(name, bindings)) {
-    return pre + "." + name;
+    return parser::tld(pre + "." + name);
   } else {
     return name;
   }
@@ -105,6 +106,7 @@ std::set<std::string> only_uppercase_bindings(
     const std::set<std::string> &bindings) {
   std::set<std::string> only_uppercase_bindings;
   for (auto binding : bindings) {
+    assert(!starts_with(binding, "::"));
     if (isupper(binding[0])) {
       only_uppercase_bindings.insert(binding);
     }

@@ -25,7 +25,7 @@ bool ClassPredicateRefEqualTo::operator()(const ClassPredicateRef &lhs,
 ClassPredicate::ClassPredicate(Identifier classname, const types::Refs &params)
     : classname(classname), params(params) {
 #ifdef ZION_DEBUG
-  if (std::strchr(classname.name.c_str(), '.') != nullptr) {
+  if (std::strstr(classname.name.c_str(), ".") != nullptr) {
     assert(isupper(split(classname.name, ".")[1][0]));
   } else {
     assert(isupper(classname.name[0]));

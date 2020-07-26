@@ -9,6 +9,10 @@
 namespace zion {
 namespace parser {
 
+std::string tld(std::string name);
+Identifier tld(Identifier id);
+bool is_tld(std::string name);
+
 std::map<std::string, int> get_builtin_arities();
 
 bool token_begins_type(const Token &token);

@@ -428,7 +428,7 @@ const Predicate *IrrefutablePredicate::rewrite(
 types::Ref TypeDecl::get_type() const {
   std::vector<types::Ref> types;
 #ifdef ZION_DEBUG
-  std::vector<std::string> pieces = split(id.name, ".");
+  std::vector<std::string> pieces = split(id.name, ".::");
   assert(isupper(pieces.back()[0]));
 #endif
   types.push_back(type_id(id));

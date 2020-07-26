@@ -1,0 +1,11 @@
+# test: pass
+
+import matrix {transform2d, V2, Matrix3}
+import geometry {Segment}
+
+fn main() {
+  let s = Segment(V2(3.0, 4.0), V2(0.0, 0.13))
+  let t = transform2d(s, identity())
+  print(t)
+  print("PASS")
+}

@@ -16,6 +16,7 @@
 #include "lexer.h"
 #include "logger.h"
 #include "logger_decls.h"
+#include "parser.h"
 #include "solver.h"
 #include "tarjan.h"
 #include "tests.h"
@@ -959,11 +960,21 @@ Phase3 specialize(const Phase2 &phase_2) {
   if (user_error::errors_occurred()) {
     throw user_error(INTERNAL_LOC(), "quitting");
   }
-  std::string entry_point_name = phase_2.compilation->program_name + ".main";
+  std::string entry_point_name = zion::parser::tld(phase_2.compilation->program_name + ".main");
   if (phase_2.checked_defns.count(entry_point_name) == 0) {
-    throw user_error(Location{phase_2.compilation->program_filename, 1, 1},
-                     "could not find a definition for %s",
-                     entry_point_name.c_str());
+    auto error = user_error(
+        Location{phase_2.compilation->program_filename, 1, 1},
+        "could not find a definition for %s", entry_point_name.c_str());
+    for (auto pair : phase_2.checked_defns) {
+      if (pair.first.find(entry_point_name) != std::string::npos) {
+        for (auto checked_def : pair.second) {
+          error.add_info(checked_def->get_location(),
+                         "perhaps you meant %s : %s?", pair.first.c_str(),
+                         checked_def->scheme->str().c_str());
+        }
+      }
+    }
+    throw error;
   }
 
   CheckedDefinitionRef checked_defn_main =

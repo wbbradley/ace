@@ -19,6 +19,30 @@
 namespace zion {
 namespace parser {
 
+namespace _tld {
+  const char *prefix = "::";
+}
+
+bool is_tld(std::string name) {
+  return starts_with(name, _tld::prefix);
+}
+
+std::string tld(std::string name) {
+  if (is_tld(name)) {
+    return name;
+  } else {
+    return _tld::prefix + name;
+  }
+}
+
+Identifier tld(Identifier id) {
+  if (is_tld(id.name)) {
+    return id;
+  } else {
+    return Identifier(_tld::prefix + id.name, id.location);
+  }
+}
+
 using namespace ast;
 
 class RawParseMode {
@@ -2532,11 +2556,12 @@ const Module *parse_module(ParseState &ps,
     }
     std::set<std::string> tlds = compiler::get_top_level_decls(
         aim->decls, aim->type_decls, aim->type_classes, aim->imports);
-    for (auto tld : tlds) {
-      debug_above(9, log("adding tld %s -> %s in %s", tld.c_str(),
-                         (aim->name + "." + tld).c_str(), ps.filename.c_str()));
+    for (auto tldecl : tlds) {
+      const std::string resolved_name = tld(aim->name + "." + tldecl);
+      debug_above(9, log("adding tldecl %s -> %s in %s", tldecl.c_str(),
+                         resolved_name.c_str(), ps.filename.c_str()));
       /* imports cannot override other imports */
-      ps.add_term_map(INTERNAL_LOC(), tld, aim->name + "." + tld,
+      ps.add_term_map(INTERNAL_LOC(), tldecl, resolved_name,
                       false /*allow_override*/);
     }
   }
@@ -2620,7 +2645,7 @@ const Module *parse_module(ParseState &ps,
 
   for (auto &id : exports) {
     assert(id.name.find(".") == std::string::npos);
-    auto fully_qualified_id = Identifier{ps.module_name + "." + id.name,
+    auto fully_qualified_id = Identifier{tld(ps.module_name + "." + id.name),
                                          id.location};
     auto imported_id = ps.id_mapped(id);
     ps.symbol_exports[ps.module_name][fully_qualified_id] =
@@ -2660,7 +2685,8 @@ const Module *parse_module(ParseState &ps,
     } else if (ps.token.is_ident(K(fn))) {
       /* module-level functions */
       ps.advance();
-      auto id = Identifier::from_token(ps.token_and_advance());
+      Token token = ps.token_and_advance();
+      auto id = Identifier(token.text, token.location);
       decls.push_back(new Decl(id, parse_lambda(ps)));
     } else if (ps.token.is_ident(K(struct))) {
       ps.advance();
