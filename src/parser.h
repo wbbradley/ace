@@ -76,6 +76,7 @@ const ast::Predicate *parse_predicate(ParseState &ps,
                                       bool allow_else,
                                       maybe<Identifier> name_assignment,
                                       bool allow_var_refs = true);
+const ast::Expr *parse_postfix_chain(ParseState &ps, const ast::Expr *expr);
 const ast::Predicate *unfold_application_into_predicate(
     const ast::Application *application);
 const ast::Predicate *convert_expr_to_predicate(const ast::Expr *expr);

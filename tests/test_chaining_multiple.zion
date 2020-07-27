@@ -1,0 +1,6 @@
+# test: pass
+# expect: 4:5:6:7
+
+fn main() {
+  ":".join([4, 5, 6, 7]).print
+}

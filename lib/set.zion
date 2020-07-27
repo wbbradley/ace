@@ -44,14 +44,12 @@ instance HasLength (Set a) {
 
 instance Iterable (Set a) a {
     fn iter(set Set a) fn () Maybe a {
-        let Set(inner_map) = set
-        return iter(
-            map(
-                fn (pair) {
-                    let (a, _) = pair
-                    return a
-                },
-                inner_map)) as fn () Maybe a
+      let Set(inner_map) = set
+      return iter(
+        inner_map.map(|pair| {
+          let (a, _) = pair
+          return a
+        }))
     }
 }
 

@@ -15,6 +15,7 @@
 #include "parse_state.h"
 #include "parser.h"
 #include "prefix.h"
+#include "tld.h"
 #include "utils.h"
 #include "zion.h"
 
@@ -252,11 +253,17 @@ std::shared_ptr<Compilation> merge_compilation(
   /* next, merge the entire set of modules into one program */
   for (const Module *module : modules) {
     /* get a list of all top-level decls */
-    std::set<std::string> bindings = get_top_level_decls(
+    std::set<std::string> maybe_not_tld_bindings = get_top_level_decls(
         module->decls, module->type_decls, module->type_classes,
         module->imports);
 
+    std::set<std::string> bindings;
+    for (auto binding: maybe_not_tld_bindings) {
+      bindings.insert(binding);
+      bindings.insert(tld::tld(binding));
+    }
     const Module *module_rebound = prefix(bindings, module);
+
 
     /* now all locally referring vars are fully qualified */
     for (const Decl *decl : module_rebound->decls) {

@@ -11,7 +11,8 @@ using namespace ast;
 std::string prefix(const std::set<std::string> &bindings,
                    std::string pre,
                    std::string name) {
-  if (tld::split_fqn(name).size() > 1) {
+  auto names = tld::split_fqn(name);
+  if (names.size() > 1) {
     return name;
   }
 

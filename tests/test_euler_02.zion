@@ -10,25 +10,25 @@ struct FibonacciIterator {
 }
 
 fn fibonacci_sequence() {
-    let fs = FibonacciIterator(Ref(0), Ref(1), Ref(1))
-    return fn () {
-        fs.index += 1
-        if !fs.index > 2 {
-            let next = !fs.prior + !fs.cur
-            fs.prior = !fs.cur
-            fs.cur = next
-        }
-        return Just(!fs.cur)
+  let fs = FibonacciIterator(Ref(0), Ref(1), Ref(1))
+  return fn () {
+    fs.index += 1
+    if !fs.index > 2 {
+      let next = !fs.prior + !fs.cur
+      fs.prior = !fs.cur
+      fs.cur = next
     }
+    return Just(!fs.cur)
+  }
 }
 
 fn main() {
-    var total = 0
-    for n in filter(even, fibonacci_sequence()) {
-        if n > 4000000 {
-            break
-        }
-        total += n
+  var total = 0
+  for n in fibonacci_sequence().filter(even) {
+    if n > 4000000 {
+      break
     }
-    print(total)
+    total += n
+  }
+  print(total)
 }

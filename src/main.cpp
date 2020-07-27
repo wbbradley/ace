@@ -1301,6 +1301,7 @@ int run_job(const Job &job) {
     ship_assert(!zion::tld::is_tld_type("copy"));
     ship_assert(zion::tld::is_tld_type("::copy::Copy"));
     ship_assert(!zion::tld::is_tld_type("::copy::copy"));
+    ship_assert(tld::split_fqn("::inc").size() == 1);
 
     return EXIT_SUCCESS;
   };

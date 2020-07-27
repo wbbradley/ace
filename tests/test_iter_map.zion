@@ -4,5 +4,8 @@
 import math {sum}
 
 fn main() {
-    print(sum(map(fn (x Int) Float { return from_int(x + 1) }, [1, 2, 3])))
+  [1, 2, 3]
+    .map(|x| Float => from_int(x + 1))
+    .sum
+    .print
 }

@@ -1,0 +1,11 @@
+# test: pass, noprelude
+# expect: 4
+
+fn inc(x) {
+  return __builtin_add_int(x, 1)
+}
+
+fn main() {
+  let inc = 3
+  __builtin_print_int(inc.inc)
+}

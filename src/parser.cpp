@@ -538,15 +538,21 @@ const Expr *parse_var_ref(ParseState &ps) {
     return var_ref;
   } else {
     /* we know that this was declared as a "var", so let's just automatically
-     * load it for the user. if they want to treat is as a ref, then they need
-     * to preface it with & */
-    return new Application(new Var(Identifier{tld::mktld("std", "load_value"), id.location}),
-                           {var_ref});
+     * load it for the user. */
+    return new Application(
+        new Var(Identifier{tld::mktld("std", "load_value"), id.location}),
+        {var_ref});
   }
 }
 
 const Expr *parse_base_expr(ParseState &ps) {
-  if (ps.token.tk == tk_lparen) {
+  if (ps.token.tk == tk_dot) {
+    auto iid = gensym(ps.token.location);
+    return new Lambda(
+        {iid}, {type_variable(ps.token.location)},
+        type_variable(ps.token.location),
+        new ReturnStatement(parse_postfix_chain(ps, new Var(iid))));
+  } else if (ps.token.tk == tk_lparen) {
     return parse_tuple_expr(ps);
   } else if (ps.token.is_ident(K(new))) {
     return parse_new_expr(ps);
@@ -1099,51 +1105,57 @@ const Expr *parse_literal(ParseState &ps) {
   }
 }
 
-const Expr *parse_postfix_expr(ParseState &ps) {
-  const Expr *expr = parse_base_expr(ps);
+const Expr *parse_application(ParseState &ps,
+                              const Expr *expr,
+                              std::vector<const Expr *> args) {
+  /* function call or implicit partial application (implicit lambda) */
+  auto location = ps.token.location;
+  ps.advance();
+  if (ps.token.tk == tk_rparen) {
+    ps.advance();
+    if (args.size() == 0) {
+      args.push_back(unit_expr(ps.token.location));
+    }
+    return new Application(expr, args);
+  } else {
+    while (ps.token.tk != tk_rparen) {
+      args.push_back(parse_expr(ps, true /*allow_for_comprehensions*/));
+      if (ps.token.tk == tk_comma) {
+        ps.advance();
+      } else {
+        expect_token(tk_rparen);
+      }
+    }
+    expr = new Application(expr, args);
 
-  while (!ps.line_broke() &&
-         (ps.token.tk == tk_lsquare || ps.token.tk == tk_lparen ||
-          ps.token.tk == tk_dot || ps.token.tk == tk_bang)) {
+    chomp_token(tk_rparen);
+  }
+  return expr;
+}
+
+const Expr *parse_postfix_chain(ParseState &ps, const Expr *expr) {
+  while (ps.token.tk == tk_dot ||
+         (!ps.line_broke() &&
+          (ps.token.tk == tk_lsquare || ps.token.tk == tk_lparen ||
+           ps.token.tk == tk_bang))) {
     switch (ps.token.tk) {
     case tk_bang:
       expr = new As(expr, type_unit(ps.token_and_advance().location),
                     true /*force_cast*/);
       break;
     case tk_lparen: {
-      /* function call or implicit partial application (implicit lambda) */
-      auto location = ps.token.location;
-      ps.advance();
-      if (ps.token.tk == tk_rparen) {
-        ps.advance();
-        expr = new Application(expr, {unit_expr(ps.token.location)});
-      } else {
-        std::vector<const Expr *> callsite_refs;
-        for (int index = 0; ps.token.tk != tk_rparen; ++index) {
-          callsite_refs.push_back(
-              parse_expr(ps, true /*allow_for_comprehensions*/));
-          if (ps.token.tk == tk_comma) {
-            ps.advance();
-          } else {
-            expect_token(tk_rparen);
-          }
-        }
-        expr = new Application(expr, {callsite_refs});
-
-        chomp_token(tk_rparen);
-      }
+      expr = parse_application(ps, expr, {});
       break;
     }
     case tk_dot: {
       ps.advance();
       expect_token(tk_identifier);
-      if (!islower(ps.token.text[0])) {
-        throw user_error(
-            ps.token.location,
-            "property accessors must start with lowercase letters");
+      auto iid = tld::tld(ps.identifier_and_advance());
+      if (!ps.line_broke() && ps.token.tk == tk_lparen) {
+        expr = parse_application(ps, new Var(iid), {expr});
+      } else {
+        expr = new Application(new Var(iid), {expr});
       }
-      auto iid = ps.identifier_and_advance();
-      expr = new Application(new Var(iid), {expr});
       break;
     }
     case tk_lsquare: {
@@ -1169,13 +1181,15 @@ const Expr *parse_postfix_expr(ParseState &ps) {
           auto location = ps.token_and_advance().location;
           auto rhs = parse_expr(ps, false /*allow_for_comprehensions*/);
           expr = new Application(
-              new Var(Identifier{tld::mktld("std", "set_indexed_item"), location}),
+              new Var(
+                  Identifier{tld::mktld("std", "set_indexed_item"), location}),
               {expr, start, rhs});
         } else {
           expr = new Application(
-              new Var(Identifier{tld::mktld("std", is_slice ? "get_slice_from"
-                                                       : "get_indexed_item"),
-                                 ps.token.location}),
+              new Var(
+                  Identifier{tld::mktld("std", is_slice ? "get_slice_from"
+                                                        : "get_indexed_item"),
+                             ps.token.location}),
               {expr, start});
         }
       } else {
@@ -1184,8 +1198,8 @@ const Expr *parse_postfix_expr(ParseState &ps) {
 
         assert(is_slice);
         expr = new Application(
-            new Var(ps.id_mapped(
-                Identifier{tld::mktld("std", "get_slice_from_to"), ps.token.location})),
+            new Var(ps.id_mapped(Identifier{
+                tld::mktld("std", "get_slice_from_to"), ps.token.location})),
             {expr, start, stop});
       }
       break;
@@ -1196,6 +1210,12 @@ const Expr *parse_postfix_expr(ParseState &ps) {
   }
 
   return expr;
+}
+
+const Expr *parse_postfix_expr(ParseState &ps) {
+  const Expr *expr = parse_base_expr(ps);
+
+  return parse_postfix_chain(ps, expr);
 }
 
 const Expr *parse_cast_expr(ParseState &ps) {

@@ -1,5 +1,5 @@
 # test: pass
-# expect: the type is std.Ordering
+# expect: the type is ::std::Ordering
 # expect: PASS
 
 fn main() {

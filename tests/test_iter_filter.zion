@@ -4,7 +4,7 @@
 import math {sum}
 
 fn main() {
-    let filtered_sum = |xs| => sum(filter(|x| => x > 2, xs))
+    let filtered_sum = .filter(|x| => x > 2).sum
     let a = filtered_sum([1, 2, 3, 4])
     let b = sum(x for x in [1..4] if x > 2)
     assert(a == b)

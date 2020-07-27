@@ -1,0 +1,11 @@
+# test: pass, noprelude
+# expect: 12
+
+fn multiply(x, y) {
+  return __builtin_multiply_int(x, y)
+}
+
+fn main() {
+  let multiply = 3
+  __builtin_print_int(multiply.multiply(4))
+}

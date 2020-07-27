@@ -746,7 +746,7 @@ instance Iterable (Range a) a {
 
 fn compose(f, g) => fn (x) => f(g(x))
 
-fn map(f fn (a) b, iterable) fn () Maybe b {
+fn map(iterable, f fn (a) b) fn () Maybe b {
     let iterator = iter(iterable)
     return fn () => match iterator() {
         Just(x) => Just(f(x))
@@ -754,7 +754,7 @@ fn map(f fn (a) b, iterable) fn () Maybe b {
     }
 }
 
-fn filter(f fn (a) Bool, xs_input) fn () Maybe a {
+fn filter(xs_input, f fn (a) Bool) fn () Maybe a {
     let xs = iter(xs_input)
     return fn() {
         while match xs() {

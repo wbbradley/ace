@@ -24,7 +24,11 @@ std::string mktld(std::string module, std::string name) {
   } else if (starts_with(name, PTR_TYPE_OPERATOR)) {
     return name;
   } else {
-    return tld(module + SCOPE_SEP + name);
+    if (starts_with(name, SCOPE_SEP)) {
+      return tld(module + name);
+    } else {
+      return tld(module + SCOPE_SEP + name);
+    }
   }
 }
 
