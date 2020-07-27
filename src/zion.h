@@ -11,7 +11,5 @@
 #define ZION_TYPEID_BITSIZE_STR "16"
 
 #define SCOPE_TK tk_dot
-#define SCOPE_SEP_CHAR '.'
-#define SCOPE_SEP "."
 
 #define MATHY_SYMBOLS "!@#$%^&*()+-_=><.,/|[]`~\\"

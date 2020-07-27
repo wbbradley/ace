@@ -5,6 +5,7 @@
 #include "ast.h"
 #include "builtins.h"
 #include "compiler.h"
+#include "tld.h"
 #include "translate.h"
 #include "unification.h"
 #include "zion.h"
@@ -156,7 +157,7 @@ const Expr *translate_match_expr(
   }
 
   types::Ref scrutinee_type = get_tracked_type(tracked_types, match->scrutinee);
-  check_patterns(scrutinee_expr->get_location(), match->scrutinee->str(),
+  check_patterns(scrutinee_expr->get_location(), gensym_name(),
                  data_ctors_map, match->pattern_blocks, scrutinee_type);
 
   Identifier scrutinee_id = make_iid("__scrutinee_" + fresh());
@@ -195,7 +196,7 @@ const Expr *Literal::translate(
 
   types::Ref type = get_tracked_type(tracked_types, this);
   auto Bool = type_id(make_iid(BOOL_TYPE));
-  Var *literal_cmp = new Var(make_iid("std.=="));
+  Var *literal_cmp = new Var(make_iid(tld::mktld("std", "==")));
   types::Ref cmp_type = type_arrow(type_params({type, type}), Bool);
 
   typing[literal_cmp] = cmp_type;

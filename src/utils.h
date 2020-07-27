@@ -34,6 +34,7 @@ bool base64_decode(const std::string &input,
 
 bool regex_exists(std::string input, std::string regex);
 bool regex_match(std::string input, std::string regex);
+std::string regex_sanitize(std::string unsafe);
 
 std::string shell_get_line(std::string command);
 std::string clean_ansi_escapes_if_not_tty(FILE *fp, const std::string &out);

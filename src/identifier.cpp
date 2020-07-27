@@ -4,11 +4,17 @@
 
 #include "dbg.h"
 #include "zion.h"
+#include "user_error.h"
 
 Identifier::Identifier(const std::string &name, Location location)
     : name(name), location(location) {
+#ifdef ZION_DEBUG
   assert(name.size() != 0);
+  for (auto ch : name) {
+    assert(!iscntrl(ch));
+  }
   assert(name.find("0x7") == std::string::npos);
+#endif
 }
 
 std::string str(const Identifiers &ids) {

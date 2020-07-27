@@ -39,7 +39,8 @@ types::SchemeRef SchemeResolver::lookup_scheme(
     std::string upper_name = to_upper(id.name);
     for (auto &pair : state) {
       /* look for a substring match in another symbol */
-      if (regex_match(to_upper(pair.first), "[^.]+\\.?" + upper_name)) {
+      std::string regex = "[^.]+\\.?" + regex_sanitize(upper_name);
+      if (regex_match(to_upper(pair.first), regex)) {
         candidates.insert(Identifier{pair.first, pair.second->get_location()});
       }
     }

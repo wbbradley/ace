@@ -1,7 +1,7 @@
 #include "prefix.h"
 
 #include "class_predicate.h"
-#include "parser.h"
+#include "tld.h"
 #include "ptr.h"
 
 namespace zion {
@@ -11,14 +11,12 @@ using namespace ast;
 std::string prefix(const std::set<std::string> &bindings,
                    std::string pre,
                    std::string name) {
-  if (starts_with(name, pre) && name.size() > pre.size() + 1 &&
-      name[pre.size()] == '.') {
-    /* already prefixed */
+  if (tld::split_fqn(name).size() > 1) {
     return name;
   }
 
   if (in(name, bindings)) {
-    return parser::tld(pre + "." + name);
+    return tld::mktld(pre, name);
   } else {
     return name;
   }
@@ -102,16 +100,18 @@ const TypeDecl *prefix(const std::set<std::string> &bindings,
   return new TypeDecl{prefix(bindings, pre, type_decl->id), type_decl->params};
 }
 
-std::set<std::string> only_uppercase_bindings(
-    const std::set<std::string> &bindings) {
-  std::set<std::string> only_uppercase_bindings;
+std::set<std::string> only_type_names(const std::set<std::string> &bindings) {
+  std::set<std::string> only_type_names;
   for (auto binding : bindings) {
-    assert(!starts_with(binding, "::"));
-    if (isupper(binding[0])) {
-      only_uppercase_bindings.insert(binding);
+    if (tld::is_tld_type(binding)) {
+      debug_above(4, log("found type name " c_type("%s"), binding.c_str()));
+      only_type_names.insert(binding);
+    } else {
+      debug_above(4,
+                  log("skipping non-type name " c_id("%s"), binding.c_str()));
     }
   }
-  return only_uppercase_bindings;
+  return only_type_names;
 }
 
 const TypeClass *prefix(const std::set<std::string> &bindings,
@@ -157,7 +157,7 @@ types::Ref prefix(const std::set<std::string> &bindings,
     return nullptr;
   }
 
-  std::set<std::string> uppercase_bindings = only_uppercase_bindings(bindings);
+  std::set<std::string> uppercase_bindings = only_type_names(bindings);
   return type->prefix_ids(uppercase_bindings, pre);
 }
 

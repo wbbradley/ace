@@ -1,6 +1,7 @@
 #include "import_rules.h"
 
 #include "ast.h"
+#include "tld.h"
 #include "user_error.h"
 
 namespace zion {
@@ -99,13 +100,13 @@ RewriteImportRules solve_rewriting_imports(
                     log("checking {%s: {..., %s: %s, ...} for illegal import",
                         source_module.c_str(), dest_module.c_str(),
                         symbol.str().c_str()));
-        auto fqn = dest_module + "." + symbol.name;
+        auto fqn = tld::mktld(dest_module, symbol.name);
         if (legal_exports.count(fqn) == 0) {
           debug_above(3, log("couldn't find %s in legal_exports. found %s",
                              fqn.c_str(), join(legal_exports).c_str()));
           illegal_imports.push_back(
-              {Identifier{source_module + "." + symbol.name, symbol.location},
-               Identifier{dest_module + "." + symbol.name, symbol.location}});
+              {Identifier{tld::mktld(source_module, symbol.name), symbol.location},
+               Identifier{tld::mktld(dest_module, symbol.name), symbol.location}});
         }
       }
     }

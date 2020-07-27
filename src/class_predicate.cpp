@@ -7,6 +7,7 @@
 #include "colors.h"
 #include "dbg.h"
 #include "ptr.h"
+#include "tld.h"
 #include "types.h"
 #include "unification.h"
 #include "utils.h"
@@ -24,9 +25,10 @@ bool ClassPredicateRefEqualTo::operator()(const ClassPredicateRef &lhs,
 
 ClassPredicate::ClassPredicate(Identifier classname, const types::Refs &params)
     : classname(classname), params(params) {
-#ifdef ZION_DEBUG
-  if (std::strstr(classname.name.c_str(), ".") != nullptr) {
-    assert(isupper(split(classname.name, ".")[1][0]));
+  assert(zion::tld::is_tld_type(classname.name));
+#if 0
+  if (zion::parser::is_fqn(classname.name)) {
+    assert(isupper(zion::parser::split_fqn(classname.name)[1][0]));
   } else {
     assert(isupper(classname.name[0]));
   }

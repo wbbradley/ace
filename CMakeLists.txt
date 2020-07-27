@@ -79,7 +79,8 @@ add_executable(zion
 	src/scheme_resolver.cpp
 	src/scope.cpp
 	src/solver.cpp
-    src/tarjan.cpp
+  src/tarjan.cpp
+  src/tld.cpp
 	src/token.cpp
 	src/token_queue.cpp
 	src/tracked_types.cpp

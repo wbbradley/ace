@@ -16,10 +16,10 @@
 #include "lexer.h"
 #include "logger.h"
 #include "logger_decls.h"
-#include "parser.h"
 #include "solver.h"
 #include "tarjan.h"
 #include "tests.h"
+#include "tld.h"
 #include "translate.h"
 #include "unification.h"
 
@@ -39,10 +39,6 @@ bool debug_specialized_env = getenv("SHOW_ENV2") != nullptr;
 bool debug_types = getenv("SHOW_TYPES") != nullptr;
 bool debug_all_expr_types = getenv("SHOW_EXPR_TYPES") != nullptr;
 bool debug_all_translated_defns = getenv("SHOW_DEFN_TYPES") != nullptr;
-
-types::Ref program_main_type = type_arrows(
-    {type_unit(INTERNAL_LOC()), type_unit(INTERNAL_LOC())});
-types::Scheme::Ref program_main_scheme = program_main_type->generalize({});
 
 int run_program(std::string executable, std::vector<std::string> args) {
   pid_t pid = fork();
@@ -496,13 +492,13 @@ const Decl *find_overload_for_instance(std::string name,
    * impl.
    */
   for (const Decl *decl : instance->decls) {
-    assert(name.find(".") != std::string::npos);
+    assert(name == "*" || tld::is_fqn(name));
     if (decl->id.name == name) {
       return decl;
     }
   }
   for (const Decl *decl : type_class->default_decls) {
-    assert(name.find(".") != std::string::npos);
+    assert(tld::is_fqn(name));
     if (decl->id.name == name) {
       return decl;
     }
@@ -643,7 +639,8 @@ void check_instances(
         auto error = user_error(instance->class_predicate->get_location(),
                                 "could not find type class for instance %s",
                                 instance->class_predicate->str().c_str());
-        auto leaf_name = split(instance->class_predicate->classname.name, ".")
+        auto leaf_name = zion::tld::split_fqn(
+                             instance->class_predicate->classname.name)
                              .back();
         for (auto type_class_pair : type_class_map) {
           auto type_class = type_class_pair.second;
@@ -807,7 +804,7 @@ Phase2 compile(std::string user_program_name_) {
                                            scheme_resolver);
   /* start resolving more schemes */
   CheckedDefinitionsByName checked_defns = check_decls(
-      compilation->program_name + ".main", program->decls,
+      zion::tld::mktld(compilation->program_name, "main"), program->decls,
       compilation->data_ctors_map, scheme_resolver);
 
   types::ClassPredicates instance_predicates;
@@ -960,7 +957,7 @@ Phase3 specialize(const Phase2 &phase_2) {
   if (user_error::errors_occurred()) {
     throw user_error(INTERNAL_LOC(), "quitting");
   }
-  std::string entry_point_name = zion::parser::tld(phase_2.compilation->program_name + ".main");
+  std::string entry_point_name = zion::tld::mktld(phase_2.compilation->program_name, "main");
   if (phase_2.checked_defns.count(entry_point_name) == 0) {
     auto error = user_error(
         Location{phase_2.compilation->program_filename, 1, 1},
@@ -1078,7 +1075,7 @@ void build_main_function(llvm::IRBuilder<> &builder,
                          llvm::Module *llvm_module,
                          const gen::GenEnv &gen_env,
                          std::string program_name) {
-  std::string main_closure = program_name + ".main";
+  std::string main_closure = zion::tld::mktld(program_name, "main");
   types::Ref main_type = type_arrows(
       {type_unit(INTERNAL_LOC()), type_unit(INTERNAL_LOC())});
 
@@ -1279,11 +1276,11 @@ int run_job(const Job &job) {
       return EXIT_FAILURE;
     }
 
-    assert(alphabetize(0) == "a");
-    assert(alphabetize(1) == "b");
-    assert(alphabetize(2) == "c");
-    assert(alphabetize(26) == "aa");
-    assert(alphabetize(27) == "ab");
+    ship_assert(alphabetize(0) == "a");
+    ship_assert(alphabetize(1) == "b");
+    ship_assert(alphabetize(2) == "c");
+    ship_assert(alphabetize(26) == "aa");
+    ship_assert(alphabetize(27) == "ab");
 
     tarjan::Graph graph;
     graph.insert({"a", {"b", "f"}});
@@ -1294,7 +1291,17 @@ int run_job(const Job &job) {
     graph.insert({"h", {"g"}});
     graph.insert({"f", {"h", "c"}});
     tarjan::SCCs sccs = tarjan::compute_strongly_connected_components(graph);
-    log("tarjan = %s", str(sccs).c_str());
+    ship_assert(str(sccs) == "{{c, d}, {g, h, f}, {b}, {a}}");
+
+    ship_assert(zion::tld::split_fqn("::copy::Copy").size() == 2);
+    ship_assert(zion::tld::is_tld_type("::Copy"));
+    ship_assert(zion::tld::is_tld_type("::Z"));
+    ship_assert(!zion::tld::is_tld_type("::copy::copy"));
+    ship_assert(!zion::tld::is_tld_type("copy::copy"));
+    ship_assert(!zion::tld::is_tld_type("copy"));
+    ship_assert(zion::tld::is_tld_type("::copy::Copy"));
+    ship_assert(!zion::tld::is_tld_type("::copy::copy"));
+
     return EXIT_SUCCESS;
   };
   cmd_map["find"] = [&](const Job &job, bool explain) {

@@ -9,6 +9,7 @@
 #include "disk.h"
 #include "logger_decls.h"
 #include "parser.h"
+#include "tld.h"
 #include "types.h"
 #include "zion.h"
 
@@ -81,7 +82,7 @@ Identifier ParseState::identifier_and_advance(bool map_id) {
 }
 
 Identifier ParseState::id_mapped(Identifier id) {
-  if (id.name.find(".") != std::string::npos) {
+  if (tld::is_fqn(id.name)) {
     /* this has already been mapped */
     return id;
   }

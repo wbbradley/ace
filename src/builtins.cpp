@@ -1,28 +1,29 @@
 #include "builtins.h"
+#include "tld.h"
 
-const char *ARROW_TYPE_OPERATOR = "->";
-const char *PTR_TYPE_OPERATOR = "*";
-const char *REF_TYPE_OPERATOR = "std.Ref";
+std::string ARROW_TYPE_OPERATOR = "->";
+std::string PTR_TYPE_OPERATOR = "*";
+std::string REF_TYPE_OPERATOR = zion::tld::mktld("std", "Ref");
 
-const char *CHAR_TYPE = "Char";
-const char *INT_TYPE = "Int";
-const char *UINT_TYPE = "UInt";
-const char *INT64_TYPE = "Int64";
-const char *UINT64_TYPE = "UInt64";
-const char *INT32_TYPE = "Int32";
-const char *UINT32_TYPE = "UInt32";
-const char *INT16_TYPE = "Int16";
-const char *UINT16_TYPE = "UInt16";
-const char *INT8_TYPE = "Int8";
-const char *UINT8_TYPE = "UInt8";
-const char *FLOAT_TYPE = "Float";
+std::string CHAR_TYPE = "Char";
+std::string INT_TYPE = "Int";
+std::string UINT_TYPE = "UInt";
+std::string INT64_TYPE = "Int64";
+std::string UINT64_TYPE = "UInt64";
+std::string INT32_TYPE = "Int32";
+std::string UINT32_TYPE = "UInt32";
+std::string INT16_TYPE = "Int16";
+std::string UINT16_TYPE = "UInt16";
+std::string INT8_TYPE = "Int8";
+std::string UINT8_TYPE = "UInt8";
+std::string FLOAT_TYPE = "Float";
 
-const char *BOOL_TYPE = "std.Bool";
-const char *MAYBE_TYPE = "maybe.Maybe";
-const char *VECTOR_TYPE = "vector.Vector";
-const char *MAP_TYPE = "map.Map";
-const char *SET_TYPE = "set.Set";
-const char *STRING_TYPE = "string.String";
+std::string BOOL_TYPE = zion::tld::mktld("std", "Bool");
+std::string MAYBE_TYPE = zion::tld::mktld("maybe", "Maybe");
+std::string VECTOR_TYPE = zion::tld::mktld("vector", "Vector");
+std::string MAP_TYPE = zion::tld::mktld("map", "Map");
+std::string SET_TYPE = zion::tld::mktld("set", "Set");
+std::string STRING_TYPE = zion::tld::mktld("string", "String");
 
 const types::Scheme::Map &get_builtins() {
   static std::unique_ptr<types::Scheme::Map> map;

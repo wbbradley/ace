@@ -11,6 +11,7 @@
 #include "parens.h"
 #include "prefix.h"
 #include "ptr.h"
+#include "tld.h"
 #include "types.h"
 #include "unification.h"
 #include "user_error.h"
@@ -144,14 +145,10 @@ Ref Type::apply(types::Ref type) const {
 }
 
 TypeId::TypeId(Identifier id) : id(id) {
-  auto dot_index = id.name.find(".");
-  if (dot_index == std::string::npos) {
-    dot_index = 0;
-  }
-  assert(id.name.size() > dot_index);
-  if (islower(id.name[dot_index])) {
+  if (zion::tld::is_lowercase_leaf(id.name)) {
     throw zion::user_error(
-        id.location, "type identifiers must begin with an upper-case letter");
+        id.location, "type identifiers must begin with an upper-case letter (%s)",
+        str().c_str());
   }
 }
 

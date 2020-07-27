@@ -2,6 +2,7 @@
 
 #include "class_predicate.h"
 #include "parens.h"
+#include "tld.h"
 #include "ptr.h"
 #include "zion.h"
 
@@ -428,7 +429,7 @@ const Predicate *IrrefutablePredicate::rewrite(
 types::Ref TypeDecl::get_type() const {
   std::vector<types::Ref> types;
 #ifdef ZION_DEBUG
-  std::vector<std::string> pieces = split(id.name, ".::");
+  std::vector<std::string> pieces = tld::split_fqn(id.name);
   assert(isupper(pieces.back()[0]));
 #endif
   types.push_back(type_id(id));

@@ -230,6 +230,15 @@ bool regex_match(std::string input, std::string regex_) {
   return std::regex_match(input, std::regex(regex_.c_str()));
 }
 
+std::string regex_sanitize(std::string unsafe) {
+  std::regex specialChars{R"([-[\]{}()*+?.,\^$|#\s])"};
+
+  std::string sanitized = std::regex_replace(unsafe, specialChars, R"(\$&)");
+  debug_above(
+      7, log("regex_sanitize(%s) -> %s", unsafe.c_str(), sanitized.c_str()));
+  return sanitized;
+}
+
 std::string string_formatv(const std::string fmt_str, va_list args_) {
   int final_n,
       n = ((int)fmt_str.size()) *

@@ -100,17 +100,17 @@ struct Scalars : std::enable_shared_from_this<Scalars<T>>, Pattern {
 };
 
 template <> std::string Scalars<int64_t>::scalar_name() {
-  static auto s = string_format("%ss", INT_TYPE);
+  static auto s = INT_TYPE + "s";
   return s;
 }
 
 template <> std::string Scalars<uint8_t>::scalar_name() {
-  static auto s = string_format("%ss", CHAR_TYPE);
+  static auto s = CHAR_TYPE + "s";
   return s;
 }
 
 template <> std::string Scalars<double>::scalar_name() {
-  static auto s = string_format("%ss", FLOAT_TYPE);
+  static auto s = FLOAT_TYPE + "s";
   return s;
 }
 
