@@ -231,6 +231,7 @@ std::set<std::string> get_top_level_decls(
     }
   }
   for (auto &import : imports) {
+    assert(tld::is_fqn(import.name, true /*default_special*/));
     top_level_decls.insert(import.name);
   }
   debug_above(8, log("tlds are %s", ::join(top_level_decls, ", ").c_str()));

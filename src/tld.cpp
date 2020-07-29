@@ -19,16 +19,10 @@ std::vector<std::string> split_fqn(std::string fqn) {
 }
 
 std::string mktld(std::string module, std::string name) {
-  if (starts_with(name, ARROW_TYPE_OPERATOR)) {
-    return name;
-  } else if (starts_with(name, PTR_TYPE_OPERATOR)) {
-    return name;
+  if (starts_with(name, SCOPE_SEP)) {
+    return tld(module + name);
   } else {
-    if (starts_with(name, SCOPE_SEP)) {
-      return tld(module + name);
-    } else {
-      return tld(module + SCOPE_SEP + name);
-    }
+    return tld(module + SCOPE_SEP + name);
   }
 }
 
@@ -81,12 +75,12 @@ bool is_lowercase_leaf(std::string name) {
   return test_first_char_of_leaf(name, islower);
 }
 
+int not_is_lower(int ch) {
+  return !islower(ch);
+}
+
 bool is_tld_type(std::string name) {
-  if (name == ARROW_TYPE_OPERATOR || name == PTR_TYPE_OPERATOR) {
-    // HACK for now.
-    return true;
-  }
-  return test_first_char_of_leaf(name, isupper);
+  return test_first_char_of_leaf(name, not_is_lower);
 }
 
 bool is_in_module(std::string module, std::string name) {

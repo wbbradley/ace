@@ -492,13 +492,13 @@ const Decl *find_overload_for_instance(std::string name,
    * impl.
    */
   for (const Decl *decl : instance->decls) {
-    assert(name == "*" || tld::is_fqn(name));
+    assert(name == "*" || tld::is_fqn(name, true /*default_special*/));
     if (decl->id.name == name) {
       return decl;
     }
   }
   for (const Decl *decl : type_class->default_decls) {
-    assert(tld::is_fqn(name));
+    assert(tld::is_fqn(name, true /*default_special*/));
     if (decl->id.name == name) {
       return decl;
     }

@@ -751,7 +751,7 @@ const Expr *parse_array_literal(ParseState &ps) {
       auto range_body = new Application(
           new Var(ps.id_mapped(Identifier{"Range", location})),
           {new Var(range_min),
-           new Application(new Var(Identifier(tld::mktld("std", "-"), ps.token.location)),
+           new Application(new Var(Identifier(tld::mktld("math", "-"), ps.token.location)),
                            {new Var(range_next), new Var(range_min)}),
            new Var(range_max)});
 
@@ -2154,11 +2154,11 @@ const TypeDecl *parse_type_decl(ParseState &ps) {
   auto token = ps.token_and_advance();
   auto class_id = ps.id_mapped(iid(token));
 
-  assert(!tld::is_fqn(ps.module_name));
-  assert(!tld::is_fqn(token.text));
+  assert(!tld::is_fqn(ps.module_name, false /*default_special*/));
+  assert(!tld::is_fqn(token.text, false /*default_special*/));
 
   if ((class_id.name != tld::mktld(ps.module_name, token.text)) &&
-      tld::is_fqn(class_id.name)) {
+      tld::is_fqn(class_id.name, true /*default_special*/)) {
     throw user_error(class_id.location, "name %s is already defined as %s",
                      token.text.c_str(), class_id.str().c_str());
   }
@@ -2588,17 +2588,18 @@ const Module *parse_module(ParseState &ps,
           throw user_error(symbol.location,
                            "it is not possible to import module-scoped "
                            "variables into other modules");
-        } 
+        }
         Identifier import_as = symbol;
         if (ps.token.is_ident(K(as))) {
           ps.advance();
-          import_as = ps.identifier_and_advance(false/*map_id*/);
+          import_as = ps.identifier_and_advance(false /*map_id*/);
         }
         /* record this import */
-        debug_above(3, log_location(ps.token.location, "recording import of %s as %s",
-                                    symbol.str().c_str(), import_as.str().c_str()));
+        debug_above(
+            3, log_location(ps.token.location, "recording import of %s as %s",
+                            symbol.str().c_str(), import_as.str().c_str()));
         ps.symbol_imports[ps.module_name][module_name.name].insert(symbol);
-        assert(!tld::is_fqn(symbol.name));
+        assert(!tld::is_fqn(import_as.name, false /*default_special*/));
         ps.add_term_map(symbol.location, import_as.name,
                         tld::mktld(module_name.name, symbol.name),
                         false /*allow_override*/);
@@ -2633,7 +2634,7 @@ const Module *parse_module(ParseState &ps,
                          symbol.str().c_str())
             .add_info(iter->location, "see previous export");
       }
-      assert(!tld::is_fqn(symbol.name));
+      assert(!tld::is_fqn(symbol.name, false /*default_special*/));
       exports.insert(symbol);
       if (ps.token.tk != tk_rcurly) {
         chomp_token(tk_comma);
@@ -2643,7 +2644,7 @@ const Module *parse_module(ParseState &ps,
   }
 
   for (auto &id : exports) {
-    assert(!tld::is_fqn(id.name));
+    assert(!tld::is_fqn(id.name, false /*default_special*/));
     auto fully_qualified_id = Identifier{tld::mktld(ps.module_name, id.name),
                                          id.location};
     auto imported_id = ps.id_mapped(id);
@@ -2653,7 +2654,7 @@ const Module *parse_module(ParseState &ps,
                imported_id.str().c_str()));
 
     ps.symbol_exports[ps.module_name][fully_qualified_id] =
-        (tld::is_fqn(imported_id.name) &&
+        (tld::is_fqn(imported_id.name, true /*default_special*/) &&
          !tld::is_in_module("std", imported_id.name))
             ? imported_id
             : fully_qualified_id;
@@ -2751,17 +2752,20 @@ const Module *parse_module(ParseState &ps,
 
   for (auto &dest_pair : get(ps.symbol_imports, ps.module_name,
                              std::map<std::string, std::set<Identifier>>{})) {
-#ifdef ZION_DEBUG
     const std::string &dest_module = dest_pair.first;
-#endif
     const std::set<Identifier> &symbols = dest_pair.second;
     for (auto &symbol : symbols) {
       debug_above(2, log("adding import from {%s: {..., %s: %s, ...}",
                          ps.module_name.c_str(), dest_module.c_str(),
                          symbol.str().c_str()));
-      assert(imports_set.count(symbol) == 0);
-      imports_set.insert(symbol);
-      imports.push_back(symbol);
+      if (imports_set.count(symbol) != 0) {
+        throw user_error(symbol.location, "import set count is non-zero for %s",
+                         symbol.str().c_str());
+      }
+      auto imported_symbol = Identifier{tld::mktld(dest_module, symbol.name),
+                                        symbol.location};
+      imports_set.insert(imported_symbol);
+      imports.push_back(imported_symbol);
     }
   }
 

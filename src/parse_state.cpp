@@ -82,7 +82,7 @@ Identifier ParseState::identifier_and_advance(bool map_id) {
 }
 
 Identifier ParseState::id_mapped(Identifier id) {
-  if (tld::is_fqn(id.name)) {
+  if (tld::is_fqn(id.name, true /*default_special*/)) {
     /* this has already been mapped */
     return id;
   }
@@ -90,6 +90,11 @@ Identifier ParseState::id_mapped(Identifier id) {
   if (iter != term_map.end()) {
     return Identifier{iter->second, id.location};
   } else {
+    if (id.name == "offset") {
+      for (auto pair : term_map) {
+        log("term_map = %s -> %s", pair.first.c_str(), pair.second.c_str());
+      }
+    }
     return id;
   }
 }
