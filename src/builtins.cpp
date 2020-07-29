@@ -1,8 +1,8 @@
 #include "builtins.h"
 #include "tld.h"
 
-std::string ARROW_TYPE_OPERATOR = "->";
-std::string PTR_TYPE_OPERATOR = "*";
+std::string ARROW_TYPE_OPERATOR = zion::tld::mktld("std", "->");
+std::string PTR_TYPE_OPERATOR = zion::tld::mktld("std", "*");
 std::string REF_TYPE_OPERATOR = zion::tld::mktld("std", "Ref");
 
 std::string CHAR_TYPE = "Char";

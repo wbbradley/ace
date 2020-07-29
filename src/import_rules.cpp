@@ -11,15 +11,53 @@ RewriteImportRules solve_rewriting_imports(
     const parser::SymbolExports &symbol_exports) {
   std::map<Identifier, Identifier> graph;
   std::set<std::string> legal_exports;
+
 #ifdef ZION_DEBUG
   for (auto &module_pair : symbol_imports) {
     for (auto &pair_ids : module_pair.second) {
-      debug_above(3,
-                  log("import: %s: %s -> %s", module_pair.first.c_str(),
-                      pair_ids.first.c_str(), join(pair_ids.second).c_str()));
+      debug_above(3, log("import: " c_module("%s") " imports from " c_module(
+                             "%s") " {%s}",
+                         module_pair.first.c_str(), pair_ids.first.c_str(),
+                         join(pair_ids.second).c_str()));
     }
   }
 #endif
+
+  if (getenv("DOT_DEPS") != nullptr) {
+    std::string filename = "zion.dot";
+    FILE *fp = fopen(filename.c_str(), "wt");
+    if (fp == nullptr) {
+      throw zion::user_error(INTERNAL_LOC(),
+                             "unable to open %s for writing DOT_DEPS",
+                             filename.c_str());
+    }
+    fprintf(fp, "digraph G {\n");
+
+    std::unordered_set<std::string> deps;
+
+    for (auto &module_pair : symbol_imports) {
+      for (auto &pair_ids : module_pair.second) {
+        for (auto symbol : pair_ids.second) {
+
+          deps.insert(string_format("\"%s\" -> \"%s\";",
+                  tld::tld(module_pair.first).c_str(),
+                  tld::mktld(module_pair.first, symbol.name).c_str()));
+          deps.insert(string_format("\"%s\" -> \"%s\";",
+                  tld::tld(module_pair.first).c_str(),
+                  tld::tld(pair_ids.first).c_str()));
+          deps.insert(string_format("\"%s\" -> \"%s\";",
+                  tld::mktld(module_pair.first, symbol.name).c_str(),
+                  tld::mktld(pair_ids.first, symbol.name).c_str()));
+        }
+      }
+    }
+
+    for (auto dep : deps) {
+      fprintf(fp, "  %s\n", dep.c_str());
+    }
+    fprintf(fp, "}\n");
+    fclose(fp);
+  }
 
   for (auto &module_pair : symbol_exports) {
     for (auto &id_pair : module_pair.second) {
@@ -28,7 +66,7 @@ RewriteImportRules solve_rewriting_imports(
                          id_pair.second.str().c_str()));
       if (id_pair.second.name != id_pair.first.name) {
         /* this export actually leads back to something else */
-        if (graph.count(id_pair.first) == 1) {
+        if (graph.count(id_pair.first) != 0) {
           throw user_error(id_pair.first.location, "ambiguous export %s vs. %s",
                            id_pair.first.str().c_str(),
                            graph.at(id_pair.first).str().c_str());
@@ -53,7 +91,7 @@ RewriteImportRules solve_rewriting_imports(
     Identifier resolved_id = pair.second;
     std::set<Identifier> visited;
     std::list<Identifier> visited_list;
-    while (graph.count(resolved_id) == 1) {
+    while (graph.count(resolved_id) != 0) {
       visited.insert(resolved_id);
       visited_list.push_back(resolved_id);
 
@@ -69,6 +107,7 @@ RewriteImportRules solve_rewriting_imports(
         throw error;
       }
     }
+
     /* rewrite the graph as we go to avoid wasting time for future traversals */
     for (auto &id : visited_list) {
       graph[id] = resolved_id;
@@ -105,8 +144,10 @@ RewriteImportRules solve_rewriting_imports(
           debug_above(3, log("couldn't find %s in legal_exports. found %s",
                              fqn.c_str(), join(legal_exports).c_str()));
           illegal_imports.push_back(
-              {Identifier{tld::mktld(source_module, symbol.name), symbol.location},
-               Identifier{tld::mktld(dest_module, symbol.name), symbol.location}});
+              {Identifier{tld::mktld(source_module, symbol.name),
+                          symbol.location},
+               Identifier{tld::mktld(dest_module, symbol.name),
+                          symbol.location}});
         }
       }
     }

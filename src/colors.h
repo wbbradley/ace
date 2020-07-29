@@ -38,7 +38,7 @@
 #define _bright_green(x) _COLOR(_ANSI_COLOR_BRIGHT_GREEN, x)
 
 /* Semantic coloring helpers */
-#define C_MODULE _ANSI_COLOR_MAGENTA
+#define C_MODULE _ANSI_COLOR_GREEN
 #define C_LINE_REF _ANSI_COLOR_DIM
 #define C_ID _ANSI_COLOR_MAGENTA
 #define C_CONTROL _ANSI_COLOR_CYAN

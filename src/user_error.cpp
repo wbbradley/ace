@@ -38,6 +38,15 @@ user_error::user_error(LogLevel log_level, Location location)
   errors_occurred_ = true;
 }
 
+void status_break(Location location, std::string message) {
+  if (getenv("STATUS_BREAK") != nullptr) {
+    fprintf(stderr, "%s: dbg: %s\n", location.str().c_str(), message.c_str());
+    fflush(stdout);
+    fflush(stderr);
+    dbg();
+  }
+}
+
 user_error::user_error(LogLevel log_level,
                        Location location,
                        const char *format...)
@@ -47,9 +56,7 @@ user_error::user_error(LogLevel log_level,
   message = string_formatv(format, args);
   va_end(args);
 
-  if (getenv("STATUS_BREAK") != nullptr) {
-    dbg();
-  }
+  status_break(location, message);
 }
 
 user_error::user_error(LogLevel log_level,
@@ -59,9 +66,7 @@ user_error::user_error(LogLevel log_level,
     : user_error(log_level, location) {
   message = string_formatv(format, args);
 
-  if (getenv("STATUS_BREAK") != nullptr) {
-    dbg();
-  }
+  status_break(location, message);
 }
 
 user_error::user_error(Location location, const char *format...)
@@ -71,18 +76,14 @@ user_error::user_error(Location location, const char *format...)
   message = string_formatv(format, args);
   va_end(args);
 
-  if (getenv("STATUS_BREAK") != nullptr) {
-    dbg();
-  }
+  status_break(location, message);
 }
 
 user_error::user_error(Location location, const char *format, va_list args)
     : user_error(log_error, location) {
   message = string_formatv(format, args);
 
-  if (getenv("STATUS_BREAK") != nullptr) {
-    dbg();
-  }
+  status_break(location, message);
 }
 
 const char *user_error::what() const noexcept {

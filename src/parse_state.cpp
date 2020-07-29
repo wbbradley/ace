@@ -82,7 +82,7 @@ Identifier ParseState::identifier_and_advance(bool map_id) {
 }
 
 Identifier ParseState::id_mapped(Identifier id) {
-  if (tld::is_fqn(id.name, true /*default_special*/)) {
+  if (tld::is_fqn(id.name)) {
     /* this has already been mapped */
     return id;
   }
@@ -90,11 +90,11 @@ Identifier ParseState::id_mapped(Identifier id) {
   if (iter != term_map.end()) {
     return Identifier{iter->second, id.location};
   } else {
-    if (id.name == "offset") {
-      for (auto pair : term_map) {
-        log("term_map = %s -> %s", pair.first.c_str(), pair.second.c_str());
-      }
-    }
+    /* if (id.name == "offset") { */
+    /*   for (auto pair : term_map) { */
+    /*     log("term_map = %s -> %s", pair.first.c_str(), pair.second.c_str()); */
+    /*   } */
+    /* } */
     return id;
   }
 }
@@ -114,7 +114,7 @@ void ParseState::add_term_map(Location location,
                               std::string key,
                               std::string value,
                               bool allow_override) {
-  // log("adding %s to term map => %s", key.c_str(), value.c_str());
+  debug_above(3, log("adding %s to term map => %s", key.c_str(), value.c_str()));
   if (!allow_override && in(key, term_map)) {
     throw user_error(location, "symbol %s imported twice", key.c_str())
         .add_info(location, "%s was already mapped to %s", key.c_str(),

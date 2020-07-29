@@ -87,5 +87,9 @@ bool is_in_module(std::string module, std::string name) {
   return starts_with(name, std::string(SCOPE_SEP) + module + SCOPE_SEP);
 }
 
+std::string fqn_leaf(std::string fqn) {
+  return split_fqn(fqn).back();
+}
+
 } // namespace tld
 } // namespace zion

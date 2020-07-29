@@ -352,10 +352,10 @@ fn split(input String, delim String) [String] {
       append(result, String(cur_big, big_len_left))
       return result
     } else {
-      append(result, String(cur_big, __ptr_sub(next_little, cur_big)))
+      append(result, String(cur_big, pointer_subtraction(next_little, cur_big)))
 
       cur_big = __builtin_ptr_add(next_little, little_len)
-      big_len_left = orig_big_len - __ptr_sub(cur_big, orig_big)
+      big_len_left = orig_big_len - pointer_subtraction(cur_big, orig_big)
       if big_len_left == 0 {
         append(result, "")
         return result

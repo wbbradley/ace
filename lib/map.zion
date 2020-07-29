@@ -1,16 +1,11 @@
 # Implements the default Map type in Zion
 
 import list {List, Cons, Nil, remove_if}
-import hash {hash}
-import copy {Copy, copy}
 export {Map, MapStorage, keys, values, from_pairs}
 
 newtype MapKeyValueCell key value = MapKeyValueCell(Int, key, var value)
 newtype MapStorage key value = MapStorage([List (MapKeyValueCell key value)])
 newtype Map key value = Map(MapStorage key value, var Int)
-
-fn str_tuple_show(key, value) => "${repr(key)}: ${value}"
-fn repr_tuple_show(key, value) => "${repr(key)}: ${repr(value)}"
 
 fn map_render(map, tuple_show) {
   let Map(MapStorage(storage), _) = map
@@ -38,6 +33,9 @@ instance Str (Map key value) {
 instance Repr (Map key value) {
   fn repr(map) => map_render(map, repr_tuple_show)
 }
+
+fn str_tuple_show(key, value) => "${repr(key)}: ${value}"
+fn repr_tuple_show(key, value) => "${repr(key)}: ${repr(value)}"
 
 instance HasSetMembership (Map key value) key {
   fn in(key, map) Bool {

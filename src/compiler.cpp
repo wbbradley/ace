@@ -184,7 +184,7 @@ struct GlobalParserState {
       modules_map_by_name[ps.module_name] = module;
       modules_map_by_filename[ps.filename] = module;
 
-      debug_above(8, log("while parsing %s got dependencies {%s}",
+      debug_above(8, log("while parsing %s got module dependencies {%s}",
                          ps.module_name.c_str(),
                          join(dependencies, ", ").c_str()));
       for (auto dependency : dependencies) {
@@ -230,10 +230,12 @@ std::set<std::string> get_top_level_decls(
       top_level_decls.insert(overload_pair.first);
     }
   }
+  /*
   for (auto &import : imports) {
-    assert(tld::is_fqn(import.name, true /*default_special*/));
+    assert(tld::is_fqn(import.name));
     top_level_decls.insert(import.name);
   }
+  */
   debug_above(8, log("tlds are %s", ::join(top_level_decls, ", ").c_str()));
   return top_level_decls;
 }
@@ -259,12 +261,13 @@ std::shared_ptr<Compilation> merge_compilation(
         module->imports);
 
     std::set<std::string> bindings;
+    log("bindings for %s", module->name.c_str());
     for (auto binding: maybe_not_tld_bindings) {
       bindings.insert(binding);
       bindings.insert(tld::tld(binding));
+      log("bindings += %s", binding.c_str());
     }
     const Module *module_rebound = prefix(bindings, module);
-
 
     /* now all locally referring vars are fully qualified */
     for (const Decl *decl : module_rebound->decls) {
@@ -343,7 +346,9 @@ Compilation::ref parse_program(
     debug_above(11, log(log_info, "parse_module of %s succeeded",
                         module_name.c_str(), false /*global*/));
 
-    /* find the import rewriting rules */
+    /* find the import rewriting rules. this finds the final transitive
+     * endpoint of any aliasing edges in the graph of import/exports, and
+     * rewrites all non-leaf nodes as the leaf (endpoint) node. */
     RewriteImportRules rewriting_imports_rules = solve_rewriting_imports(
         gps.symbol_imports, gps.symbol_exports);
 

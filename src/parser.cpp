@@ -1306,6 +1306,9 @@ const Expr *parse_plus_expr(ParseState &ps) {
   while (!ps.line_broke() &&
          (ps.token.tk == tk_plus || ps.token.tk == tk_minus ||
           ps.token.tk == tk_backslash)) {
+    if (ps.token.text == "-") {
+      // dbg();
+    }
     Identifier op = ps.id_mapped(Identifier{ps.token.text, ps.token.location});
     ps.advance();
 
@@ -2154,11 +2157,11 @@ const TypeDecl *parse_type_decl(ParseState &ps) {
   auto token = ps.token_and_advance();
   auto class_id = ps.id_mapped(iid(token));
 
-  assert(!tld::is_fqn(ps.module_name, false /*default_special*/));
-  assert(!tld::is_fqn(token.text, false /*default_special*/));
+  assert(!tld::is_fqn(ps.module_name));
+  assert(!tld::is_fqn(token.text));
 
   if ((class_id.name != tld::mktld(ps.module_name, token.text)) &&
-      tld::is_fqn(class_id.name, true /*default_special*/)) {
+      tld::is_fqn(class_id.name)) {
     throw user_error(class_id.location, "name %s is already defined as %s",
                      token.text.c_str(), class_id.str().c_str());
   }
@@ -2553,6 +2556,7 @@ const Module *parse_module(ParseState &ps,
     if (aim == nullptr) {
       continue;
     }
+#if 0
     std::set<std::string> tlds = compiler::get_top_level_decls(
         aim->decls, aim->type_decls, aim->type_classes, aim->imports);
     for (auto tldecl : tlds) {
@@ -2561,6 +2565,14 @@ const Module *parse_module(ParseState &ps,
                          resolved_name.c_str(), ps.filename.c_str()));
       /* imports cannot override other imports */
       ps.add_term_map(INTERNAL_LOC(), tldecl, resolved_name,
+                      false /*allow_override*/);
+    }
+#endif
+    log(C_GOOD "AUTO-IMPORTING TERMS FROM " C_RESET c_module("%s"),
+        aim->name.c_str());
+    for (auto &id_pair : ps.symbol_exports[aim->name]) {
+      auto symbol = tld::fqn_leaf(id_pair.first.name);
+      ps.add_term_map(id_pair.first.location, symbol, id_pair.second.name,
                       false /*allow_override*/);
     }
   }
@@ -2596,10 +2608,11 @@ const Module *parse_module(ParseState &ps,
         }
         /* record this import */
         debug_above(
-            3, log_location(ps.token.location, "recording import of %s as %s",
-                            symbol.str().c_str(), import_as.str().c_str()));
+            3, log_location(ps.token.location, "recording import of " c_id("%s") " as " c_id("%s"),
+                            tld::mktld(module_name.name, symbol.name).c_str(),
+                            import_as.str().c_str()));
         ps.symbol_imports[ps.module_name][module_name.name].insert(symbol);
-        assert(!tld::is_fqn(import_as.name, false /*default_special*/));
+        assert(!tld::is_fqn(import_as.name));
         ps.add_term_map(symbol.location, import_as.name,
                         tld::mktld(module_name.name, symbol.name),
                         false /*allow_override*/);
@@ -2634,7 +2647,7 @@ const Module *parse_module(ParseState &ps,
                          symbol.str().c_str())
             .add_info(iter->location, "see previous export");
       }
-      assert(!tld::is_fqn(symbol.name, false /*default_special*/));
+      assert(!tld::is_fqn(symbol.name));
       exports.insert(symbol);
       if (ps.token.tk != tk_rcurly) {
         chomp_token(tk_comma);
@@ -2644,17 +2657,17 @@ const Module *parse_module(ParseState &ps,
   }
 
   for (auto &id : exports) {
-    assert(!tld::is_fqn(id.name, false /*default_special*/));
+    assert(!tld::is_fqn(id.name));
     auto fully_qualified_id = Identifier{tld::mktld(ps.module_name, id.name),
                                          id.location};
     auto imported_id = ps.id_mapped(id);
     debug_above(
-        2, log("ps.symbol_exports[" c_id("%s") "][%s] = with imported_id=%s",
+        2, log("ps.symbol_exports[" c_module("%s") "][%s] = with imported_id=%s",
                ps.module_name.c_str(), fully_qualified_id.str().c_str(),
                imported_id.str().c_str()));
 
     ps.symbol_exports[ps.module_name][fully_qualified_id] =
-        (tld::is_fqn(imported_id.name, true /*default_special*/) &&
+        (tld::is_fqn(imported_id.name) &&
          !tld::is_in_module("std", imported_id.name))
             ? imported_id
             : fully_qualified_id;
@@ -2755,7 +2768,7 @@ const Module *parse_module(ParseState &ps,
     const std::string &dest_module = dest_pair.first;
     const std::set<Identifier> &symbols = dest_pair.second;
     for (auto &symbol : symbols) {
-      debug_above(2, log("adding import from {%s: {..., %s: %s, ...}",
+      debug_above(2, log("adding import from {module " c_module("%s") ": {..., %s: %s, ...}",
                          ps.module_name.c_str(), dest_module.c_str(),
                          symbol.str().c_str()));
       if (imports_set.count(symbol) != 0) {

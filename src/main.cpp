@@ -351,7 +351,16 @@ tarjan::Graph build_program_graph(const std::vector<const Decl *> &decls) {
   tarjan::Graph graph;
   for (auto decl : decls) {
     const auto &name = decl->id.name;
-    graph.insert({name, get_free_vars(decl->value, {})});
+    const auto free_vars = get_free_vars(decl->value, {});
+    for (auto free_var : free_vars) {
+      if (!zion::tld::is_fqn(free_var)) {
+        throw user_error(
+            decl->id.location,
+            "found free_var \"%s\" that is not fully qualified within %s",
+            free_var.c_str(), name.c_str());
+      }
+    }
+    graph.insert({name, free_vars});
   }
   return graph;
 }
@@ -492,13 +501,13 @@ const Decl *find_overload_for_instance(std::string name,
    * impl.
    */
   for (const Decl *decl : instance->decls) {
-    assert(name == "*" || tld::is_fqn(name, true /*default_special*/));
+    assert(tld::is_fqn(name));
     if (decl->id.name == name) {
       return decl;
     }
   }
   for (const Decl *decl : type_class->default_decls) {
-    assert(tld::is_fqn(name, true /*default_special*/));
+    assert(tld::is_fqn(name));
     if (decl->id.name == name) {
       return decl;
     }

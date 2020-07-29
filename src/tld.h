@@ -13,6 +13,7 @@ Identifier tld(Identifier id);
 bool is_fqn(std::string name);
 bool is_tld(std::string name);
 std::vector<std::string> split_fqn(std::string fqn);
+std::string fqn_leaf(std::string fqn);
 bool is_tld_type(std::string name);
 bool is_lowercase_leaf(std::string name);
 bool is_in_module(std::string module, std::string name);

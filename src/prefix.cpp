@@ -105,11 +105,7 @@ std::set<std::string> only_type_names(const std::set<std::string> &bindings) {
   std::set<std::string> only_type_names;
   for (auto binding : bindings) {
     if (tld::is_tld_type(binding)) {
-      debug_above(4, log("found type name " c_type("%s"), binding.c_str()));
       only_type_names.insert(binding);
-    } else {
-      debug_above(4,
-                  log("skipping non-type name " c_id("%s"), binding.c_str()));
     }
   }
   return only_type_names;
