@@ -1,8 +1,6 @@
 import matrix {V2, Transform2D, transform2d}
 import svg {ToSvg, to_svg, inline_styles}
 
-export {Segment, segments_intersect, Circle, midpoint, Text}
-
 newtype Circle = Circle(V2, Float)
 newtype Segment = Segment(V2, V2)
 newtype Text = Text(V2, String)

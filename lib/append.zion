@@ -1,5 +1,3 @@
-export {MutatingAppend, append}
-
 class MutatingAppend coll item {
   fn append(coll item, item) ()
 }

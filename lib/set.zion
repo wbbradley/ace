@@ -1,5 +1,4 @@
 import copy {Copy, copy}
-export {Set, set}
 
 newtype Set a = Set(Map a ())
 

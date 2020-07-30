@@ -108,6 +108,35 @@ void ParseState::error(const char *format, ...) {
   throw error;
 }
 
+Identifier ParseState::mkfqn(Identifier id) {
+  if (tld::is_fqn(id.name)) {
+    dbg();
+    throw user_error(
+        id.location,
+        "it doesn't make sense to make a module fqn from an fqn (%s)",
+        id.str().c_str());
+  }
+
+  return Identifier{tld::mktld(module_name, id.name), id.location};
+}
+
+void ParseState::export_symbol(Identifier id, Identifier fqn_id) {
+  auto &module_exports = symbol_exports[module_name];
+  auto iter = module_exports.find(id);
+  if (iter != module_exports.end()) {
+    throw user_error(id.location, "duplicate symbol %s in exports",
+                     id.str().c_str())
+        .add_info(iter->first.location, "see previous symbol");
+  }
+
+  auto fqn_source_id = mkfqn(id);
+  debug_above(
+      2, log("ps.symbol_exports[" c_module("%s") "][%s] = %s",
+             module_name.c_str(), fqn_source_id.str().c_str(), fqn_id.str().c_str()));
+
+  module_exports[fqn_source_id] = fqn_id;
+}
+
 void ParseState::add_term_map(Location location,
                               std::string key,
                               std::string value,

@@ -1,9 +1,5 @@
 import copy {Copy, copy}
 
-export {
-  Vector, vector, array, size, capacity, flatten, reserve, reset,
-  resize}
-
 instance Repr [a] {
   fn repr(xs) {
     return "[${join(", ", repr(x) for x in xs)}]"

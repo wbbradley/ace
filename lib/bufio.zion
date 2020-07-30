@@ -1,5 +1,4 @@
 import sys {Errno, File, O_RDONLY, CreateMode}
-export {BufferedFileIO}
 
 newtype BufferedFileIO readable = BufferedFileIO(readable) /* where (Readable readable) */
 

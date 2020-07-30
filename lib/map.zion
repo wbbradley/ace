@@ -1,7 +1,7 @@
 # Implements the default Map type in Zion
 
 import list {List, Cons, Nil, remove_if}
-export {Map, MapStorage, keys, values, from_pairs}
+import copy {Copy, copy}
 
 newtype MapKeyValueCell key value = MapKeyValueCell(Int, key, var value)
 newtype MapStorage key value = MapStorage([List (MapKeyValueCell key value)])

@@ -1,10 +1,6 @@
 import math {Monoid}
 import trigonometry {sin, cos}
 
-export {
-  V2, V3, Matrix3, translation2d, rotate2d, scale2d, multiply_vec3,
-  multiply_vec2, translation2d_vec2, svg_matrix, Transform2D, transform2d}
-
 newtype V2 = V2(Float, Float)
 
 instance Str V2 {

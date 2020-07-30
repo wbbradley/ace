@@ -1,6 +1,3 @@
-export {String, Strippable, chomp, strip, concat, split, has_substring,
-        has_prefix, has_suffix, replace, join, has_substring_at}
-
 # The default string type. Strings are stored null-terminated and the length is
 # cached.
 newtype String = String(*Char, Int)

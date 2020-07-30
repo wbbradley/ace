@@ -10,36 +10,7 @@ import sys {open, read, write, close, readlines, stdin, stdout, stderr}
 import vector {Vector, flatten, reserve, vector, reset, resize}
 import string {String, split, chomp, strip, concat, has_substring, has_prefix, has_suffix,
                replace, join}
-
-export {MutatingAppend, append}
-export {HasDefault, HasDefaultGet, new, get}
-export {Repr, repr}
-export {Maybe, Nothing, Just}
-export {open, read, write, close, readlines, stdin, stdout, stderr}
-export {Map, keys, values, Set, set}
-export {+, -, *, /, abs, negate, Num, Bounded, from_int, identity}
-export {Vector, flatten, reserve, vector, reset, resize, make, Makeable}
-export {String, split, chomp, strip, concat, has_substring, has_prefix, has_suffix, replace,
-        join}
-export {Result, Ok, Err}
-export {u8, i8}
-export {Eq, ==, !=}
-export {Iterable, iter, nothing}
-export {not, Bool, True, False, Str, str, alloc}
-export {HasLength, len}
-export {Modular, %}
-export {Range, range, Ref}
-export {HasInsertableItems, insert, remove}
-export {compare, <, <=, >, >=, min, max}
-export {isspace, isdigit, isalpha, islower, isupper, tolower, toupper}
-export {pointer_subtraction, strlen, |}
-export {Either, Left, Right, serialize}
-export {any, all}
-export {HasSetMembership, in, not_in}
-export {print, int, float}
-export {Buffer}
-export {ObjectId, object_id}
-export {WithElseResource, ResourceAcquired, ResourceFailure}
+import hash {Hashable, hash}
 
 link pkg "bdw-gc"
 

@@ -1,8 +1,5 @@
 import trigonometry {pi, sin, cos, tan, acos, asin, sinh, cosh, tanh, atan,
                      atan2}
-export {pi, even, odd, sqrt, sum, sin, cos, tan, acos, asin, sinh, cosh, tanh,
-        atan, atan2, Num, +, *, -, /, abs, negate, Bounded, from_int,
-        max_bound, min_bound, Monoid, identity}
 
 link "m"
 

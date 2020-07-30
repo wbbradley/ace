@@ -2156,7 +2156,9 @@ types::Ref parse_type(ParseState &ps, bool allow_top_level_application) {
 const TypeDecl *parse_type_decl(ParseState &ps) {
   expect_token(tk_identifier);
   auto token = ps.token_and_advance();
-  auto class_id = ps.id_mapped(iid(token));
+  auto class_id = iid(token);
+
+  ps.export_symbol(class_id, ps.mkfqn(class_id));
 
   assert(!tld::is_fqn(ps.module_name));
   assert(!tld::is_fqn(token.text));
@@ -2260,6 +2262,7 @@ DataTypeDecl parse_struct_decl(ParseState &ps, types::Map &data_ctors) {
 
     member_ids.push_back(iid(ps.token_and_advance()));
     dims.push_back(parse_type(ps, true /*allow_top_level_application*/));
+    ps.export_symbol(member_ids.back(), ps.mkfqn(member_ids.back()));
   }
 
   /* create accessor functions */
@@ -2381,6 +2384,8 @@ DataTypeDecl parse_data_type_decl(ParseState &ps,
     std::unique_ptr<DataCtorParts> data_ctor_parts =
         std::make_unique<DataCtorParts>();
     data_ctor_parts->ctor_token = ps.token_and_advance();
+    Identifier ctor_id = iid(data_ctor_parts->ctor_token);
+    ps.export_symbol(ctor_id, ps.mkfqn(ctor_id));
     if (ps.token.tk == tk_lparen) {
       ps.advance();
       /* this is a data ctor */
@@ -2532,6 +2537,7 @@ const TypeClass *parse_type_class(ParseState &ps) {
       /* an overloaded function */
       ps.advance();
       auto id = Identifier{ps.token.text, ps.token.location};
+      ps.export_symbol(id, ps.mkfqn(id));
       ps.advance();
       overloads[id.name] = parse_function_type(ps);
     } else {
@@ -2597,14 +2603,18 @@ const Module *parse_module(ParseState &ps,
         }
         /* record this import */
         debug_above(
-            3, log_location(ps.token.location, "recording import of " c_id("%s") " as " c_id("%s"),
+            3, log_location(ps.token.location,
+                            "recording import of " c_id("%s") " as " c_id("%s"),
                             tld::mktld(module_name.name, symbol.name).c_str(),
                             import_as.str().c_str()));
         ps.symbol_imports[ps.module_name][module_name.name].insert(symbol);
         assert(!tld::is_fqn(import_as.name));
-        ps.add_term_map(symbol.location, import_as.name,
-                        tld::mktld(module_name.name, symbol.name),
+        Identifier target_fqn = Identifier{
+            tld::mktld(module_name.name, symbol.name), import_as.location};
+        ps.add_term_map(symbol.location, import_as.name, target_fqn.name,
                         false /*allow_override*/);
+        ps.export_symbol(import_as, target_fqn);
+
         if (ps.token.tk == tk_comma) {
           ps.advance();
         } else {
@@ -2614,58 +2624,6 @@ const Module *parse_module(ParseState &ps,
       }
     }
     module_deps.insert(module_name);
-  }
-
-  /* for now we will only allow exports at the top. trying to be draconian
-   * with module layout */
-  std::set<Identifier> exports;
-  while (ps.token.is_ident(K(export))) {
-    ps.advance();
-    chomp_token(tk_lcurly);
-
-    while (ps.token.tk != tk_rcurly) {
-      if (ps.token.tk == tk_comma) {
-        throw user_error(ps.token.location, "unexepected comma");
-      }
-      Identifier symbol = Identifier{ps.token.text, ps.token.location};
-      ps.advance();
-      if (in(symbol, exports)) {
-        auto iter = exports.find(symbol);
-        assert(iter != exports.end());
-        throw user_error(symbol.location, "duplicate symbol %s in exports",
-                         symbol.str().c_str())
-            .add_info(iter->location, "see previous export");
-      }
-      assert(!tld::is_fqn(symbol.name));
-      exports.insert(symbol);
-      if (ps.token.tk != tk_rcurly) {
-        chomp_token(tk_comma);
-      }
-    }
-    chomp_token(tk_rcurly);
-  }
-
-  for (auto &id : exports) {
-    assert(!tld::is_fqn(id.name));
-    auto fully_qualified_id = Identifier{tld::mktld(ps.module_name, id.name),
-                                         id.location};
-    auto imported_id = ps.id_mapped(id);
-    debug_above(
-        2, log("ps.symbol_exports[" c_module("%s") "][%s] = with imported_id=%s",
-               ps.module_name.c_str(), fully_qualified_id.str().c_str(),
-               imported_id.str().c_str()));
-
-    ps.symbol_exports[ps.module_name][fully_qualified_id] =
-        (tld::is_fqn(imported_id.name) &&
-         !tld::is_in_module("std", imported_id.name))
-            ? imported_id
-            : fully_qualified_id;
-#if 0
-    /* in order to allow definitions in auto_imported modules, remap the
-     * exported symbol to the local namespace for parsing purposes */
-    ps.add_term_map(id.location, id.name, fully_qualified_id.name,
-                    true /*allow_override*/);
-#endif
   }
 
   while (ps.token.is_ident(K(link))) {
@@ -2687,16 +2645,15 @@ const Module *parse_module(ParseState &ps,
     if (ps.token.is_ident(K(import))) {
       throw user_error(ps.token.location,
                        "import statements must occur at the top of the module");
-    } else if (ps.token.is_ident(K(export))) {
-      throw user_error(ps.token.location,
-                       "export statements must occur at the top of the module, "
-                       "or just below any existing imports");
+    } else if (ps.token.tk == tk_identifier && ps.token.text == "export") {
+      throw user_error(ps.token.location, "export statements are deprecated");
     } else if (ps.token.is_ident(K(fn))) {
       /* module-level functions */
       ps.advance();
       Token token = ps.token_and_advance();
       auto id = Identifier(token.text, token.location);
       decls.push_back(new Decl(id, parse_lambda(ps)));
+      ps.export_symbol(id, ps.mkfqn(id));
     } else if (ps.token.is_ident(K(struct))) {
       ps.advance();
       types::Map data_ctors;
@@ -2733,6 +2690,7 @@ const Module *parse_module(ParseState &ps,
       ps.advance();
       auto id = Identifier::from_token(ps.token_and_advance());
       chomp_token(tk_assign);
+      ps.export_symbol(id, ps.mkfqn(id));
       decls.push_back(
           new Decl(id, parse_expr(ps, false /*allow_for_comprehensions*/)));
     } else if (ps.token.is_ident(K(class))) {

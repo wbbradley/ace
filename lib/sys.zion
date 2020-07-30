@@ -1,12 +1,5 @@
 import bufio {BufferedFileIO}
 
-export {
-  get_args, FileDescriptor, File, open, close, unlink, read, stdin, stdout,
-  stderr, Errno, get_errno, write, BufferedFileIO, readlines, CreateMode,
-  O_RDONLY, O_WRONLY, O_RDWR, O_ACCMODE, O_CREAT, O_EXCL, O_NOCTTY, O_TRUNC,
-  O_APPEND, O_NONBLOCK, S_IRWXU, S_IRUSR, S_IWUSR, S_IXUSR, S_IRWXG, S_IRGRP,
-  S_IWGRP, S_IXGRP, S_IRWXO, S_IROTH, S_IWOTH, S_IXOTH, create_mode_default}
-
 link pkg "bdw-gc"
 
 newtype FileDescriptor = FileDescriptor(Int)

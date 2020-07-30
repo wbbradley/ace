@@ -1,5 +1,3 @@
-export {ToSvg, to_svg, inline_styles}
-
 class ToSvg a {
   fn to_svg(a, Map String String) String
 }
