@@ -1,5 +1,4 @@
 # test: skip
-export {exported_fn, ExportedClass, make_indexed_logger}
 
 class UnexportedClass a {
     fn exported_fn() a
@@ -8,6 +7,8 @@ class UnexportedClass a {
 class ExportedClass a {
     fn unexported_fn() a
 }
+
+fn _private_method(a) => a
 
 fn make_indexed_logger() fn (String) () {
     var index = 0

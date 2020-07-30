@@ -1,7 +1,7 @@
 # test: fail
-# expect: error. ::test_utils::UnexportedClass is not exported or does not exist
+# expect: error. it is not possible to import module-scoped variables into other modules
 
-import test_utils {UnexportedClass}
+import test_utils {_private_method}
 
 fn main() {
 }

@@ -1,5 +1,3 @@
-export {getenv}
-
 fn getenv(s String) Maybe String {
   let String(sz, _) = s
   let env = ffi getenv(sz) as *Char

@@ -152,7 +152,7 @@ fn find_key_value(map_storage MapStorage key value,
   return Nothing
 }
 
-fn needs_to_grow(map) {
+fn _needs_to_grow(map) {
   let Map(MapStorage(storage), var size) = map
   return size + 1 > len(storage)
 }
@@ -208,7 +208,7 @@ instance HasAssignableIndexableItems (Map key value) key value {
                 return
             }
         } else {
-            if needs_to_grow(map) {
+            if _needs_to_grow(map) {
                 # We need to grow to efficently hold another element.
                 grow_storage(map_storage, size == 0 ? 4 : size * 2)
             }

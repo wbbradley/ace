@@ -1,5 +1,3 @@
-export {rand}
-
 link pkg "libsodium"
 
 fn rand() Int {

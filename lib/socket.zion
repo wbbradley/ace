@@ -1,5 +1,4 @@
 import sys {FileDescriptor, get_errno}
-export {socket, Domain, Type, AF_INET, AF_INET6, SOCK_STREAM, SOCK_DGRAM}
 
 newtype Domain = Domain(Int)
 

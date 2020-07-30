@@ -4,10 +4,6 @@ import parser {
   ParseState, Span, Progress, char, not_char, choice, until_one_of, sequence,
   many, lift, span_concat, text, skip_space_then, digit, skip_space, OK, Fail,
   word, many_delimited, parse_string}
-export {
-  parse_json, get_json_parser, J, JText, JNumber, JNull, JVector, JObject,
-  JBool, JsonReader, from_json}
-
                
 data J {
   JText(String)

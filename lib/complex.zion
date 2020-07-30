@@ -1,5 +1,4 @@
 import math {sqrt}
-export {Complex}
 
 struct Complex {
    real Float

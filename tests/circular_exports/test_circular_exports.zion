@@ -2,4 +2,3 @@
 # expect: circular exports
 
 import moon1 {moonrocks}
-export {moonrocks}

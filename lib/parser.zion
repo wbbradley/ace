@@ -1,8 +1,4 @@
 import string {Strippable, has_substring_at}
-export {
-  text, sequence, choice, many, many1, Progress, ParseState, char, not_char,
-  Span, until_one_of, lift, span_concat, Parser, digit, skip_space_then,
-  word, skip_while, skip_space, OK, Fail, many_delimited, parse_string}
 
 # The immutable most-recent state of the parser, sans AST state
 newtype ParseState = ParseState(String, Int)

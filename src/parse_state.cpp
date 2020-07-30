@@ -121,6 +121,10 @@ Identifier ParseState::mkfqn(Identifier id) {
 }
 
 void ParseState::export_symbol(Identifier id, Identifier fqn_id) {
+  if (starts_with(id.name, "_")) {
+    /* do not export any symbols with leading underscores */
+    return;
+  }
   auto &module_exports = symbol_exports[module_name];
   auto iter = module_exports.find(id);
   if (iter != module_exports.end()) {
@@ -130,9 +134,9 @@ void ParseState::export_symbol(Identifier id, Identifier fqn_id) {
   }
 
   auto fqn_source_id = mkfqn(id);
-  debug_above(
-      2, log("ps.symbol_exports[" c_module("%s") "][%s] = %s",
-             module_name.c_str(), fqn_source_id.str().c_str(), fqn_id.str().c_str()));
+  debug_above(2, log("ps.symbol_exports[" c_module("%s") "][%s] = %s",
+                     module_name.c_str(), fqn_source_id.str().c_str(),
+                     fqn_id.str().c_str()));
 
   module_exports[fqn_source_id] = fqn_id;
 }

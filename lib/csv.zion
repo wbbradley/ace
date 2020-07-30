@@ -3,8 +3,6 @@ import parser {
   ParseState, Span, Progress, OK, Fail, char, not_char, choice, until_one_of,
   sequence, many, lift, span_concat, text}
 
-export {read_csv_dicts, HasHeaderRow, UseFieldNames}
-
 fn split_csvs(line String) [String] {
   if parse_csv_line(ParseState(line, 0)) is OK(_, fields) {
     return fields

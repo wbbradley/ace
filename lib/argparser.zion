@@ -1,9 +1,6 @@
 import itertools {repeat}
 import string {Strippable}
-import parser {Parser, lift, sequence, Progress, OK, Fail}
-export {
-  ArgParseState, ArgSpan, arg_span_concat, const, literal, term,
-  parse_args, flag}
+import parser {lift, sequence, Progress, OK, Fail}
 
 # The immutable most-recent state of the parser, sans AST state
 newtype ArgParseState = ArgParseState([String], Int)
