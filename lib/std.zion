@@ -25,7 +25,7 @@ export {Result, Ok, Err}
 export {u8, i8}
 export {Eq, ==, !=}
 export {Iterable, iter, nothing}
-export {not, True, False, Str, str, alloc}
+export {not, Bool, True, False, Str, str, alloc}
 export {HasLength, len}
 export {Modular, %}
 export {Range, range, Ref}
@@ -34,8 +34,12 @@ export {compare, <, <=, >, >=, min, max}
 export {isspace, isdigit, isalpha, islower, isupper, tolower, toupper}
 export {pointer_subtraction, strlen, |}
 export {Either, Left, Right, serialize}
-export {any, all, not_in}
+export {any, all}
+export {HasSetMembership, in, not_in}
 export {print, int, float}
+export {Buffer}
+export {ObjectId, object_id}
+export {WithElseResource, ResourceAcquired, ResourceFailure}
 
 link pkg "bdw-gc"
 

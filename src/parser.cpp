@@ -98,8 +98,7 @@ const Expr *parse_let(ParseState &ps, Identifier var_id, bool is_let) {
   }
 
   BoundVarLifetimeTracker bvlt(ps);
-
-  ps.term_map.erase(var_id.name);
+  ps.locals.insert(var_id.name);
 
   if (!is_let) {
     auto ref_id = Identifier{tld::mktld("std", "Ref"), location};
@@ -1150,7 +1149,8 @@ const Expr *parse_postfix_chain(ParseState &ps, const Expr *expr) {
     case tk_dot: {
       ps.advance();
       expect_token(tk_identifier);
-      auto iid = tld::tld(ps.identifier_and_advance());
+      auto iid = tld::tld(
+          ps.identifier_and_advance(true /*map_id*/, true /*ignore_locals*/));
       if (!ps.line_broke() && ps.token.tk == tk_lparen) {
         expr = parse_application(ps, new Var(iid), {expr});
       } else {
@@ -1845,7 +1845,8 @@ const Predicate *parse_predicate(ParseState &ps,
       }
 
       /* allow this variable to shadow anything in the term map */
-      ps.term_map.erase(ps.token.text);
+      assert(!tld::is_fqn(ps.token.text));
+      ps.locals.insert(ps.token.text);
 
       /* match anything */
       Identifier symbol = iid(ps.token);
@@ -1962,7 +1963,7 @@ std::pair<Identifier, types::Ref> parse_lambda_param_core(ParseState &ps) {
 
     /* add this param as a mutable var, since we know it's a Ref */
     ps.mutable_vars.insert(param_token.text);
-    ps.term_map.erase(param_token.text);
+    ps.locals.insert(param_token.text);
 
     return {
         iid(param_token),
@@ -1976,7 +1977,7 @@ std::pair<Identifier, types::Ref> parse_lambda_param_core(ParseState &ps) {
       throw user_error(first_token.location,
                        "parameter names cannot begin with capital letters");
     }
-    ps.term_map.erase(first_token.text);
+    ps.locals.insert(first_token.text);
     return {iid(first_token),
             (token_begins_type(ps.token))
                 ? parse_type(ps, true /*allow_top_level_application*/)
@@ -2125,7 +2126,7 @@ types::Ref parse_type(ParseState &ps, bool allow_top_level_application) {
       /* var syntax is a low-precedence unary type operator which applies the
        * "Ref" type to its operand */
       types::Ref ref_type_id = type_id(
-          Identifier{tld::mktld("std", "Ref"), ps.token.location});
+          Identifier{REF_TYPE_OPERATOR, ps.token.location});
       ps.advance();
 
       types.push_back(type_operator(
@@ -2556,20 +2557,8 @@ const Module *parse_module(ParseState &ps,
     if (aim == nullptr) {
       continue;
     }
-#if 0
-    std::set<std::string> tlds = compiler::get_top_level_decls(
-        aim->decls, aim->type_decls, aim->type_classes, aim->imports);
-    for (auto tldecl : tlds) {
-      const std::string resolved_name = tld::mktld(aim->name, tldecl);
-      debug_above(9, log("adding tldecl %s -> %s in %s", tldecl.c_str(),
-                         resolved_name.c_str(), ps.filename.c_str()));
-      /* imports cannot override other imports */
-      ps.add_term_map(INTERNAL_LOC(), tldecl, resolved_name,
-                      false /*allow_override*/);
-    }
-#endif
-    log(C_GOOD "AUTO-IMPORTING TERMS FROM " C_RESET c_module("%s"),
-        aim->name.c_str());
+    debug_above(3, log("Auto-importing exported terms from " c_module("%s"),
+                       aim->name.c_str()));
     for (auto &id_pair : ps.symbol_exports[aim->name]) {
       auto symbol = tld::fqn_leaf(id_pair.first.name);
       ps.add_term_map(id_pair.first.location, symbol, id_pair.second.name,
@@ -2671,10 +2660,12 @@ const Module *parse_module(ParseState &ps,
          !tld::is_in_module("std", imported_id.name))
             ? imported_id
             : fully_qualified_id;
+#if 0
     /* in order to allow definitions in auto_imported modules, remap the
      * exported symbol to the local namespace for parsing purposes */
     ps.add_term_map(id.location, id.name, fully_qualified_id.name,
                     true /*allow_override*/);
+#endif
   }
 
   while (ps.token.is_ident(K(link))) {

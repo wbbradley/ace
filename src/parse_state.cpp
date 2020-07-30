@@ -18,12 +18,12 @@ namespace zion {
 namespace parser {
 
 BoundVarLifetimeTracker::BoundVarLifetimeTracker(ParseState &ps)
-    : ps(ps), mutable_vars_saved(ps.mutable_vars), term_map_saved(ps.term_map) {
+    : ps(ps), mutable_vars_saved(ps.mutable_vars), locals_saved(ps.locals) {
 }
 
 BoundVarLifetimeTracker::~BoundVarLifetimeTracker() {
   ps.mutable_vars = mutable_vars_saved;
-  ps.term_map = term_map_saved;
+  ps.locals = locals_saved;
 }
 
 const ast::Expr *BoundVarLifetimeTracker::escaped_parse_expr(
@@ -33,11 +33,11 @@ const ast::Expr *BoundVarLifetimeTracker::escaped_parse_expr(
   auto mutable_vars = ps.mutable_vars;
   ps.mutable_vars = mutable_vars_saved;
 
-  auto term_map = ps.term_map;
-  ps.term_map = term_map_saved;
+  auto locals = ps.locals;
+  ps.locals = locals_saved;
 
   const ast::Expr *expr = parse_expr(ps, allow_for_comprehensions);
-  ps.term_map = term_map;
+  ps.locals = locals;
   ps.mutable_vars = mutable_vars;
   return expr;
 }
@@ -72,29 +72,27 @@ Token ParseState::token_and_advance() {
   return prior_token;
 }
 
-Identifier ParseState::identifier_and_advance(bool map_id) {
+Identifier ParseState::identifier_and_advance(bool map_id, bool ignore_locals) {
   if (token.tk != tk_identifier) {
     throw user_error(token.location, "expected an identifier here");
   }
   advance();
   auto id = Identifier{prior_token.text, prior_token.location};
-  return map_id ? id_mapped(id) : id;
+  return map_id ? id_mapped(id, ignore_locals) : id;
 }
 
-Identifier ParseState::id_mapped(Identifier id) {
+Identifier ParseState::id_mapped(Identifier id, bool ignore_locals) {
   if (tld::is_fqn(id.name)) {
     /* this has already been mapped */
     return id;
   }
-  auto iter = term_map.find(id.name);
-  if (iter != term_map.end()) {
+  if (!ignore_locals && in(id.name, locals)) {
+    return id;
+  }
+  auto iter = module_term_map.find(id.name);
+  if (iter != module_term_map.end()) {
     return Identifier{iter->second, id.location};
   } else {
-    /* if (id.name == "offset") { */
-    /*   for (auto pair : term_map) { */
-    /*     log("term_map = %s -> %s", pair.first.c_str(), pair.second.c_str()); */
-    /*   } */
-    /* } */
     return id;
   }
 }
@@ -114,13 +112,14 @@ void ParseState::add_term_map(Location location,
                               std::string key,
                               std::string value,
                               bool allow_override) {
-  debug_above(3, log("adding %s to term map => %s", key.c_str(), value.c_str()));
-  if (!allow_override && in(key, term_map)) {
+  debug_above(3,
+              log("adding %s to module_term_map => %s", key.c_str(), value.c_str()));
+  if (!allow_override && in(key, module_term_map)) {
     throw user_error(location, "symbol %s imported twice", key.c_str())
         .add_info(location, "%s was already mapped to %s", key.c_str(),
-                  term_map.at(key).c_str());
+                  module_term_map.at(key).c_str());
   }
-  term_map[key] = value;
+  module_term_map[key] = value;
 }
 
 } // namespace parser

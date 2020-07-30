@@ -261,11 +261,9 @@ std::shared_ptr<Compilation> merge_compilation(
         module->imports);
 
     std::set<std::string> bindings;
-    log("bindings for %s", module->name.c_str());
     for (auto binding: maybe_not_tld_bindings) {
       bindings.insert(binding);
       bindings.insert(tld::tld(binding));
-      log("bindings += %s", binding.c_str());
     }
     const Module *module_rebound = prefix(bindings, module);
 

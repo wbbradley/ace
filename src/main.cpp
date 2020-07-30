@@ -25,6 +25,17 @@
 
 #define IMPL_SUFFIX "-impl"
 
+const char *LOGO =
+C_UNCHECKED R"(
+
+░░░░░░░ ░░  ░░░░░░  ░░░    ░░ 
+   ░░░  ░░ ░░    ░░ ░░░░   ░░ 
+  ░░░   ░░ ░░    ░░ ░░ ░░  ░░ 
+ ░░░    ░░ ░░    ░░ ░░  ░░ ░░ 
+░░░░░░░ ░░  ░░░░░░  ░░   ░░░░ 
+
+)" C_RESET;
+
 namespace zion {
 
 using namespace ast;
@@ -1263,25 +1274,26 @@ int run_job(const Job &job) {
 
   std::map<std::string, std::function<int(const Job &, bool)>> cmd_map;
   cmd_map["help"] = [&](const Job &job, bool explain) {
-    std::cerr << "zion";
+    std::cout << clean_ansi_escapes_if_not_tty(stdout, LOGO);
+    std::cout << "zion";
 #ifdef ZION_DEBUG
-    std::cerr << " (debug build)";
+    std::cout << " (debug build)";
 #endif
-    std::cerr << ':' << std::endl;
+    std::cout << ':' << std::endl;
     for (auto &cmd_pair : cmd_map) {
       if (cmd_pair.first != "help") {
         /* run the command in explain mode */
-        std::cerr << "\t";
+        std::cout << "\t";
         // TODO: just have a different way of doing this... this is dumb.
         cmd_pair.second(job, true);
       }
     }
-    std::cerr << "Also try looking at the manpage. man zion." << std::endl;
+    std::cout << "Also try looking at the manpage. man zion." << std::endl;
     return EXIT_FAILURE;
   };
   cmd_map["test"] = [&](const Job &job, bool explain) {
     if (explain) {
-      std::cerr << "test: run tests" << std::endl;
+      std::cout << "test: run tests" << std::endl;
       return EXIT_FAILURE;
     }
 
@@ -1316,7 +1328,7 @@ int run_job(const Job &job) {
   };
   cmd_map["find"] = [&](const Job &job, bool explain) {
     if (explain) {
-      std::cerr << "find: resolve module filenames" << std::endl;
+      std::cout << "find: resolve module filenames" << std::endl;
       return EXIT_FAILURE;
     }
     if (job.args.size() != 1) {
@@ -1329,7 +1341,7 @@ int run_job(const Job &job) {
   };
   cmd_map["lex"] = [&](const Job &job, bool explain) {
     if (explain) {
-      std::cerr << "lex: lexes Zion into tokens" << std::endl;
+      std::cout << "lex: lexes Zion into tokens" << std::endl;
       return EXIT_FAILURE;
     }
     if (job.args.size() != 1) {
@@ -1352,7 +1364,7 @@ int run_job(const Job &job) {
 
   cmd_map["parse"] = [&](const Job &job, bool explain) {
     if (explain) {
-      std::cerr << "parse: parses Zion into an intermediate lambda calculus"
+      std::cout << "parse: parses Zion into an intermediate lambda calculus"
                 << std::endl;
       return EXIT_FAILURE;
     }
@@ -1381,7 +1393,7 @@ int run_job(const Job &job) {
   };
   cmd_map["compile"] = [&](const Job &job, bool explain) {
     if (explain) {
-      std::cerr << "compile: parses and compiles Zion into an intermediate "
+      std::cout << "compile: parses and compiles Zion into an intermediate "
                    "lambda calculus. this performs type checking"
                 << std::endl;
       return EXIT_FAILURE;
@@ -1400,7 +1412,7 @@ int run_job(const Job &job) {
   };
   cmd_map["specialize"] = [&](const Job &job, bool explain) {
     if (explain) {
-      std::cerr << "specialize: compiles, then specializes the Zion lambda "
+      std::cout << "specialize: compiles, then specializes the Zion lambda "
                    "calculus to a monomorphized form"
                 << std::endl;
       return EXIT_FAILURE;
@@ -1418,7 +1430,7 @@ int run_job(const Job &job) {
   };
   cmd_map["ll"] = [&](const Job &job, bool explain) {
     if (explain) {
-      std::cerr << "ll: compiles, specializes, then generates LLVM output"
+      std::cout << "ll: compiles, specializes, then generates LLVM output"
                 << std::endl;
       return EXIT_FAILURE;
     }
@@ -1433,7 +1445,7 @@ int run_job(const Job &job) {
   };
   cmd_map["run"] = [&](const Job &job, bool explain) {
     if (explain) {
-      std::cerr << "run: compiles, specializes, generates LLVM output, then "
+      std::cout << "run: compiles, specializes, generates LLVM output, then "
                    "runs the generated binary"
                 << std::endl;
       return EXIT_FAILURE;

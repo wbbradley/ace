@@ -36,7 +36,7 @@ struct ParseState {
 
   bool advance();
   Token token_and_advance();
-  Identifier identifier_and_advance(bool map_id=true);
+  Identifier identifier_and_advance(bool map_id=true, bool ignore_locals=false);
   void error(const char *format, ...);
   void add_term_map(Location, std::string, std::string, bool allow_override);
   void add_type_map(Location, std::string, std::string);
@@ -44,15 +44,16 @@ struct ParseState {
     return newline || prior_token.tk == tk_semicolon;
   }
 
-  Identifier id_mapped(Identifier id);
+  Identifier id_mapped(Identifier id, bool ignore_locals=false);
   Token token;
   Token prior_token;
   std::string filename;
   std::string module_name;
   std::unordered_set<std::string> mutable_vars;
+  std::unordered_set<std::string> locals;
 
   /* top-level term remapping from "import" statements */
-  std::unordered_map<std::string, std::string> term_map;
+  std::unordered_map<std::string, std::string> module_term_map;
 
   const std::map<std::string, int> &builtin_arities;
   Lexer &lexer;
@@ -83,7 +84,7 @@ struct BoundVarLifetimeTracker {
 private:
   ParseState &ps;
   std::unordered_set<std::string> mutable_vars_saved;
-  std::unordered_map<std::string, std::string> term_map_saved;
+  std::unordered_set<std::string> locals_saved;
 };
 
 } // namespace parser
