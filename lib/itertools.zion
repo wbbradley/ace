@@ -1,14 +1,14 @@
 fn zip(xs, ys) {
-    let iter_xs = iter(xs)
-    let iter_ys = iter(ys)
-    return fn () {
-        if iter_xs() is Just(x) {
-            if iter_ys() is Just(y) {
-                return Just((x, y))
-            }
-        }
-        return Nothing
+  let iter_xs = iter(xs)
+  let iter_ys = iter(ys)
+  return fn () {
+    if iter_xs() is Just(x) {
+      if iter_ys() is Just(y) {
+        return Just((x, y))
+      }
     }
+    return Nothing
+  }
 }
 
 fn repeat(x) fn () Maybe a {
@@ -16,106 +16,106 @@ fn repeat(x) fn () Maybe a {
     return fn () => jx
 }
 
-fn take(n, iterable) {
-    let iterator = iter(iterable)
-    var i = n
-    return fn() {
-        if i <= 0 {
-            return Nothing
-        }
-        let val = iterator()
-        match val {
-            Just(x) {
-                i = i - 1
-                return val
-            }
-            Nothing {
-                return Nothing
-            }
-        }
+fn take(iterable, n) {
+  let iterator = iter(iterable)
+  var i = n
+  return fn() {
+    if i <= 0 {
+      return Nothing
     }
+    let val = iterator()
+    match val {
+      Just(x) {
+        i = i - 1
+        return val
+      }
+      Nothing {
+        return Nothing
+      }
+    }
+  }
 }
 
-fn takewhile(predicate, iterable) {
-    let iterator = iter(iterable)
-    return fn() {
-        let val = iterator()
-        match val {
-            Just(x) {
-                if predicate(x) {
-                    return val
-                } else {
-                    return Nothing
-                }
-            }
-            Nothing {
-                return Nothing
-            }
+fn takewhile(iterable, predicate) {
+  let iterator = iter(iterable)
+  return fn() {
+    let val = iterator()
+    match val {
+      Just(x) {
+        if predicate(x) {
+          return val
+        } else {
+          return Nothing
         }
+      }
+      Nothing {
+        return Nothing
+      }
     }
+  }
 }
 
-fn dropwhile(predicate, iterable) {
-    let iterator = iter(iterable)
-    var dropping = True
-    return fn () {
-        while dropping {
-            match iterator() {
-                val@Just(x) {
-                    if predicate(x) {
-                        continue
-                    } else {
-                        dropping = False
-                        return val
-                    }
-                }
-                Nothing {
-                    return Nothing
-                }
-            }
+fn dropwhile(iterable, predicate) {
+  let iterator = iter(iterable)
+  var dropping = True
+  return fn () {
+    while dropping {
+      match iterator() {
+        val@Just(x) {
+          if predicate(x) {
+            continue
+          } else {
+            dropping = False
+            return val
+          }
         }
-        return iterator()
+        Nothing {
+          return Nothing
+        }
+      }
     }
+    return iterator()
+  }
 }
 
 
 
 fn cycle(xs_input) {
-    var xs = Just(iter(xs_input))
-    let recording = []
-    var index = 0
-    return fn () {
-        match! xs {
-            Just(iterator) {
-                match iterator() {
-                    step@Just(x) {
-                        append(recording, step)
-                        return step
-                    }
-                    Nothing {
-                        xs = Nothing
-                    }
-                }
-            }
+  var xs = Just(iter(xs_input))
+  let recording = []
+  var index = 0
+  return fn () {
+    match! xs {
+      Just(iterator) {
+        match iterator() {
+          step@Just(x) {
+            append(recording, step)
+            return step
+          }
+          Nothing {
+            xs = Nothing
+          }
         }
-        let num_recordings = len(recording)
-        if index < num_recordings {
-            let ret = recording[index]
-            index = index + 1
-            return ret
-        } else if num_recordings == 0 {
-            return Nothing
-        } else {
-            assert(index == num_recordings)
-            index = 1
-            return recording[0]
-        }
+      }
     }
+    let num_recordings = len(recording)
+    if index < num_recordings {
+      let ret = recording[index]
+      index = index + 1
+      return ret
+    } else if num_recordings == 0 {
+      return Nothing
+    } else {
+      assert(index == num_recordings)
+      index = 1
+      return recording[0]
+    }
+  }
 }
 
-fn chain2(a, b) fn () Maybe a => chain2_iters(iter(a), iter(b))
+fn chain2(a, b) fn () Maybe a => _chain2_iters(iter(a), iter(b))
 
-fn chain2_iters(as fn () Maybe a, bs fn () Maybe a) fn () Maybe a {
+fn _chain2_iters(as fn () Maybe a, bs fn () Maybe a) fn () Maybe a {
   var outer_iter = iter([as, bs])
   var cur_iterable = outer_iter()
   return fn () {

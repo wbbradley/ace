@@ -1,101 +1,101 @@
 data List x {
-    Cons(x, var (List x))
-    Nil
+  Cons(x, var (List x))
+  Nil
 }
 
 instance HasLength (List a) {
-    fn len(list) {
-        var p = list
-        var i = 0
-        while match p {
-            Cons(_, var next) {
-                i += 1
-                p = next
-            }
-            Nil {
-                break
-            }
-        }
-        return i
+  fn len(list) {
+    var p = list
+    var i = 0
+    while match p {
+      Cons(_, var next) {
+        i += 1
+        p = next
+      }
+      Nil {
+        break
+      }
     }
+    return i
+  }
 }
 
 fn nth(l List x, index Int) Maybe x {
-    var rl = l
-    var i = 0
-    while match rl {
-        Cons(x, var next) {
-            if i == index {
-                return Just(x)
-            } else {
-                rl = next
-                i += 1
-            }
-        }
-        Nil {
-            break
-        }
+  var rl = l
+  var i = 0
+  while match rl {
+    Cons(x, var next) {
+      if i == index {
+        return Just(x)
+      } else {
+        rl = next
+        i += 1
+      }
     }
-    return Nothing
+    Nil {
+      break
+    }
+  }
+  return Nothing
 }
 
 instance Iterable (List a) a {
-    fn iter(list List a) {
-        var list = list
-        return fn () Maybe a {
-            match list {
-                Cons(x, var next) {
-                    list = next
-                    return Just(x)
-                }
-                Nil {
-                    return Nothing
-                }
-            }
+  fn iter(list List a) {
+    var list = list
+    return fn () Maybe a {
+      match list {
+        Cons(x, var next) {
+          list = next
+          return Just(x)
         }
+        Nil {
+          return Nothing
+        }
+      }
     }
+  }
 }
 
 instance Str (List a) {
-    fn str(list) {
-        return join(", ", list)
-    }
+  fn str(list) {
+    return join(", ", list)
+  }
 }
 
 # Removes items where pred(item) returns True.
 # Returns the new list, as well as the number of items removed.
 fn remove_if(list List a, pred fn (a) Bool) (List a, Int) {
-    var removed = 0
-    var starting_list = Nil
-    var cur_node = list
-    var prev_node = Nil
-    while match cur_node {
-        Cons(a, var next) {
-            if pred(a) {
-                removed += 1
-                match prev_node {
-                    Cons(_, var prev_next) {
-                        # Remove this node from the list
-                        prev_next = next
-                    }
-                    Nil {}
-                }
-                cur_node = next
-                continue
-            } else {
-                match! starting_list {
-                    Nil {
-                        starting_list = cur_node
-                    }
-                }
-                prev_node = cur_node
-                cur_node = next
-                continue
-            }
+  var removed = 0
+  var starting_list = Nil
+  var cur_node = list
+  var prev_node = Nil
+  while match cur_node {
+    Cons(a, var next) {
+      if pred(a) {
+        removed += 1
+        match prev_node {
+          Cons(_, var prev_next) {
+            # Remove this node from the list
+            prev_next = next
+          }
+          Nil {}
         }
-        Nil {
-            return (starting_list, removed)
+        cur_node = next
+        continue
+      } else {
+        match! starting_list {
+          Nil {
+            starting_list = cur_node
+          }
         }
+        prev_node = cur_node
+        cur_node = next
+        continue
+      }
     }
-    return (Nil, 0)
+    Nil {
+      return (starting_list, removed)
+    }
+  }
+  return (Nil, 0)
 }

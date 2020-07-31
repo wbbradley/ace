@@ -11,11 +11,11 @@ fn map_render(map, tuple_show) {
   let Map(MapStorage(storage), _) = map
   let results = []
   for match Cons(MapKeyValueCell(_, key, var value), var next) in storage {
-    append(results, tuple_show(key, value))
+    results.append(tuple_show(key, value))
     var next_list = next
     while match next_list {
       Cons(MapKeyValueCell(_, key, var value), var next_next) {
-        append(results, tuple_show(key, value))
+        results.append(tuple_show(key, value))
         next_list = next_next
       }
       Nil {
@@ -23,7 +23,7 @@ fn map_render(map, tuple_show) {
       }
     }
   }
-  return "{${join(", ", results)}}"
+  return "{${", ".join(results)}}"
 }
 
 instance Str (Map key value) {
@@ -94,7 +94,7 @@ instance HasRemovableItems (Map key value) key {
     if size == 0 {
       return
     }
-    let hash_key = abs(hash(key))
+    let hash_key = key.hash.abs
     let index = hash_key % len(storage)
     let (new_list, removed_count) = remove_if(storage[index], |key_value_cell| {
       let MapKeyValueCell(existing_key_hash, existing_key, _) = key_value_cell

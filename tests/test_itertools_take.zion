@@ -5,5 +5,5 @@ import itertools {take}
 import math {sum}
 
 fn main() {
-    print(sum(take(5, [0..])))
+    print([0..].take(5).sum)
 }

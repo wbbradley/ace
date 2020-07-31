@@ -5,5 +5,5 @@ import itertools {dropwhile}
 import math {sum}
 
 fn main() {
-    print(sum(dropwhile(|x| => x < 6, [0..10])))
+    print([0..10].dropwhile(|x| => x < 6).sum)
 }

@@ -4,10 +4,10 @@
 import itertools {take}
 
 fn main() {
-    assert(chomp("\n") == "")
-    with! let fd = open(__filename__) {
-        for line in take(5, readlines(fd)) {
-            print(chomp(line))
-        }
+  assert("\n".chomp == "")
+  with! let fd = __filename__.open {
+    for line in readlines(fd).take(5) {
+      print(line.chomp)
     }
+  }
 }

@@ -1977,6 +1977,7 @@ std::pair<Identifier, types::Ref> parse_lambda_param_core(ParseState &ps) {
       throw user_error(first_token.location,
                        "parameter names cannot begin with capital letters");
     }
+    ps.mutable_vars.erase(first_token.text);
     ps.locals.insert(first_token.text);
     return {iid(first_token),
             (token_begins_type(ps.token))

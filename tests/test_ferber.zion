@@ -10,8 +10,8 @@ fn wait(minutes Int) {
 }
 
 fn main() {
-    let wait_times = chain2([7, 12], cycle([15]))
-    for i in take(15, wait_times) {
-        wait(i)
+    let wait_times = chain2([7, 12], [15].cycle)
+    for i in wait_times.take(15) {
+        i.wait
     }
 }
