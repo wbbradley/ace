@@ -65,7 +65,7 @@ install: $(BUILT_BINARY) $(addprefix $(SRCDIR)/lib/,$(ZION_LIBS)) $(RUNTIME_C_FI
 	@cp $(addprefix $(SRCDIR)/lib/,$(ZION_LIBS)) $(stdlibdir)
 	@cp $(SRCDIR)/$(PN).1 $(man1dir)
 	@cp $(SRCDIR)/$(PN).1 $(man1dir)
-	zion-link-to-src
+	command -v zion-link-to-src 1>/dev/null 2>/dev/null && zion-link-to-src
 
 .PHONY: clean
 clean:
