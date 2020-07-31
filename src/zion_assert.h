@@ -37,6 +37,17 @@ void _emit_assert(const char *filename,
 #error We should have had assert defined in here.
 #endif
 
+#ifndef test_assert
+#define test_assert(x)                                                         \
+  do {                                                                         \
+    int y = (x);                                                               \
+    if (!y) {                                                                  \
+      log("test: " #x " failed.");                                             \
+      exit(1);                                                                 \
+    }                                                                          \
+  } while (0)
+#endif
+
 #ifndef ship_assert
 #define ship_assert(x)                                                         \
   do {                                                                         \

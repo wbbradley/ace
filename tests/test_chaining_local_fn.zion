@@ -1,0 +1,7 @@
+# test: fail,noprelude
+# expect: symbol ::w is undefined
+
+fn main() {
+  let w = |x| {}
+  "hey".w
+}

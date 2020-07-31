@@ -1297,11 +1297,11 @@ int run_job(const Job &job) {
       return EXIT_FAILURE;
     }
 
-    ship_assert(alphabetize(0) == "a");
-    ship_assert(alphabetize(1) == "b");
-    ship_assert(alphabetize(2) == "c");
-    ship_assert(alphabetize(26) == "aa");
-    ship_assert(alphabetize(27) == "ab");
+    test_assert(alphabetize(0) == "a");
+    test_assert(alphabetize(1) == "b");
+    test_assert(alphabetize(2) == "c");
+    test_assert(alphabetize(26) == "aa");
+    test_assert(alphabetize(27) == "ab");
 
     tarjan::Graph graph;
     graph.insert({"a", {"b", "f"}});
@@ -1312,17 +1312,22 @@ int run_job(const Job &job) {
     graph.insert({"h", {"g"}});
     graph.insert({"f", {"h", "c"}});
     tarjan::SCCs sccs = tarjan::compute_strongly_connected_components(graph);
-    ship_assert(str(sccs) == "{{c, d}, {g, h, f}, {b}, {a}}");
+    auto sccs_str = str(sccs);
+    std::string tarjan_expect = "{{c, d}, {f, g, h}, {b}, {a}}";
+    if (sccs_str != tarjan_expect) {
+      log("tarjan says: %s\nit should say: %s", sccs_str.c_str(), tarjan_expect.c_str());
+      test_assert(false);
+    }
 
-    ship_assert(zion::tld::split_fqn("::copy::Copy").size() == 2);
-    ship_assert(zion::tld::is_tld_type("::Copy"));
-    ship_assert(zion::tld::is_tld_type("::Z"));
-    ship_assert(!zion::tld::is_tld_type("::copy::copy"));
-    ship_assert(!zion::tld::is_tld_type("copy::copy"));
-    ship_assert(!zion::tld::is_tld_type("copy"));
-    ship_assert(zion::tld::is_tld_type("::copy::Copy"));
-    ship_assert(!zion::tld::is_tld_type("::copy::copy"));
-    ship_assert(tld::split_fqn("::inc").size() == 1);
+    test_assert(zion::tld::split_fqn("::copy::Copy").size() == 2);
+    test_assert(zion::tld::is_tld_type("::Copy"));
+    test_assert(zion::tld::is_tld_type("::Z"));
+    test_assert(!zion::tld::is_tld_type("::copy::copy"));
+    test_assert(!zion::tld::is_tld_type("copy::copy"));
+    test_assert(!zion::tld::is_tld_type("copy"));
+    test_assert(zion::tld::is_tld_type("::copy::Copy"));
+    test_assert(!zion::tld::is_tld_type("::copy::copy"));
+    test_assert(tld::split_fqn("::inc").size() == 1);
 
     return EXIT_SUCCESS;
   };

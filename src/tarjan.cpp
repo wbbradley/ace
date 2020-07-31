@@ -1,6 +1,7 @@
 #include "tarjan.h"
 
 #include <sstream>
+#include <algorithm>
 
 #include "utils.h"
 
@@ -51,7 +52,7 @@ int strong_connect(const Graph &graph,
   // If cur is a root node, pop the stack and generate an SCC
   if (state[cur].lowlink == state[cur].index) {
     // start a new strongly connected component
-    sccs.push_back(Vertices{});
+    sccs.push_back(std::set<std::string>{});
     while (stack.size() != 0) {
       const std::string next = stack.back();
       stack.pop_back();
@@ -93,7 +94,11 @@ std::string str(const tarjan::SCCs &sccs) {
   ss << "{";
   const char *delim = "";
   for (const auto &scc : sccs) {
-    ss << delim << "{" << join(scc, ", ") << "}";
+    std::set<std::string> ordered_set;
+    for (auto elem: scc) {
+      ordered_set.insert(elem);
+    }
+    ss << delim << "{" << join(ordered_set, ", ") << "}";
     delim = ", ";
   }
   ss << "}";
