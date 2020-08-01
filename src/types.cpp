@@ -277,8 +277,8 @@ std::ostream &TypeOperator::emit(std::ostream &os,
     auto rebound_oper = oper->rebind(bindings);
     if (auto op = dyncast<const TypeOperator>(rebound_oper)) {
       if (auto inner_op = dyncast<const TypeId>(op->oper)) {
-        if (strspn(inner_op->id.name.c_str(), MATHY_SYMBOLS) ==
-            inner_op->id.name.size()) {
+        if (strspn(zion::tld::fqn_leaf(inner_op->id.name).c_str(),
+                   MATHY_SYMBOLS) != 0) {
           op->operand->emit(os, {}, get_precedence());
           if (inner_op->id.name == ARROW_TYPE_OPERATOR) {
             /* this is a hack */
@@ -287,6 +287,8 @@ std::ostream &TypeOperator::emit(std::ostream &os,
             os << " " << inner_op->id.name << " ";
           }
           return operand->emit(os, bindings, get_precedence());
+        } else {
+          assert(inner_op->id.name != ARROW_TYPE_OPERATOR);
         }
       }
     }

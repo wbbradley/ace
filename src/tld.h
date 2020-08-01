@@ -17,6 +17,7 @@ std::string fqn_leaf(std::string fqn);
 bool is_tld_type(std::string name);
 bool is_lowercase_leaf(std::string name);
 bool is_in_module(std::string module, std::string name);
+std::string strip_prefix(std::string fqn);
 
 }
 }

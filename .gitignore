@@ -41,3 +41,6 @@ CMakeFiles/
 Makefile.bak
 Testing/
 tests-passed
+*.dot
+*.svg
+*.png

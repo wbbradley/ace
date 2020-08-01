@@ -58,6 +58,7 @@ add_executable(zion
 	src/defn_id.cpp
 	src/disk.cpp
 	src/gen.cpp
+  src/graph.cpp
 	src/host.cpp
 	src/identifier.cpp
 	src/import_rules.cpp

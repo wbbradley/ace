@@ -12,6 +12,7 @@
 #include "context.h"
 #include "disk.h"
 #include "gen.h"
+#include "graph.h"
 #include "host.h"
 #include "lexer.h"
 #include "logger.h"
@@ -376,10 +377,12 @@ tarjan::Graph build_program_graph(const std::vector<const Decl *> &decls) {
   return graph;
 }
 
-CheckedDefinitionsByName check_decls(std::string entry_point_name,
+CheckedDefinitionsByName check_decls(std::string user_program_name,
+                                     std::string entry_point_name,
                                      const std::vector<const Decl *> &decls,
                                      const DataCtorsMap &data_ctors_map,
-                                     types::SchemeResolver &scheme_resolver) {
+                                     types::SchemeResolver &scheme_resolver,
+                                     bool emit_graph_dot) {
   std::unordered_map<std::string, const Decl *> decl_map;
   for (auto decl : decls) {
     debug_above(5,
@@ -390,6 +393,10 @@ CheckedDefinitionsByName check_decls(std::string entry_point_name,
   tarjan::Graph graph = build_program_graph(decls);
   tarjan::SCCs sccs = tarjan::compute_strongly_connected_components(graph);
   debug_above(5, log("found program ordering %s", str(sccs).c_str()));
+  if (emit_graph_dot) {
+    zion::graph::emit_graphviz_dot(graph, sccs, entry_point_name,
+                                   user_program_name + ".dot");
+  }
 
   CheckedDefinitionsByName checked_defns;
   for (auto &scc : sccs) {
@@ -803,7 +810,7 @@ std::map<std::string, int> get_builtin_arities() {
   return builtin_arities;
 }
 
-Phase2 compile(std::string user_program_name_) {
+Phase2 compile(std::string user_program_name_, bool emit_graph_dot) {
   auto builtin_arities = get_builtin_arities();
   auto compilation = compiler::parse_program(user_program_name_,
                                              builtin_arities);
@@ -824,8 +831,9 @@ Phase2 compile(std::string user_program_name_) {
                                            scheme_resolver);
   /* start resolving more schemes */
   CheckedDefinitionsByName checked_defns = check_decls(
+      user_program_name_,
       zion::tld::mktld(compilation->program_name, "main"), program->decls,
-      compilation->data_ctors_map, scheme_resolver);
+      compilation->data_ctors_map, scheme_resolver, emit_graph_dot);
 
   types::ClassPredicates instance_predicates;
   check_instances(program->instances, type_class_map,
@@ -1271,6 +1279,7 @@ int run_job(const Job &job) {
                          in_vector("-show-expr-types", job.opts);
   debug_all_translated_defns = (getenv("SHOW_DEFN_TYPES") != nullptr) ||
                                in_vector("-show-defn-types", job.opts);
+  bool graph_deps = in_vector("-graph", job.opts);
 
   std::map<std::string, std::function<int(const Job &, bool)>> cmd_map;
   cmd_map["help"] = [&](const Job &job, bool explain) {
@@ -1315,7 +1324,8 @@ int run_job(const Job &job) {
     auto sccs_str = str(sccs);
     std::string tarjan_expect = "{{c, d}, {f, g, h}, {b}, {a}}";
     if (sccs_str != tarjan_expect) {
-      log("tarjan says: %s\nit should say: %s", sccs_str.c_str(), tarjan_expect.c_str());
+      log("tarjan says: %s\nit should say: %s", sccs_str.c_str(),
+          tarjan_expect.c_str());
       test_assert(false);
     }
 
@@ -1406,7 +1416,7 @@ int run_job(const Job &job) {
     if (job.args.size() != 1) {
       return run_job({"help", {}});
     } else {
-      auto phase_2 = compile(job.args[0]);
+      auto phase_2 = compile(job.args[0], graph_deps);
       if (user_error::errors_occurred()) {
         return EXIT_FAILURE;
       }
@@ -1425,7 +1435,7 @@ int run_job(const Job &job) {
     if (job.args.size() != 1) {
       return run_job({"help", {}});
     } else {
-      auto phase_3 = specialize(compile(job.args[0]));
+      auto phase_3 = specialize(compile(job.args[0], graph_deps));
       if (user_error::errors_occurred()) {
         return EXIT_FAILURE;
       }
@@ -1443,7 +1453,7 @@ int run_job(const Job &job) {
       return run_job({"help", {}});
     } else {
       llvm::LLVMContext context;
-      Phase4 phase_4 = ssa_gen(context, specialize(compile(job.args[0])));
+      Phase4 phase_4 = ssa_gen(context, specialize(compile(job.args[0], graph_deps)));
 
       return user_error::errors_occurred() ? EXIT_FAILURE : EXIT_SUCCESS;
     }
@@ -1457,7 +1467,8 @@ int run_job(const Job &job) {
     }
 
     llvm::LLVMContext context;
-    Phase4 phase_4 = ssa_gen(context, specialize(compile(job.args[0])));
+    Phase4 phase_4 = ssa_gen(context,
+                             specialize(compile(job.args[0], graph_deps)));
 
     if (!user_error::errors_occurred()) {
       std::stringstream ss_c_flags;

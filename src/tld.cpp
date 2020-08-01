@@ -91,5 +91,13 @@ std::string fqn_leaf(std::string fqn) {
   return split_fqn(fqn).back();
 }
 
+std::string strip_prefix(std::string fqn) {
+  if (starts_with(fqn, SCOPE_SEP)) {
+    return fqn.substr(strlen(SCOPE_SEP));
+  } else {
+    return fqn;
+  }
+}
+
 } // namespace tld
 } // namespace zion
