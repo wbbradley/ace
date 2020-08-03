@@ -557,3 +557,19 @@ std::string get_pkg_config(std::string flags, std::string pkg_name) {
   ss << "pkg-config " << flags << " \"" << pkg_name << "\"";
   return shell_get_line(ss.str());
 }
+
+namespace ui {
+void open_file(std::string filename) {
+  const std::string open_command =
+#ifdef __APPLE__
+      "open"
+#elif defined(WIN32) || defined(_WIN32) ||                                     \
+    defined(__WIN32) && !defined(__CYGWIN__)
+      "start"
+#else
+      "xdg-open"
+#endif
+      ;
+  system((open_command + " " + filename).c_str());
+}
+}

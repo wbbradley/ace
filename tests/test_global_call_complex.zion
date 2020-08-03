@@ -1,0 +1,10 @@
+# test: pass
+# expect: 2,4,6,8
+
+let xs = [1..4].map(double)
+let double = |x| => x * two
+let two = 2
+
+fn main() {
+  print(",".join(xs))
+}

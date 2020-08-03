@@ -13,7 +13,7 @@ sharedir = $(DESTDIR)/$(prefix)/share/$(PN)
 stdlibdir = $(sharedir)/lib
 runtimedir = $(sharedir)/runtime
 man1dir = $(DESTDIR)/$(prefix)/share/man/man1
-
+manfile = $(man1dir)/$(PN).1
 test_destdir ?= $(HOME)/var/zion-test
 
 .PHONY: release
@@ -29,6 +29,13 @@ zion:
 	-@echo "Building Zion..."
 	# make clean
 	make install
+
+.PHONY: uninstall
+uninstall:
+	-rm -rf $(sharedir)
+	-rm $(bindir)/$(PN)
+	-rm $(manfile)
+	-rm $(bindir)/zion-tags
 
 .PHONY: $(BUILT_BINARY)
 $(BUILT_BINARY): $(BUILD_DIR)/Makefile
@@ -63,7 +70,6 @@ install: $(BUILT_BINARY) $(addprefix $(SRCDIR)/lib/,$(ZION_LIBS)) $(RUNTIME_C_FI
 	@cp ./zion-tags $(bindir)
 	@for f in $(RUNTIME_C_FILES); do cp "$$f" "$(runtimedir)"; done
 	@cp $(addprefix $(SRCDIR)/lib/,$(ZION_LIBS)) $(stdlibdir)
-	@cp $(SRCDIR)/$(PN).1 $(man1dir)
 	@cp $(SRCDIR)/$(PN).1 $(man1dir)
 	-@command -v zion-link-to-src 1>/dev/null 2>/dev/null && zion-link-to-src
 

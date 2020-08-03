@@ -17,17 +17,12 @@ StrictResolver::StrictResolver(llvm::Value *llvm_value)
 StrictResolver::~StrictResolver() {
 }
 
-llvm::Value *StrictResolver::resolve_impl() {
+llvm::Value *StrictResolver::resolve_impl(llvm::IRBuilder<> &builder, Location location) {
   return llvm_value;
 }
 
 std::string StrictResolver::str() const {
   return llvm_print(llvm_value);
-}
-
-Location StrictResolver::get_location() const {
-  // TODO: plumbing
-  return INTERNAL_LOC();
 }
 
 LazyResolver::LazyResolver(std::string name,
@@ -40,7 +35,7 @@ LazyResolver::LazyResolver(std::string name,
 LazyResolver::~LazyResolver() {
 }
 
-llvm::Value *LazyResolver::resolve_impl() {
+llvm::Value *LazyResolver::resolve_impl(llvm::IRBuilder<> &builder, Location location) {
   // FUTURE: this is a good candidate for concurrency
   switch (sort_color) {
   case sc_unresolved:
@@ -64,6 +59,17 @@ llvm::Value *LazyResolver::resolve_impl() {
                   log("LazyResolver resolved %s", llvm_print(value).c_str()));
       return value;
     }
+    case rs_cache_global_load: {
+      assert(value != nullptr);
+      assert(llvm::dyn_cast<llvm::GlobalVariable>(value) != nullptr);
+      sort_color = sc_resolved_with_global_reload;
+      debug_above(5, log("LazyResolver resolved %s and is reloading",
+                         llvm_print(value).c_str()));
+      llvm::Instruction *load = builder.CreateLoad(value);
+      load->setName(string_format("loading %s at %s", name.c_str(),
+                                  location.str().c_str()));
+      return load;
+    }
     }
   case sc_resolving:
     /* we are already resolving this object, but progress on that front got far
@@ -78,6 +84,13 @@ llvm::Value *LazyResolver::resolve_impl() {
   case sc_resolved:
     assert(value != nullptr);
     return value;
+  case sc_resolved_with_global_reload:
+    assert(value != nullptr);
+    assert(llvm::dyn_cast<llvm::GlobalVariable>(value) != nullptr);
+    llvm::Instruction *load = builder.CreateLoad(value);
+    load->setName(string_format("loading %s at %s", name.c_str(),
+                                location.str().c_str()));
+    return load;
   }
   assert(false);
   return nullptr;
@@ -102,14 +115,12 @@ std::string LazyResolver::str() const {
   case sc_resolved:
     return string_format("resolved " c_id("%s") " :: %s to %s", name.c_str(),
                          type->str().c_str(), llvm_print(value).c_str());
+  case sc_resolved_with_global_reload:
+    return string_format("resolved (loading global) " c_id("%s") " :: %s to %s", name.c_str(),
+                         type->str().c_str(), llvm_print(value).c_str());
   }
   assert(false);
   return {};
-}
-
-Location LazyResolver::get_location() const {
-  // TODO: plumbing
-  return INTERNAL_LOC();
 }
 
 } // namespace gen

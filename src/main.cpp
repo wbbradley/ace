@@ -394,8 +394,12 @@ CheckedDefinitionsByName check_decls(std::string user_program_name,
   tarjan::SCCs sccs = tarjan::compute_strongly_connected_components(graph);
   debug_above(5, log("found program ordering %s", str(sccs).c_str()));
   if (emit_graph_dot) {
+    auto dot_file = user_program_name + ".dot";
     zion::graph::emit_graphviz_dot(graph, sccs, entry_point_name,
-                                   user_program_name + ".dot");
+                                   dot_file);
+    auto png_file = dot_file + ".png";
+    system(("dot " + dot_file + " -Tpng -Gdpi=300 -o " + png_file).c_str());
+    ui::open_file(png_file);
   }
 
   CheckedDefinitionsByName checked_defns;
@@ -1099,33 +1103,46 @@ std::unordered_set<std::string> get_globals(const Phase3 &phase_3) {
   return globals;
 }
 
-void build_main_function(llvm::IRBuilder<> &builder,
-                         llvm::Module *llvm_module,
-                         const gen::GenEnv &gen_env,
-                         std::string program_name) {
-  std::string main_closure = zion::tld::mktld(program_name, "main");
-  types::Ref main_type = type_arrows(
-      {type_unit(INTERNAL_LOC()), type_unit(INTERNAL_LOC())});
-
-  llvm::Type *llvm_main_args_types[] = {
-      builder.getInt32Ty(),
-      builder.getInt8Ty()->getPointerTo()->getPointerTo()};
-  llvm::FunctionType *llvm_main_function_type = llvm::FunctionType::get(
-      builder.getInt32Ty(), llvm::ArrayRef<llvm::Type *>(llvm_main_args_types),
-      false /*isVarArgs*/);
+llvm::Function *build_main_function(llvm::IRBuilder<> &builder,
+                                    llvm::Module *llvm_module,
+                                    const gen::GenEnv &gen_env,
+                                    std::string program_name) {
   llvm::Function *llvm_function = llvm::Function::Create(
-      llvm_main_function_type, llvm::Function::ExternalLinkage, "main",
+      llvm_main_function_type(builder), llvm::Function::ExternalLinkage, "main",
       llvm_module);
 
   llvm_function->setDoesNotThrow();
 
-  llvm::BasicBlock *block = llvm::BasicBlock::Create(
-      builder.getContext(), "program_entry", llvm_function);
-  builder.SetInsertPoint(block);
+  llvm::BasicBlock *entry_block = llvm::BasicBlock::Create(
+      builder.getContext(), PROGRAM_ENTRY_BLOCK, llvm_function);
+  llvm::BasicBlock *main_block = llvm::BasicBlock::Create(
+      builder.getContext(), MAIN_PROGRAM_BLOCK, llvm_function);
+
+  builder.SetInsertPoint(entry_block);
+  llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+
+  builder.CreateBr(main_block);
+  return llvm_function;
+}
+
+static types::Ref main_closure_type() {
+  static types::Ref main_type = type_arrows(
+      {type_unit(INTERNAL_LOC()), type_unit(INTERNAL_LOC())});
+  return main_type;
+}
+
+void write_main_block(llvm::IRBuilder<> &builder,
+                      llvm::Module *llvm_module,
+                      const gen::GenEnv &gen_env,
+                      std::string main_closure,
+                      llvm::Function *llvm_function) {
+  builder.SetInsertPoint(
+      zion::llvm_find_block_by_name(llvm_function, MAIN_PROGRAM_BLOCK));
 
   // Initialize the process
   auto llvm_zion_init_func_decl = llvm::cast<llvm::Function>(
-      llvm_module->getOrInsertFunction("zion_init", llvm_main_function_type)
+      llvm_module
+          ->getOrInsertFunction("zion_init", llvm_main_function_type(builder))
           .getCallee());
   auto arg_iter = llvm_function->args().begin();
   llvm::Value *llvm_argc = *&arg_iter;
@@ -1136,7 +1153,7 @@ void build_main_function(llvm::IRBuilder<> &builder,
                      llvm::ArrayRef<llvm::Value *>(zion_main_args));
 
   llvm::Value *llvm_main_closure = gen::get_env_var(
-      builder, gen_env, make_iid(main_closure), main_type);
+      builder, gen_env, make_iid(main_closure), main_closure_type());
 
   llvm::Value *gep_path[] = {builder.getInt32(0), builder.getInt32(0)};
   llvm::Value *main_func = builder.CreateLoad(
@@ -1155,18 +1172,16 @@ Phase4 ssa_gen(llvm::LLVMContext &context, const Phase3 &phase_3) {
   llvm::IRBuilder<> builder(context);
 
   gen::GenEnv gen_env;
-
-  /* resolvers is the list of top-level symbols that need to be resolved. they
-   * can be traversed in any order, and will automatically resolve in
-   * dependency order based on a topological sorting. this could be a bit
-   * intense on the stack, worst case is on the same order as the user's
-   * program stack depth OR the depth of the global object resolution graph.
-   */
-  std::list<std::shared_ptr<gen::Resolver>> resolvers;
   std::string output_filename;
 
   try {
     const std::unordered_set<std::string> globals = get_globals(phase_3);
+    const std::string program_name = phase_3.phase_2.compilation->program_name;
+    llvm::IRBuilder<> builder(context);
+    llvm::Function *llvm_main_function = build_main_function(
+        builder, llvm_module, gen_env, program_name);
+
+    const std::string main_closure = zion::tld::mktld(program_name, "main");
 
     debug_above(6, log("globals are %s", join(globals).c_str()));
     debug_above(2, log("type_env is %s",
@@ -1197,7 +1212,7 @@ Phase4 ssa_gen(llvm::LLVMContext &context, const Phase3 &phase_3) {
          * definition or anything for this symbol */
 #ifdef ZION_DEBUG
         llvm::Value *value = gen::maybe_get_env_var(
-            gen_env,
+            builder, gen_env,
             Identifier{pair.first, overload.second->expr->get_location()},
             type);
         assert(value == nullptr);
@@ -1210,43 +1225,90 @@ Phase4 ssa_gen(llvm::LLVMContext &context, const Phase3 &phase_3) {
         std::shared_ptr<gen::Resolver> resolver = gen::lazy_resolver(
             name, type,
             [&builder, &llvm_module, name, translation, &phase_3, &gen_env,
-             &globals](llvm::Value **llvm_value) -> gen::ResolutionStatus {
-
-              gen::Publishable publishable(llvm_value);
+             &globals, llvm_main_function](
+                llvm::Value **llvm_value) -> gen::ResolutionStatus {
+              gen::Publishable publishable(name, llvm_value);
               /* we are resolving a global object, so we should not be inside
                * of a basic block. */
-              builder.ClearInsertionPoint();
               llvm::IRBuilderBase::InsertPointGuard ipg(builder);
+              llvm::Instruction *llvm_entry_terminator =
+                  llvm_find_block_by_name(llvm_main_function,
+                                          PROGRAM_ENTRY_BLOCK)
+                      ->getTerminator();
+              assert(llvm_entry_terminator);
+              builder.SetInsertPoint(llvm_entry_terminator);
 
-              return gen::gen(
+              switch (gen::gen(
                   name, builder, llvm_module, nullptr /*defer_guard*/,
                   nullptr /*break_to_block*/, nullptr /*continue_to_block*/,
                   translation->expr, translation->typing,
                   phase_3.phase_2.compilation->type_env, gen_env, {}, globals,
-                  &publishable);
+                  &publishable)) {
+              case gen::rs_resolve_again:
+                return gen::rs_resolve_again;
+              case gen::rs_cache_global_load:
+                throw user_error(INTERNAL_LOC(), "wtf");
+              case gen::rs_cache_resolution:
+                debug_above(4, log("resolving %s as %s", name.c_str(),
+                                   llvm_print(*llvm_value).c_str()));
+                if (auto llvm_global_value = llvm::dyn_cast<llvm::GlobalValue>(
+                        (*llvm_value))) {
+                  /* this is already global */
+                  return gen::rs_cache_resolution;
+                } else if (auto llvm_constant = llvm::dyn_cast<llvm::Constant>(
+                               (*llvm_value))) {
+                  /* just a constant, no need to load again */
+                  return gen::rs_cache_resolution;
+                } else {
+                  if (auto llvm_inst = llvm::dyn_cast<llvm::Instruction>(
+                          (*llvm_value))) {
+                    if (llvm_inst->getParent()->getParent() ==
+                        llvm_main_function) {
+                      debug_above(
+                          13,
+                          log("current function is %s",
+                              llvm_print_function(llvm_main_function).c_str()));
+                      llvm::GlobalVariable *llvm_global = llvm_get_global(
+                          llvm_module, name,
+                          llvm_get_zero_value((*llvm_value)->getType()),
+                          false /*is_constant*/);
+
+                      /* initialize the global */
+                      builder.CreateStore((*llvm_value), llvm_global);
+
+                      *llvm_value = llvm_global;
+                      return gen::rs_cache_global_load;
+                    } else {
+                      dbg();
+                    }
+                  } else {
+                    dbg();
+                  }
+                }
+                return gen::rs_cache_resolution;
+              }
             });
 
-        resolvers.push_back(resolver);
         gen_env[name].emplace(type, resolver);
       }
     }
 
-    // global initialization will happen inside of the __program_init function
-    for (auto resolver : resolvers) {
-      debug_above(2, log("resolving %s...", resolver->str().c_str()));
-#ifdef ZION_DEBUG
-      llvm::Value *value =
-#endif
-          resolver->resolve();
-      debug_above(2, log("resolved to %s", llvm_print(value).c_str()));
-    }
+    /* start by resolving the main function. the resolvers algorithm is a dfs
+     * which gives topological ordering of the dependency graph. this can be a
+     * bit intense on the compiler stack. worst case is O(user's program stack
+     * depth OR the depth of the global object resolution graph). */
+    gen_env.at(main_closure)
+        .at(main_closure_type())
+        ->resolve(builder, INTERNAL_LOC());
+
+    /* finish the main function, filling out the main thunk which calls the main
+     * closure. */
+    write_main_block(builder, llvm_module, gen_env, main_closure,
+                     llvm_main_function);
 
     auto temp_dir = std::string(getenv("TMPDIR") ? getenv("TMPDIR") : ".");
     output_filename = temp_dir + "/" +
                       phase_3.phase_2.compilation->program_name + ".ll";
-    llvm::IRBuilder<> builder(context);
-    build_main_function(builder, llvm_module, gen_env,
-                        phase_3.phase_2.compilation->program_name);
 
     llvm_verify_module(*llvm_module);
 
@@ -1455,6 +1517,7 @@ int run_job(const Job &job) {
       llvm::LLVMContext context;
       Phase4 phase_4 = ssa_gen(context, specialize(compile(job.args[0], graph_deps)));
 
+      std::cout << phase_4.output_llvm_filename << std::endl;
       return user_error::errors_occurred() ? EXIT_FAILURE : EXIT_SUCCESS;
     }
   };

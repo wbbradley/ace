@@ -20,10 +20,12 @@ typedef std::unordered_map<
 
 typedef std::unordered_map<std::string, llvm::Value *> GenLocalEnv;
 
-llvm::Value *maybe_get_env_var(const GenEnv &gen_env,
+llvm::Value *maybe_get_env_var(llvm::IRBuilder<> &builder,
+                               const GenEnv &gen_env,
                                std::string name,
                                types::Ref type);
-llvm::Value *maybe_get_env_var(const GenEnv &env,
+llvm::Value *maybe_get_env_var(llvm::IRBuilder<> &builder,
+                               const GenEnv &env,
                                Identifier id,
                                types::Ref type);
 llvm::Value *get_env_var(llvm::IRBuilder<> &builder,

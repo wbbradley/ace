@@ -433,6 +433,17 @@ void check_struct_initialization(
   }
 }
 
+llvm::BasicBlock *llvm_find_block_by_name(llvm::Function *llvm_function,
+                                          std::string block_name) {
+  for (auto &block : llvm_function->getBasicBlockList()) {
+    if (block.getName() == block_name) {
+      return &block;
+    }
+  }
+  throw user_error(INTERNAL_LOC(), "unable to find %s block in %s",
+                   block_name.c_str(), llvm_function->getName());
+}
+
 llvm::GlobalVariable *llvm_get_global(llvm::Module *llvm_module,
                                       std::string name,
                                       llvm::Constant *llvm_constant,
@@ -529,7 +540,7 @@ llvm::Type *get_llvm_type_(llvm::IRBuilder<> &builder,
     last_type = type;
     type = type->eval(type_env);
   }
-  debug_above(1, log("get_llvm_type eval %s -> %s", type_->str().c_str(),
+  debug_above(4, log("get_llvm_type eval %s -> %s", type_->str().c_str(),
                      type->str().c_str()));
 
   if (auto id = dyncast<const types::TypeId>(type)) {
@@ -607,6 +618,28 @@ std::vector<llvm::Type *> llvm_get_types(
     llvm_types.push_back(llvm_value->getType());
   }
   return llvm_types;
+}
+
+llvm::FunctionType *llvm_main_function_type(llvm::IRBuilder<> &builder) {
+  llvm::Type *llvm_main_args_types[] = {
+      builder.getInt32Ty(),
+      builder.getInt8Ty()->getPointerTo()->getPointerTo()};
+  return llvm::FunctionType::get(
+      builder.getInt32Ty(), llvm::ArrayRef<llvm::Type *>(llvm_main_args_types),
+      false /*isVarArgs*/);
+}
+
+llvm::Constant *llvm_get_zero_value(llvm::Type *llvm_type) {
+  if (llvm_type->isPointerTy()) {
+    return llvm::Constant::getNullValue(llvm_type);
+  } else {
+    if (!llvm_type->isIntegerTy()) {
+      throw user_error(INTERNAL_LOC(),
+                       "need to handle llvm_type %s's zero initializer value",
+                       llvm_print(llvm_type).c_str());
+    }
+    return llvm::ConstantInt::get(llvm_type, 0);
+  }
 }
 
 llvm::Value *llvm_tuple_alloc(llvm::IRBuilder<> &builder,
@@ -746,6 +779,7 @@ llvm::Value *llvm_create_closure_callsite(Location location,
                                           llvm::IRBuilder<> &builder,
                                           llvm::Value *closure,
                                           std::vector<llvm::Value *> args) {
+  assert(builder.GetInsertBlock() != nullptr);
   llvm::Value *llvm_function_to_call = nullptr;
   destructure_closure(builder, closure, &llvm_function_to_call, nullptr);
 

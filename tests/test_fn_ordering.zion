@@ -1,12 +1,14 @@
 # test: pass,noprelude
 # expect: Int
 
+let p = 3
+
 fn g() {
     return h(1)
 }
 
 fn h(x) Int {
-    return 3
+    return p
 }
 
 fn main() {

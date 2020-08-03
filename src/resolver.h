@@ -13,6 +13,7 @@ namespace gen {
 enum ResolutionStatus {
   rs_resolve_again,
   rs_cache_resolution,
+  rs_cache_global_load,
 };
 
 typedef std::function<ResolutionStatus(llvm::Value **)> LazyResolverCallback;
@@ -24,20 +25,20 @@ struct Publisher {
 };
 
 struct Publishable : public Publisher {
-  Publishable(llvm::Value **llvm_value);
+  Publishable(std::string name, llvm::Value **llvm_value);
   ~Publishable();
   void publish(llvm::Value *llvm_value_) const override;
 
 private:
+  std::string name;
   llvm::Value **llvm_value;
 };
 
 struct Resolver {
   virtual ~Resolver() = 0;
-  llvm::Value *resolve();
-  virtual llvm::Value *resolve_impl() = 0;
+  llvm::Value *resolve(llvm::IRBuilder<> &builder, Location location);
+  virtual llvm::Value *resolve_impl(llvm::IRBuilder<> &builder, Location location) = 0;
   virtual std::string str() const = 0;
-  virtual Location get_location() const = 0;
 };
 
 std::shared_ptr<Resolver> strict_resolver(llvm::Value *llvm_value);

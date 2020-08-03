@@ -18,6 +18,9 @@ llvm::Constant *llvm_create_constant_struct_instance(
 llvm::FunctionType *get_llvm_arrow_function_type(llvm::IRBuilder<> &builder,
                                                  const types::TypeEnv &type_env,
                                                  const types::Refs &terms);
+llvm::FunctionType *llvm_main_function_type(llvm::IRBuilder<> &builder);
+
+llvm::Constant *llvm_get_zero_value(llvm::Type *llvm_type);
 
 llvm::Type *get_llvm_closure_type(llvm::IRBuilder<> &builder,
                                   const types::TypeEnv &type_env,
@@ -113,6 +116,8 @@ void llvm_create_if_branch(llvm::IRBuilder<> &builder,
                            bool allow_maybe_check,
                            llvm::BasicBlock *then_bb,
                            llvm::BasicBlock *else_bb);
+llvm::BasicBlock *llvm_find_block_by_name(llvm::Function *llvm_function,
+                                          std::string block_name);
 
 llvm::Type *llvm_deref_type(llvm::Type *llvm_pointer_type);
 llvm::CallInst *llvm_create_call_inst(llvm::IRBuilder<> &builder,

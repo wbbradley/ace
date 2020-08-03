@@ -1,0 +1,8 @@
+# test: pass
+# expect: \{45: 2\}
+
+let xs = {45: 2}
+
+fn main() {
+  print(xs)
+}

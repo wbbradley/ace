@@ -1,0 +1,9 @@
+# test: pass,noprelude
+# expect: 8
+
+let add = |x, y| =>  __builtin_add_int(x, y)
+let globvar = add(3, 5)
+
+fn main() {
+  __builtin_print_int(globvar)
+}

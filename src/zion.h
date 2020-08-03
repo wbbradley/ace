@@ -13,3 +13,6 @@
 #define SCOPE_TK tk_dot
 
 #define MATHY_SYMBOLS "!@#$%^&*()+-_=><.,/|[]`~\\"
+
+#define PROGRAM_ENTRY_BLOCK "main_entry"
+#define MAIN_PROGRAM_BLOCK "main_thunk"

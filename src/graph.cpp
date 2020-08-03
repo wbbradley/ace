@@ -43,7 +43,7 @@ void emit_graphviz_dot(const tarjan::Graph &graph,
                        const tarjan::SCCs &sccs,
                        std::string entry_point,
                        std::string filename) {
-  FILE *fp = fopen(leaf_from_file_path(filename).c_str(), "wt");
+  FILE *fp = fopen(filename.c_str(), "wt");
   if (fp == nullptr) {
     throw zion::user_error(INTERNAL_LOC(),
                            "unable to open %s for writing DOT_DEPS",

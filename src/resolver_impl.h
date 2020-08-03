@@ -12,9 +12,8 @@ namespace gen {
 struct StrictResolver final : public Resolver {
   StrictResolver(llvm::Value *llvm_value);
   ~StrictResolver();
-  llvm::Value *resolve_impl() override;
+  llvm::Value *resolve_impl(llvm::IRBuilder<> &builder, Location location) override;
   std::string str() const override;
-  Location get_location() const override;
 
 private:
   llvm::Value *llvm_value;
@@ -27,9 +26,8 @@ struct LazyResolver final : public Resolver {
                types::Ref type,
                LazyResolverCallback &&callback);
   ~LazyResolver();
-  llvm::Value *resolve_impl() override;
+  llvm::Value *resolve_impl(llvm::IRBuilder<> &builder, Location location) override;
   std::string str() const override;
-  Location get_location() const override;
 
 private:
   /* by using a topological sorting algorithm, we can enable re-entrancy in
@@ -38,6 +36,7 @@ private:
     sc_unresolved,
     sc_resolving,
     sc_resolved,
+    sc_resolved_with_global_reload,
   };
   SortColor sort_color;
   std::string name;

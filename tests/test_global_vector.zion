@@ -1,0 +1,8 @@
+# test: pass
+# expect: 1,34
+
+let xs = [1, 34]
+
+fn main() {
+  print(",".join(xs))
+}

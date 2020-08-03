@@ -220,18 +220,20 @@ void get_free_vars(const ast::Expr *expr,
   } else {
     assert(false);
   }
-  debug_above(2, log("get_free_vars(..., {%s}, {%s}, %s)", expr->str().c_str(),
+  debug_above(3, log("get_free_vars(..., {%s}, {%s}, %s)", expr->str().c_str(),
                      // join(globals, ", ").c_str(),
                      join(locals, ", ").c_str(), free_vars.str().c_str()));
 }
 
-llvm::Value *maybe_get_env_var(const GenEnv &gen_env,
+llvm::Value *maybe_get_env_var(llvm::IRBuilder<> &builder,
+                               const GenEnv &gen_env,
                                std::string name,
                                types::Ref type) {
-  return maybe_get_env_var(gen_env, make_iid(name), type);
+  return maybe_get_env_var(builder, gen_env, make_iid(name), type);
 }
 
-llvm::Value *maybe_get_env_var(const GenEnv &gen_env,
+llvm::Value *maybe_get_env_var(llvm::IRBuilder<> &builder,
+                               const GenEnv &gen_env,
                                Identifier id,
                                types::Ref type) {
   auto iter_id = gen_env.find(id.name);
@@ -242,9 +244,15 @@ llvm::Value *maybe_get_env_var(const GenEnv &gen_env,
       Resolver *resolver_ptr = iter_type->second.get();
       assert(resolver_ptr != nullptr);
 
+      INDENT(2, string_format("maybe_get_env_var(..., %s, %s) is resolving %s!",
+                              id.str().c_str(), type->str().c_str(),
+                              id.str().c_str()));
       /* since this resolver exists, we can assume that we should be able to ask
        * for its value. */
-      return resolver_ptr->resolve();
+      auto llvm_value = resolver_ptr->resolve(builder, id.location);
+      debug_above(2, log(C_CONTROL "return " C_RESET "%s",
+                         llvm_print(llvm_value).c_str()));
+      return llvm_value;
     } else {
       /* no symbol goes by that type in these parts, mister */
       if (iter_id->second.size() != 0) {
@@ -267,7 +275,7 @@ llvm::Value *get_env_var(llvm::IRBuilder<> &builder,
                          Identifier id,
                          types::Ref type) {
   llvm::IRBuilderBase::InsertPointGuard ipg(builder);
-  llvm::Value *llvm_value = maybe_get_env_var(gen_env, id, type);
+  llvm::Value *llvm_value = maybe_get_env_var(builder, gen_env, id, type);
   if (llvm_value == nullptr) {
     auto error = user_error(id.location, "we need a definition for %s :: %s",
                             id.str().c_str(), type->str().c_str());
@@ -1006,7 +1014,7 @@ ResolutionStatus gen(llvm::IRBuilder<> &builder,
                continue_to_block, expr, typing, type_env, gen_env_globals,
                gen_env_locals, globals, nullptr);
   } else {
-    Publishable publishable(output_llvm_value);
+    Publishable publishable("anonymous value", output_llvm_value);
     return gen("", builder, llvm_module, defer_guard, break_to_block,
                continue_to_block, expr, typing, type_env, gen_env_globals,
                gen_env_locals, globals, &publishable);
@@ -1025,7 +1033,7 @@ llvm::Value *gen(llvm::IRBuilder<> &builder,
                  const GenLocalEnv &gen_env_locals,
                  const std::unordered_set<std::string> &globals) {
   llvm::Value *llvm_value = nullptr;
-  Publishable publishable(&llvm_value);
+  Publishable publishable("simple resolution", &llvm_value);
   gen("", builder, llvm_module, defer_guard, break_to_block, continue_to_block,
       expr, typing, type_env, gen_env_globals, gen_env_locals, globals,
       &publishable);
@@ -1045,6 +1053,8 @@ ResolutionStatus gen(std::string name,
                      const GenLocalEnv &gen_env_locals,
                      const std::unordered_set<std::string> &globals,
                      Publisher *const publisher) {
+  assert(builder.GetInsertBlock());
+
   auto publish = [publisher](llvm::Value *llvm_value) {
     if (publisher != nullptr) {
       publisher->publish(llvm_value);
@@ -1112,7 +1122,7 @@ ResolutionStatus gen(std::string name,
       return rs_cache_resolution;
     } else if (auto let = dcast<const ast::Let *>(expr)) {
       llvm::Value *let_value = nullptr;
-      Publishable publishable(&let_value);
+      Publishable publishable(name, &let_value);
       gen(let->var.name, builder, llvm_module, defer_guard, break_to_block,
           continue_to_block, let->value, typing, type_env, gen_env_globals,
           gen_env_locals, globals, &publishable);
@@ -1383,8 +1393,8 @@ ResolutionStatus gen(std::string name,
                                   gen_env_locals, globals));
         types.push_back(typing.at(expr));
       }
-      publish(gen_ffi_call(builder, ffi->id, llvm_values,
-                          types, typing.at(ffi), type_env));
+      publish(gen_ffi_call(builder, ffi->id, llvm_values, types, typing.at(ffi),
+                           type_env));
       return rs_cache_resolution;
     } else if (auto builtin = dcast<const ast::Builtin *>(expr)) {
       std::vector<llvm::Value *> llvm_values;

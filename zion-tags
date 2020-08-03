@@ -4,9 +4,14 @@
 echo "$0"
 tags_file="./tags"
 
+function maybe-dir {
+	[[ -d $1 ]] && echo $1
+}
+
 if [ $# -eq 0 ]; then
   targets=(
     .
+    "$(maybe-dir "$(llvm-config --cppflags | xargs -n 1 echo | grep '^-I' | cut -c3-)")"
     "$ZION_ROOT"
   )
 else
@@ -15,6 +20,7 @@ else
   )
 fi
 
+echo "targets=(${targets[*]})"
 ztags=/var/tmp/ztags
 rm -f "$ztags"
 
