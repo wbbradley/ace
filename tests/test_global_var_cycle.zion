@@ -1,0 +1,10 @@
+# test: fail,noprelude
+# expect: could not figure out how to resolve circular dependency
+
+let x = y as Int
+let y = z as Int
+let z = x as Int
+
+fn main() {
+  __builtin_print_int(y)
+}
