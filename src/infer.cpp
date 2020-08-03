@@ -35,8 +35,8 @@ types::Ref infer_core(const Expr *expr,
     /* get a fresh version of this principal type to inject into the context,
      * and the inference constraints */
     std::set<Identifier> candidates;
-    types::Scheme::Ref scheme = scheme_resolver.lookup_scheme(var->id, candidates)
-                                    ->freshen();
+    types::Scheme::Ref scheme =
+        scheme_resolver.lookup_scheme(var->id, candidates)->freshen();
     assert(scheme != nullptr);
     debug_above(4, log_location(var->get_location(),
                                 "found var ref %s with scheme %s",
@@ -398,10 +398,10 @@ types::Ref CtorPredicate::tracking_infer(
 
   assert(ctor_terms.size() >= 1);
   if (ctor_terms.size() - 1 != params.size()) {
-    throw user_error(get_location(),
-                     "incorrect number of sub-patterns given to %s (should be %d not %d)",
-                     ctor_name.str().c_str(), ctor_terms.size() - 1,
-                     params.size());
+    throw user_error(
+        get_location(),
+        "incorrect number of sub-patterns given to %s (should be %d not %d)",
+        ctor_name.str().c_str(), ctor_terms.size() - 1, params.size());
   }
 
   types::Ref result_type;

@@ -1,7 +1,7 @@
 #include "tarjan.h"
 
-#include <sstream>
 #include <algorithm>
+#include <sstream>
 
 #include "utils.h"
 
@@ -95,7 +95,7 @@ std::string str(const tarjan::SCCs &sccs) {
   const char *delim = "";
   for (const auto &scc : sccs) {
     std::set<std::string> ordered_set;
-    for (auto elem: scc) {
+    for (auto elem : scc) {
       ordered_set.insert(elem);
     }
     ss << delim << "{" << join(ordered_set, ", ") << "}";

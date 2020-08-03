@@ -145,8 +145,8 @@ void ParseState::add_term_map(Location location,
                               std::string key,
                               std::string value,
                               bool allow_override) {
-  debug_above(3,
-              log("adding %s to module_term_map => %s", key.c_str(), value.c_str()));
+  debug_above(
+      3, log("adding %s to module_term_map => %s", key.c_str(), value.c_str()));
   if (!allow_override && in(key, module_term_map)) {
     throw user_error(location, "symbol %s imported twice", key.c_str())
         .add_info(location, "%s was already mapped to %s", key.c_str(),

@@ -26,8 +26,7 @@
 
 #define IMPL_SUFFIX "-impl"
 
-const char *LOGO =
-C_UNCHECKED R"(
+const char *LOGO = C_UNCHECKED R"(
 
 ░░░░░░░ ░░  ░░░░░░  ░░░    ░░ 
    ░░░  ░░ ░░    ░░ ░░░░   ░░ 
@@ -395,8 +394,7 @@ CheckedDefinitionsByName check_decls(std::string user_program_name,
   debug_above(5, log("found program ordering %s", str(sccs).c_str()));
   if (emit_graph_dot) {
     auto dot_file = user_program_name + ".dot";
-    zion::graph::emit_graphviz_dot(graph, sccs, entry_point_name,
-                                   dot_file);
+    zion::graph::emit_graphviz_dot(graph, sccs, entry_point_name, dot_file);
     auto png_file = dot_file + ".png";
     system(("dot " + dot_file + " -Tpng -Gdpi=300 -o " + png_file).c_str());
     ui::open_file(png_file);
@@ -835,9 +833,9 @@ Phase2 compile(std::string user_program_name_, bool emit_graph_dot) {
                                            scheme_resolver);
   /* start resolving more schemes */
   CheckedDefinitionsByName checked_defns = check_decls(
-      user_program_name_,
-      zion::tld::mktld(compilation->program_name, "main"), program->decls,
-      compilation->data_ctors_map, scheme_resolver, emit_graph_dot);
+      user_program_name_, zion::tld::mktld(compilation->program_name, "main"),
+      program->decls, compilation->data_ctors_map, scheme_resolver,
+      emit_graph_dot);
 
   types::ClassPredicates instance_predicates;
   check_instances(program->instances, type_class_map,
@@ -989,7 +987,8 @@ Phase3 specialize(const Phase2 &phase_2) {
   if (user_error::errors_occurred()) {
     throw user_error(INTERNAL_LOC(), "quitting");
   }
-  std::string entry_point_name = zion::tld::mktld(phase_2.compilation->program_name, "main");
+  std::string entry_point_name = zion::tld::mktld(
+      phase_2.compilation->program_name, "main");
   if (phase_2.checked_defns.count(entry_point_name) == 0) {
     auto error = user_error(
         Location{phase_2.compilation->program_filename, 1, 1},
@@ -1515,7 +1514,8 @@ int run_job(const Job &job) {
       return run_job({"help", {}});
     } else {
       llvm::LLVMContext context;
-      Phase4 phase_4 = ssa_gen(context, specialize(compile(job.args[0], graph_deps)));
+      Phase4 phase_4 = ssa_gen(context,
+                               specialize(compile(job.args[0], graph_deps)));
 
       std::cout << phase_4.output_llvm_filename << std::endl;
       return user_error::errors_occurred() ? EXIT_FAILURE : EXIT_SUCCESS;

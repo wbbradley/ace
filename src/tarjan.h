@@ -1,10 +1,10 @@
 #pragma once
 
 #include <list>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
-#include <set>
 
 namespace tarjan {
 

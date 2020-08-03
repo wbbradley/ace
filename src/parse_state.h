@@ -36,7 +36,8 @@ struct ParseState {
 
   bool advance();
   Token token_and_advance();
-  Identifier identifier_and_advance(bool map_id=true, bool ignore_locals=false);
+  Identifier identifier_and_advance(bool map_id = true,
+                                    bool ignore_locals = false);
   Identifier mkfqn(Identifier id);
   void error(const char *format, ...);
   void add_term_map(Location, std::string, std::string, bool allow_override);
@@ -46,7 +47,7 @@ struct ParseState {
     return newline || prior_token.tk == tk_semicolon;
   }
 
-  Identifier id_mapped(Identifier id, bool ignore_locals=false);
+  Identifier id_mapped(Identifier id, bool ignore_locals = false);
   Token token;
   Token prior_token;
   std::string filename;

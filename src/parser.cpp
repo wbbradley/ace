@@ -321,27 +321,27 @@ const Expr *parse_with(ParseState &ps) {
         block};
     return new Match(
         context_manager_expr,
-        PatternBlocks{
-            new PatternBlock(
-                new CtorPredicate(
-                    predicate->get_location(),
-                    {new CtorPredicate(
-                        predicate->get_location(),
-                        {predicate,
-                         new IrrefutablePredicate(defer_id.location, defer_id)},
-                        Identifier{tld::mktld("std", "WithResource"),
-                                   predicate->get_location()},
-                        maybe<Identifier>{})},
-                    Identifier{tld::mktld("std", "ResourceAcquired"),
-                               predicate->get_location()},
-                    maybe<Identifier>{}),
-                new Block(statements)),
-            new PatternBlock(
-                new CtorPredicate(predicate->get_location(), {error_predicate},
-                                  Identifier{tld::mktld("std", "ResourceFailure"),
-                                             else_block->get_location()},
-                                  maybe<Identifier>{}),
-                else_block)});
+        PatternBlocks{new PatternBlock(
+                          new CtorPredicate(
+                              predicate->get_location(),
+                              {new CtorPredicate(
+                                  predicate->get_location(),
+                                  {predicate, new IrrefutablePredicate(
+                                                  defer_id.location, defer_id)},
+                                  Identifier{tld::mktld("std", "WithResource"),
+                                             predicate->get_location()},
+                                  maybe<Identifier>{})},
+                              Identifier{tld::mktld("std", "ResourceAcquired"),
+                                         predicate->get_location()},
+                              maybe<Identifier>{}),
+                          new Block(statements)),
+                      new PatternBlock(
+                          new CtorPredicate(
+                              predicate->get_location(), {error_predicate},
+                              Identifier{tld::mktld("std", "ResourceFailure"),
+                                         else_block->get_location()},
+                              maybe<Identifier>{}),
+                          else_block)});
   } else {
     Identifier defer_id{fresh(), ps.token.location};
     /* construct the defer statement prior to the evaluation of the block */
@@ -352,12 +352,12 @@ const Expr *parse_with(ParseState &ps) {
     return new Match(
         context_manager_expr,
         PatternBlocks{new PatternBlock(
-            new CtorPredicate(
-                predicate->get_location(),
-                {predicate,
-                 new IrrefutablePredicate(defer_id.location, defer_id)},
-                Identifier{tld::mktld("std", "WithResource"), predicate->get_location()},
-                maybe<Identifier>{}),
+            new CtorPredicate(predicate->get_location(),
+                              {predicate, new IrrefutablePredicate(
+                                              defer_id.location, defer_id)},
+                              Identifier{tld::mktld("std", "WithResource"),
+                                         predicate->get_location()},
+                              maybe<Identifier>{}),
             new Block(statements))});
   }
 }
@@ -586,17 +586,17 @@ const Expr *build_array_literal(Location location,
   if (exprs.size() != 0) {
     /* we know how many items we'll need space for, so we might as well reserve
      * that space ahead of time */
-    stmts.push_back(
-        new Application(new Var(Identifier{tld::mktld("std", "reserve"), location}),
-                        {new Var(array_var->id),
-                         new Literal(Token{location, tk_integer,
-                                           std::to_string(exprs.size())})}));
+    stmts.push_back(new Application(
+        new Var(Identifier{tld::mktld("std", "reserve"), location}),
+        {new Var(array_var->id),
+         new Literal(
+             Token{location, tk_integer, std::to_string(exprs.size())})}));
   }
 
   for (auto expr : exprs) {
-    stmts.push_back(
-        new Application(new Var(Identifier{tld::mktld("std", "append"), expr->get_location()}),
-                        {array_var, expr}));
+    stmts.push_back(new Application(
+        new Var(Identifier{tld::mktld("std", "append"), expr->get_location()}),
+        {array_var, expr}));
   }
 
   /* now, add another item just for the actual array value to be returned */
@@ -604,9 +604,11 @@ const Expr *build_array_literal(Location location,
 
   return new Let(
       array_var->id,
-      new As(new Application(new Var(Identifier{tld::mktld(GLOBAL_SCOPE_NAME, "new"), location}),
-                             {unit_expr(location)}),
-             type_vector_type(type_variable(location)), false /*force_cast*/),
+      new As(
+          new Application(new Var(Identifier{
+                              tld::mktld(GLOBAL_SCOPE_NAME, "new"), location}),
+                          {unit_expr(location)}),
+          type_vector_type(type_variable(location)), false /*force_cast*/),
       new Block(stmts));
 }
 
@@ -683,29 +685,32 @@ const Expr *build_generator(Location location,
                        {new PatternBlock(
                             new CtorPredicate(
                                 location, {generator_for.predicate},
-                                Identifier{tld::mktld("maybe", "Just"), location},
+                                Identifier{tld::mktld("maybe", "Just"),
+                                           location},
                                 maybe<Identifier>()),
                             generator_for.condition != nullptr
                                 ? static_cast<const Expr *>(new Conditional(
                                       generator_for.condition,
                                       new ReturnStatement(new Application(
-                                          new Var(
-                                              Identifier{tld::mktld("maybe", "Just"),
-                                                         location}),
+                                          new Var(Identifier{
+                                              tld::mktld("maybe", "Just"),
+                                              location}),
                                           {expr})),
                                       unit_expr(location)))
-                                : static_cast<const Expr *>(new ReturnStatement(
-                                      new Application(new Var(Identifier{
-                                                          tld::mktld("maybe", "Just"),
-                                                          location}),
-                                                      {expr})))),
+                                : static_cast<const Expr *>(
+                                      new ReturnStatement(new Application(
+                                          new Var(Identifier{
+                                              tld::mktld("maybe", "Just"),
+                                              location}),
+                                          {expr})))),
                         new PatternBlock(
                             new CtorPredicate(
                                 location, {},
-                                Identifier{tld::mktld("std", "Nothing"), location},
+                                Identifier{tld::mktld("std", "Nothing"),
+                                           location},
                                 maybe<Identifier>()),
-                            new ReturnStatement(new Var(
-                                Identifier{tld::mktld("maybe", "Nothing"), location})))})),
+                            new ReturnStatement(new Var(Identifier{
+                                tld::mktld("maybe", "Nothing"), location})))})),
                new ReturnStatement(new Var(
                    Identifier{tld::mktld("maybe", "Nothing"), location}))})));
 }
@@ -750,8 +755,9 @@ const Expr *parse_array_literal(ParseState &ps) {
       auto range_body = new Application(
           new Var(ps.id_mapped(Identifier{"Range", location})),
           {new Var(range_min),
-           new Application(new Var(Identifier(tld::mktld("math", "-"), ps.token.location)),
-                           {new Var(range_next), new Var(range_min)}),
+           new Application(
+               new Var(Identifier(tld::mktld("math", "-"), ps.token.location)),
+               {new Var(range_next), new Var(range_min)}),
            new Var(range_max)});
 
       auto let_range_max = new Let(
@@ -759,7 +765,8 @@ const Expr *parse_array_literal(ParseState &ps) {
           (ps.token.tk != tk_rsquare)
               ? parse_expr(ps, false /*allow_for_comprehensions*/)
               : new Application(
-                    new Var(Identifier{tld::mktld("math", "max_bound"), ps.token.location}),
+                    new Var(Identifier{tld::mktld("math", "max_bound"),
+                                       ps.token.location}),
                     {unit_expr(location)}),
           range_body);
 
@@ -876,7 +883,8 @@ const Expr *parse_string_expr(ParseState &ps) {
 
     const Expr *expr = parse_expr(ps, false /*allow_for_comprehensions*/);
     exprs.push_back(new Application(
-        new Var(Identifier{tld::mktld("std", "str"), expr->get_location()}), {expr}));
+        new Var(Identifier{tld::mktld("std", "str"), expr->get_location()}),
+        {expr}));
 
     if (ps.token.tk == tk_string_expr_continuation) {
       const Expr *string_expr_continuation = parse_string_expr_continuation(
@@ -927,15 +935,16 @@ const Expr *build_associative_array_literal(
     if (is_set) {
       assert(expr.second == nullptr);
       stmts.push_back(new Application(
-          new Var(Identifier{tld::mktld("std", "insert"), expr.first->get_location()}),
+          new Var(Identifier{tld::mktld("std", "insert"),
+                             expr.first->get_location()}),
           {map_var, new As(expr.first, value_type, false /*force_cast*/)}));
     } else {
       if (key_type == nullptr) {
         key_type = type_variable(expr.first->get_location());
       }
       stmts.push_back(new Application(
-          new Var(
-              Identifier{tld::mktld("std", "set_indexed_item"), expr.first->get_location()}),
+          new Var(Identifier{tld::mktld("std", "set_indexed_item"),
+                             expr.first->get_location()}),
           {map_var, new As(expr.first, key_type, false /*force_cast*/),
            new As(expr.second, value_type, false /*force_cast*/)}));
     }
@@ -954,8 +963,9 @@ const Expr *build_associative_array_literal(
 
   return new Let(
       map_var->id,
-      new As(new Application(new Var(Identifier{tld::mktld("std", "new"), location}),
-                             {unit_expr(location)}),
+      new As(new Application(
+                 new Var(Identifier{tld::mktld("std", "new"), location}),
+                 {unit_expr(location)}),
              is_set ? type_set_type(value_type)
                     : type_map_type(key_type, value_type),
              false /*force_cast*/),
@@ -972,12 +982,14 @@ const Expr *build_map_from_generator(Location location, const Expr *generator) {
 
   return new Let(
       map_id,
-      new As(new Application(
-                 new Var(Identifier{tld::mktld(GLOBAL_SCOPE_NAME, "new"), location}),
-                 {unit_expr(location)}),
-             type_map_type(key_type, value_type), false /*force_cast*/),
-      new Application(new Var(Identifier{tld::mktld("map", "from_pairs"), location}),
-                      {generator}));
+      new As(
+          new Application(new Var(Identifier{
+                              tld::mktld(GLOBAL_SCOPE_NAME, "new"), location}),
+                          {unit_expr(location)}),
+          type_map_type(key_type, value_type), false /*force_cast*/),
+      new Application(
+          new Var(Identifier{tld::mktld("map", "from_pairs"), location}),
+          {generator}));
 }
 
 const Expr *parse_associative_array_literal(ParseState &ps) {
@@ -1026,14 +1038,15 @@ const Expr *parse_associative_array_literal(ParseState &ps) {
       /* this is a dictionary or set comprehension */
       if (is_set) {
         const Expr *ret = new Application(
-            new Var(Identifier{tld::mktld("set", "set"), exprs[0].first->get_location()}),
+            new Var(Identifier{tld::mktld("set", "set"),
+                               exprs[0].first->get_location()}),
             {parse_generator(ps, exprs[0].first)});
         chomp_token(tk_rcurly);
         return ret;
       } else {
         const Expr *ret = new Application(
-            new Var(
-                Identifier{tld::mktld("map", "from_pairs"), exprs[0].first->get_location()}),
+            new Var(Identifier{tld::mktld("map", "from_pairs"),
+                               exprs[0].first->get_location()}),
             {parse_generator(ps,
                              new Tuple(prior_token.location,
                                        {exprs[0].first, exprs[0].second}))});
@@ -1248,8 +1261,8 @@ const Expr *parse_prefix_expr(ParseState &ps) {
     return parse_sizeof(ps);
   }
 
-  maybe<Token> prefix = (ps.token.tk == tk_minus || ps.token.is_ident(K(not)) ||
-                         ps.token.tk == tk_bang)
+  maybe<Token> prefix = (ps.token.tk == tk_minus ||
+                         ps.token.is_ident(K(not )) || ps.token.tk == tk_bang)
                             ? maybe<Token>(ps.token)
                             : maybe<Token>();
 
@@ -1258,7 +1271,7 @@ const Expr *parse_prefix_expr(ParseState &ps) {
   }
 
   const Expr *rhs;
-  if (ps.token.is_ident(K(not)) || ps.token.tk == tk_minus ||
+  if (ps.token.is_ident(K(not )) || ps.token.tk == tk_minus ||
       ps.token.tk == tk_bang) {
     /* recurse to find more prefix expressions */
     rhs = parse_prefix_expr(ps);
@@ -1273,8 +1286,9 @@ const Expr *parse_prefix_expr(ParseState &ps) {
           new Var(ps.id_mapped(Identifier{"negate", prefix.t.location})),
           {rhs});
     } else if (prefix.t.text == "!") {
-      return new Application(
-          new Var(Identifier{tld::mktld("std", "load_value"), prefix.t.location}), {rhs});
+      return new Application(new Var(Identifier{tld::mktld("std", "load_value"),
+                                                prefix.t.location}),
+                             {rhs});
     } else {
       return new Application(
           new Var(ps.id_mapped(Identifier{prefix.t.text, prefix.t.location})),
@@ -1373,10 +1387,10 @@ const Expr *parse_bitwise_or(ParseState &ps) {
 const Expr *fold_and_exprs(std::vector<const Expr *> exprs, int index) {
   if (index < int(exprs.size()) - 1) {
     Identifier term_id = make_iid(fresh());
-    return new Let(term_id, exprs[index],
-                   new Conditional(new Var(term_id),
-                                   fold_and_exprs(exprs, index + 1),
-                                   new Var(make_iid(tld::mktld("std", "False")))));
+    return new Let(
+        term_id, exprs[index],
+        new Conditional(new Var(term_id), fold_and_exprs(exprs, index + 1),
+                        new Var(make_iid(tld::mktld("std", "False")))));
   } else {
     return exprs[index];
   }
@@ -1422,7 +1436,7 @@ const Expr *parse_comparison_expr(ParseState &ps) {
   do {
     terms.push_back(parse_bitwise_or(ps));
     bool not_ = false;
-    if (ps.token.is_ident(K(not))) {
+    if (ps.token.is_ident(K(not ))) {
       ps.advance();
       not_ = true;
     }
@@ -1458,7 +1472,7 @@ const Expr *parse_comparison_expr(ParseState &ps) {
 }
 
 const Expr *parse_not_expr(ParseState &ps) {
-  if (ps.token.is_ident(K(not))) {
+  if (ps.token.is_ident(K(not ))) {
     Token not_token = ps.token_and_advance();
     return new Application(new Var(ps.id_mapped(iid(not_token))),
                            {parse_comparison_expr(ps)});
@@ -1566,7 +1580,8 @@ const Expr *parse_assignment(ParseState &ps) {
   case tk_assign:
     ps.advance();
     return new Application(
-        new Var(Identifier{tld::mktld("std", "store_value"), ps.token.location}),
+        new Var(
+            Identifier{tld::mktld("std", "store_value"), ps.token.location}),
         {lhs, parse_expr(ps, false /*allow_for_comprehensions*/)});
   case tk_divide_by_eq:
   case tk_minus_eq:
@@ -1578,11 +1593,13 @@ const Expr *parse_assignment(ParseState &ps) {
     const Expr *rhs = parse_expr(ps, false /*allow_for_comprehensions*/);
     Identifier copy_value = Identifier{fresh(), lhs->get_location()};
     return new Application(
-        new Var(Identifier{tld::mktld("std", "store_value"), op_token.location}),
+        new Var(
+            Identifier{tld::mktld("std", "store_value"), op_token.location}),
         {lhs, new Let(copy_value,
-                      new Application(new Var(Identifier{tld::mktld("std", "load_value"),
-                                                         op_token.location}),
-                                      {lhs}),
+                      new Application(
+                          new Var(Identifier{tld::mktld("std", "load_value"),
+                                             op_token.location}),
+                          {lhs}),
                       new Application(
                           new Var(ps.id_mapped(Identifier{
                               op_token.text.substr(0, 1), op_token.location})),
@@ -1743,8 +1760,9 @@ const While *parse_while(ParseState &ps) {
       pattern_blocks.push_back(new PatternBlock(
           new IrrefutablePredicate(is_token.location, maybe<Identifier>()),
           new Break(is_token.location)));
-      return new While(new Var(Identifier{tld::mktld("std", "True"), ps.token.location}),
-                       new Match(condition_expr, pattern_blocks));
+      return new While(
+          new Var(Identifier{tld::mktld("std", "True"), ps.token.location}),
+          new Match(condition_expr, pattern_blocks));
     } else {
       return new While(condition_expr,
                        parse_block(ps, false /*expression_means_return*/));
@@ -1967,10 +1985,11 @@ std::pair<Identifier, types::Ref> parse_lambda_param_core(ParseState &ps) {
 
     return {
         iid(param_token),
-        type_operator(type_id(Identifier{tld::mktld("std", "Ref"), param_token.location}),
-                      (token_begins_type(ps.token))
-                          ? parse_type(ps, true /*allow_top_level_application*/)
-                          : type_variable(param_token.location))};
+        type_operator(
+            type_id(Identifier{tld::mktld("std", "Ref"), param_token.location}),
+            (token_begins_type(ps.token))
+                ? parse_type(ps, true /*allow_top_level_application*/)
+                : type_variable(param_token.location))};
   } else {
     /* remove this param from the outer term_map */
     if (isupper(first_token.text[0])) {
@@ -2718,7 +2737,8 @@ const Module *parse_module(ParseState &ps,
     const std::string &dest_module = dest_pair.first;
     const std::set<Identifier> &symbols = dest_pair.second;
     for (auto &symbol : symbols) {
-      debug_above(2, log("adding import from {module " c_module("%s") ": {..., %s: %s, ...}",
+      debug_above(2, log("adding import from {module " c_module(
+                             "%s") ": {..., %s: %s, ...}",
                          ps.module_name.c_str(), dest_module.c_str(),
                          symbol.str().c_str()));
       if (imports_set.count(symbol) != 0) {

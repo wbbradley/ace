@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+
 #include "identifier.h"
 
 namespace zion {
@@ -19,6 +20,5 @@ bool is_lowercase_leaf(std::string name);
 bool is_in_module(std::string module, std::string name);
 std::string strip_prefix(std::string fqn);
 
-}
-}
-
+} // namespace tld
+} // namespace zion

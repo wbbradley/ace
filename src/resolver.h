@@ -37,7 +37,8 @@ private:
 struct Resolver {
   virtual ~Resolver() = 0;
   llvm::Value *resolve(llvm::IRBuilder<> &builder, Location location);
-  virtual llvm::Value *resolve_impl(llvm::IRBuilder<> &builder, Location location) = 0;
+  virtual llvm::Value *resolve_impl(llvm::IRBuilder<> &builder,
+                                    Location location) = 0;
   virtual std::string str() const = 0;
 };
 

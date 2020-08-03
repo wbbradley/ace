@@ -12,7 +12,8 @@ namespace gen {
 struct StrictResolver final : public Resolver {
   StrictResolver(llvm::Value *llvm_value);
   ~StrictResolver();
-  llvm::Value *resolve_impl(llvm::IRBuilder<> &builder, Location location) override;
+  llvm::Value *resolve_impl(llvm::IRBuilder<> &builder,
+                            Location location) override;
   std::string str() const override;
 
 private:
@@ -26,7 +27,8 @@ struct LazyResolver final : public Resolver {
                types::Ref type,
                LazyResolverCallback &&callback);
   ~LazyResolver();
-  llvm::Value *resolve_impl(llvm::IRBuilder<> &builder, Location location) override;
+  llvm::Value *resolve_impl(llvm::IRBuilder<> &builder,
+                            Location location) override;
   std::string str() const override;
 
 private:

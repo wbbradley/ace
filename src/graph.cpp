@@ -2,8 +2,8 @@
 
 #include "dbg.h"
 #include "disk.h"
-#include "user_error.h"
 #include "tld.h"
+#include "user_error.h"
 
 namespace zion {
 namespace graph {
@@ -60,7 +60,7 @@ void emit_graphviz_dot(const tarjan::Graph &graph,
   std::unordered_set<std::string> visited;
   dfs(fp, entry_point, graph, visited, ranks, ranks_seen);
 
-  for (auto rank: ranks_seen) {
+  for (auto rank : ranks_seen) {
     if (rank_nodes[rank].size() > 1) {
       fprintf(fp, "\tsubgraph cluster_%d { rank=same; ", rank);
       for (auto node : rank_nodes[rank]) {

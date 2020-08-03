@@ -572,4 +572,4 @@ void open_file(std::string filename) {
       ;
   system((open_command + " " + filename).c_str());
 }
-}
+} // namespace ui

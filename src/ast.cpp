@@ -2,8 +2,8 @@
 
 #include "class_predicate.h"
 #include "parens.h"
-#include "tld.h"
 #include "ptr.h"
+#include "tld.h"
 #include "zion.h"
 
 std::ostream &operator<<(std::ostream &os, zion::ast::Program *program) {

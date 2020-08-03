@@ -261,7 +261,7 @@ std::shared_ptr<Compilation> merge_compilation(
         module->imports);
 
     std::set<std::string> bindings;
-    for (auto binding: maybe_not_tld_bindings) {
+    for (auto binding : maybe_not_tld_bindings) {
       bindings.insert(binding);
       bindings.insert(tld::tld(binding));
     }
@@ -283,9 +283,9 @@ std::shared_ptr<Compilation> merge_compilation(
     for (auto pair : module_rebound->ctor_id_map) {
       if (in(pair.first, ctor_id_map)) {
         throw user_error(INTERNAL_LOC(),
-            "ctor_id %s already exists in ctor_id_map but is trying to be added by module %s!",
-            pair.first.c_str(),
-            module_rebound->name.c_str());
+                         "ctor_id %s already exists in ctor_id_map but is "
+                         "trying to be added by module %s!",
+                         pair.first.c_str(), module_rebound->name.c_str());
       }
       ctor_id_map[pair.first] = pair.second;
     }

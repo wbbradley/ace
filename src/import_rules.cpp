@@ -38,16 +38,16 @@ RewriteImportRules solve_rewriting_imports(
     for (auto &module_pair : symbol_imports) {
       for (auto &pair_ids : module_pair.second) {
         for (auto symbol : pair_ids.second) {
-
+          deps.insert(string_format(
+              "\"%s\" -> \"%s\";", tld::tld(module_pair.first).c_str(),
+              tld::mktld(module_pair.first, symbol.name).c_str()));
           deps.insert(string_format("\"%s\" -> \"%s\";",
-                  tld::tld(module_pair.first).c_str(),
-                  tld::mktld(module_pair.first, symbol.name).c_str()));
-          deps.insert(string_format("\"%s\" -> \"%s\";",
-                  tld::tld(module_pair.first).c_str(),
-                  tld::tld(pair_ids.first).c_str()));
-          deps.insert(string_format("\"%s\" -> \"%s\";",
-                  tld::mktld(module_pair.first, symbol.name).c_str(),
-                  tld::mktld(pair_ids.first, symbol.name).c_str()));
+                                    tld::tld(module_pair.first).c_str(),
+                                    tld::tld(pair_ids.first).c_str()));
+          deps.insert(
+              string_format("\"%s\" -> \"%s\";",
+                            tld::mktld(module_pair.first, symbol.name).c_str(),
+                            tld::mktld(pair_ids.first, symbol.name).c_str()));
         }
       }
     }

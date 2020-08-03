@@ -147,7 +147,8 @@ Ref Type::apply(types::Ref type) const {
 TypeId::TypeId(Identifier id) : id(id) {
   if (zion::tld::is_lowercase_leaf(id.name)) {
     throw zion::user_error(
-        id.location, "type identifiers must begin with an upper-case letter (%s)",
+        id.location,
+        "type identifiers must begin with an upper-case letter (%s)",
         str().c_str());
   }
 }

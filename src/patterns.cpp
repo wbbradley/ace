@@ -157,8 +157,8 @@ const Expr *translate_match_expr(
   }
 
   types::Ref scrutinee_type = get_tracked_type(tracked_types, match->scrutinee);
-  check_patterns(scrutinee_expr->get_location(), gensym_name(),
-                 data_ctors_map, match->pattern_blocks, scrutinee_type);
+  check_patterns(scrutinee_expr->get_location(), gensym_name(), data_ctors_map,
+                 match->pattern_blocks, scrutinee_type);
 
   Identifier scrutinee_id = make_iid("__scrutinee_" + fresh());
   const Expr *new_match = new Let(
@@ -404,7 +404,8 @@ const Expr *CtorPredicate::translate(
 
   if (do_checks) {
     Expr *condition;
-    int ctor_id = get_ctor_id(ctor_name.location, data_ctors_map, ctor_name.name);
+    int ctor_id = get_ctor_id(ctor_name.location, data_ctors_map,
+                              ctor_name.name);
     auto ctor_id_literal = new Literal(
         Token{location, tk_integer, std::to_string(ctor_id)});
     typing[ctor_id_literal] = Int;

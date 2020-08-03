@@ -17,7 +17,8 @@ StrictResolver::StrictResolver(llvm::Value *llvm_value)
 StrictResolver::~StrictResolver() {
 }
 
-llvm::Value *StrictResolver::resolve_impl(llvm::IRBuilder<> &builder, Location location) {
+llvm::Value *StrictResolver::resolve_impl(llvm::IRBuilder<> &builder,
+                                          Location location) {
   return llvm_value;
 }
 
@@ -35,7 +36,8 @@ LazyResolver::LazyResolver(std::string name,
 LazyResolver::~LazyResolver() {
 }
 
-llvm::Value *LazyResolver::resolve_impl(llvm::IRBuilder<> &builder, Location location) {
+llvm::Value *LazyResolver::resolve_impl(llvm::IRBuilder<> &builder,
+                                        Location location) {
   // FUTURE: this is a good candidate for concurrency
   switch (sort_color) {
   case sc_unresolved:
@@ -116,8 +118,9 @@ std::string LazyResolver::str() const {
     return string_format("resolved " c_id("%s") " :: %s to %s", name.c_str(),
                          type->str().c_str(), llvm_print(value).c_str());
   case sc_resolved_with_global_reload:
-    return string_format("resolved (loading global) " c_id("%s") " :: %s to %s", name.c_str(),
-                         type->str().c_str(), llvm_print(value).c_str());
+    return string_format("resolved (loading global) " c_id("%s") " :: %s to %s",
+                         name.c_str(), type->str().c_str(),
+                         llvm_print(value).c_str());
   }
   assert(false);
   return {};

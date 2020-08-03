@@ -3,8 +3,8 @@
 #include <sstream>
 
 #include "dbg.h"
-#include "zion.h"
 #include "user_error.h"
+#include "zion.h"
 
 Identifier::Identifier(const std::string &name, Location location)
     : name(name), location(location) {

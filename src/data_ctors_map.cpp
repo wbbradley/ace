@@ -83,7 +83,9 @@ std::map<std::string, types::Ref> get_data_ctors_types(
   return data_ctors_types;
 }
 
-int get_ctor_id(Location location, const DataCtorsMap &data_ctors_map, std::string ctor_name) {
+int get_ctor_id(Location location,
+                const DataCtorsMap &data_ctors_map,
+                std::string ctor_name) {
   auto iter = data_ctors_map.ctor_id_map.find(ctor_name);
   if (iter == data_ctors_map.ctor_id_map.end()) {
     // dbg();

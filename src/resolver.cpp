@@ -42,8 +42,11 @@ Publishable::~Publishable() {
 }
 
 void Publishable::publish(llvm::Value *llvm_value_) const {
-  debug_above(2, {if (llvm_value_) log("publishing " c_id("%s") " as %s", name.c_str(),
-                     llvm_print(llvm_value_).c_str());});
+  debug_above(2, {
+    if (llvm_value_)
+      log("publishing " c_id("%s") " as %s", name.c_str(),
+          llvm_print(llvm_value_).c_str());
+  });
   *llvm_value = llvm_value_;
 }
 
