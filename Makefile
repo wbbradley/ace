@@ -7,12 +7,12 @@ BUILT_BINARY = $(BUILD_DIR)/zion
 MAKEFLAGS=--no-print-directory
 
 # Installation-related directories
-installdir = $(DESTDIR)/$(prefix)
-bindir = $(DESTDIR)/$(prefix)/bin
-sharedir = $(DESTDIR)/$(prefix)/share/$(PN)
+installdir ?= $(DESTDIR)/$(prefix)
+bindir ?= $(DESTDIR)/$(prefix)/bin
+sharedir ?= $(DESTDIR)/$(prefix)/share/$(PN)
 stdlibdir = $(sharedir)/lib
 runtimedir = $(sharedir)/runtime
-man1dir = $(DESTDIR)/$(prefix)/share/man/man1
+man1dir ?= $(DESTDIR)/$(prefix)/share/man/man1
 manfile = $(man1dir)/$(PN).1
 test_destdir ?= $(HOME)/var/zion-test
 
@@ -56,22 +56,22 @@ RUNTIME_C_FILES=$(shell find runtime -regex '.*\.c$$')
 
 .PHONY: install
 install: $(BUILT_BINARY) $(addprefix $(SRCDIR)/lib/,$(ZION_LIBS)) $(RUNTIME_C_FILES) $(SRCDIR)/$(PN).1 zion-tags
-	-@echo "Installing Zion to ${DESTDIR}..."
-	-@echo "Making sure that various installation dirs exist..." 
-	@mkdir -p $(bindir)
-	-@rm -rf $(stdlibdir)
-	@mkdir -p $(stdlibdir)
-	-@rm -rf $(man1dir)
-	@mkdir -p $(man1dir)
-	-@rm -rf $(runtimedir)
-	@mkdir -p $(runtimedir)
-	-@echo "Copying compiler binary from $(BUILT_BINARY) to $(bindir)..."
-	@cp $(BUILT_BINARY) $(bindir)
-	@cp ./zion-tags $(bindir)
-	@for f in $(RUNTIME_C_FILES); do cp "$$f" "$(runtimedir)"; done
-	@cp $(addprefix $(SRCDIR)/lib/,$(ZION_LIBS)) $(stdlibdir)
-	@cp $(SRCDIR)/$(PN).1 $(man1dir)
-	-@command -v zion-link-to-src 1>/dev/null 2>/dev/null && zion-link-to-src
+	-echo "Installing Zion to ${DESTDIR}..."
+	-echo "Making sure that various installation dirs exist..." 
+	mkdir -p $(bindir)
+	-rm -rf $(stdlibdir)
+	mkdir -p $(stdlibdir)
+	-rm -rf $(man1dir)
+	mkdir -p $(man1dir)
+	-rm -rf $(runtimedir)
+	mkdir -p $(runtimedir)
+	-echo "Copying compiler binary from $(BUILT_BINARY) to $(bindir)..."
+	cp $(BUILT_BINARY) $(bindir)
+	cp ./zion-tags $(bindir)
+	for f in $(RUNTIME_C_FILES); do cp "$$f" "$(runtimedir)"; done
+	cp $(addprefix $(SRCDIR)/lib/,$(ZION_LIBS)) $(stdlibdir)
+	cp $(SRCDIR)/$(PN).1 $(man1dir)
+	-test -x ./zion-link-to-src && ./zion-link-to-src
 
 .PHONY: clean
 clean:
