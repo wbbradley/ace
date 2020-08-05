@@ -15,5 +15,5 @@ mkdir -p "$prefix/share/lib"
 mkdir -p "$prefix/share/runtime"
 find runtime -regex '.*\.c$'          -exec cp '{}' "$prefix/share/runtime" \;
 find lib -regex '.*lib/.*\.zion$' -exec cp '{}' "$prefix/share/lib" \;
-mkdir -p "$prefix/man/man1"
-cp zion.1 "$prefix/man/man1"
+mkdir -p "$prefix/share/man/man1"
+cp zion.1 "$prefix/share/man/man1"
