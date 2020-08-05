@@ -1558,7 +1558,8 @@ int run_job(const Job &job) {
       auto command_line = string_format(
           // We are using clang to lower the code from LLVM, and link it
           // to the runtime.
-          "clang "
+#ifdef __APPLE__
+          "\"$(brew --prefix)/opt/llvm/bin/clang\" "
           // Include any necessary include dirs for C dependencies.
           "%s "
 #ifdef __APPLE__
