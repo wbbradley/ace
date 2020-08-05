@@ -93,6 +93,7 @@ add_executable(zion
 	src/utils.cpp
 	)
 
+
 message(STATUS "Using dynamic link options -L${LLVM_LIBRARY_DIR} -lLLVM")
 target_link_libraries(zion -L${LLVM_LIBRARY_DIR} -lLLVM)
 
