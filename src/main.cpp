@@ -1560,6 +1560,9 @@ int run_job(const Job &job) {
           // to the runtime.
 #ifdef __APPLE__
           "\"$(brew --prefix)/opt/llvm/bin/clang\" "
+#else
+          "clang "
+#endif
           // Include any necessary include dirs for C dependencies.
           "%s "
 #ifdef __APPLE__
