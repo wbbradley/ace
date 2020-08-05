@@ -1633,7 +1633,15 @@ void append_env(std::string var_name, std::string value) {
   }
 }
 void setup_environment_variables() {
-  setenv("ZION_ROOT", ".", false /*overwrite*/);
+  std::string default_zion_root =
+#ifdef __APPLE__
+      "/usr/local/share/zion";
+#else
+      ".";
+#endif
+
+  setenv("ZION_ROOT", default_zion_root, false /*overwrite*/);
+
   std::stringstream ss;
   ss << getenv("ZION_ROOT") << "/lib";
   append_env("ZION_PATH", ss.str());
