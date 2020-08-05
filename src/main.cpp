@@ -1633,7 +1633,7 @@ void append_env(std::string var_name, std::string value) {
   }
 }
 void setup_environment_variables() {
-  std::string default_zion_root =
+  const char *default_zion_root =
 #ifdef __APPLE__
       "/usr/local/share/zion";
 #else
