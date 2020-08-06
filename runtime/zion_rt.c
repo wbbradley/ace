@@ -112,6 +112,7 @@ const char *zion_strerror(int errnum, char *buf, int64_t bufsize) {
 	return buf;
 #endif
 }
+
 void *zion_malloc(uint64_t cb) {
   void *pb = GC_MALLOC(cb);
   // printf("allocated %" PRId64 " bytes at 0x%08" PRIx64 "\n", cb, (uint64_t)pb);
