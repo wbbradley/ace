@@ -19,7 +19,7 @@ if(CCACHE_EXECUTABLE)
   endforeach()
 endif()
 
-include_directories(BEFORE src)
+include_directories(BEFORE src src/vendor)
 
 find_package(LLVM REQUIRED CONFIG)
 
@@ -69,6 +69,7 @@ add_executable(zion
 	src/location.cpp
 	src/logger.cpp
 	src/main.cpp
+  src/macros.cpp
 	src/match.cpp
 	src/parse_state.cpp
 	src/parser.cpp

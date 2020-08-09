@@ -17,6 +17,7 @@
 #include "lexer.h"
 #include "logger.h"
 #include "logger_decls.h"
+#include "macros.h"
 #include "solver.h"
 #include "tarjan.h"
 #include "tests.h"
@@ -1399,7 +1400,7 @@ int run_job(const Job &job) {
     test_assert(zion::tld::is_tld_type("::copy::Copy"));
     test_assert(!zion::tld::is_tld_type("::copy::copy"));
     test_assert(tld::split_fqn("::inc").size() == 1);
-
+    test_assert(zion::macro::unit_test());
     return EXIT_SUCCESS;
   };
   cmd_map["find"] = [&](const Job &job, bool explain) {
