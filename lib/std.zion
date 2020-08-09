@@ -38,6 +38,39 @@ class Str a {
   fn str(a) String
 }
 
+macro derive Str {
+  match last {
+    data|newtype T {
+      <<CODE
+        instance Str ({{= T.predicate }}) {
+          fn str(t) => match t {
+            {{ for name, params in T.ctors }}
+              {{= name }}(...arity) => "".join(
+                str(x) for x in "{{= name }}(", ...arity, ")")
+            {{ end }}
+          }
+        }
+      CODE
+    }
+    struct S {
+      <<CODE
+        instance Str ({{= S.predicate }}) {
+          fn str(s) => match s {
+            {{= S.name }}(
+            {{ for property in S.properties }}
+              {{=property.name}},
+            {{ end }} => "".join([
+              {{ for property in S.properties }}
+                "{{= property.name }}=", {{= property.name }},
+              {{ end }}
+            ])
+          }
+        }
+      CODE
+    }
+  }
+}
+
 class ObjectId a b {
   # Would be nice to have functional dependencies for a -> b.
   fn object_id(a) b

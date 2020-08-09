@@ -19,6 +19,9 @@
 - [ ] HTML parser
 
 ## Ecosystem
+- [ ] language reference documentation
+- [ ] example code documentation
+- [ ] tutorial documentation
 - [ ] finalize name (Zion is a codename)
 - [ ] homebrew bottling releases
 - [ ] a debian package

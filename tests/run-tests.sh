@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
 
 if [[ -t 1 ]] && [[ -t 2 ]] && [[ "$VIMRUNTIME" == "" ]]; then
-	export WMAKE_INTERACTIVE="1"
 	export C_RED="\\e[1;31m"
 	export C_GREEN="\\e[1;32m"
 	export C_YELLOW="\\e[1;33m"
 	export C_RESET="\\e[0m"
 else
-	export WMAKE_INTERACTIVE="0"
 	export C_RED=""
 	export C_GREEN=""
 	export C_YELLOW=""

@@ -1,0 +1,11 @@
+# test: pass
+
+import color {RGB, RGBA, a}
+
+fn main() {
+  let transparent_blue = RGBA(0.0, 0.0, 1.0, 0.4)
+  let blue = RGB(0.0, 0.0, 1.0)
+  assert(1.0 == blue.a)
+  assert(0.4 == transparent_blue.a)
+  print("PASS")
+}

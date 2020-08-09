@@ -1,0 +1,75 @@
+newtype RGB = RGB(Float, Float, Float)
+newtype RGBA = RGBA(Float, Float, Float, Float)
+
+class Red a {
+  fn r(a) Float
+}
+class Green a {
+  fn g(a) Float
+}
+class Blue a {
+  fn b(a) Float
+}
+class Alpha a {
+  fn a(a) Float
+}
+class Hue a {
+  fn h(a) Float
+}
+class Saturation a {
+  fn s(a) Float
+}
+class Value a {
+  fn v(a) Float
+}
+
+instance Red RGB {
+  fn r(rgb) {
+    let RGB(r, _, _) = rgb
+    return r
+  }
+}
+
+instance Green RGB {
+  fn g(rgb) {
+    let RGB(_, g, _) = rgb
+    return g
+  }
+}
+
+instance Blue RGB {
+  fn b(rgb) {
+    let RGB(_, _, b) = rgb
+    return b
+  }
+}
+instance Alpha RGB {
+  fn a(_) => 1.0
+}
+
+instance Red RGBA {
+  fn r(rgba) {
+    let RGBA(r, _, _, _) = rgba
+    return r
+  }
+}
+
+instance Green RGBA {
+  fn g(rgba) {
+    let RGBA(_, g, _, _) = rgba
+    return g
+  }
+}
+
+instance Blue RGBA {
+  fn b(rgba) {
+    let RGBA(_, _, b, _) = rgba
+    return b
+  }
+}
+instance Alpha RGBA {
+  fn a(rgba) {
+    let RGBA(_, _, _, a) = rgba
+    return a
+  }
+}
