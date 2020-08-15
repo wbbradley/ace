@@ -3,7 +3,7 @@
 ZION_SRC_DIR="${ZION_SRC_DIR:-$PWD}"
 ZION_ROOT="${ZION_ROOT:-/usr/local/share/zion}"
 
-cd "$ZION_ROOT" || (printf "Couldn't cd into %s.\n" "$ZION_ROOT"; exit 1)
+cd "$ZION_ROOT" || { printf "Couldn't cd into %s.\n" "$ZION_ROOT"; exit 1; }
 rm -rf runtime
 rm -rf lib
 ln -s "$ZION_SRC_DIR/runtime" .
