@@ -1252,10 +1252,12 @@ Phase4 ssa_gen(llvm::LLVMContext &context, const Phase3 &phase_3) {
                                    llvm_print(*llvm_value).c_str()));
                 if (auto llvm_global_value = llvm::dyn_cast<llvm::GlobalValue>(
                         (*llvm_value))) {
+                  (void)llvm_global_value;
                   /* this is already global */
                   return gen::rs_cache_resolution;
                 } else if (auto llvm_constant = llvm::dyn_cast<llvm::Constant>(
                                (*llvm_value))) {
+                  (void)llvm_constant;
                   /* just a constant, no need to load again */
                   return gen::rs_cache_resolution;
                 } else {
@@ -1286,6 +1288,7 @@ Phase4 ssa_gen(llvm::LLVMContext &context, const Phase3 &phase_3) {
                 }
                 return gen::rs_cache_resolution;
               }
+              dbg();
             });
 
         gen_env[name].emplace(type, resolver);
