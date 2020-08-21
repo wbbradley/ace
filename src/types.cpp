@@ -156,7 +156,7 @@ TypeId::TypeId(Identifier id) : id(id) {
 std::ostream &TypeId::emit(std::ostream &os,
                            const Map &bindings,
                            int parent_precedence) const {
-  return os << id.name;
+  return os << zion::tld::strip_prefix(id.name);
 }
 
 void TypeId::compute_ftvs() const {

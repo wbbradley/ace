@@ -1,0 +1,10 @@
+# test: pass
+# expect: 40
+
+fn f(a) => a+1
+fn g(a) => a*10
+
+fn main() {
+  let q = .f.g
+  print(q(3))
+}

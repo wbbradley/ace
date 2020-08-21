@@ -176,6 +176,15 @@ double zion_atof(const char *sz, size_t n) {
 	return atof(buf);
 }
 
+int64_t zion_atoi(const char *sz, size_t n) {
+	char buf[64];
+	const size_t buf_size = sizeof(buf) / sizeof(buf[0]);
+	size_t byte_count_to_copy = (n >= buf_size ? buf_size - 1 : n);
+	memcpy(buf, sz, byte_count_to_copy);
+	buf[byte_count_to_copy] = '\0';
+	return atoll(buf);
+}
+
 void zion_pass_test() {
   write(1, "PASS\n", 5);
 }

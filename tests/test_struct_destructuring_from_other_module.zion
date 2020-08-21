@@ -1,0 +1,13 @@
+# test: pass
+
+import test_struct_destructuring {S}
+
+fn main() {
+  match S(3.4, 2) {
+    S(mx, my) {
+      assert(mx == 3.4)
+      assert(my == 2)
+    }
+  }
+  print("PASS")
+}

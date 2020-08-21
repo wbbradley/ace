@@ -130,3 +130,14 @@ fn _chain2_iters(as fn () Maybe a, bs fn () Maybe a) fn () Maybe a {
     return Nothing
   }
 }
+
+fn take_pairs(xs) {
+  let iterator = iter(xs)
+  return || => match iterator() {
+    Just(k) => match iterator() {
+      Just(v) => Just((k, v))
+      Nothing => Nothing
+    }
+    Nothing => Nothing
+  }
+}

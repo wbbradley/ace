@@ -368,7 +368,7 @@ tarjan::Graph build_program_graph(const std::vector<const Decl *> &decls) {
         throw user_error(
             decl->id.location,
             "found free_var \"%s\" that is not fully qualified within %s",
-            free_var.c_str(), name.c_str());
+            free_var.c_str(), zion::tld::strip_prefix(name).c_str());
       }
     }
     graph.insert({name, free_vars});
@@ -533,7 +533,8 @@ const Decl *find_overload_for_instance(std::string name,
     }
   }
   throw user_error(location, "could not find decl for %s in instance %s",
-                   name.c_str(), instance->class_predicate->str().c_str());
+                   zion::tld::strip_prefix(name).c_str(),
+                   instance->class_predicate->str().c_str());
 }
 
 void check_instance_for_type_class_overload(
@@ -747,7 +748,7 @@ CheckedDefinitionRef specialize_checked_defn(
   if (checked_defn_to_specialize == nullptr) {
     throw user_error(location,
                      "could not find a definition for " c_id("%s") " :: %s",
-                     name.c_str(), type->str().c_str());
+                     zion::tld::strip_prefix(name).c_str(), type->str().c_str());
   }
 
   INDENT(1, string_format("specializing checked definition %s :: %s",
@@ -992,7 +993,8 @@ Phase3 specialize(const Phase2 &phase_2) {
   if (phase_2.checked_defns.count(entry_point_name) == 0) {
     auto error = user_error(
         Location{phase_2.compilation->program_filename, 1, 1},
-        "could not find a definition for %s", entry_point_name.c_str());
+        "could not find a definition for %s",
+        zion::tld::strip_prefix(entry_point_name).c_str());
     for (auto pair : phase_2.checked_defns) {
       if (pair.first.find(entry_point_name) != std::string::npos) {
         for (auto checked_def : pair.second) {
@@ -1330,6 +1332,89 @@ struct Job {
   std::vector<std::string> args;
 };
 
+bool build_binary(const Job &job, bool explain, std::string &program_name) {
+  if (explain) {
+    std::cout << "build: compiles, specializes, generates LLVM output, then "
+                 "links a binary executable"
+              << std::endl;
+    return false;
+  }
+
+  bool graph_deps = in_vector("-graph", job.opts);
+
+  llvm::LLVMContext context;
+  Phase4 phase_4 = ssa_gen(context,
+                           specialize(compile(job.args[0], graph_deps)));
+
+  if (user_error::errors_occurred()) {
+    return false;
+  }
+  std::stringstream ss_c_flags;
+  std::stringstream ss_compilands;
+  std::stringstream ss_lib_flags;
+  ss_compilands << "\"$ZION_RUNTIME/zion_rt.c\" ";
+  for (auto link_in : phase_4.phase_3.phase_2.compilation->link_ins) {
+    std::string link_text = unescape_json_quotes(link_in.name.text);
+    switch (link_in.lit) {
+    case lit_pkgconfig: {
+      ss_c_flags << get_pkg_config("--cflags-only-I", link_text) << " ";
+      ss_lib_flags << get_pkg_config("--libs --static", link_text) << " ";
+      break;
+    }
+    case lit_link:
+      ss_lib_flags << "-l\"" << link_text << "\" ";
+      break;
+    case lit_compile:
+      ss_compilands << "\"$ZION_RUNTIME/" << link_text << "\" ";
+      break;
+    }
+  }
+
+  auto command_line = string_format(
+  // We are using clang to lower the code from LLVM, and link it
+  // to the runtime.
+#ifdef __APPLE__
+      "\"$(brew --prefix)/opt/llvm/bin/clang\" "
+#else
+      "clang "
+#endif
+      // Include any necessary include dirs for C dependencies.
+      "%s "
+#ifdef __APPLE__
+      "-I \"$(xcrun --sdk macosx --show-sdk-path)/usr/include\" "
+#endif
+      // Allow for the user to specify optimizations
+      "$ZION_OPT_FLAGS "
+      // NB: we don't embed the target triple into the LL, so any
+      // targeted triple causes an ugly error from clang, so I just
+      // ignore it here.
+      "-Wno-override-module "
+      // HACKHACK: temporary workaround to allow libsodium to compile
+      "-Wno-nullability-completeness "
+      // TODO: plumb host targeting through clang here
+      // "--target=$(llvm-config --host-target) "
+      // Include extra compilands
+      "%s "
+      // Add linker flags
+      "-lm %s "
+      // Don't forget the built .ll file from our frontend here.
+      "%s "
+      // Give the binary a name.
+      "-o %s",
+      ss_c_flags.str().c_str(), ss_compilands.str().c_str(),
+      ss_lib_flags.str().c_str(), phase_4.output_llvm_filename.c_str(),
+      phase_4.phase_3.phase_2.compilation->program_name.c_str(),
+      phase_4.phase_3.phase_2.compilation->program_name.c_str());
+  if (debug_compile_step) {
+    log("running %s", command_line.c_str());
+  }
+  if (std::system(command_line.c_str()) != 0) {
+    throw user_error(INTERNAL_LOC(), "failed to compile binary");
+  }
+  program_name = phase_4.phase_3.phase_2.compilation->program_name;
+  return true;
+}
+
 int run_job(const Job &job) {
   get_help = in_vector("-help", job.opts) || in_vector("--help", job.opts);
   debug_compiled_env = (getenv("SHOW_ENV") != nullptr) ||
@@ -1340,7 +1425,6 @@ int run_job(const Job &job) {
                          in_vector("-show-expr-types", job.opts);
   debug_all_translated_defns = (getenv("SHOW_DEFN_TYPES") != nullptr) ||
                                in_vector("-show-defn-types", job.opts);
-  bool graph_deps = in_vector("-graph", job.opts);
 
   std::map<std::string, std::function<int(const Job &, bool)>> cmd_map;
   cmd_map["help"] = [&](const Job &job, bool explain) {
@@ -1410,9 +1494,9 @@ int run_job(const Job &job) {
     if (job.args.size() != 1) {
       return run_job({"help", {}, {}});
     }
-    log("%s",
-        compiler::resolve_module_filename(INTERNAL_LOC(), job.args[0], ".zion")
-            .c_str());
+    log("%s", compiler::resolve_module_filename(INTERNAL_LOC(), job.args[0],
+                                                ".zion", maybe<std::string>())
+                  .c_str());
     return EXIT_SUCCESS;
   };
   cmd_map["lex"] = [&](const Job &job, bool explain) {
@@ -1425,7 +1509,7 @@ int run_job(const Job &job) {
     }
 
     std::string filename = compiler::resolve_module_filename(
-        INTERNAL_LOC(), job.args[0], ".zion");
+        INTERNAL_LOC(), job.args[0], ".zion", maybe<std::string>());
     std::ifstream ifs;
     ifs.open(filename.c_str());
     Lexer lexer({filename}, ifs);
@@ -1477,6 +1561,7 @@ int run_job(const Job &job) {
     if (job.args.size() != 1) {
       return run_job({"help", {}});
     } else {
+      bool graph_deps = in_vector("-graph", job.opts);
       auto phase_2 = compile(job.args[0], graph_deps);
       if (user_error::errors_occurred()) {
         return EXIT_FAILURE;
@@ -1496,6 +1581,7 @@ int run_job(const Job &job) {
     if (job.args.size() != 1) {
       return run_job({"help", {}});
     } else {
+      bool graph_deps = in_vector("-graph", job.opts);
       auto phase_3 = specialize(compile(job.args[0], graph_deps));
       if (user_error::errors_occurred()) {
         return EXIT_FAILURE;
@@ -1513,6 +1599,7 @@ int run_job(const Job &job) {
     if (job.args.size() != 1) {
       return run_job({"help", {}});
     } else {
+      bool graph_deps = in_vector("-graph", job.opts);
       llvm::LLVMContext context;
       Phase4 phase_4 = ssa_gen(context,
                                specialize(compile(job.args[0], graph_deps)));
@@ -1521,6 +1608,7 @@ int run_job(const Job &job) {
       return user_error::errors_occurred() ? EXIT_FAILURE : EXIT_SUCCESS;
     }
   };
+
   cmd_map["run"] = [&](const Job &job, bool explain) {
     if (explain) {
       std::cout << "run: compiles, specializes, generates LLVM output, then "
@@ -1529,77 +1617,21 @@ int run_job(const Job &job) {
       return EXIT_FAILURE;
     }
 
-    llvm::LLVMContext context;
-    Phase4 phase_4 = ssa_gen(context,
-                             specialize(compile(job.args[0], graph_deps)));
-
-    if (!user_error::errors_occurred()) {
-      std::stringstream ss_c_flags;
-      std::stringstream ss_compilands;
-      std::stringstream ss_lib_flags;
-      ss_compilands << "\"$ZION_RUNTIME/zion_rt.c\" ";
-      for (auto link_in : phase_4.phase_3.phase_2.compilation->link_ins) {
-        std::string link_text = unescape_json_quotes(link_in.name.text);
-        switch (link_in.lit) {
-        case lit_pkgconfig: {
-          ss_c_flags << get_pkg_config("--cflags-only-I", link_text) << " ";
-          ss_lib_flags << get_pkg_config("--libs --static", link_text) << " ";
-          break;
-        }
-        case lit_link:
-          ss_lib_flags << "-l\"" << link_text << "\" ";
-          break;
-        case lit_compile:
-          ss_compilands << "\"$ZION_RUNTIME/" << link_text << "\" ";
-          break;
-        }
-      }
-
-      auto command_line = string_format(
-          // We are using clang to lower the code from LLVM, and link it
-          // to the runtime.
-#ifdef __APPLE__
-          "\"$(brew --prefix)/opt/llvm/bin/clang\" "
-#else
-          "clang "
-#endif
-          // Include any necessary include dirs for C dependencies.
-          "%s "
-#ifdef __APPLE__
-          "-I \"$(xcrun --sdk macosx --show-sdk-path)/usr/include\" "
-#endif
-          // Allow for the user to specify optimizations
-          "$ZION_OPT_FLAGS "
-          // NB: we don't embed the target triple into the LL, so any
-          // targeted triple causes an ugly error from clang, so I just
-          // ignore it here.
-          "-Wno-override-module "
-          // HACKHACK: temporary workaround to allow libsodium to compile
-          "-Wno-nullability-completeness "
-          // TODO: plumb host targeting through clang here
-          // "--target=$(llvm-config --host-target) "
-          // Include extra compilands
-          "%s "
-          // Add linker flags
-          "-lm %s "
-          // Don't forget the built .ll file from our frontend here.
-          "%s "
-          // Give the binary a name.
-          "-o %s",
-          ss_c_flags.str().c_str(), ss_compilands.str().c_str(),
-          ss_lib_flags.str().c_str(), phase_4.output_llvm_filename.c_str(),
-          phase_4.phase_3.phase_2.compilation->program_name.c_str(),
-          phase_4.phase_3.phase_2.compilation->program_name.c_str());
-      if (debug_compile_step) {
-        log("running %s", command_line.c_str());
-      }
-      if (std::system(command_line.c_str()) != 0) {
-        throw user_error(INTERNAL_LOC(), "failed to compile binary");
-      }
-
-      return run_program(phase_4.phase_3.phase_2.compilation->program_name,
-                         vec_slice(job.args, 1, job.args.size()));
+    std::string program_name;
+    if (build_binary(job, false /*explain*/, program_name)) {
+      return run_program(program_name, vec_slice(job.args, 1, job.args.size()));
     } else {
+      return EXIT_FAILURE;
+    }
+  };
+
+  cmd_map["build"] = [&](const Job &job, bool explain) {
+    std::string program_name;
+    if (build_binary(job, explain, program_name)) {
+      debug_above(1, log("zion build succeeded: %s", program_name.c_str()));
+      return EXIT_SUCCESS;
+    } else {
+      std::cerr << "zion build failed." << std::endl;
       return EXIT_FAILURE;
     }
   };

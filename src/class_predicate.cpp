@@ -63,7 +63,7 @@ bool ClassPredicate::operator==(const ClassPredicate &rhs) const {
 std::string ClassPredicate::repr() const {
   if (!has_repr_) {
     std::stringstream ss;
-    ss << classname.name;
+    ss << zion::tld::strip_prefix(classname.name);
     for (auto &param : params) {
       if (dyncast<const types::TypeOperator>(param)) {
         ss << " (" << param->repr() << ")";
@@ -79,7 +79,7 @@ std::string ClassPredicate::repr() const {
 
 std::string ClassPredicate::str() const {
   std::stringstream ss;
-  ss << C_TYPECLASS << classname.name << C_RESET;
+  ss << C_TYPECLASS << zion::tld::strip_prefix(classname.name) << C_RESET;
   for (auto &param : params) {
     if (dyncast<const types::TypeOperator>(param)) {
       ss << " (" << param->str() << ")";

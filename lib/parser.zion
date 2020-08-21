@@ -4,9 +4,22 @@ import string {Strippable, has_substring_at}
 newtype ParseState = ParseState(String, Int)
 
 # Span is a run of text within the source content
-struct Span {
-  span_text String
-  pos  Int
+newtype Span = Span(String, Int)
+
+instance HasLength Span {
+  fn len(span) => match span {
+    Span(s, _) => len(s)
+  }
+}
+
+fn span_text(span) {
+  let Span(span_text, _) = span
+  return span_text
+}
+
+fn pos(span) {
+  let Span(_, pos) = span
+  return pos
 }
 
 fn span_concat(spans [Span]) Span {
@@ -41,6 +54,38 @@ fn digit(ps ParseState) Progress ParseState Span {
   }
 }
 
+fn digits(ps ParseState) Progress ParseState Span {
+  let ParseState(content, index) = ps
+  var pos = index
+  while pos < len(content) and isdigit(content[pos]) {
+    pos += 1
+  }
+  if index < pos {
+    return OK(ParseState(content, pos), Span(str(content[index:pos]), index))
+  }
+  return Fail
+}
+
+fn signed_int(ps ParseState) Progress ParseState Int {
+  let ParseState(content, index) = ps
+  var sign = 1
+  var pos = index
+  if index < len(content) and content[index] == '-' {
+    pos += 1
+  }
+
+  var found_digits = False
+  while pos < len(content) and isdigit(content[pos]) {
+    pos += 1
+    found_digits = True
+  }
+
+  if found_digits {
+    return OK(ParseState(content, pos), int(str(content[index:pos])))
+  }
+  return Fail
+}
+
 fn char(ch Char) fn (ParseState) Progress ParseState Span {
   return fn (ps) {
     let ParseState(content, index) = ps
@@ -67,6 +112,12 @@ fn not_char(ch Char) fn (ParseState) Progress ParseState Span {
   }
 }
 
+fn chomp_space(ps) Progress ParseState Span {
+  let ParseState(content, index) = ps
+  let ParseState(_, new_index) = skip_space(ps)
+  return OK(ParseState(content, new_index), Span(content[index:new_index], index))
+}
+
 fn word(ps) {
   let ParseState(content, index) = skip_space(ps)
   var cur = index
@@ -80,12 +131,14 @@ fn word(ps) {
   }
 }
 
+# equivalent to K from the SKI combinator calculus
+let const = |x| => |_| => x
+
 fn text(k String, skip_leading_space Bool) fn (ParseState) Progress ParseState Span {
   return fn (parse_state) {
     let ParseState(content, index) = parse_state
     var start = index
     if skip_leading_space {
-      # TODO: make skipping leading whitespace optional
       while start < len(content) and isspace(content[start]) {
         start += 1
       }
@@ -128,7 +181,7 @@ fn maybe_skip_space(skip Bool) => skip ? skip_space : id
 
 fn skip_space_then(parser) => |ps| => parser(skip_space(ps))
 
-fn sequence(parsers [fn (parsestate) Progress parsestate a]) fn (parsestate) Progress parsestate [a] {
+fn sequence(parsers) fn (parsestate) Progress parsestate [a] {
   return fn (parse_state) {
     let nodes = [] as [a]
     var parse_state = parse_state
@@ -144,6 +197,66 @@ fn sequence(parsers [fn (parsestate) Progress parsestate a]) fn (parsestate) Pro
       }
     }
     return OK(parse_state, nodes)
+  }
+}
+
+fn all_of_input(parser) fn (ParseState) Progress ParseState a {
+  return |ps| => match parser(ps) {
+    ok@OK(ParseState(content, pos), _) => pos == len(content) ? ok : Fail
+    Fail                               => Fail
+  }
+}
+
+
+fn within_quotes(char Char, parser) {
+  return fn (ps) Progress ParseState (Either String a) {
+    let ParseState(content, pos) = ps
+    if len(content) > pos and content[pos] == char {
+      match parser(ParseState(content, pos + 1)) {
+        OK(ParseState(content, pos), node) {
+          if len(content) > pos and content[pos] == char {
+            return OK(ParseState(content, pos + 1), Right(node))
+          } else if len(content) == pos {
+            return OK(ParseState(content, pos), Left("${char}${strconcat(node)}"))
+          } else {
+            return Fail
+          }
+        }
+        Fail {
+          return Fail
+        }
+      }
+    } else {
+      return Fail
+    }
+  }
+}
+
+fn skip_leading(char Char, parser) {
+  return fn (ps) {
+    let ParseState(content, pos) = ps
+    if len(content) > pos and content[pos] == char {
+      return parser(ParseState(content, pos + 1))
+    } else {
+      return Fail
+    }
+  }
+}
+
+fn skip_trailing(char Char, parser) {
+  return fn (ps) {
+    match parser(ps) {
+      OK(ParseState(content, pos), node) {
+        if len(content) > pos and content[pos] == char {
+          return OK(ParseState(content, pos + 1), node)
+        } else {
+          return Fail
+        }
+      }
+      Fail {
+        return Fail
+      }
+    }
   }
 }
 
@@ -182,6 +295,12 @@ fn choice(parsers) {
     }
     return Fail
   }
+}
+
+fn dot_star(ps) {
+  let ParseState(content, index) = ps
+  let content_len = len(content)
+  return OK(ParseState(content, content_len), Span(content[index:], index))
 }
 
 fn many(parser) fn (parsestate) Progress parsestate [a] {
@@ -240,6 +359,13 @@ fn many1(parser) fn (parsestate) Progress parsestate [a] {
       OK(ps, xs) => len(xs) > 0 ? progress : Fail
       Fail => Fail
     }
+  }
+}
+
+fn non_empty(parser fn (ParseState) Progress ParseState a) fn (ParseState) Progress ParseState a {
+  return |ps| => match parser(ps) {
+    ok@OK(_, x) => len(x) == 0 ? Fail : ok
+    Fail        => Fail
   }
 }
 

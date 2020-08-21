@@ -1,6 +1,6 @@
 # test: fail
 # expect: could not find a definition for
-# expect: ::std::==
+# expect: std::==
 
 data NonComparable {
     Monkey

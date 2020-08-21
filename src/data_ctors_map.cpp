@@ -6,6 +6,7 @@
 #include "dbg.h"
 #include "logger_decls.h"
 #include "ptr.h"
+#include "tld.h"
 #include "user_error.h"
 
 namespace zion {
@@ -119,8 +120,24 @@ types::Ref get_fresh_data_ctor_type(const DataCtorsMap &data_ctors_map,
     }
   }
 
-  throw user_error(ctor_id.location, "no data constructor found for %s",
-                   ctor_id.str().c_str());
+  auto error = user_error(ctor_id.location, "no data constructor found for %s",
+                          ctor_id.str().c_str());
+  std::vector<std::string> candidates;
+  for (auto type_ctors : data_ctors_map.data_ctors_type_map) {
+    for (auto ctors : type_ctors.second) {
+      if (ctors.first.find(ctor_id.name) != std::string::npos) {
+        candidates.push_back(ctors.first);
+      }
+    }
+  }
+  if (candidates.size() != 0) {
+    for (auto candidate : candidates) {
+      // TODO: add a better location by plumbing these ctor locations through.
+      error.add_info(ctor_id.location, "perhaps you meant " c_id("%s") "?",
+                     tld::strip_prefix(candidate).c_str());
+    }
+  }
+  throw error;
 }
 
 } // namespace zion

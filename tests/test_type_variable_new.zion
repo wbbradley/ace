@@ -1,0 +1,13 @@
+# test: pass
+
+newtype F = F(String)
+
+instance HasDefault F {
+  fn new() => F("PASS")
+}
+
+fn main() {
+  match new {
+    F(msg) { print(msg) }
+  }
+}

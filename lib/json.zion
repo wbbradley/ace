@@ -46,6 +46,11 @@ fn convert_quote(span Span) Span {
   return Span("\"", i)
 }
 
+fn convert_backslash(span Span) Span {
+  let Span(q, i) = span
+  return Span("\\", i)
+}
+
 fn parse_number(ps ParseState) {
   let ParseState(content, index) = skip_space(ps)
   var start = index
@@ -84,17 +89,18 @@ fn parse_number(ps ParseState) {
   }
 }
 
-fn get_parse_text() {
-  let escaped_quote = lift(convert_quote, text("\\\"", False))
-  return skip_space_then(
+let escaped_quote = lift(convert_quote, text("\\\"", False))
+let escaped_backslash = lift(convert_backslash, text("\\\\", False))
+let parse_text = skip_space_then(
     lift(
-      |x| => JText(str(x[1])),
-      sequence([
+      |x| => JText(str(x)),
+      quoted_string))
+
+let quoted_string = lift(|x [Span]| => x[1], sequence([
         char('"'),
-        lift(span_concat, many(choice([escaped_quote, not_char('"')]))),
+        lift(span_concat, many(choice([escaped_backslash, escaped_quote, not_char('"')]))),
         char('"'),
-      ])))
-}
+      ])) as fn (ParseState) Progress ParseState Span
 
 # jbool assumes that token is Str-able, and that it is either "true" or "false"
 fn jbool(token) J => JBool(str(token)[0] == 't')
@@ -136,10 +142,6 @@ fn get_json_parser() fn (ParseState) Progress ParseState J {
   var parser = |ps| => Fail
   # Make sure the placeholder is evaluated lazily.
   let parse_json = |ps| => parser(ps)
-
-
-  # The text parser is shared. Pull it out.
-  let parse_text = get_parse_text()
 
   # The following assignment is important because it closes the cycle in the
   # function's definition back to itself.

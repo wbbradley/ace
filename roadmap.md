@@ -10,6 +10,7 @@
 - [ ] error on unused imports
 - [ ] allow nested modules (ie: net/http)
 - [ ] design/implement some form of [functional dependencies](https://github.com/zionlang/reference-docs/blob/master/docs/2000-jones-functional-dependencies.pdf) for mptc sanity
+- [ ] unused variable check (variables that only appear on lhs)
 
 ## Standard Library (lib/std)
 
@@ -41,4 +42,5 @@
 - [ ] move semantics and other [substructural type systems](https://en.wikipedia.org/wiki/Substructural_type_system) (v1.2)
 - [ ] improve compilation speeds
 - [ ] benchmark JSON parsing speed
+- [ ] compiler: optimize coverage analysis
 

@@ -45,7 +45,8 @@ Compilation::ref parse_program(
 /* parse a single module */
 std::string resolve_module_filename(Location location,
                                     std::string name,
-                                    std::string extension);
+                                    std::string extension,
+                                    const maybe<std::string> &reference_path);
 std::set<std::string> get_top_level_decls(
     const std::vector<const ast::Decl *> &decls,
     const std::vector<const ast::TypeDecl *> &type_decls,

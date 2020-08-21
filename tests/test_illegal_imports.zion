@@ -1,5 +1,5 @@
 # test: fail
-# expect: ::map::needs_to_grow is not exported or does not exist
+# expect: map::needs_to_grow is not exported or does not exist
 
 import map {needs_to_grow}
 

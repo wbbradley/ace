@@ -3,6 +3,7 @@
 #include <sstream>
 
 #include "dbg.h"
+#include "tld.h"
 #include "user_error.h"
 #include "zion.h"
 
@@ -41,7 +42,7 @@ zion::Token Identifier::get_token() const {
 }
 
 std::string Identifier::str() const {
-  return string_format(c_id("%s"), name.c_str());
+  return string_format(c_id("%s"), zion::tld::strip_prefix(name).c_str());
 }
 
 Identifier Identifier::from_token(zion::Token token) {

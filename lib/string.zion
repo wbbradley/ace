@@ -81,6 +81,13 @@ instance Ord String {
     fn max(a, b) => a > b ? a : b
 }
 
+instance ConvertibleToInt String {
+  fn int(sz) Int {
+    let String(a, len_a) = sz
+    return ffi zion_atoi(a, len_a)
+  }
+}
+
 instance HasIndexableItems String Int Char {
     fn get_indexed_item(s String, index Int) {
         let String(sz, len) = s
@@ -150,6 +157,8 @@ instance Strippable String {
     return s[i:j+1]
   }
 }
+
+let empty_string = ""
 
 fn chomp(s String) String {
     let String(sz, cb) = s
@@ -235,10 +244,11 @@ fn replace(source String, term String, new_term String) String {
     return join("", result)
 }
 
+fn strconcat(xs) String => "".join(xs)
+
 fn join(delim_ String, xs) String {
     let results = [] as [String]
     var total = 0
-    var cur_delim_len = 0
     let delim_len = len(delim_)
     var count = 0
     for x in xs {
@@ -246,7 +256,6 @@ fn join(delim_ String, xs) String {
         let s = str(x)
         append(results, s)
         total = total + len(s)
-        cur_delim_len = delim_len
     }
     if count == 0 {
       return ""

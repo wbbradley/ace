@@ -8,6 +8,7 @@
 #include "builtins.h"
 #include "data_ctors_map.h"
 #include "ptr.h"
+#include "tld.h"
 #include "translate.h"
 #include "types.h"
 #include "unification.h"
@@ -267,23 +268,14 @@ Pattern::ref intersect(Pattern::ref lhs, Pattern::ref rhs) {
   /* ironically, this is where pattern matching would really help... */
   auto lhs_nothing = lhs->asNothing();
   auto rhs_nothing = rhs->asNothing();
-  auto lhs_allof = asAllOf(lhs);
-  auto rhs_allof = asAllOf(rhs);
-  auto lhs_ctor_patterns = asCtorPatterns(lhs);
-  auto rhs_ctor_patterns = asCtorPatterns(rhs);
-  auto lhs_ctor_pattern = asCtorPattern(lhs);
-  auto rhs_ctor_pattern = asCtorPattern(rhs);
-  auto lhs_integers = asScalars<int64_t>(lhs);
-  auto rhs_integers = asScalars<int64_t>(rhs);
-  auto lhs_floats = asScalars<double>(lhs);
-  auto rhs_floats = asScalars<double>(rhs);
-  auto lhs_chars = asScalars<uint8_t>(lhs);
-  auto rhs_chars = asScalars<uint8_t>(rhs);
 
   if (lhs_nothing || rhs_nothing) {
     /* intersection of nothing and anything is nothing */
     return theNothing;
   }
+
+  auto lhs_allof = asAllOf(lhs);
+  auto rhs_allof = asAllOf(rhs);
 
   if (lhs_allof) {
     /* intersection of everything and x is x */
@@ -295,11 +287,17 @@ Pattern::ref intersect(Pattern::ref lhs, Pattern::ref rhs) {
     return lhs;
   }
 
+  auto lhs_ctor_pattern = asCtorPattern(lhs);
+  auto rhs_ctor_pattern = asCtorPattern(rhs);
+
   if (lhs_ctor_pattern && rhs_ctor_pattern) {
     std::vector<CtorPatternValue> lhs_cpvs({lhs_ctor_pattern->cpv});
     std::vector<CtorPatternValue> rhs_cpvs({rhs_ctor_pattern->cpv});
     return intersect(rhs->location, lhs_cpvs, rhs_cpvs);
   }
+
+  auto lhs_ctor_patterns = asCtorPatterns(lhs);
+  auto rhs_ctor_patterns = asCtorPatterns(rhs);
 
   if (lhs_ctor_patterns && rhs_ctor_pattern) {
     std::vector<CtorPatternValue> rhs_cpvs({rhs_ctor_pattern->cpv});
@@ -311,13 +309,22 @@ Pattern::ref intersect(Pattern::ref lhs, Pattern::ref rhs) {
     return intersect(rhs->location, lhs_cpvs, rhs_ctor_patterns->cpvs);
   }
 
+  auto lhs_integers = asScalars<int64_t>(lhs);
+  auto rhs_integers = asScalars<int64_t>(rhs);
+
   if (lhs_integers && rhs_integers) {
     return intersect(*lhs_integers, *rhs_integers);
   }
 
+  auto lhs_floats = asScalars<double>(lhs);
+  auto rhs_floats = asScalars<double>(rhs);
+
   if (lhs_floats && rhs_floats) {
     return intersect(*lhs_floats, *rhs_floats);
   }
+
+  auto lhs_chars = asScalars<uint8_t>(lhs);
+  auto rhs_chars = asScalars<uint8_t>(rhs);
 
   if (lhs_chars && rhs_chars) {
     return intersect(*lhs_chars, *rhs_chars);
@@ -334,12 +341,6 @@ Pattern::ref intersect(Pattern::ref lhs, Pattern::ref rhs) {
 Pattern::ref pattern_union(Pattern::ref lhs, Pattern::ref rhs) {
   auto lhs_nothing = lhs->asNothing();
   auto rhs_nothing = rhs->asNothing();
-  auto lhs_allof = asAllOf(lhs);
-  auto rhs_allof = asAllOf(rhs);
-  auto lhs_ctor_patterns = asCtorPatterns(lhs);
-  auto rhs_ctor_patterns = asCtorPatterns(rhs);
-  auto lhs_ctor_pattern = asCtorPattern(lhs);
-  auto rhs_ctor_pattern = asCtorPattern(rhs);
 
   if (lhs_nothing) {
     return rhs;
@@ -349,6 +350,9 @@ Pattern::ref pattern_union(Pattern::ref lhs, Pattern::ref rhs) {
     return lhs;
   }
 
+  auto lhs_ctor_patterns = asCtorPatterns(lhs);
+  auto rhs_ctor_patterns = asCtorPatterns(rhs);
+
   if (lhs_ctor_patterns && rhs_ctor_patterns) {
     std::vector<CtorPatternValue> cpvs = lhs_ctor_patterns->cpvs;
     for (auto &cpv : rhs_ctor_patterns->cpvs) {
@@ -357,14 +361,23 @@ Pattern::ref pattern_union(Pattern::ref lhs, Pattern::ref rhs) {
     return std::make_shared<CtorPatterns>(lhs->location, cpvs);
   }
 
+  auto lhs_ctor_pattern = asCtorPattern(lhs);
+  auto rhs_ctor_pattern = asCtorPattern(rhs);
+
   if (lhs_ctor_patterns && rhs_ctor_pattern) {
-    std::vector<CtorPatternValue> cpvs = lhs_ctor_patterns->cpvs;
+    std::vector<CtorPatternValue> cpvs;
+    cpvs.reserve(lhs_ctor_patterns->cpvs.size() + 1);
+    std::copy(lhs_ctor_patterns->cpvs.begin(), lhs_ctor_patterns->cpvs.end(),
+              std::back_inserter(cpvs));
     cpvs.push_back(rhs_ctor_pattern->cpv);
     return std::make_shared<CtorPatterns>(lhs->location, cpvs);
   }
 
   if (lhs_ctor_pattern && rhs_ctor_patterns) {
-    std::vector<CtorPatternValue> cpvs = rhs_ctor_patterns->cpvs;
+    std::vector<CtorPatternValue> cpvs;
+    cpvs.reserve(rhs_ctor_patterns->cpvs.size() + 1);
+    std::copy(rhs_ctor_patterns->cpvs.begin(), rhs_ctor_patterns->cpvs.end(),
+              std::back_inserter(cpvs));
     cpvs.push_back(lhs_ctor_pattern->cpv);
     return std::make_shared<CtorPatterns>(lhs->location, cpvs);
   }
@@ -681,7 +694,7 @@ std::string CtorPatterns::str() const {
 
 std::string CtorPatternValue::str() const {
   std::stringstream ss;
-  ss << name;
+  ss << zion::tld::strip_prefix(name);
   if (args.size() != 0) {
     ss << "(" << ::join_str(args, ", ") << ")";
   }

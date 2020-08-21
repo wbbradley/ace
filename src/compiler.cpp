@@ -63,9 +63,46 @@ const std::vector<std::string> &get_zion_paths() {
 
 namespace compiler {
 
+void resolve_module_filename_in_path(Location location,
+                                     std::string zion_path,
+                                     std::string leaf_name,
+                                     std::string name,
+                                     std::string &working_resolution) {
+  debug_above(2, log("attempting to resolve filename %s in %s",
+                     leaf_name.c_str(), zion_path.c_str()));
+  auto test_path = zion_path + "/" + leaf_name;
+  if (file_exists(test_path)) {
+    std::string test_resolution;
+    if (real_path(test_path, test_resolution)) {
+      if (working_resolution.size() && working_resolution != test_resolution) {
+        throw user_error(location,
+                         "multiple " C_FILENAME "%s" C_RESET
+                         " modules found with the same name in source "
+                         "path [%s, %s]",
+                         name.c_str(), working_resolution.c_str(),
+                         test_resolution.c_str());
+      } else {
+        working_resolution = test_resolution;
+        debug_above(11, log(log_info, "searching for file %s, found it at %s",
+                            name.c_str(), working_resolution.c_str()));
+      }
+    } else {
+      /* if the file exists, it should have a real_path */
+      panic(string_format(
+          "searching for file %s, unable to resolve its real path (%s)",
+          name.c_str(), test_path.c_str()));
+    }
+  } else {
+    debug_above(11,
+                log(log_info, "searching for file %s, did not find it at %s",
+                    name.c_str(), test_path.c_str()));
+  }
+}
+
 std::string resolve_module_filename(Location location,
                                     std::string name,
-                                    std::string extension) {
+                                    std::string extension,
+                                    const maybe<std::string> &reference_path) {
   std::string filename_test_resolution;
   if (real_path(name, filename_test_resolution)) {
     if (name == filename_test_resolution) {
@@ -93,35 +130,15 @@ std::string resolve_module_filename(Location location,
     leaf_name = name + extension;
   }
   std::string working_resolution;
+  if (reference_path.valid) {
+    /* check the directory from which we were referenced */
+    resolve_module_filename_in_path(location, reference_path.t, leaf_name, name,
+                                    working_resolution);
+  }
+
   for (auto zion_path : get_zion_paths()) {
-    auto test_path = zion_path + "/" + leaf_name;
-    if (file_exists(test_path)) {
-      std::string test_resolution;
-      if (real_path(test_path, test_resolution)) {
-        if (working_resolution.size() &&
-            working_resolution != test_resolution) {
-          throw user_error(location,
-                           "multiple " C_FILENAME "%s" C_RESET
-                           " modules found with the same name in source "
-                           "path [%s, %s]",
-                           name.c_str(), working_resolution.c_str(),
-                           test_resolution.c_str());
-        } else {
-          working_resolution = test_resolution;
-          debug_above(11, log(log_info, "searching for file %s, found it at %s",
-                              name.c_str(), working_resolution.c_str()));
-        }
-      } else {
-        /* if the file exists, it should have a real_path */
-        panic(string_format(
-            "searching for file %s, unable to resolve its real path (%s)",
-            name.c_str(), test_path.c_str()));
-      }
-    } else {
-      debug_above(11,
-                  log(log_info, "searching for file %s, did not find it at %s",
-                      name.c_str(), test_path.c_str()));
-    }
+    resolve_module_filename_in_path(location, zion_path, leaf_name, name,
+                                    working_resolution);
   }
 
   if (working_resolution.size() != 0) {
@@ -150,13 +167,13 @@ struct GlobalParserState {
   std::set<LinkIn> link_ins;
   const std::map<std::string, int> &builtin_arities;
 
-  const Module *parse_module_statefully(Identifier module_id) {
+  const Module *parse_module_statefully(Identifier module_id, const maybe<std::string> &reference_path) {
     if (auto module = get(modules_map_by_name, module_id.name,
                           static_cast<const Module *>(nullptr))) {
       return module;
     }
     std::string module_filename = compiler::resolve_module_filename(
-        module_id.location, module_id.name, ".zion");
+        module_id.location, module_id.name, ".zion", reference_path);
     if (auto module = get(modules_map_by_filename, module_filename,
                           static_cast<const Module *>(nullptr))) {
       return module;
@@ -187,8 +204,12 @@ struct GlobalParserState {
       debug_above(8, log("while parsing %s got module dependencies {%s}",
                          ps.module_name.c_str(),
                          join(dependencies, ", ").c_str()));
+
+      const maybe<std::string> reference_path = directory_from_file_path(
+          module_filename);
+
       for (auto dependency : dependencies) {
-        parse_module_statefully(dependency);
+        parse_module_statefully(dependency, reference_path);
       }
 
       return module;
@@ -330,7 +351,8 @@ Compilation::ref parse_program(
     /* include the builtins library */
     if (getenv("NO_PRELUDE") == nullptr || atoi(getenv("NO_PRELUDE")) == 0) {
       gps.parse_module_statefully(
-          Identifier{"std" /* lib/std */, Location{"std", 0, 0}});
+          Identifier{"std" /* lib/std */, Location{"std", 0, 0}},
+          maybe<std::string>());
     } else {
       /* in the case that we are omitting the prelude, still include the GC */
       gps.link_ins.insert(LinkIn{
@@ -339,7 +361,8 @@ Compilation::ref parse_program(
 
     /* now parse the main program module */
     gps.parse_module_statefully(Identifier{
-        user_program_name, Location{"command line build parameters", 0, 0}});
+        user_program_name, Location{"command line build parameters", 0, 0}},
+        maybe<std::string>());
 
     debug_above(11, log(log_info, "parse_module of %s succeeded",
                         module_name.c_str(), false /*global*/));
@@ -351,7 +374,7 @@ Compilation::ref parse_program(
         gps.symbol_imports, gps.symbol_exports);
 
     std::string program_filename = compiler::resolve_module_filename(
-        INTERNAL_LOC(), user_program_name, ".zion");
+        INTERNAL_LOC(), user_program_name, ".zion", maybe<std::string>());
     return merge_compilation(
         program_filename, program_name,
         rewrite_modules(rewriting_imports_rules, gps.modules), gps.comments,

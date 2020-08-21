@@ -1,5 +1,5 @@
 # test: fail
-# expect: type error. Int != ::string::String
+# expect: type error. Int != string::String
 
 class Foo a {
   fn foo(a) Int

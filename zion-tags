@@ -12,7 +12,7 @@ if [ $# -eq 0 ]; then
   targets=(
     .
     "$(maybe-dir "$(llvm-config --cppflags | xargs -n 1 echo | grep '^-I' | cut -c3-)")"
-    "$ZION_ROOT"
+    "${ZION_ROOT:-/usr/local/share/zion}"
   )
 else
   targets=(

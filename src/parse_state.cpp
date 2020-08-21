@@ -150,7 +150,7 @@ void ParseState::add_term_map(Location location,
   if (!allow_override && in(key, module_term_map)) {
     throw user_error(location, "symbol %s imported twice", key.c_str())
         .add_info(location, "%s was already mapped to %s", key.c_str(),
-                  module_term_map.at(key).c_str());
+                  tld::strip_prefix(module_term_map.at(key)).c_str());
   }
   module_term_map[key] = value;
 }

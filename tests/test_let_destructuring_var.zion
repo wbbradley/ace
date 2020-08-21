@@ -1,6 +1,6 @@
 # test: pass
 # expect: 2
-# expect: the type is ::std::Ref Int
+# expect: the type is std::Ref Int
 
 newtype N = N(var Int)
 

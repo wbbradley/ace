@@ -1,6 +1,7 @@
 #include "scheme_resolver.h"
 
 #include "dbg.h"
+#include "tld.h"
 #include "unification.h"
 #include "user_error.h"
 
@@ -48,7 +49,8 @@ types::SchemeRef SchemeResolver::lookup_scheme(
       return parent->lookup_scheme(id, candidates);
     } else {
       auto user_error = zion::user_error(
-          id.location, "symbol " c_id("%s") " is undefined", id.name.c_str());
+          id.location, "symbol " c_id("%s") " is undefined",
+          zion::tld::strip_prefix(id.name).c_str());
       for (auto &id : candidates) {
         user_error.add_info(id.location, "did you mean %s?", id.str().c_str());
       }

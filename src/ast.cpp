@@ -49,7 +49,7 @@ Location Var::get_location() const {
 }
 
 std::ostream &Var::render(std::ostream &os, int parent_precedence) const {
-  return os << C_ID << id.name << C_RESET;
+  return os << C_ID << tld::strip_prefix(id.name) << C_RESET;
 }
 
 Location As::get_location() const {
@@ -338,7 +338,7 @@ std::ostream &CtorPredicate::render(std::ostream &os) const {
   if (name_assignment.valid) {
     os << C_ID << name_assignment.t << C_RESET << "@";
   }
-  os << C_ID << ctor_name.name << C_RESET;
+  os << C_ID << tld::strip_prefix(ctor_name.name) << C_RESET;
   if (params.size() != 0) {
     os << "(";
     const char *delim = "";

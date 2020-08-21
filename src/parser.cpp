@@ -180,11 +180,15 @@ const Expr *parse_for_block(ParseState &ps) {
 }
 
 const Expr *parse_new_expr(ParseState &ps) {
+  auto location = ps.token.location;
   ps.advance();
   return new As(new Application(new Var(ps.id_mapped(Identifier{
                                     "new", ps.prior_token.location})),
                                 {unit_expr(ps.token.location)}),
-                parse_type(ps, true /*allow_top_level_application*/),
+
+                (token_begins_type(ps.token) && !ps.line_broke())
+                    ? parse_type(ps, true /*allow_top_level_application*/)
+                    : type_variable(location),
                 false /*force_cast*/);
 }
 
