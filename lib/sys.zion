@@ -5,6 +5,8 @@ link pkg "bdw-gc"
 newtype FileDescriptor = FileDescriptor(Int)
 newtype LineReader stream = LineReader(BufferedFileIO stream)
 
+let args = get_args()
+
 fn get_args() [String] {
   let argc = ffi zion_sys_argc() as Int
   let argv = ffi zion_sys_argv() as *(*Char)

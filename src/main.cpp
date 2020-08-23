@@ -1120,6 +1120,20 @@ llvm::Function *build_main_function(llvm::IRBuilder<> &builder,
       builder.getContext(), MAIN_PROGRAM_BLOCK, llvm_function);
 
   builder.SetInsertPoint(entry_block);
+
+  // Initialize the process
+  auto llvm_zion_init_func_decl = llvm::cast<llvm::Function>(
+      llvm_module
+          ->getOrInsertFunction("zion_init", llvm_main_function_type(builder))
+          .getCallee());
+  auto arg_iter = llvm_function->args().begin();
+  llvm::Value *llvm_argc = *&arg_iter;
+  ++arg_iter;
+  llvm::Value *llvm_argv = *&arg_iter;
+  std::vector<llvm::Value *> zion_main_args{llvm_argc, llvm_argv};
+  builder.CreateCall(llvm_zion_init_func_decl,
+                     llvm::ArrayRef<llvm::Value *>(zion_main_args));
+
   llvm::IRBuilderBase::InsertPointGuard ipg(builder);
 
   builder.CreateBr(main_block);
@@ -1139,19 +1153,6 @@ void write_main_block(llvm::IRBuilder<> &builder,
                       llvm::Function *llvm_function) {
   builder.SetInsertPoint(
       zion::llvm_find_block_by_name(llvm_function, MAIN_PROGRAM_BLOCK));
-
-  // Initialize the process
-  auto llvm_zion_init_func_decl = llvm::cast<llvm::Function>(
-      llvm_module
-          ->getOrInsertFunction("zion_init", llvm_main_function_type(builder))
-          .getCallee());
-  auto arg_iter = llvm_function->args().begin();
-  llvm::Value *llvm_argc = *&arg_iter;
-  ++arg_iter;
-  llvm::Value *llvm_argv = *&arg_iter;
-  std::vector<llvm::Value *> zion_main_args{llvm_argc, llvm_argv};
-  builder.CreateCall(llvm_zion_init_func_decl,
-                     llvm::ArrayRef<llvm::Value *>(zion_main_args));
 
   llvm::Value *llvm_main_closure = gen::get_env_var(
       builder, gen_env, make_iid(main_closure), main_closure_type());
