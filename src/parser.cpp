@@ -1541,9 +1541,9 @@ const Expr *parse_ternary_expr(ParseState &ps) {
     ps.advance();
 
     const Expr *truthy_expr = parse_or_expr(ps);
-    expect_token(tk_colon);
+    expect_operator(":");
     ps.advance();
-    return new Conditional(condition, truthy_expr, parse_expr(ps));
+    return new Conditional(condition, truthy_expr, parse_or_expr(ps));
   } else {
     return condition;
   }
