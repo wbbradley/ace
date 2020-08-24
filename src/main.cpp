@@ -368,7 +368,7 @@ tarjan::Graph build_program_graph(const std::vector<const Decl *> &decls) {
         throw user_error(decl->id.location,
                          "found free_var \"%s\" that is not fully qualified "
                          "within %s (TODO: extract free variable locations, "
-                         "not just containing functin location)",
+                         "not just the containing function's location)",
                          free_var.c_str(),
                          zion::tld::strip_prefix(name).c_str());
       }

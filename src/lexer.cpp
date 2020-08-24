@@ -145,6 +145,7 @@ bool Lexer::_get_tokens() {
     gts_comment,
     gts_cr,
     gts_dot,
+    gts_slash,
     gts_end,
     gts_end_quoted,
     gts_error,
@@ -254,6 +255,21 @@ bool Lexer::_get_tokens() {
         --multiline_comment_depth;
       }
       break;
+    case gts_slash:
+      if (ch == '*') {
+        gts = gts_multiline_comment;
+        assert(multiline_comment_depth == 0);
+        ++multiline_comment_depth;
+      } else {
+        tk = tk_operator;
+        if (isoptail(ch)) {
+          gts = gts_operator;
+        } else {
+          scan_ahead = false;
+          gts = gts_end;
+        }
+      }
+      break;
     case gts_dot:
       gts = gts_end;
       if (isdigit(ch)) {
@@ -270,6 +286,9 @@ bool Lexer::_get_tokens() {
       break;
     case gts_start:
       switch (ch) {
+      case '/':
+        gts = gts_slash;
+        break;
       case '.':
         gts = gts_dot;
         tk = tk_operator;

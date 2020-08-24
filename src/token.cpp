@@ -113,7 +113,10 @@ bool Token::is_oper(const char *x) const {
 }
 
 bool Token::is_oper_like(const char *x) const {
-  return tk == tk_operator && starts_with(text, x);
+  return tk == tk_operator && starts_with(text, x) &&
+         // Prevent assignment operators from being treated "like other
+         // operators.
+         !(text.size() == 2 && text[1] == '=');
 }
 
 bool Token::operator<(const Token &rhs) const {

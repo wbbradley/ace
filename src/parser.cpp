@@ -551,6 +551,7 @@ const Expr *parse_var_ref(ParseState &ps) {
 
 const Expr *parse_base_expr(ParseState &ps) {
   if (ps.token.is_dot_ident()) {
+    dbg();
     auto iid = gensym(ps.token.location);
     return new Lambda(
         {iid}, {type_variable(ps.token.location)},
@@ -565,6 +566,8 @@ const Expr *parse_base_expr(ParseState &ps) {
     return parse_lambda(ps);
   } else if (ps.token.is_oper("|")) {
     return parse_lambda(ps, "|", "|");
+  } else if (ps.token.is_oper("||")) {
+    return parse_lambda(ps, "||", "");
   } else if (ps.token.is_ident(K(match))) {
     return parse_match(ps);
   } else if (ps.token.is_ident(K(null))) {
@@ -2001,7 +2004,7 @@ const Expr *parse_lambda(ParseState &ps,
   types::Refs param_types;
   chomp_text(start_param_list);
 
-  while (!maybe_chomp_text(end_param_list)) {
+  while (end_param_list.size() != 0 && !maybe_chomp_text(end_param_list)) {
     if (param_ids.size() != 0 && ps.token.tk != tk_rparen) {
       /* chomp any delimiting commas */
       chomp_token(tk_comma);

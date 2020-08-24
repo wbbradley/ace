@@ -85,7 +85,7 @@ std::ostream &Application::render(std::ostream &os,
                                   int parent_precedence) const {
   const int precedence = 9;
 
-  if (params.size() == 2)
+  if (false && params.size() == 2)
     if (auto oper = dcast<const Var *>(a)) {
       if (strspn(oper->id.name.c_str(), MATHY_SYMBOLS) ==
           oper->id.name.size()) {
