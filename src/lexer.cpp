@@ -31,6 +31,32 @@ bool istchar(char ch) {
   return false;
 }
 
+bool isoptail(int ch) {
+  switch (ch) {
+  case '=':
+  case '-':
+  case '_':
+  case '+':
+  case '!':
+  case '@':
+  case '$':
+  case '%':
+  case '^':
+  case '&':
+  case '*':
+  case '<':
+  case '>':
+  case '|':
+  case '\\':
+  case '~':
+  case '.':
+  case '?':
+    return true;
+  default:
+    return false;
+  }
+}
+
 bool Lexer::eof() {
   return m_is.eof();
 }
@@ -110,35 +136,22 @@ void advance_line_col(char ch, int &line, int &col) {
 }
 
 bool Lexer::_get_tokens() {
-  /* _get_tokens should make sure there are tokens in the queue. */
   enum gt_state {
-    gts_bang,
-    gts_bangeq,
-    gts_colon,
     gts_comment,
     gts_cr,
-    gts_divide_by,
     gts_dot,
     gts_end,
     gts_end_quoted,
-    gts_eq,
-    gts_eqeq,
     gts_error,
     gts_expon,
     gts_expon_symbol,
     gts_float,
-    gts_gt,
     gts_hexadecimal,
     gts_integer,
-    gts_lt,
-    gts_maybe,
-    gts_minus,
-    gts_mod,
     gts_multiline_comment,
     gts_multiline_comment_slash,
     gts_multiline_comment_star,
     gts_octal,
-    gts_plus,
     gts_quoted,
     gts_quoted_escape,
     gts_quoted_dollar,
@@ -146,11 +159,11 @@ bool Lexer::_get_tokens() {
     gts_single_quoted_escape,
     gts_single_quoted_got_char,
     gts_start,
-    gts_times,
     gts_token,
     gts_whitespace,
     gts_zero,
     gts_zerox,
+    gts_operator,
   };
 
   gt_state gts = gts_start;
@@ -183,69 +196,9 @@ bool Lexer::_get_tokens() {
         gts = gts_error;
       }
       break;
-    case gts_maybe:
-      scan_ahead = false;
-      gts = gts_end;
-      tk = tk_maybe;
-      break;
-    case gts_plus:
-      if (ch == '=') {
-        gts = gts_end;
-        tk = tk_plus_eq;
-      } else {
-        scan_ahead = false;
-        gts = gts_end;
-        tk = tk_plus;
-      }
-      break;
-    case gts_minus:
-      if (ch == '=') {
-        gts = gts_end;
-        tk = tk_minus_eq;
-      } else {
-        scan_ahead = false;
-        gts = gts_end;
-        tk = tk_minus;
-      }
-      break;
-    case gts_times:
-      if (ch == '=') {
-        gts = gts_end;
-        tk = tk_times_eq;
-      } else {
-        scan_ahead = false;
-        gts = gts_end;
-        tk = tk_times;
-      }
-      break;
-    case gts_divide_by:
-      if (ch == '*') {
-        gts = gts_multiline_comment;
-        assert(multiline_comment_depth == 0);
-        ++multiline_comment_depth;
-      } else if (ch == '=') {
-        gts = gts_end;
-        tk = tk_divide_by_eq;
-      } else {
-        scan_ahead = false;
-        gts = gts_end;
-        tk = tk_divide_by;
-      }
-      break;
-    case gts_mod:
-      if (ch == '=') {
-        gts = gts_end;
-        tk = tk_mod_eq;
-      } else {
-        scan_ahead = false;
-        gts = gts_end;
-        tk = tk_mod;
-      }
-      break;
-    case gts_colon:
-      if (ch == '=') {
-        gts = gts_end;
-        tk = tk_becomes;
+    case gts_operator:
+      if (isoptail(ch)) {
+        tk = tk_operator;
       } else {
         scan_ahead = false;
         gts = gts_end;
@@ -300,121 +253,29 @@ bool Lexer::_get_tokens() {
       gts = gts_end;
       if (isdigit(ch)) {
         gts = gts_float;
-      } else if (ch == '.') {
-        gts = gts_end;
-        tk = tk_double_dot;
-      } else {
-        scan_ahead = false;
-      }
-      break;
-    case gts_gt:
-      gts = gts_end;
-      if (ch == '=') {
-        tk = tk_gte;
-      } else if (ch == '>') {
-        tk = tk_shift_right;
-      } else {
-        scan_ahead = false;
-      }
-      gts = gts_end;
-      break;
-    case gts_lt:
-      gts = gts_end;
-      if (ch == '=') {
-        tk = tk_lte;
-      } else if (ch == '<') {
-        tk = tk_shift_left;
-      } else if (ch == ':') {
-        tk = tk_subtype;
-      } else {
-        scan_ahead = false;
-      }
-      break;
-    case gts_bang:
-      if (ch == '=') {
-        gts = gts_bangeq;
-        tk = tk_inequal;
-      } else {
-        gts = gts_end;
-        scan_ahead = false;
-      }
-      break;
-    case gts_bangeq:
-      gts = gts_end;
-      if (ch == '=') {
-        tk = tk_binary_inequal;
+      } else if (isoptail(ch)) {
+        gts = gts_operator;
+      } else if (istchar_start(ch)) {
+        /* .foo is an identifier with prefix or postfix placement */
+        gts = gts_token;
+        tk = tk_identifier;
       } else {
         scan_ahead = false;
       }
       break;
     case gts_start:
       switch (ch) {
-      case '?':
-        gts = gts_maybe;
-        tk = tk_maybe;
-        break;
-      case '!':
-        gts = gts_bang;
-        tk = tk_bang;
-        break;
-      case '/':
-        gts = gts_divide_by;
-        break;
-      case '\\':
-        tk = tk_backslash;
-        gts = gts_end;
-        break;
-      case '*':
-        gts = gts_times;
-        break;
-      case '~':
-        tk = tk_tilde;
-        gts = gts_end;
-        break;
-      case '$':
-        tk = tk_dollar;
-        gts = gts_end;
-        break;
-      case '%':
-        gts = gts_mod;
-        break;
-      case '|':
-        gts = gts_end;
-        tk = tk_pipe;
-        break;
-      case '^':
-        gts = gts_end;
-        tk = tk_hat;
-        break;
-      case '-':
-        gts = gts_minus;
-        break;
-      case '+':
-        gts = gts_plus;
-        break;
-      case '@':
-        gts = gts_end;
-        tk = tk_about;
+      case '.':
+        gts = gts_dot;
+        tk = tk_operator;
         break;
       case '#':
         gts = gts_comment;
         tk = tk_comment;
         break;
-      case '.':
-        gts = gts_dot;
-        tk = tk_dot;
-        break;
       case ';':
         gts = gts_end;
         tk = tk_semicolon;
-        break;
-      case '&':
-        gts = gts_end;
-        tk = tk_ampersand;
-        break;
-      case ':':
-        gts = gts_colon;
-        tk = tk_colon;
         break;
       case '\r':
         gts = gts_cr;
@@ -433,10 +294,6 @@ bool Lexer::_get_tokens() {
       case ' ':
         tk = tk_space;
         gts = gts_whitespace;
-        break;
-      case '=':
-        tk = tk_assign;
-        gts = gts_eq;
         break;
       case '\'':
         gts = gts_single_quoted;
@@ -477,14 +334,6 @@ bool Lexer::_get_tokens() {
         tk = tk_rcurly;
         gts = gts_end;
         break;
-      case '<':
-        tk = tk_lt;
-        gts = gts_lt;
-        break;
-      case '>':
-        tk = tk_gt;
-        gts = gts_gt;
-        break;
       case '0':
         tk = tk_integer;
         gts = gts_zero;
@@ -517,26 +366,6 @@ bool Lexer::_get_tokens() {
             gts = gts_error;
           }
         }
-      }
-      break;
-    case gts_eq:
-      if (ch == '=') {
-        gts = gts_eqeq;
-        tk = tk_equal;
-      } else if (ch == '>') {
-        tk = tk_expr_block;
-        gts = gts_end;
-      } else {
-        gts = gts_end;
-        scan_ahead = false;
-      }
-      break;
-    case gts_eqeq:
-      gts = gts_end;
-      if (ch == '=') {
-        tk = tk_binary_equal;
-      } else {
-        scan_ahead = false;
       }
       break;
     case gts_float:
@@ -627,7 +456,7 @@ bool Lexer::_get_tokens() {
         if (sequence_length > 1) {
           --sequence_length;
         } else {
-          assert(tk = tk_identifier);
+          assert(tk == tk_identifier);
           tk = tk_identifier;
           gts = gts_end;
           scan_ahead = false;

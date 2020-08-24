@@ -1,6 +1,7 @@
 #include "token.h"
 
 #include <sstream>
+#include <unordered_set>
 
 #include "dbg.h"
 #include "user_error.h"
@@ -22,16 +23,18 @@ bool is_restricted_var_name(std::string x) {
   return false;
 }
 
-bool is_assignment_operator(TokenKind tk) {
-  switch (tk) {
-  case tk_assign:
-  case tk_plus_eq:
-  case tk_minus_eq:
-  case tk_divide_by_eq:
-  case tk_mod_eq:
-  case tk_times_eq:
-  case tk_becomes:
-    return true;
+bool is_assignment_operator(const Token& token) {
+  static const std::unordered_set<std::string> assignment_operators = {
+    "=",
+    "+=",
+    "-=",
+    "*=",
+    "/=",
+    "%=",
+  };
+  switch (token.tk) {
+  case tk_operator:
+    return in(token.text, assignment_operators);
   default:
     return false;
   }
@@ -62,63 +65,28 @@ std::string Token::str() const {
 
 const char *tkstr(TokenKind tk) {
   switch (tk) {
-    tk_case(about);
-    tk_case(ampersand);
-    tk_case(assign);
-    tk_case(backslash);
-    tk_case(bang);
-    tk_case(becomes);
-    tk_case(binary_equal);
-    tk_case(binary_inequal);
+    tk_case(operator);
     tk_case(char);
-    tk_case(colon);
     tk_case(comma);
     tk_case(comment);
-    tk_case(divide_by);
-    tk_case(divide_by_eq);
-    tk_case(dollar);
-    tk_case(dot);
-    tk_case(double_dot);
-    tk_case(equal);
     tk_case(error);
-    tk_case(expr_block);
     tk_case(float);
-    tk_case(gt);
-    tk_case(gte);
-    tk_case(hat);
     tk_case(identifier);
-    tk_case(inequal);
     tk_case(integer);
     tk_case(lcurly);
     tk_case(lparen);
     tk_case(lsquare);
-    tk_case(lt);
-    tk_case(lte);
-    tk_case(maybe);
-    tk_case(minus);
-    tk_case(minus_eq);
-    tk_case(mod);
-    tk_case(mod_eq);
     tk_case(newline);
     tk_case(none);
-    tk_case(pipe);
-    tk_case(plus);
-    tk_case(plus_eq);
     tk_case(rcurly);
     tk_case(rparen);
     tk_case(rsquare);
     tk_case(semicolon);
-    tk_case(shift_left);
-    tk_case(shift_right);
     tk_case(space);
     tk_case(string);
     tk_case(string_expr_continuation);
     tk_case(string_expr_prefix);
     tk_case(string_expr_suffix);
-    tk_case(subtype);
-    tk_case(tilde);
-    tk_case(times);
-    tk_case(times_eq);
   }
   return "";
 }
@@ -134,6 +102,18 @@ void ensure_indented_line(bool &indented_line, int indent_level) {
 
 bool Token::is_ident(const char *x) const {
   return tk == tk_identifier && text == x;
+}
+
+bool Token::is_dot_ident() const {
+  return tk == tk_identifier && starts_with(text, ".");
+}
+
+bool Token::is_oper(const char *x) const {
+  return tk == tk_operator && text == x;
+}
+
+bool Token::is_oper_like(const char *x) const {
+  return tk == tk_operator && starts_with(text, x);
 }
 
 bool Token::operator<(const Token &rhs) const {

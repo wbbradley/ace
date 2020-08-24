@@ -5,6 +5,7 @@ link pkg "bdw-gc"
 newtype FileDescriptor = FileDescriptor(Int)
 newtype LineReader stream = LineReader(BufferedFileIO stream)
 
+# Get your argc, argv as a [String] here.
 let args = get_args()
 
 fn get_args() [String] {

@@ -43,6 +43,17 @@ inline Identifier iid(const Token &token) {
 
 #define maybe_chomp_token(_tk)                                                 \
   ((ps.token.tk == (_tk)) ? (ps.advance(), true) : (false))
+#define chomp_operator(op)                                                     \
+  do {                                                                         \
+    expect_token(tk_operator);                                                 \
+    if (ps.token.text == (op)) {                                               \
+      eat_token();                                                             \
+    }                                                                          \
+  } while (0)
+#define maybe_chomp_operator(op)                                               \
+  ((ps.token.tk == tk_operator && ps.token.text == (op))                       \
+       ? (ps.advance(), true)                                                  \
+       : (false))
 #define chomp_token(_tk)                                                       \
   do {                                                                         \
     expect_token(_tk);                                                         \
@@ -69,8 +80,8 @@ const ast::Expr *parse_block(ParseState &ps, bool expression_means_return);
 const ast::Expr *parse_if(ParseState &ps);
 const ast::While *parse_while(ParseState &ps);
 const ast::Expr *parse_lambda(ParseState &ps,
-                              TokenKind tk_start_param_list = tk_lparen,
-                              TokenKind tk_end_param_list = tk_rparen);
+                              std::string start_param_list = "(",
+                              std::string end_param_list = ")");
 const ast::Match *parse_match(ParseState &ps);
 const ast::Predicate *parse_predicate(ParseState &ps,
                                       bool allow_else,
