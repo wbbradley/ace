@@ -1571,18 +1571,13 @@ const Expr *parse_assignment(ParseState &ps) {
     return lhs;
   }
 
-  switch (ps.token.tk) {
-  case tk_assign:
+  if (ps.token.is_oper("=")) {
     ps.advance();
     return new Application(
         new Var(
             Identifier{tld::mktld("std", "store_value"), ps.token.location}),
         {lhs, parse_expr(ps, false /*allow_for_comprehensions*/)});
-  case tk_divide_by_eq:
-  case tk_minus_eq:
-  case tk_mod_eq:
-  case tk_plus_eq:
-  case tk_times_eq: {
+  } else if (is_assignment_operator(ps.token)) {
     auto op_token = ps.token_and_advance();
     assert(op_token.text.size() >= 1);
     const Expr *rhs = parse_expr(ps, false /*allow_for_comprehensions*/);
@@ -1599,8 +1594,7 @@ const Expr *parse_assignment(ParseState &ps) {
                           new Var(ps.id_mapped(Identifier{
                               op_token.text.substr(0, 1), op_token.location})),
                           {new Var(copy_value), rhs}))});
-  }
-  default:
+  } else {
     return lhs;
   }
 }
@@ -1621,7 +1615,7 @@ const Expr *parse_block(ParseState &ps, bool expression_means_return) {
         return unit_expr(ps.token_and_advance().location);
       }
     }
-  } else if (ps.token.tk == tk_expr_block) {
+  } else if (ps.token.is_oper("=>")) {
     expression_block_syntax = true;
     expression_block_assign_token = ps.token;
     ps.advance();
@@ -1864,7 +1858,7 @@ const Predicate *parse_predicate(ParseState &ps,
       /* match anything */
       Identifier symbol = iid(ps.token);
       ps.advance();
-      if (ps.token.tk == tk_about) {
+      if (ps.token.is_oper("@")) {
         ps.advance();
 
         return parse_predicate(ps, allow_else, maybe<Identifier>(symbol));
@@ -1881,9 +1875,7 @@ const Predicate *parse_predicate(ParseState &ps,
     }
 
     std::string sign;
-    switch (ps.token.tk) {
-    case tk_minus:
-    case tk_plus:
+    if (ps.token.is_oper("-") || ps.token.is_oper("+")) {
       sign = ps.token.text;
       ps.advance();
       if (ps.token.tk != tk_integer && ps.token.tk != tk_float) {
@@ -1892,9 +1884,6 @@ const Predicate *parse_predicate(ParseState &ps,
             "unary prefix %s is not allowed before %s in this context",
             ps.prior_token.text.c_str(), ps.token.text.c_str());
       }
-      break;
-    default:
-      break;
     }
 
     switch (ps.token.tk) {
@@ -2010,9 +1999,9 @@ const Expr *parse_lambda(ParseState &ps,
   BoundVarLifetimeTracker bvlt(ps);
   std::vector<Identifier> param_ids;
   types::Refs param_types;
-  chomp_operator(start_param_list);
+  chomp_text(start_param_list);
 
-  while (!maybe_chomp_operator(end_param_list)) {
+  while (!maybe_chomp_text(end_param_list)) {
     if (param_ids.size() != 0 && ps.token.tk != tk_rparen) {
       /* chomp any delimiting commas */
       chomp_token(tk_comma);
@@ -2148,7 +2137,7 @@ types::Ref parse_type(ParseState &ps, bool allow_top_level_application) {
           {ref_type_id, parse_type(ps, true /*allow_top_level_application*/)}));
     } else if (ps.token.tk == tk_identifier) {
       types.push_back(parse_named_type(ps));
-    } else if (ps.token.tk == tk_times) {
+    } else if (ps.token.is_oper("*")) {
       types.push_back(type_id(
           Identifier{PTR_TYPE_OPERATOR, ps.token_and_advance().location}));
     } else {
@@ -2321,7 +2310,7 @@ DataTypeDecl parse_newtype_decl(ParseState &ps,
   Token type_name = ps.token;
   const TypeDecl *type_decl = parse_type_decl(ps);
 
-  chomp_token(tk_assign);
+  chomp_operator("=");
   if (ps.token.tk != tk_identifier || ps.token.text != type_name.text) {
     throw user_error(ps.token.location,
                      "newtype must have a single constructor whose name "
@@ -2501,7 +2490,7 @@ std::vector<const Decl *> parse_decls(ParseState &ps) {
       /* instance-level let vars */
       auto name_token = ps.token_and_advance();
       auto id = ps.id_mapped(Identifier{name_token.text, name_token.location});
-      chomp_token(tk_assign);
+      chomp_operator("=");
       decls.push_back(
           new Decl(id, parse_expr(ps, false /*allow_for_comprehensions*/)));
     } else {
@@ -2704,7 +2693,7 @@ const Module *parse_module(ParseState &ps,
       /* module-level constants */
       ps.advance();
       auto id = Identifier::from_token(ps.token_and_advance());
-      chomp_token(tk_assign);
+      chomp_operator("=");
       ps.export_symbol(id, ps.mkfqn(id));
       decls.push_back(
           new Decl(id, parse_expr(ps, false /*allow_for_comprehensions*/)));

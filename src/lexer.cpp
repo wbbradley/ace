@@ -31,30 +31,35 @@ bool istchar(char ch) {
   return false;
 }
 
-bool isoptail(int ch) {
+bool isophead(int ch) {
   switch (ch) {
-  case '=':
-  case '-':
-  case '_':
-  case '+':
   case '!':
-  case '@':
   case '$':
   case '%':
-  case '^':
   case '&':
   case '*':
-  case '<':
-  case '>':
-  case '|':
-  case '\\':
-  case '~':
+  case '+':
+  case '-':
   case '.':
+  case '/':
+  case ':':
+  case '<':
+  case '=':
+  case '>':
   case '?':
+  case '@':
+  case '\\':
+  case '^':
+  case '|':
+  case '~':
     return true;
   default:
     return false;
   }
+}
+
+bool isoptail(int ch) {
+  return isophead(ch);
 }
 
 bool Lexer::eof() {
@@ -351,6 +356,9 @@ bool Lexer::_get_tokens() {
         } else if (istchar_start(ch)) {
           gts = gts_token;
           tk = tk_identifier;
+        } else if (isophead(ch)) {
+          gts = gts_operator;
+          tk = tk_operator;
         } else {
           sequence_length = utf8_sequence_length(ch);
           if (sequence_length > 1) {
@@ -360,7 +368,7 @@ bool Lexer::_get_tokens() {
             gts = gts_token;
             tk = tk_identifier;
           } else {
-            log(log_warning,
+            log_location(log_error, Location{m_filename, line, col},
                 "unknown character parsed at start of token (0x%02x) '%c'",
                 (int)ch, isprint(ch) ? ch : '?');
             gts = gts_error;

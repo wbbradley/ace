@@ -41,6 +41,29 @@ inline Identifier iid(const Token &token) {
     }                                                                          \
   } while (0)
 
+#define expect_operator(text_)                                                 \
+  do {                                                                         \
+    const char *const token_text = (text_);                                    \
+    if (ps.token.tk != tk_operator || ps.token.text != token_text) {           \
+      ps.error("expected operator " c_id("%s") ", got " c_warn("%s"),          \
+               token_text,                                                     \
+               ps.token.text.size() != 0 ? ps.token.text.c_str()               \
+                                         : tkstr(ps.token.tk));                \
+    }                                                                          \
+  } while (0)
+
+#define expect_text(text_)                                                     \
+  do {                                                                         \
+    std::string token_text = (text_);                                          \
+    if (ps.token.text != token_text) {                                         \
+      ps.error("expected \"%s\", got " c_warn("%s"), token_text.c_str(),       \
+               ps.token.text.size() != 0 ? ps.token.text.c_str()               \
+                                         : tkstr(ps.token.tk));                \
+    }                                                                          \
+  } while (0)
+
+#define maybe_chomp_text(text_)                                                \
+  ((ps.token.text == (text_)) ? (ps.advance(), true) : (false))
 #define maybe_chomp_token(_tk)                                                 \
   ((ps.token.tk == (_tk)) ? (ps.advance(), true) : (false))
 #define chomp_operator(op)                                                     \
@@ -62,6 +85,11 @@ inline Identifier iid(const Token &token) {
 #define chomp_ident(text_)                                                     \
   do {                                                                         \
     expect_ident(text_);                                                       \
+    eat_token();                                                               \
+  } while (0)
+#define chomp_text(text_)                                                      \
+  do {                                                                         \
+    expect_text(text_);                                                        \
     eat_token();                                                               \
   } while (0)
 
