@@ -551,7 +551,6 @@ const Expr *parse_var_ref(ParseState &ps) {
 
 const Expr *parse_base_expr(ParseState &ps) {
   if (ps.token.is_dot_ident()) {
-    dbg();
     auto iid = gensym(ps.token.location);
     return new Lambda(
         {iid}, {type_variable(ps.token.location)},
@@ -1174,7 +1173,6 @@ const Expr *parse_postfix_chain(ParseState &ps, const Expr *expr) {
       } else {
         expr = new Application(new Var(iid), {expr});
       }
-      break;
     } else if (ps.token.tk == tk_lsquare) {
       ps.advance();
       bool is_slice = false;
@@ -1219,7 +1217,6 @@ const Expr *parse_postfix_chain(ParseState &ps, const Expr *expr) {
                 tld::mktld("std", "get_slice_from_to"), ps.token.location})),
             {expr, start, stop});
       }
-      break;
     }
   }
 
@@ -1276,6 +1273,11 @@ const Expr *parse_prefix_expr(ParseState &ps) {
       ps.token.is_oper("!")) {
     /* recurse to find more prefix expressions */
     rhs = parse_prefix_expr(ps);
+#if 0
+  } else if (ps.token.tk == tk_operator) {
+    auto token = ps.token_and_advance();
+    return new Var(ps.id_mapped(Identifier{token.text, token.location}));
+#endif
   } else {
     /* ok, we're done with prefix operators */
     rhs = parse_cast_expr(ps);
@@ -1413,6 +1415,7 @@ const Expr *foldl_application(
     const std::list<const Expr *>::iterator terms_end,
     std::list<Identifier>::iterator operands_cur,
     const std::list<Identifier>::iterator &operands_end) {
+  /* left-associative binary operations application */
   const Expr *lhs = seed;
   if (terms_cur == terms_end) {
     return lhs;
@@ -1423,6 +1426,20 @@ const Expr *foldl_application(
                            operands_end);
 }
 
+bool starts_with_in(std::string haystack,
+                    const std::set<std::string> &needles) {
+  for (auto needle : needles) {
+    if (starts_with(haystack, needle)) {
+      debug_above(14, log("starts_with_in(%s, %s) -> true", haystack.c_str(),
+                          str(needles).c_str()));
+      return true;
+    }
+  }
+  debug_above(14, log("starts_with_in(%s, %s) -> false", haystack.c_str(),
+                      str(needles).c_str()));
+  return false;
+}
+
 const Expr *parse_comparison_expr(ParseState &ps) {
   /* all comparison operators have the same operator precedence and are left
    * associative */
@@ -1430,7 +1447,7 @@ const Expr *parse_comparison_expr(ParseState &ps) {
       "<", ">", "<=", ">=", "==", "!=", "in",
   };
   std::list<const Expr *> terms;
-  std::list<Identifier> operands;
+  std::list<Identifier> operators;
   do {
     terms.push_back(parse_bitwise_or(ps));
     bool not_ = false;
@@ -1439,18 +1456,20 @@ const Expr *parse_comparison_expr(ParseState &ps) {
       not_ = true;
     }
 
-    if (in(ps.token.text, comparisons)) {
+    if ((ps.token.tk == tk_operator &&
+         starts_with_in(ps.token.text, comparisons)) ||
+        ps.token.is_ident(K(in))) {
       if (not_) {
         if (ps.token.text != "in") {
           throw user_error(ps.token.location,
                            "'not' is only valid before 'in'");
         } else {
-          operands.push_back(Identifier{"not_in", ps.token.location});
+          operators.push_back(Identifier{"not_in", ps.token.location});
           continue;
         }
       } // not-in
 
-      operands.push_back(Identifier{ps.token.text, ps.token.location});
+      operators.push_back(Identifier{ps.token.text, ps.token.location});
       continue;
     } else if (not_) {
       throw user_error(ps.token.location, "unexpected dangling 'not' operator");
@@ -1459,14 +1478,14 @@ const Expr *parse_comparison_expr(ParseState &ps) {
     }
   } while (ps.advance());
 
-  if (terms.size() != operands.size() + 1) {
+  if (terms.size() != operators.size() + 1) {
     throw user_error(ps.token.location,
-                     "invalid number of terms to operands in prior comparison");
+                     "invalid number of terms to operators in prior comparison");
   }
   auto terms_iter = terms.begin();
   ++terms_iter;
   return foldl_application(ps, terms.front(), terms_iter, terms.end(),
-                           operands.begin(), operands.end());
+                           operators.begin(), operators.end());
 }
 
 const Expr *parse_not_expr(ParseState &ps) {
@@ -1498,6 +1517,7 @@ const Expr *parse_tuple_expr(ParseState &ps) {
     /* we've got a reference to sole value of unit type */
     return unit_expr(ps.token_and_advance().location);
   }
+
   const Expr *expr = parse_expr(ps, true /*allow_for_comprehensions*/);
   if (ps.token.tk != tk_comma) {
     chomp_token(tk_rparen);
@@ -1637,10 +1657,14 @@ const Expr *parse_block(ParseState &ps, bool expression_means_return) {
       if (ps.token.tk != tk_rparen && ps.token.tk != tk_rcurly &&
           ps.token.tk != tk_rsquare && ps.token.tk != tk_comma &&
           !ps.line_broke()) {
-        throw user_error(ps.token.location,
-                         "this looks hard to read. you should have a line "
-                         "break after => blocks, unless they are immediately "
-                         "followed by one of these: )]}");
+        auto error = user_error(
+            ps.token.location,
+            "this looks hard to read. you should have a line "
+            "break after => blocks, unless they are immediately "
+            "followed by one of these: )]}");
+        error.add_info(statement->get_location(), "this follows: (%s)",
+                       statement->str().c_str());
+        throw error;
       }
       return statement;
     } else {

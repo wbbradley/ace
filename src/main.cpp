@@ -1428,6 +1428,9 @@ int run_job(const Job &job) {
                          in_vector("-show-expr-types", job.opts);
   debug_all_translated_defns = (getenv("SHOW_DEFN_TYPES") != nullptr) ||
                                in_vector("-show-defn-types", job.opts);
+  if (in_vector("-n", job.opts)) {
+    setenv("NO_PRELUDE", "1", true /*overwrite*/);
+  }
 
   std::map<std::string, std::function<int(const Job &, bool)>> cmd_map;
   cmd_map["help"] = [&](const Job &job, bool explain) {
