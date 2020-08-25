@@ -42,7 +42,6 @@ bool isophead(int ch) {
   case '-':
   case '.':
   case '/':
-  case ':':
   case '<':
   case '=':
   case '>':
@@ -314,6 +313,10 @@ bool Lexer::_get_tokens() {
         log_location(log_error, Location(m_filename, m_line, m_col),
                      "encountered a tab character (\\t) used outside of a "
                      "string literal");
+        break;
+      case ':':
+        tk = tk_colon;
+        gts = gts_end;
         break;
       case ' ':
         tk = tk_space;

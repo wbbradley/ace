@@ -67,6 +67,7 @@ const char *tkstr(TokenKind tk) {
   switch (tk) {
     tk_case(operator);
     tk_case(char);
+    tk_case(colon);
     tk_case(comma);
     tk_case(comment);
     tk_case(error);

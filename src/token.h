@@ -53,6 +53,7 @@ enum TokenKind {
   tk_lsquare,   /* [ */
   tk_rsquare,   /* ] */
   tk_semicolon, /* ; */
+  tk_colon,     /* : */
 
   // Literals
   tk_char,                     /* char literal */
@@ -69,7 +70,6 @@ enum TokenKind {
   tk_expr_block,     /* => */
   tk_bang,           /* ! */
   tk_maybe,          /* ? */
-  tk_colon,          /* : */
   tk_assign,         /* = */
   tk_dot,            /* . */
 

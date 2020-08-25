@@ -1018,7 +1018,7 @@ const Expr *parse_associative_array_literal(ParseState &ps) {
 
     const Expr *lhs = parse_expr(ps, false /*allow_for_comprehensions*/);
     auto prior_token = ps.token;
-    if (ps.token.is_oper(":")) {
+    if (ps.token.tk == tk_colon) {
       if (is_set) {
         throw user_error(ps.token.location,
                          "looks like you are mixing set literal syntax with "
@@ -1163,9 +1163,11 @@ const Expr *parse_postfix_chain(ParseState &ps, const Expr *expr) {
     } else if (ps.token.tk == tk_lparen) {
       expr = parse_application(ps, expr, {});
     } else if (ps.token.is_dot_ident()) {
-      Identifier iid = ps.id_mapped(
-          Identifier(ps.token.text.substr(1), ps.token.location),
-          true /*ignore_locals*/);
+      /* NB: this call to tld::tld is very important because it forces .foo to
+       * resolve to non-local identifiers. */
+      Identifier iid = tld::tld(
+          ps.id_mapped(Identifier(ps.token.text.substr(1), ps.token.location),
+                       true /*ignore_locals*/));
       ps.advance();
 
       if (!ps.line_broke() && ps.token.tk == tk_lparen) {
@@ -1178,13 +1180,13 @@ const Expr *parse_postfix_chain(ParseState &ps, const Expr *expr) {
       bool is_slice = false;
 
       const Expr *start = nullptr;
-      if (ps.token.is_oper(":")) {
+      if (ps.token.tk == tk_colon) {
         start = new Literal(Token{ps.token.location, tk_integer, "0"});
       } else {
         start = parse_expr(ps, false /*allow_for_comprehensions*/);
       }
 
-      if (ps.token.is_oper(":")) {
+      if (ps.token.tk == tk_colon) {
         is_slice = true;
         ps.advance();
       }
@@ -1564,7 +1566,7 @@ const Expr *parse_ternary_expr(ParseState &ps) {
     ps.advance();
 
     const Expr *truthy_expr = parse_or_expr(ps);
-    expect_operator(":");
+    expect_token(tk_colon);
     ps.advance();
     return new Conditional(condition, truthy_expr, parse_or_expr(ps));
   } else {
@@ -2116,7 +2118,7 @@ types::Ref parse_square_type(ParseState &ps) {
   auto location = ps.token.location;
   chomp_token(tk_lsquare);
   auto lhs = parse_type(ps, true /*allow_top_level_application*/);
-  if (ps.token.is_oper(":")) {
+  if (ps.token.tk == tk_colon) {
     ps.advance();
     auto rhs = parse_type(ps, true /*allow_top_level_application*/);
     chomp_token(tk_rsquare);

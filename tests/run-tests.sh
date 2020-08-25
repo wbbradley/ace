@@ -49,7 +49,43 @@ fi
 declare -i passed runs
 passed=0
 runs=0
+
+# initialize a semaphore with a given number of tokens
+open_sem(){
+    mkfifo pipe-$$
+    exec 3<>pipe-$$
+    rm pipe-$$
+    local i=$1
+    for((;i>0;i--)); do
+        printf %s 000 >&3
+    done
+}
+
 failed_tests=()
+
+# run the given command asynchronously and pop/push tokens
+run_with_lock(){
+  local x
+  # this read waits until there is something to read
+  read -u 3 -n 3 x && ((0==x)) || { printf "Something strange happened.\n"; exit $x; }
+  (
+    runs+=1
+    ( "$@"; )
+    # push the return code of the command to the semaphore
+    ret=$?
+    printf '%.3d' $ret >&3
+    if [ "$ret" != "0" ]; then
+      failed_tests+=( "$4" )
+      echo "$0:$LINENO:1: error: test ${test_file} failed"
+    else
+      passed+=1
+    fi
+  )&
+}
+
+N=8
+open_sem $N
+
 for test_file in tests/{*,}/test_*.zion
 do
   test_file="${test_file/\/\//\/}"
@@ -58,9 +94,16 @@ do
       continue
     fi
   fi
-  runs+=1
   [[ "$DEBUG_TESTS" != "" ]] && echo "$0: Invoking run-test.sh on ${test_file}..."
-  if logged_run ZION_PATH="${ZION_PATH}:$(dirname "${test_file}")" "${run_test}" "${bin_dir}" "${source_dir}" "${test_file}"; then
+
+  ZION_PATH="${ZION_PATH}:$(dirname "${test_file}")" \
+    run_with_lock \
+      "${run_test}" \
+      "${bin_dir}" \
+      "${source_dir}" \
+      "${test_file}"
+  : '
+  if 0; then
     passed+=1
   else
     failed_tests+=( "$test_file" )
@@ -70,7 +113,10 @@ do
       exit 1
     fi
   fi
+  '
 done
+
+wait -f
 
 if [[ ${#failed_tests[*]} != 0 ]]; then
 		echo "$0:$LINENO:1: Tests failed ($((runs-passed))/${runs}):"
