@@ -1514,18 +1514,31 @@ int run_job(const Job &job) {
       return run_job({"help", {}});
     }
 
-    std::string filename = compiler::resolve_module_filename(
-        INTERNAL_LOC(), job.args[0], ".zion", maybe<std::string>());
-    std::ifstream ifs;
-    ifs.open(filename.c_str());
-    Lexer lexer({filename}, ifs);
-    Token token;
-    bool newline = false;
-    while (lexer.get_token(token, newline, nullptr)) {
-      log_location(token.location, "%s (%s)", token.text.c_str(),
-                   tkstr(token.tk));
+    if (in_vector("-c", job.opts)) {
+      std::string text = job.args[0];
+      std::istringstream iss(text);
+      Lexer lexer({"command-line"}, iss);
+      Token token;
+      bool newline = false;
+      while (lexer.get_token(token, newline, nullptr)) {
+        log_location(token.location, "%s (%s)", token.text.c_str(),
+                     tkstr(token.tk));
+      }
+      return EXIT_SUCCESS;
+    } else {
+      std::string filename = compiler::resolve_module_filename(
+          INTERNAL_LOC(), job.args[0], ".zion", maybe<std::string>());
+      std::ifstream ifs;
+      ifs.open(filename.c_str());
+      Lexer lexer({filename}, ifs);
+      Token token;
+      bool newline = false;
+      while (lexer.get_token(token, newline, nullptr)) {
+        log_location(token.location, "%s (%s)", token.text.c_str(),
+                     tkstr(token.tk));
+      }
+      return EXIT_SUCCESS;
     }
-    return EXIT_SUCCESS;
   };
 
   cmd_map["parse"] = [&](const Job &job, bool explain) {

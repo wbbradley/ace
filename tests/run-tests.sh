@@ -51,7 +51,7 @@ passed=0
 runs=0
 
 # initialize a semaphore with a given number of tokens
-open_sem(){
+open_sem() {
     mkfifo pipe-$$
     exec 3<>pipe-$$
     rm pipe-$$
@@ -61,24 +61,46 @@ open_sem(){
     done
 }
 
-failed_tests=()
+results_dir=$(dirname $(mktemp -u))/zion-$$
+mkdir -p "$results_dir"
+echo "Results will be stored in $results_dir"
+
+cleanup() {
+  wait -f
+
+  failures=$(find "$results_dir" | grep "\.fail$" | wc -l)
+  successes=$(find "$results_dir" | grep "\.pass$" | wc -l)
+
+  echo "$failures failures."
+  echo "$successes successes."
+
+  rm -rf "$results_dir"
+
+  if [ $failures -ne 0 ]; then
+    exit 1
+  else
+    exit 0
+  fi
+}
 
 # run the given command asynchronously and pop/push tokens
 run_with_lock(){
   local x
   # this read waits until there is something to read
-  read -u 3 -n 3 x && ((0==x)) || { printf "Something strange happened.\n"; exit $x; }
+  read -u 3 -n 3 x && ((0==x)) || cleanup
+  runs+=1
   (
-    runs+=1
+    file_log="$results_dir/$4.log"
+    mkdir -p "$(dirname "$file_log")"
+    touch "$file_log"
     ( "$@"; )
     # push the return code of the command to the semaphore
     ret=$?
     printf '%.3d' $ret >&3
     if [ "$ret" != "0" ]; then
-      failed_tests+=( "$4" )
-      echo "$0:$LINENO:1: error: test ${test_file} failed"
+      mv "$file_log"{,.fail}
     else
-      passed+=1
+      mv "$file_log"{,.pass}
     fi
   )&
 }
@@ -102,27 +124,6 @@ do
       "${bin_dir}" \
       "${source_dir}" \
       "${test_file}"
-  : '
-  if 0; then
-    passed+=1
-  else
-    failed_tests+=( "$test_file" )
-    echo "$0:$LINENO:1: error: test ${test_file} failed"
-    if [ "${FAIL_FAST}" != "" ]; then
-      echo "FAIL_FAST was specified. Quitting..."
-      exit 1
-    fi
-  fi
-  '
 done
 
-wait -f
-
-if [[ ${#failed_tests[*]} != 0 ]]; then
-		echo "$0:$LINENO:1: Tests failed ($((runs-passed))/${runs}):"
-		printf "\\t${C_RED}%s${C_RESET}\\n" "${failed_tests[@]}"
-		exit 1
-else
-		echo "Tests passed (${passed}/${runs})!"
-		exit 0
-fi
+cleanup

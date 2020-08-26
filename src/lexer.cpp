@@ -70,7 +70,8 @@ bool Lexer::get_token(Token &token,
                       std::vector<Token> *comments) {
   newline = false;
   do {
-    for (int i = 0; i < 2 && m_token_queue.empty(); ++i) {
+    /* look ahead 3 tokens */
+    while (m_token_queue.m_queue.size() < 3) {
       if (!_get_tokens()) {
         debug_lexer(log(log_info, "lexer - done reading input."));
         return false;

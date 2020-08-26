@@ -32,18 +32,26 @@ Token TokenQueue::pop() {
   if (m_queue.empty()) {
     return token;
   } else {
+    /* some lazy hackery */
     Token next_token = m_queue.front();
     if (token.tk == tk_integer && next_token.tk == tk_float &&
-        token.location.line == next_token.location.line &&
-        int(token.location.col + token.text.size()) ==
-            next_token.location.col &&
-        starts_with(next_token.text, ".")) {
+        next_token.follows_after(token) && starts_with(next_token.text, ".")) {
       /* combine these two tokens into a single float */
       m_queue.pop_front();
       return Token{token.location, tk_float, token.text + next_token.text};
-    } else {
-      return token;
+    } else if (token.tk == tk_lparen && next_token.tk == tk_operator &&
+               next_token.follows_after(token)) {
+      m_queue.pop_front();
+      Token next_next_token = m_queue.front();
+      if (next_next_token.tk == tk_rparen &&
+          next_next_token.follows_after(next_token)) {
+        m_queue.pop_front();
+        return Token{next_token.location, tk_identifier, next_token.text};
+      } else {
+        m_queue.push_front(next_token);
+      }
     }
+    return token;
   }
 }
 
