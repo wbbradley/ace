@@ -1,7 +1,6 @@
-# test: pass
+# test: pass,noprelude
 # expect: 1
 
-# class Applicative f {
 fn !=(x, y) => __builtin_int_ne(x, y) ? 1 : 0
 fn <>(x, y) => x != y
 
