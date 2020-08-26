@@ -71,7 +71,7 @@ install: $(BUILT_BINARY) $(addprefix $(SRCDIR)/lib/,$(ZION_LIBS)) $(RUNTIME_C_FI
 	for f in $(RUNTIME_C_FILES); do cp "$$f" "$(runtimedir)"; done
 	cp $(addprefix $(SRCDIR)/lib/,$(ZION_LIBS)) $(stdlibdir)
 	cp $(SRCDIR)/$(PN).1 $(man1dir)
-	-test -x ./zion-link-to-src && ./zion-link-to-src
+	-test -x ./zion-link-to-src && ZION_ROOT=$(sharedir) ./zion-link-to-src
 
 .PHONY: clean
 clean:
