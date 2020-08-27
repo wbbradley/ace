@@ -66,8 +66,8 @@ echo "Results will be stored in $results_dir"
 cleanup() {
   wait -f
 
-  failures=$(find "$results_dir" | grep -c "\.fail$")
-  successes=$(find "$results_dir" | grep -c "\.pass$")
+  failures=$(find "$results_dir" | grep -c "\\.fail$")
+  successes=$(find "$results_dir" | grep -c "\\.pass$")
 
   echo "$failures failures."
   echo "$successes successes."
