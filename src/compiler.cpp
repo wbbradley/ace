@@ -167,7 +167,9 @@ struct GlobalParserState {
   std::set<LinkIn> link_ins;
   const std::map<std::string, int> &builtin_arities;
 
-  const Module *parse_module_statefully(Identifier module_id, const maybe<std::string> &reference_path) {
+  const Module *parse_module_statefully(
+      Identifier module_id,
+      const maybe<std::string> &reference_path) {
     if (auto module = get(modules_map_by_name, module_id.name,
                           static_cast<const Module *>(nullptr))) {
       return module;
@@ -360,8 +362,9 @@ Compilation::ref parse_program(
     }
 
     /* now parse the main program module */
-    gps.parse_module_statefully(Identifier{
-        user_program_name, Location{"command line build parameters", 0, 0}},
+    gps.parse_module_statefully(
+        Identifier{user_program_name,
+                   Location{"command line build parameters", 0, 0}},
         maybe<std::string>());
 
     debug_above(11, log(log_info, "parse_module of %s succeeded",

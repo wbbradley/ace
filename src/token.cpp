@@ -23,14 +23,9 @@ bool is_restricted_var_name(std::string x) {
   return false;
 }
 
-bool is_assignment_operator(const Token& token) {
+bool is_assignment_operator(const Token &token) {
   static const std::unordered_set<std::string> assignment_operators = {
-    "=",
-    "+=",
-    "-=",
-    "*=",
-    "/=",
-    "%=",
+      "=", "+=", "-=", "*=", "/=", "%=",
   };
   switch (token.tk) {
   case tk_operator:
@@ -106,7 +101,7 @@ bool Token::is_ident(const char *x) const {
 }
 
 bool Token::is_dot_ident() const {
-  return tk == tk_identifier && starts_with(text, ".");
+  return tk == tk_identifier && starts_with(text, ".") && text.size() > 1;
 }
 
 bool Token::is_oper(const char *x) const {

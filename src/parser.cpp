@@ -410,8 +410,6 @@ const Expr *parse_statement(ParseState &ps) {
     }
   } else if (ps.token.is_ident(K(return ))) {
     return parse_return_statement(ps);
-  } else if (ps.token.is_ident(K(unreachable))) {
-    return new Var(iid(ps.token));
   } else if (ps.token.is_ident(K(continue))) {
     return new Continue(ps.token_and_advance().location);
   } else if (ps.token.is_ident(K(break))) {
@@ -1225,8 +1223,67 @@ const Expr *parse_postfix_chain(ParseState &ps, const Expr *expr) {
   return expr;
 }
 
+const Expr *foldr_application(
+    const Expr *seed,
+    std::list<const Expr *>::iterator terms_cur,
+    const std::list<const Expr *>::iterator terms_end,
+    std::list<Identifier>::iterator operands_cur,
+    const std::list<Identifier>::iterator &operands_end) {
+  /* right-associative binary operations application */
+  const Expr *lhs = seed;
+  if (terms_cur == terms_end) {
+    assert(operands_cur == operands_end);
+    return lhs;
+  }
+  const Expr *rhs_seed = *terms_cur++;
+  Identifier operand = *operands_cur++;
+
+  return new Application(new Var(operand),
+                         {lhs, foldr_application(rhs_seed, terms_cur, terms_end,
+                                                 operands_cur, operands_end)});
+}
+
+const Expr *foldl_application(
+    const Expr *seed,
+    std::list<const Expr *>::iterator terms_cur,
+    const std::list<const Expr *>::iterator terms_end,
+    std::list<Identifier>::iterator operands_cur,
+    const std::list<Identifier>::iterator &operands_end) {
+  /* left-associative binary operations application */
+  const Expr *lhs = seed;
+  if (terms_cur == terms_end) {
+    assert(operands_cur == operands_end);
+    return lhs;
+  }
+  const Expr *app = new Application(new Var(*operands_cur++),
+                                    {lhs, *terms_cur++});
+  return foldl_application(app, terms_cur, terms_end, operands_cur,
+                           operands_end);
+}
+
+const Expr *parse_dot_expr(ParseState &ps) {
+  std::list<const Expr *> terms;
+  std::list<Identifier> operators;
+
+  while (true) {
+    terms.push_back(parse_base_expr(ps));
+    if (ps.token.is_oper(".")) {
+      auto operator_id = ps.id_mapped(
+          Identifier::from_token(ps.token_and_advance()));
+      operators.push_back(operator_id);
+    } else {
+      break;
+    }
+  }
+
+  auto terms_iter = terms.begin();
+  ++terms_iter;
+  return foldr_application(terms.front(), terms_iter, terms.end(),
+                           operators.begin(), operators.end());
+}
+
 const Expr *parse_postfix_expr(ParseState &ps) {
-  const Expr *expr = parse_base_expr(ps);
+  const Expr *expr = parse_dot_expr(ps);
 
   return parse_postfix_chain(ps, expr);
 }
@@ -1261,8 +1318,8 @@ const Expr *parse_prefix_expr(ParseState &ps) {
     return parse_sizeof(ps);
   }
 
-  maybe<Token> prefix = (ps.token.is_oper("-") ||
-                         ps.token.is_ident(K(not )) || ps.token.is_oper("!"))
+  maybe<Token> prefix = (ps.token.is_oper("-") || ps.token.is_ident(K(not )) ||
+                         ps.token.is_oper("!"))
                             ? maybe<Token>(ps.token)
                             : maybe<Token>();
 
@@ -1275,11 +1332,6 @@ const Expr *parse_prefix_expr(ParseState &ps) {
       ps.token.is_oper("!")) {
     /* recurse to find more prefix expressions */
     rhs = parse_prefix_expr(ps);
-#if 0
-  } else if (ps.token.tk == tk_operator) {
-    auto token = ps.token_and_advance();
-    return new Var(ps.id_mapped(Identifier{token.text, token.location}));
-#endif
   } else {
     /* ok, we're done with prefix operators */
     rhs = parse_cast_expr(ps);
@@ -1310,7 +1362,7 @@ const Expr *parse_times_expr(ParseState &ps) {
   while (!ps.line_broke() &&
          (ps.token.is_oper_like("*") || ps.token.is_oper_like("/") ||
           ps.token.is_oper_like("%"))) {
-    Identifier op = ps.id_mapped(Identifier{ps.token.text, ps.token.location});
+    Identifier op = ps.id_mapped(Identifier::from_token(ps.token));
     ps.advance();
 
     expr = new Application(new Var(op), {expr, parse_prefix_expr(ps)});
@@ -1325,7 +1377,7 @@ const Expr *parse_plus_expr(ParseState &ps) {
   while (!ps.line_broke() &&
          (ps.token.is_oper_like("+") || ps.token.is_oper_like("-") ||
           ps.token.is_oper_like("\\"))) {
-    Identifier op = ps.id_mapped(Identifier{ps.token.text, ps.token.location});
+    Identifier op = ps.id_mapped(Identifier::from_token(ps.token));
     ps.advance();
 
     expr = new Application(new Var(op), {expr, parse_times_expr(ps)});
@@ -1339,7 +1391,7 @@ const Expr *parse_shift_expr(ParseState &ps) {
 
   while (!ps.line_broke() &&
          (ps.token.is_oper_like("<<") || ps.token.is_oper_like(">>"))) {
-    Identifier op = ps.id_mapped(Identifier{ps.token.text, ps.token.location});
+    Identifier op = ps.id_mapped(Identifier::from_token(ps.token));
     ps.advance();
 
     expr = new Application(new Var(op), {expr, parse_plus_expr(ps)});
@@ -1352,7 +1404,7 @@ const Expr *parse_bitwise_and(ParseState &ps) {
   auto expr = parse_shift_expr(ps);
 
   while (!ps.line_broke() && ps.token.is_oper_like("&")) {
-    Identifier op = ps.id_mapped(Identifier{ps.token.text, ps.token.location});
+    Identifier op = ps.id_mapped(Identifier::from_token(ps.token));
     ps.advance();
 
     expr = new Application(new Var(op), {expr, parse_shift_expr(ps)});
@@ -1365,7 +1417,7 @@ const Expr *parse_bitwise_xor(ParseState &ps) {
   auto expr = parse_bitwise_and(ps);
 
   while (!ps.line_broke() && ps.token.is_oper_like("^")) {
-    Identifier op = ps.id_mapped(Identifier{ps.token.text, ps.token.location});
+    Identifier op = ps.id_mapped(Identifier::from_token(ps.token));
     ps.advance();
 
     expr = new Application(new Var(op), {expr, parse_bitwise_and(ps)});
@@ -1377,7 +1429,7 @@ const Expr *parse_bitwise_or(ParseState &ps) {
   auto expr = parse_bitwise_xor(ps);
 
   while (!ps.line_broke() && ps.token.is_oper_like("|")) {
-    Identifier op = ps.id_mapped(Identifier{ps.token.text, ps.token.location});
+    Identifier op = ps.id_mapped(Identifier::from_token(ps.token));
     ps.advance();
 
     expr = new Application(new Var(op), {expr, parse_bitwise_xor(ps)});
@@ -1408,24 +1460,6 @@ const Expr *fold_or_exprs(std::vector<const Expr *> exprs, int index) {
   } else {
     return exprs[index];
   }
-}
-
-const Expr *foldl_application(
-    ParseState &ps,
-    const Expr *seed,
-    std::list<const Expr *>::iterator terms_cur,
-    const std::list<const Expr *>::iterator terms_end,
-    std::list<Identifier>::iterator operands_cur,
-    const std::list<Identifier>::iterator &operands_end) {
-  /* left-associative binary operations application */
-  const Expr *lhs = seed;
-  if (terms_cur == terms_end) {
-    return lhs;
-  }
-  const Expr *app = new Application(new Var(ps.id_mapped(*operands_cur++)),
-                                    {lhs, *terms_cur++});
-  return foldl_application(ps, app, terms_cur, terms_end, operands_cur,
-                           operands_end);
 }
 
 bool starts_with_in(std::string haystack,
@@ -1466,12 +1500,14 @@ const Expr *parse_comparison_expr(ParseState &ps) {
           throw user_error(ps.token.location,
                            "'not' is only valid before 'in'");
         } else {
-          operators.push_back(Identifier{"not_in", ps.token.location});
+          operators.push_back(
+              ps.id_mapped(Identifier{"not_in", ps.token.location}));
           continue;
         }
       } // not-in
 
-      operators.push_back(Identifier{ps.token.text, ps.token.location});
+      operators.push_back(
+          ps.id_mapped(Identifier{ps.token.text, ps.token.location}));
       continue;
     } else if (not_) {
       throw user_error(ps.token.location, "unexpected dangling 'not' operator");
@@ -1481,12 +1517,13 @@ const Expr *parse_comparison_expr(ParseState &ps) {
   } while (ps.advance());
 
   if (terms.size() != operators.size() + 1) {
-    throw user_error(ps.token.location,
-                     "invalid number of terms to operators in prior comparison");
+    throw user_error(
+        ps.token.location,
+        "invalid number of terms to operators in prior comparison");
   }
   auto terms_iter = terms.begin();
   ++terms_iter;
-  return foldl_application(ps, terms.front(), terms_iter, terms.end(),
+  return foldl_application(terms.front(), terms_iter, terms.end(),
                            operators.begin(), operators.end());
 }
 
@@ -1599,8 +1636,7 @@ const Expr *parse_assignment(ParseState &ps) {
   if (ps.token.is_oper("=")) {
     ps.advance();
     return new Application(
-        new Var(
-            Identifier{tld::mktld("std", "store_value"), ps.token.location}),
+        new Var(ps.id_mapped(Identifier{"store_value", ps.token.location})),
         {lhs, parse_expr(ps, false /*allow_for_comprehensions*/)});
   } else if (is_assignment_operator(ps.token)) {
     auto op_token = ps.token_and_advance();
@@ -1608,13 +1644,11 @@ const Expr *parse_assignment(ParseState &ps) {
     const Expr *rhs = parse_expr(ps, false /*allow_for_comprehensions*/);
     Identifier copy_value = Identifier{fresh(), lhs->get_location()};
     return new Application(
-        new Var(
-            Identifier{tld::mktld("std", "store_value"), op_token.location}),
+        new Var(ps.id_mapped(Identifier{"store_value", op_token.location})),
         {lhs, new Let(copy_value,
-                      new Application(
-                          new Var(Identifier{tld::mktld("std", "load_value"),
-                                             op_token.location}),
-                          {lhs}),
+                      new Application(new Var(ps.id_mapped(Identifier{
+                                          "load_value", op_token.location})),
+                                      {lhs}),
                       new Application(
                           new Var(ps.id_mapped(Identifier{
                               op_token.text.substr(0, 1), op_token.location})),

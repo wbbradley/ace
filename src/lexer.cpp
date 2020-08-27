@@ -391,7 +391,8 @@ bool Lexer::_get_tokens() {
             gts = gts_token;
             tk = tk_identifier;
           } else {
-            log_location(log_error, Location{m_filename, line, col},
+            log_location(
+                log_error, Location{m_filename, line, col},
                 "unknown character parsed at start of token (0x%02x) '%c'",
                 (int)ch, isprint(ch) ? ch : '?');
             gts = gts_error;
@@ -652,12 +653,6 @@ bool Lexer::_get_tokens() {
       assert(ch == ch_old);
 
       token_text += ch;
-#if 0
-      if (!m_is.fail()) && !token_text.append(ch)) {
-        log(log_error, "symbol too long? [line %d: col %d]", m_line, m_col);
-        return false;
-      }
-#endif
     }
     scan_ahead = true;
   }

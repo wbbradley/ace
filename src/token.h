@@ -21,11 +21,13 @@ enum TokenKind {
   tk_identifier, /* identifier */
   tk_operator,   /* operator (ie: +, -, <, <$>, |>, etc..) */
   /*
+   * TODO: Flesh this out more in a doc.
+   *
    * User Defined Operators can be:
    *
-   * /[\.=<>+-*|/\\$^@&%]+/
+   * /[.=<>+-*|/\\$^@&%]+/
    * except for any tk_* that already exist:
-   * (=> ! ? : = . += -= *= /= %=)
+   * (=> ! ? : = += -= *= /= %=)
    *
    * Operator precedence is based on first character of operator, in the
    * following descending priority order.
@@ -41,8 +43,7 @@ enum TokenKind {
    *   "&
    *   "<<", ">>"
    *
-  */
-
+   */
 
   // Syntax
   tk_lparen,    /* ( */
@@ -64,45 +65,6 @@ enum TokenKind {
   tk_string_expr_prefix,       /* ".*[^\\]\${ */
   tk_string_expr_continuation, /* }.*[^\\]\${ */
   tk_string_expr_suffix,       /* }.*" */
-
-#if 0
-  // Operators with special forms
-  tk_expr_block,     /* => */
-  tk_bang,           /* ! */
-  tk_maybe,          /* ? */
-  tk_assign,         /* = */
-  tk_dot,            /* . */
-
-  // Mutating binary ops
-  tk_plus_eq,      /* += */
-  tk_minus_eq,     /* -= */
-  tk_times_eq,     /* *= */
-  tk_divide_by_eq, /* /= */
-  tk_mod_eq,       /* %= */
-
-
-  tk_about,          /* @ */
-  tk_equal,          /* == */
-  tk_binary_equal,   /* === */
-  tk_inequal,        /* != */
-  tk_binary_inequal, /* !== */
-  tk_lt,             /* < */
-  tk_gt,             /* > */
-  tk_lte,            /* <= */
-  tk_gte,            /* >= */
-  tk_plus,           /* + */
-  tk_minus,          /* - */
-  tk_backslash,      /* \ */
-  tk_times,          /* * */
-  tk_divide_by,      /* / */
-  tk_mod,            /* % */
-  tk_pipe,           /* | */
-  tk_shift_left,     /* << */
-  tk_shift_right,    /* >> */
-  tk_hat,            /* ^ */
-  tk_double_dot,     /* .. */
-  tk_ampersand,      /* & */
-#endif
 };
 
 #define K(x) const char *const K_##x = #x
@@ -140,7 +102,6 @@ K(return );
 K(sizeof);
 K(static_print);
 K(struct);
-K(unreachable);
 K(var);
 K(while);
 K(with);

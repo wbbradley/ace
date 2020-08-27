@@ -14,6 +14,8 @@ import hash {Hashable, hash}
 
 link pkg "bdw-gc"
 
+let (.) = |f, g| => |x| => f(g(x)) 
+
 data Bool {
   False
   True
@@ -748,8 +750,6 @@ instance Iterable (Range a) a {
     }
 }
 
-fn compose(f, g) => |x| => f(g(x))
- 
 fn map(iterable, f fn (a) b) fn () Maybe b {
     let iterator = iter(iterable)
     return fn () => match iterator() {

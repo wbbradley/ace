@@ -352,22 +352,6 @@ std::vector<const Decl *> rewrite_decls(
   return new_decls;
 }
 
-#if 0
-std::vector<const TypeDecl> rewrite_type_decls(
-    const RewriteImportRules &rewrite_import_rules,
-    const std::vector<const TypeDecl> &type_decls) {
-#ifdef ZION_DEBUG
-  for (auto &type_decl : type_decls) {
-    assert(!in(type_decl.id, rewrite_import_rules));
-    for (auto &param : type_decl.params) {
-      assert(!in(param, rewrite_import_rules));
-    }
-  }
-#endif
-  return type_decls;
-}
-#endif
-
 types::ClassPredicate::Ref rewrite_class_predicate(
     const RewriteImportRules &rewrite_import_rules,
     const types::ClassPredicate::Ref &class_predicate) {

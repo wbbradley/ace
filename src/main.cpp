@@ -748,9 +748,9 @@ CheckedDefinitionRef specialize_checked_defn(
   }
 
   if (checked_defn_to_specialize == nullptr) {
-    throw user_error(location,
-                     "could not find a definition for " c_id("%s") " :: %s",
-                     zion::tld::strip_prefix(name).c_str(), type->str().c_str());
+    throw user_error(
+        location, "could not find a definition for " c_id("%s") " :: %s",
+        zion::tld::strip_prefix(name).c_str(), type->str().c_str());
   }
 
   INDENT(1, string_format("specializing checked definition %s :: %s",
