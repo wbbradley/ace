@@ -30,7 +30,7 @@ You will need Docker for the supported Linux test path.
 
 ```
 make clean
-# then choose debug or release
+           # then choose debug or release
 make       # to build the release build
 make debug # to build the debug build
 ```
