@@ -57,7 +57,7 @@ To run Linux tests:
 ./docker-run.sh
 ```
 
-Tests are run by a horrible Bash script called [run-tests.sh](run-tests.sh). The
+Tests are run by a horrible Bash script called [run-tests.sh](tests/run-tests.sh). The
 one nice thing about this script is that it will attempt to parallelize the
 tests by utilizing a semaphore made out of a `mkfifo` stream. Your perf mileage
 may vary with that depending on the strength of your machine.
