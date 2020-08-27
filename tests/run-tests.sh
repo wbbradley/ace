@@ -46,8 +46,6 @@ if ! [[ -d ${test_dir} ]]; then
 		exit 1
 fi
 
-declare -i passed runs
-passed=0
 runs=0
 
 # initialize a semaphore with a given number of tokens
@@ -61,22 +59,22 @@ open_sem() {
     done
 }
 
-results_dir=$(dirname $(mktemp -u))/zion-$$
+results_dir=$(dirname "$(mktemp -u)")/zion-$$
 mkdir -p "$results_dir"
 echo "Results will be stored in $results_dir"
 
 cleanup() {
   wait -f
 
-  failures=$(find "$results_dir" | grep "\.fail$" | wc -l)
-  successes=$(find "$results_dir" | grep "\.pass$" | wc -l)
+  failures=$(find "$results_dir" | grep -c "\.fail$")
+  successes=$(find "$results_dir" | grep -c "\.pass$")
 
   echo "$failures failures."
   echo "$successes successes."
 
   rm -rf "$results_dir"
 
-  if [ $failures -ne 0 ]; then
+  if [ "$failures" -ne 0 ]; then
     exit 1
   else
     exit 0
@@ -84,10 +82,12 @@ cleanup() {
 }
 
 # run the given command asynchronously and pop/push tokens
-run_with_lock(){
+run_with_lock() {
   local x
   # this read waits until there is something to read
-  read -u 3 -n 3 x && ((0==x)) || cleanup
+  if ! read -r -u 3 -n 3 x || ! ((0==x)); then
+    cleanup
+  fi
   runs+=1
   (
     file_log="$results_dir/$4.log"
