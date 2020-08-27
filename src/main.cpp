@@ -365,10 +365,12 @@ tarjan::Graph build_program_graph(const std::vector<const Decl *> &decls) {
     const auto free_vars = get_free_vars(decl->value, {});
     for (auto free_var : free_vars) {
       if (!zion::tld::is_fqn(free_var)) {
-        throw user_error(
-            decl->id.location,
-            "found free_var \"%s\" that is not fully qualified within %s",
-            free_var.c_str(), zion::tld::strip_prefix(name).c_str());
+        throw user_error(decl->id.location,
+                         "found free_var \"%s\" that is not fully qualified "
+                         "within %s (TODO: extract free variable locations, "
+                         "not just the containing function's location)",
+                         free_var.c_str(),
+                         zion::tld::strip_prefix(name).c_str());
       }
     }
     graph.insert({name, free_vars});
@@ -746,9 +748,9 @@ CheckedDefinitionRef specialize_checked_defn(
   }
 
   if (checked_defn_to_specialize == nullptr) {
-    throw user_error(location,
-                     "could not find a definition for " c_id("%s") " :: %s",
-                     zion::tld::strip_prefix(name).c_str(), type->str().c_str());
+    throw user_error(
+        location, "could not find a definition for " c_id("%s") " :: %s",
+        zion::tld::strip_prefix(name).c_str(), type->str().c_str());
   }
 
   INDENT(1, string_format("specializing checked definition %s :: %s",
@@ -1120,6 +1122,20 @@ llvm::Function *build_main_function(llvm::IRBuilder<> &builder,
       builder.getContext(), MAIN_PROGRAM_BLOCK, llvm_function);
 
   builder.SetInsertPoint(entry_block);
+
+  // Initialize the process
+  auto llvm_zion_init_func_decl = llvm::cast<llvm::Function>(
+      llvm_module
+          ->getOrInsertFunction("zion_init", llvm_main_function_type(builder))
+          .getCallee());
+  auto arg_iter = llvm_function->args().begin();
+  llvm::Value *llvm_argc = *&arg_iter;
+  ++arg_iter;
+  llvm::Value *llvm_argv = *&arg_iter;
+  std::vector<llvm::Value *> zion_main_args{llvm_argc, llvm_argv};
+  builder.CreateCall(llvm_zion_init_func_decl,
+                     llvm::ArrayRef<llvm::Value *>(zion_main_args));
+
   llvm::IRBuilderBase::InsertPointGuard ipg(builder);
 
   builder.CreateBr(main_block);
@@ -1139,19 +1155,6 @@ void write_main_block(llvm::IRBuilder<> &builder,
                       llvm::Function *llvm_function) {
   builder.SetInsertPoint(
       zion::llvm_find_block_by_name(llvm_function, MAIN_PROGRAM_BLOCK));
-
-  // Initialize the process
-  auto llvm_zion_init_func_decl = llvm::cast<llvm::Function>(
-      llvm_module
-          ->getOrInsertFunction("zion_init", llvm_main_function_type(builder))
-          .getCallee());
-  auto arg_iter = llvm_function->args().begin();
-  llvm::Value *llvm_argc = *&arg_iter;
-  ++arg_iter;
-  llvm::Value *llvm_argv = *&arg_iter;
-  std::vector<llvm::Value *> zion_main_args{llvm_argc, llvm_argv};
-  builder.CreateCall(llvm_zion_init_func_decl,
-                     llvm::ArrayRef<llvm::Value *>(zion_main_args));
 
   llvm::Value *llvm_main_closure = gen::get_env_var(
       builder, gen_env, make_iid(main_closure), main_closure_type());
@@ -1428,6 +1431,9 @@ int run_job(const Job &job) {
                          in_vector("-show-expr-types", job.opts);
   debug_all_translated_defns = (getenv("SHOW_DEFN_TYPES") != nullptr) ||
                                in_vector("-show-defn-types", job.opts);
+  if (in_vector("-n", job.opts)) {
+    setenv("NO_PRELUDE", "1", true /*overwrite*/);
+  }
 
   std::map<std::string, std::function<int(const Job &, bool)>> cmd_map;
   cmd_map["help"] = [&](const Job &job, bool explain) {
@@ -1511,18 +1517,31 @@ int run_job(const Job &job) {
       return run_job({"help", {}});
     }
 
-    std::string filename = compiler::resolve_module_filename(
-        INTERNAL_LOC(), job.args[0], ".zion", maybe<std::string>());
-    std::ifstream ifs;
-    ifs.open(filename.c_str());
-    Lexer lexer({filename}, ifs);
-    Token token;
-    bool newline = false;
-    while (lexer.get_token(token, newline, nullptr)) {
-      log_location(token.location, "%s (%s)", token.text.c_str(),
-                   tkstr(token.tk));
+    if (in_vector("-c", job.opts)) {
+      std::string text = job.args[0];
+      std::istringstream iss(text);
+      Lexer lexer({"command-line"}, iss);
+      Token token;
+      bool newline = false;
+      while (lexer.get_token(token, newline, nullptr)) {
+        log_location(token.location, "%s (%s)", token.text.c_str(),
+                     tkstr(token.tk));
+      }
+      return EXIT_SUCCESS;
+    } else {
+      std::string filename = compiler::resolve_module_filename(
+          INTERNAL_LOC(), job.args[0], ".zion", maybe<std::string>());
+      std::ifstream ifs;
+      ifs.open(filename.c_str());
+      Lexer lexer({filename}, ifs);
+      Token token;
+      bool newline = false;
+      while (lexer.get_token(token, newline, nullptr)) {
+        log_location(token.location, "%s (%s)", token.text.c_str(),
+                     tkstr(token.tk));
+      }
+      return EXIT_SUCCESS;
     }
-    return EXIT_SUCCESS;
   };
 
   cmd_map["parse"] = [&](const Job &job, bool explain) {

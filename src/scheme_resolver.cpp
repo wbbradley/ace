@@ -74,15 +74,7 @@ void SchemeResolver::rebind(const types::Map &bindings) const {
           scheme->str().c_str(), ::str(bindings).c_str());
       dbg();
     }
-#if 0
-    auto new_scheme = scheme->rebind(bindings);
-    log("SchemeResolver::rebind(...): rebinding %s to %s",
-        scheme->str().c_str(), new_scheme->str().c_str());
-
-    new_state[name] = new_scheme;
-#endif
   }
-  // std::swap(state, new_state);
 }
 
 std::string SchemeResolver::str() const {

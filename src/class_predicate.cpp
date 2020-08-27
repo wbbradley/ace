@@ -26,13 +26,6 @@ bool ClassPredicateRefEqualTo::operator()(const ClassPredicateRef &lhs,
 ClassPredicate::ClassPredicate(Identifier classname, const types::Refs &params)
     : classname(classname), params(params) {
   assert(zion::tld::is_tld_type(classname.name));
-#if 0
-  if (zion::parser::is_fqn(classname.name)) {
-    assert(isupper(zion::parser::split_fqn(classname.name)[1][0]));
-  } else {
-    assert(isupper(classname.name[0]));
-  }
-#endif
 }
 
 ClassPredicate::ClassPredicate(Identifier classname, const Identifiers &params)

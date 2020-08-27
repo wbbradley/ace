@@ -111,13 +111,6 @@ template <typename T> struct maybe {
   }
   maybe(const T t, bool valid) : t(t), valid(valid) {
   }
-#if 0
-	maybe(const T *rhs) : valid(bool(rhs != nullptr)) {
-		if (rhs) {
-			t = *rhs;
-		}
-	}
-#endif
   maybe(const maybe<T> &mt) : t(mt.t), valid(mt.valid) {
   }
   maybe(const maybe<T> &&mt) : t(std::move(mt.t)), valid(mt.valid) {

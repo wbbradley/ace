@@ -66,16 +66,6 @@ const Expr *texpr(const types::DefnId &for_defn_id,
     assert(type != nullptr);
     debug_above(2, log("monomorphizing %s to have type %s", expr->str().c_str(),
                        type->str().c_str()));
-#if 0
-    if (type->ftv_count() != 0) {
-      log_location(expr->get_location(),
-                   "cannot monomorphize %s for %s to have type %s because it "
-                   "is not fully bound",
-                   expr->str().c_str(), for_defn_id.str().c_str(),
-                   type->str().c_str());
-      dbg();
-    }
-#endif
 
     /* check for fully concrete type */
     if (type->generalize({})->btvs() != 0) {

@@ -433,15 +433,6 @@ void standard_logger::logv(LogLevel level,
     return;
   }
   if (_max_log_depth == 0 || get_depth() < _max_log_depth) {
-#if 0
-		if (level == log_info) {
-			/* if we're not in debugging mode, never emit "info" statements */
-			if (debug_level() == 0) {
-				return;
-			}
-		}
-#endif
-
     std::lock_guard<std::mutex> lock(m_mutex);
 
     FILE *fp = m_fp;

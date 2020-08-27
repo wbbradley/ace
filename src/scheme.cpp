@@ -19,13 +19,6 @@ Scheme::Scheme(const std::vector<std::string> &vars,
 }
 
 types::Ref Scheme::instantiate(Location location) const {
-#if 0
-  if (!type->get_ftvs().empty()) {
-    log("trying to instantiate %s", str().c_str());
-    assert(false);
-  }
-  return type;
-#endif
   types::Map subst;
   for (auto var : vars) {
     subst[var] = type_variable(gensym(location));

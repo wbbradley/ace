@@ -209,14 +209,6 @@ void get_free_vars(const ast::Expr *expr,
     /* by this point, all match expressions should have been transformed into
      * conditionals */
     assert(false);
-#if 0
-    get_free_vars(match->scrutinee, typing, globals, locals, free_vars);
-    for (auto pattern_block : match->pattern_blocks) {
-      auto new_bindings = bindings;
-      pattern_block->predicate->get_bound_vars(new_bindings);
-      get_free_vars(pattern_block->result, typing, new_bindings, free_vars);
-    }
-#endif
   } else {
     assert(false);
   }
@@ -1072,11 +1064,6 @@ ResolutionStatus gen(std::string name,
 
     INDENT(2, string_format("gen(..., %s, ..., ...) :: %s", expr->str().c_str(),
                             type->str().c_str()));
-#if 0
-    debug_above(2, log_location(expr->get_location(),
-                                "generating ssa for %s :: %s",
-                                expr->str().c_str(), type->str().c_str()));
-#endif
 
     if (auto literal = dcast<const ast::Literal *>(expr)) {
       return gen_literal(name, builder, literal, type, publisher);

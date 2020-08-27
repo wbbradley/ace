@@ -46,10 +46,68 @@ if ! [[ -d ${test_dir} ]]; then
 		exit 1
 fi
 
-declare -i passed runs
-passed=0
 runs=0
-failed_tests=()
+
+# initialize a semaphore with a given number of tokens
+open_sem() {
+    mkfifo pipe-$$
+    exec 3<>pipe-$$
+    rm pipe-$$
+    local i=$1
+    for((;i>0;i--)); do
+        printf %s 000 >&3
+    done
+}
+
+results_dir=$(dirname "$(mktemp -u)")/zion-$$
+mkdir -p "$results_dir"
+echo "Results will be stored in $results_dir"
+
+cleanup() {
+  wait -f
+
+  failures=$(find "$results_dir" | grep -c "\\.fail$")
+  successes=$(find "$results_dir" | grep -c "\\.pass$")
+
+  echo "$failures failures."
+  echo "$successes successes."
+
+  rm -rf "$results_dir"
+
+  if [ "$failures" -ne 0 ]; then
+    exit 1
+  else
+    exit 0
+  fi
+}
+
+# run the given command asynchronously and pop/push tokens
+run_with_lock() {
+  local x
+  # this read waits until there is something to read
+  if ! read -r -u 3 -n 3 x || ! ((0==x)); then
+    cleanup
+  fi
+  runs+=1
+  (
+    file_log="$results_dir/$4.log"
+    mkdir -p "$(dirname "$file_log")"
+    touch "$file_log"
+    ( "$@"; )
+    # push the return code of the command to the semaphore
+    ret=$?
+    printf '%.3d' $ret >&3
+    if [ "$ret" != "0" ]; then
+      mv "$file_log"{,.fail}
+    else
+      mv "$file_log"{,.pass}
+    fi
+  )&
+}
+
+N=8
+open_sem $N
+
 for test_file in tests/{*,}/test_*.zion
 do
   test_file="${test_file/\/\//\/}"
@@ -58,25 +116,14 @@ do
       continue
     fi
   fi
-  runs+=1
   [[ "$DEBUG_TESTS" != "" ]] && echo "$0: Invoking run-test.sh on ${test_file}..."
-  if logged_run ZION_PATH="${ZION_PATH}:$(dirname "${test_file}")" "${run_test}" "${bin_dir}" "${source_dir}" "${test_file}"; then
-    passed+=1
-  else
-    failed_tests+=( "$test_file" )
-    echo "$0:$LINENO:1: error: test ${test_file} failed"
-    if [ "${FAIL_FAST}" != "" ]; then
-      echo "FAIL_FAST was specified. Quitting..."
-      exit 1
-    fi
-  fi
+
+  ZION_PATH="${ZION_PATH}:$(dirname "${test_file}")" \
+    run_with_lock \
+      "${run_test}" \
+      "${bin_dir}" \
+      "${source_dir}" \
+      "${test_file}"
 done
 
-if [[ ${#failed_tests[*]} != 0 ]]; then
-		echo "$0:$LINENO:1: Tests failed ($((runs-passed))/${runs}):"
-		printf "\\t${C_RED}%s${C_RESET}\\n" "${failed_tests[@]}"
-		exit 1
-else
-		echo "Tests passed (${passed}/${runs})!"
-		exit 0
-fi
+cleanup

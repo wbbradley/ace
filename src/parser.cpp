@@ -47,11 +47,12 @@ bool token_begins_type(const Token &token) {
   switch (token.tk) {
   case tk_integer:
   case tk_string:
-  case tk_times:
   case tk_lsquare:
   case tk_lparen:
   case tk_identifier:
     return true;
+  case tk_operator:
+    return token.text == "*";
   default:
     return false;
   };
@@ -71,7 +72,7 @@ const Expr *parse_var_decl(ParseState &ps,
     auto prior_token = ps.token;
     const Predicate *predicate = parse_predicate(ps, false /*allow_else*/,
                                                  maybe<Identifier>());
-    chomp_token(tk_assign);
+    chomp_operator("=");
     /* parse the initializer in the context before the left-hand side */
     const Expr *rhs = bvlt.escaped_parse_expr(
         false /*allow_for_comprehensions*/);
@@ -88,7 +89,7 @@ const Expr *parse_let(ParseState &ps, Identifier var_id, bool is_let) {
   auto location = ps.token.location;
   const Expr *initializer = nullptr;
 
-  if (!ps.line_broke() && (ps.token.tk == tk_assign)) {
+  if (!ps.line_broke() && (ps.token.is_oper("="))) {
     ps.advance();
     initializer = parse_expr(ps, false /*allow_for_comprehensions*/);
   } else {
@@ -253,7 +254,7 @@ const Expr *parse_defer(ParseState &ps) {
 const Expr *parse_with(ParseState &ps) {
   chomp_ident(K(with));
   bool unwritten_else = false;
-  if (ps.token.tk == tk_bang && ps.token.follows_after(ps.prior_token)) {
+  if (ps.token.is_oper("!") && ps.token.follows_after(ps.prior_token)) {
     unwritten_else = true;
     ps.advance();
   }
@@ -265,7 +266,7 @@ const Expr *parse_with(ParseState &ps) {
     ps.advance();
     predicate = parse_predicate(ps, false /*allow_else*/,
                                 maybe<Identifier>() /*name_assignment*/);
-    chomp_token(tk_assign);
+    chomp_operator("=");
   } else {
     predicate = new IrrefutablePredicate(
         ps.token.location, Identifier{fresh(), ps.token.location});
@@ -409,8 +410,6 @@ const Expr *parse_statement(ParseState &ps) {
     }
   } else if (ps.token.is_ident(K(return ))) {
     return parse_return_statement(ps);
-  } else if (ps.token.is_ident(K(unreachable))) {
-    return new Var(iid(ps.token));
   } else if (ps.token.is_ident(K(continue))) {
     return new Continue(ps.token_and_advance().location);
   } else if (ps.token.is_ident(K(break))) {
@@ -533,7 +532,7 @@ const Expr *parse_var_ref(ParseState &ps) {
   const Expr *var_ref = new Var(id);
   if (!allow_automatic_dereferencing) {
     return var_ref;
-  } else if (is_assignment_operator(ps.token.tk) ||
+  } else if (is_assignment_operator(ps.token) ||
              ps.mutable_vars.count(id.name) == 0) {
     /* this is just a regular variable reference, we don't know if its a "Ref a"
      * type or not, but we suspect not, based on the lexicographical information
@@ -549,7 +548,7 @@ const Expr *parse_var_ref(ParseState &ps) {
 }
 
 const Expr *parse_base_expr(ParseState &ps) {
-  if (ps.token.tk == tk_dot) {
+  if (ps.token.is_dot_ident()) {
     auto iid = gensym(ps.token.location);
     return new Lambda(
         {iid}, {type_variable(ps.token.location)},
@@ -562,8 +561,10 @@ const Expr *parse_base_expr(ParseState &ps) {
   } else if (ps.token.is_ident(K(fn))) {
     ps.advance();
     return parse_lambda(ps);
-  } else if (ps.token.tk == tk_pipe) {
-    return parse_lambda(ps, tk_pipe, tk_pipe);
+  } else if (ps.token.is_oper("|")) {
+    return parse_lambda(ps, "|", "|");
+  } else if (ps.token.is_oper("||")) {
+    return parse_lambda(ps, "||", "");
   } else if (ps.token.is_ident(K(match))) {
     return parse_match(ps);
   } else if (ps.token.is_ident(K(null))) {
@@ -741,7 +742,7 @@ const Expr *parse_array_literal(ParseState &ps) {
     ++i;
     exprs.push_back(parse_expr(ps, false /*allow_for_comprehensions*/));
 
-    if (ps.token.tk == tk_double_dot && (i == 1 || i == 2)) {
+    if (ps.token.is_oper("..") && (i == 1 || i == 2)) {
       /* range syntax with step calculation */
       auto location = ps.token.location;
       ps.advance();
@@ -1024,7 +1025,7 @@ const Expr *parse_associative_array_literal(ParseState &ps) {
       ps.advance();
       exprs.push_back(
           {lhs, parse_expr(ps, false /*allow_for_comprehensions*/)});
-    } else if (ps.token.tk == tk_double_dot) {
+    } else if (ps.token.is_oper("..")) {
       throw user_error(start_curly_token.location,
                        "range syntax is not allowed here");
     } else {
@@ -1150,32 +1151,29 @@ const Expr *parse_application(ParseState &ps,
 }
 
 const Expr *parse_postfix_chain(ParseState &ps, const Expr *expr) {
-  while (ps.token.tk == tk_dot ||
+  while (ps.token.is_dot_ident() ||
          (!ps.line_broke() &&
           (ps.token.tk == tk_lsquare || ps.token.tk == tk_lparen ||
-           ps.token.tk == tk_bang))) {
-    switch (ps.token.tk) {
-    case tk_bang:
+           ps.token.is_oper("!")))) {
+    if (ps.token.is_oper("!")) {
       expr = new As(expr, type_unit(ps.token_and_advance().location),
                     true /*force_cast*/);
-      break;
-    case tk_lparen: {
+    } else if (ps.token.tk == tk_lparen) {
       expr = parse_application(ps, expr, {});
-      break;
-    }
-    case tk_dot: {
+    } else if (ps.token.is_dot_ident()) {
+      /* NB: this call to tld::tld is very important because it forces .foo to
+       * resolve to non-local identifiers. */
+      Identifier iid = tld::tld(
+          ps.id_mapped(Identifier(ps.token.text.substr(1), ps.token.location),
+                       true /*ignore_locals*/));
       ps.advance();
-      expect_token(tk_identifier);
-      auto iid = tld::tld(
-          ps.identifier_and_advance(true /*map_id*/, true /*ignore_locals*/));
+
       if (!ps.line_broke() && ps.token.tk == tk_lparen) {
         expr = parse_application(ps, new Var(iid), {expr});
       } else {
         expr = new Application(new Var(iid), {expr});
       }
-      break;
-    }
-    case tk_lsquare: {
+    } else if (ps.token.tk == tk_lsquare) {
       ps.advance();
       bool is_slice = false;
 
@@ -1193,7 +1191,7 @@ const Expr *parse_postfix_chain(ParseState &ps, const Expr *expr) {
 
       if (ps.token.tk == tk_rsquare) {
         ps.advance();
-        if (ps.token.tk == tk_assign) {
+        if (ps.token.is_oper("=")) {
           /* set up an array index assignment */
           auto location = ps.token_and_advance().location;
           auto rhs = parse_expr(ps, false /*allow_for_comprehensions*/);
@@ -1219,18 +1217,73 @@ const Expr *parse_postfix_chain(ParseState &ps, const Expr *expr) {
                 tld::mktld("std", "get_slice_from_to"), ps.token.location})),
             {expr, start, stop});
       }
-      break;
-    }
-    default:
-      break;
     }
   }
 
   return expr;
 }
 
+const Expr *foldr_application(
+    const Expr *seed,
+    std::list<const Expr *>::iterator terms_cur,
+    const std::list<const Expr *>::iterator terms_end,
+    std::list<Identifier>::iterator operands_cur,
+    const std::list<Identifier>::iterator &operands_end) {
+  /* right-associative binary operations application */
+  const Expr *lhs = seed;
+  if (terms_cur == terms_end) {
+    assert(operands_cur == operands_end);
+    return lhs;
+  }
+  const Expr *rhs_seed = *terms_cur++;
+  Identifier operand = *operands_cur++;
+
+  return new Application(new Var(operand),
+                         {lhs, foldr_application(rhs_seed, terms_cur, terms_end,
+                                                 operands_cur, operands_end)});
+}
+
+const Expr *foldl_application(
+    const Expr *seed,
+    std::list<const Expr *>::iterator terms_cur,
+    const std::list<const Expr *>::iterator terms_end,
+    std::list<Identifier>::iterator operands_cur,
+    const std::list<Identifier>::iterator &operands_end) {
+  /* left-associative binary operations application */
+  const Expr *lhs = seed;
+  if (terms_cur == terms_end) {
+    assert(operands_cur == operands_end);
+    return lhs;
+  }
+  const Expr *app = new Application(new Var(*operands_cur++),
+                                    {lhs, *terms_cur++});
+  return foldl_application(app, terms_cur, terms_end, operands_cur,
+                           operands_end);
+}
+
+const Expr *parse_dot_expr(ParseState &ps) {
+  std::list<const Expr *> terms;
+  std::list<Identifier> operators;
+
+  while (true) {
+    terms.push_back(parse_base_expr(ps));
+    if (ps.token.is_oper(".")) {
+      auto operator_id = ps.id_mapped(
+          Identifier::from_token(ps.token_and_advance()));
+      operators.push_back(operator_id);
+    } else {
+      break;
+    }
+  }
+
+  auto terms_iter = terms.begin();
+  ++terms_iter;
+  return foldr_application(terms.front(), terms_iter, terms.end(),
+                           operators.begin(), operators.end());
+}
+
 const Expr *parse_postfix_expr(ParseState &ps) {
-  const Expr *expr = parse_base_expr(ps);
+  const Expr *expr = parse_dot_expr(ps);
 
   return parse_postfix_chain(ps, expr);
 }
@@ -1240,7 +1293,7 @@ const Expr *parse_cast_expr(ParseState &ps) {
   while (!ps.line_broke() && ps.token.is_ident(K(as))) {
     ps.advance();
     bool force_cast = false;
-    if (ps.token.tk == tk_bang && ps.token.follows_after(ps.prior_token)) {
+    if (ps.token.is_oper("!") && ps.token.follows_after(ps.prior_token)) {
       /* this is a force-cast */
       force_cast = true;
       ps.advance();
@@ -1265,8 +1318,8 @@ const Expr *parse_prefix_expr(ParseState &ps) {
     return parse_sizeof(ps);
   }
 
-  maybe<Token> prefix = (ps.token.tk == tk_minus ||
-                         ps.token.is_ident(K(not )) || ps.token.tk == tk_bang)
+  maybe<Token> prefix = (ps.token.is_oper("-") || ps.token.is_ident(K(not )) ||
+                         ps.token.is_oper("!"))
                             ? maybe<Token>(ps.token)
                             : maybe<Token>();
 
@@ -1275,8 +1328,8 @@ const Expr *parse_prefix_expr(ParseState &ps) {
   }
 
   const Expr *rhs;
-  if (ps.token.is_ident(K(not )) || ps.token.tk == tk_minus ||
-      ps.token.tk == tk_bang) {
+  if (ps.token.is_ident(K(not )) || ps.token.is_oper("-") ||
+      ps.token.is_oper("!")) {
     /* recurse to find more prefix expressions */
     rhs = parse_prefix_expr(ps);
   } else {
@@ -1307,9 +1360,9 @@ const Expr *parse_times_expr(ParseState &ps) {
   const Expr *expr = parse_prefix_expr(ps);
 
   while (!ps.line_broke() &&
-         (ps.token.tk == tk_times || ps.token.tk == tk_divide_by ||
-          ps.token.tk == tk_mod)) {
-    Identifier op = ps.id_mapped(Identifier{ps.token.text, ps.token.location});
+         (ps.token.is_oper_like("*") || ps.token.is_oper_like("/") ||
+          ps.token.is_oper_like("%"))) {
+    Identifier op = ps.id_mapped(Identifier::from_token(ps.token));
     ps.advance();
 
     expr = new Application(new Var(op), {expr, parse_prefix_expr(ps)});
@@ -1322,12 +1375,9 @@ const Expr *parse_plus_expr(ParseState &ps) {
   auto expr = parse_times_expr(ps);
 
   while (!ps.line_broke() &&
-         (ps.token.tk == tk_plus || ps.token.tk == tk_minus ||
-          ps.token.tk == tk_backslash)) {
-    if (ps.token.text == "-") {
-      // dbg();
-    }
-    Identifier op = ps.id_mapped(Identifier{ps.token.text, ps.token.location});
+         (ps.token.is_oper_like("+") || ps.token.is_oper_like("-") ||
+          ps.token.is_oper_like("\\"))) {
+    Identifier op = ps.id_mapped(Identifier::from_token(ps.token));
     ps.advance();
 
     expr = new Application(new Var(op), {expr, parse_times_expr(ps)});
@@ -1340,8 +1390,8 @@ const Expr *parse_shift_expr(ParseState &ps) {
   auto expr = parse_plus_expr(ps);
 
   while (!ps.line_broke() &&
-         (ps.token.tk == tk_shift_left || ps.token.tk == tk_shift_right)) {
-    Identifier op = ps.id_mapped(Identifier{ps.token.text, ps.token.location});
+         (ps.token.is_oper_like("<<") || ps.token.is_oper_like(">>"))) {
+    Identifier op = ps.id_mapped(Identifier::from_token(ps.token));
     ps.advance();
 
     expr = new Application(new Var(op), {expr, parse_plus_expr(ps)});
@@ -1353,8 +1403,8 @@ const Expr *parse_shift_expr(ParseState &ps) {
 const Expr *parse_bitwise_and(ParseState &ps) {
   auto expr = parse_shift_expr(ps);
 
-  while (!ps.line_broke() && ps.token.tk == tk_ampersand) {
-    Identifier op = ps.id_mapped(Identifier{ps.token.text, ps.token.location});
+  while (!ps.line_broke() && ps.token.is_oper_like("&")) {
+    Identifier op = ps.id_mapped(Identifier::from_token(ps.token));
     ps.advance();
 
     expr = new Application(new Var(op), {expr, parse_shift_expr(ps)});
@@ -1366,8 +1416,8 @@ const Expr *parse_bitwise_and(ParseState &ps) {
 const Expr *parse_bitwise_xor(ParseState &ps) {
   auto expr = parse_bitwise_and(ps);
 
-  while (!ps.line_broke() && ps.token.tk == tk_hat) {
-    Identifier op = ps.id_mapped(Identifier{ps.token.text, ps.token.location});
+  while (!ps.line_broke() && ps.token.is_oper_like("^")) {
+    Identifier op = ps.id_mapped(Identifier::from_token(ps.token));
     ps.advance();
 
     expr = new Application(new Var(op), {expr, parse_bitwise_and(ps)});
@@ -1378,8 +1428,8 @@ const Expr *parse_bitwise_xor(ParseState &ps) {
 const Expr *parse_bitwise_or(ParseState &ps) {
   auto expr = parse_bitwise_xor(ps);
 
-  while (!ps.line_broke() && ps.token.tk == tk_pipe) {
-    Identifier op = ps.id_mapped(Identifier{ps.token.text, ps.token.location});
+  while (!ps.line_broke() && ps.token.is_oper_like("|")) {
+    Identifier op = ps.id_mapped(Identifier::from_token(ps.token));
     ps.advance();
 
     expr = new Application(new Var(op), {expr, parse_bitwise_xor(ps)});
@@ -1412,21 +1462,18 @@ const Expr *fold_or_exprs(std::vector<const Expr *> exprs, int index) {
   }
 }
 
-const Expr *foldl_application(
-    ParseState &ps,
-    const Expr *seed,
-    std::list<const Expr *>::iterator terms_cur,
-    const std::list<const Expr *>::iterator terms_end,
-    std::list<Identifier>::iterator operands_cur,
-    const std::list<Identifier>::iterator &operands_end) {
-  const Expr *lhs = seed;
-  if (terms_cur == terms_end) {
-    return lhs;
+bool starts_with_in(std::string haystack,
+                    const std::set<std::string> &needles) {
+  for (auto needle : needles) {
+    if (starts_with(haystack, needle)) {
+      debug_above(14, log("starts_with_in(%s, %s) -> true", haystack.c_str(),
+                          str(needles).c_str()));
+      return true;
+    }
   }
-  const Expr *app = new Application(new Var(ps.id_mapped(*operands_cur++)),
-                                    {lhs, *terms_cur++});
-  return foldl_application(ps, app, terms_cur, terms_end, operands_cur,
-                           operands_end);
+  debug_above(14, log("starts_with_in(%s, %s) -> false", haystack.c_str(),
+                      str(needles).c_str()));
+  return false;
 }
 
 const Expr *parse_comparison_expr(ParseState &ps) {
@@ -1436,7 +1483,7 @@ const Expr *parse_comparison_expr(ParseState &ps) {
       "<", ">", "<=", ">=", "==", "!=", "in",
   };
   std::list<const Expr *> terms;
-  std::list<Identifier> operands;
+  std::list<Identifier> operators;
   do {
     terms.push_back(parse_bitwise_or(ps));
     bool not_ = false;
@@ -1445,18 +1492,22 @@ const Expr *parse_comparison_expr(ParseState &ps) {
       not_ = true;
     }
 
-    if (in(ps.token.text, comparisons)) {
+    if ((ps.token.tk == tk_operator &&
+         starts_with_in(ps.token.text, comparisons)) ||
+        ps.token.is_ident(K(in))) {
       if (not_) {
         if (ps.token.text != "in") {
           throw user_error(ps.token.location,
                            "'not' is only valid before 'in'");
         } else {
-          operands.push_back(Identifier{"not_in", ps.token.location});
+          operators.push_back(
+              ps.id_mapped(Identifier{"not_in", ps.token.location}));
           continue;
         }
       } // not-in
 
-      operands.push_back(Identifier{ps.token.text, ps.token.location});
+      operators.push_back(
+          ps.id_mapped(Identifier{ps.token.text, ps.token.location}));
       continue;
     } else if (not_) {
       throw user_error(ps.token.location, "unexpected dangling 'not' operator");
@@ -1465,14 +1516,15 @@ const Expr *parse_comparison_expr(ParseState &ps) {
     }
   } while (ps.advance());
 
-  if (terms.size() != operands.size() + 1) {
-    throw user_error(ps.token.location,
-                     "invalid number of terms to operands in prior comparison");
+  if (terms.size() != operators.size() + 1) {
+    throw user_error(
+        ps.token.location,
+        "invalid number of terms to operators in prior comparison");
   }
   auto terms_iter = terms.begin();
   ++terms_iter;
-  return foldl_application(ps, terms.front(), terms_iter, terms.end(),
-                           operands.begin(), operands.end());
+  return foldl_application(terms.front(), terms_iter, terms.end(),
+                           operators.begin(), operators.end());
 }
 
 const Expr *parse_not_expr(ParseState &ps) {
@@ -1504,6 +1556,7 @@ const Expr *parse_tuple_expr(ParseState &ps) {
     /* we've got a reference to sole value of unit type */
     return unit_expr(ps.token_and_advance().location);
   }
+
   const Expr *expr = parse_expr(ps, true /*allow_for_comprehensions*/);
   if (ps.token.tk != tk_comma) {
     chomp_token(tk_rparen);
@@ -1546,7 +1599,7 @@ const Expr *parse_or_expr(ParseState &ps) {
 
 const Expr *parse_ternary_expr(ParseState &ps) {
   const Expr *condition = parse_or_expr(ps);
-  if (ps.token.tk == tk_maybe) {
+  if (ps.token.is_oper("?")) {
     ps.advance();
 
     const Expr *truthy_expr = parse_or_expr(ps);
@@ -1580,36 +1633,27 @@ const Expr *parse_assignment(ParseState &ps) {
     return lhs;
   }
 
-  switch (ps.token.tk) {
-  case tk_assign:
+  if (ps.token.is_oper("=")) {
     ps.advance();
     return new Application(
-        new Var(
-            Identifier{tld::mktld("std", "store_value"), ps.token.location}),
+        new Var(ps.id_mapped(Identifier{"store_value", ps.token.location})),
         {lhs, parse_expr(ps, false /*allow_for_comprehensions*/)});
-  case tk_divide_by_eq:
-  case tk_minus_eq:
-  case tk_mod_eq:
-  case tk_plus_eq:
-  case tk_times_eq: {
+  } else if (is_assignment_operator(ps.token)) {
     auto op_token = ps.token_and_advance();
     assert(op_token.text.size() >= 1);
     const Expr *rhs = parse_expr(ps, false /*allow_for_comprehensions*/);
     Identifier copy_value = Identifier{fresh(), lhs->get_location()};
     return new Application(
-        new Var(
-            Identifier{tld::mktld("std", "store_value"), op_token.location}),
+        new Var(ps.id_mapped(Identifier{"store_value", op_token.location})),
         {lhs, new Let(copy_value,
-                      new Application(
-                          new Var(Identifier{tld::mktld("std", "load_value"),
-                                             op_token.location}),
-                          {lhs}),
+                      new Application(new Var(ps.id_mapped(Identifier{
+                                          "load_value", op_token.location})),
+                                      {lhs}),
                       new Application(
                           new Var(ps.id_mapped(Identifier{
                               op_token.text.substr(0, 1), op_token.location})),
                           {new Var(copy_value), rhs}))});
-  }
-  default:
+  } else {
     return lhs;
   }
 }
@@ -1630,7 +1674,7 @@ const Expr *parse_block(ParseState &ps, bool expression_means_return) {
         return unit_expr(ps.token_and_advance().location);
       }
     }
-  } else if (ps.token.tk == tk_expr_block) {
+  } else if (ps.token.is_oper("=>")) {
     expression_block_syntax = true;
     expression_block_assign_token = ps.token;
     ps.advance();
@@ -1649,10 +1693,14 @@ const Expr *parse_block(ParseState &ps, bool expression_means_return) {
       if (ps.token.tk != tk_rparen && ps.token.tk != tk_rcurly &&
           ps.token.tk != tk_rsquare && ps.token.tk != tk_comma &&
           !ps.line_broke()) {
-        throw user_error(ps.token.location,
-                         "this looks hard to read. you should have a line "
-                         "break after => blocks, unless they are immediately "
-                         "followed by one of these: )]}");
+        auto error = user_error(
+            ps.token.location,
+            "this looks hard to read. you should have a line "
+            "break after => blocks, unless they are immediately "
+            "followed by one of these: )]}");
+        error.add_info(statement->get_location(), "this follows: (%s)",
+                       statement->str().c_str());
+        throw error;
       }
       return statement;
     } else {
@@ -1873,7 +1921,7 @@ const Predicate *parse_predicate(ParseState &ps,
       /* match anything */
       Identifier symbol = iid(ps.token);
       ps.advance();
-      if (ps.token.tk == tk_about) {
+      if (ps.token.is_oper("@")) {
         ps.advance();
 
         return parse_predicate(ps, allow_else, maybe<Identifier>(symbol));
@@ -1890,9 +1938,7 @@ const Predicate *parse_predicate(ParseState &ps,
     }
 
     std::string sign;
-    switch (ps.token.tk) {
-    case tk_minus:
-    case tk_plus:
+    if (ps.token.is_oper("-") || ps.token.is_oper("+")) {
       sign = ps.token.text;
       ps.advance();
       if (ps.token.tk != tk_integer && ps.token.tk != tk_float) {
@@ -1901,9 +1947,6 @@ const Predicate *parse_predicate(ParseState &ps,
             "unary prefix %s is not allowed before %s in this context",
             ps.prior_token.text.c_str(), ps.token.text.c_str());
       }
-      break;
-    default:
-      break;
     }
 
     switch (ps.token.tk) {
@@ -1936,7 +1979,7 @@ const Match *parse_match(ParseState &ps) {
   bool auto_else = false;
   Token bang_token = ps.token;
   // TODO: this syntax needs some more thought. It's very subtle.
-  if (ps.token.tk == tk_bang && ps.token.follows_after(ps.prior_token)) {
+  if (ps.token.is_oper("!") && ps.token.follows_after(ps.prior_token)) {
     auto_else = true;
     ps.advance();
   }
@@ -2010,8 +2053,8 @@ std::pair<Identifier, types::Ref> parse_lambda_param_core(ParseState &ps) {
 }
 
 const Expr *parse_lambda(ParseState &ps,
-                         TokenKind tk_start_param_list,
-                         TokenKind tk_end_param_list) {
+                         std::string start_param_list,
+                         std::string end_param_list) {
   if (ps.token.tk == tk_identifier) {
     throw user_error(ps.token.location, "identifiers are unexpected here");
   }
@@ -2019,9 +2062,9 @@ const Expr *parse_lambda(ParseState &ps,
   BoundVarLifetimeTracker bvlt(ps);
   std::vector<Identifier> param_ids;
   types::Refs param_types;
-  chomp_token(tk_start_param_list);
+  chomp_text(start_param_list);
 
-  while (!maybe_chomp_token(tk_end_param_list)) {
+  while (end_param_list.size() != 0 && !maybe_chomp_text(end_param_list)) {
     if (param_ids.size() != 0 && ps.token.tk != tk_rparen) {
       /* chomp any delimiting commas */
       chomp_token(tk_comma);
@@ -2157,7 +2200,7 @@ types::Ref parse_type(ParseState &ps, bool allow_top_level_application) {
           {ref_type_id, parse_type(ps, true /*allow_top_level_application*/)}));
     } else if (ps.token.tk == tk_identifier) {
       types.push_back(parse_named_type(ps));
-    } else if (ps.token.tk == tk_times) {
+    } else if (ps.token.is_oper("*")) {
       types.push_back(type_id(
           Identifier{PTR_TYPE_OPERATOR, ps.token_and_advance().location}));
     } else {
@@ -2330,7 +2373,7 @@ DataTypeDecl parse_newtype_decl(ParseState &ps,
   Token type_name = ps.token;
   const TypeDecl *type_decl = parse_type_decl(ps);
 
-  chomp_token(tk_assign);
+  chomp_operator("=");
   if (ps.token.tk != tk_identifier || ps.token.text != type_name.text) {
     throw user_error(ps.token.location,
                      "newtype must have a single constructor whose name "
@@ -2510,7 +2553,7 @@ std::vector<const Decl *> parse_decls(ParseState &ps) {
       /* instance-level let vars */
       auto name_token = ps.token_and_advance();
       auto id = ps.id_mapped(Identifier{name_token.text, name_token.location});
-      chomp_token(tk_assign);
+      chomp_operator("=");
       decls.push_back(
           new Decl(id, parse_expr(ps, false /*allow_for_comprehensions*/)));
     } else {
@@ -2713,7 +2756,7 @@ const Module *parse_module(ParseState &ps,
       /* module-level constants */
       ps.advance();
       auto id = Identifier::from_token(ps.token_and_advance());
-      chomp_token(tk_assign);
+      chomp_operator("=");
       ps.export_symbol(id, ps.mkfqn(id));
       decls.push_back(
           new Decl(id, parse_expr(ps, false /*allow_for_comprehensions*/)));

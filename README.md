@@ -1,6 +1,14 @@
 # Zion Language
 
+“Those who do not want to imitate anything, produce nothing.” -Salvador Dalí
+
 [![Tests](https://github.com/zionlang/zion/workflows/Tests/badge.svg)](https://github.com/zionlang/zion/actions?query=workflow%3ATests)
+
+## Fundamentals
+
+Zion resembles a combination of Haskell and C, with garbage collection, strict
+evaluation, purity and impurity (when you want it), extensible infix operators,
+type-classes supporting parametric polymorphism, and static type inference.
 
 ## Quick Start
 

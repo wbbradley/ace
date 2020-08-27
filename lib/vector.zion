@@ -123,6 +123,15 @@ fn resize(xs [a], new_len Int, default a) () {
     }
 }
 
+fn shrink_to(xs [a], new_len Int) {
+  if new_len < xs.len {
+    assert(new_len >= 0)
+    let Vector(_, var size, _) = xs
+    size = new_len
+    # TODO: Consider nulling out memory that is no longer used.
+  }
+}
+
 instance Copy [a] {
   fn copy(xs [a]) [a] {
     let ys = []

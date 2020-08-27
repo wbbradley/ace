@@ -13,7 +13,7 @@
 #include <gc/gc.h>
 
 const char **zion_argv;
-int zion_argc;
+int64_t zion_argc;
 
 void zion_init(int argc, const char *argv[]) {
 	/* initialize the collector */
@@ -119,7 +119,7 @@ void *zion_malloc(uint64_t cb) {
   return pb;
 }
 
-int zion_strlen(const char *sz) {
+int64_t zion_strlen(const char *sz) {
 	return strlen(sz);
 }
 
@@ -128,7 +128,7 @@ void *zion_print_int64(int64_t x) {
   return 0;
 }
 
-int zion_write_char(int64_t fd, char x) {
+int64_t zion_write_char(int64_t fd, char x) {
   char sz[] = {x};
   return write(fd, sz, 1);
 }
@@ -189,7 +189,7 @@ void zion_pass_test() {
   write(1, "PASS\n", 5);
 }
 
-int zion_puts(char *sz) {
+int64_t zion_puts(char *sz) {
   if (sz == 0) {
     const char *error = "attempt to puts a null pointer!\n";
     write(1, error, zion_strlen(error));

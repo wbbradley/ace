@@ -1,0 +1,9 @@
+# test: pass,noprelude
+# expect: 14
+
+fn apply(op, a, b) => op(a, b)
+fn +(a, b) => __builtin_add_int(a, b)
+
+fn main() {
+  __builtin_print_int(apply((+), 12, 2))
+}

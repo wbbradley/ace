@@ -19,6 +19,31 @@ enum TokenKind {
 
   // References
   tk_identifier, /* identifier */
+  tk_operator,   /* operator (ie: +, -, <, <$>, |>, etc..) */
+  /*
+   * TODO: Flesh this out more in a doc.
+   *
+   * User Defined Operators can be:
+   *
+   * /[.=<>+-*|/\\$^@&%]+/
+   * except for any tk_* that already exist:
+   * (=> ! ? : = += -= *= /= %=)
+   *
+   * Operator precedence is based on first character of operator, in the
+   * following descending priority order.
+   *
+   * ( "?" ":"
+   *   "or"
+   *   "and"
+   *   "not"
+   *   "<", ">", "<=", ">=", "==", "!=", "in"
+   *   "<.*", ">.*", "=.+", "!.+" (user-defined)
+   *   "|"
+   *   "^"
+   *   "&
+   *   "<<", ">>"
+   *
+   */
 
   // Syntax
   tk_lparen,    /* ( */
@@ -28,8 +53,8 @@ enum TokenKind {
   tk_rcurly,    /* } */
   tk_lsquare,   /* [ */
   tk_rsquare,   /* ] */
-  tk_colon,     /* : */
   tk_semicolon, /* ; */
+  tk_colon,     /* : */
 
   // Literals
   tk_char,                     /* char literal */
@@ -37,51 +62,9 @@ enum TokenKind {
   tk_float,                    /* 3.1415e20 */
   tk_integer,                  /* [0-9]+ */
   tk_string,                   /* "string literal" */
-  tk_about,                    /* @ */
   tk_string_expr_prefix,       /* ".*[^\\]\${ */
   tk_string_expr_continuation, /* }.*[^\\]\${ */
   tk_string_expr_suffix,       /* }.*" */
-
-  // Operators
-  tk_equal,          /* == */
-  tk_binary_equal,   /* === */
-  tk_inequal,        /* != */
-  tk_binary_inequal, /* !== */
-  tk_expr_block,     /* => */
-  tk_bang,           /* ! */
-  tk_maybe,          /* ? */
-  tk_lt,             /* < */
-  tk_gt,             /* > */
-  tk_lte,            /* <= */
-  tk_gte,            /* >= */
-  tk_assign,         /* = */
-  tk_becomes,        /* := */
-  tk_subtype,        /* <: */
-  tk_plus,           /* + */
-  tk_minus,          /* - */
-  tk_backslash,      /* \ */
-  tk_times,          /* * */
-  tk_divide_by,      /* / */
-  tk_mod,            /* % */
-  tk_pipe,           /* | */
-  tk_shift_left,     /* << */
-  tk_shift_right,    /* >> */
-  tk_hat,            /* ^ */
-  tk_dot,            /* . */
-  tk_double_dot,     /* .. */
-  tk_ampersand,      /* & */
-
-  /* implicit lambda */
-  tk_tilde,  /* ~ */
-  tk_dollar, /* $ */
-
-  // Mutating binary ops
-  tk_plus_eq,      /* += */
-  tk_minus_eq,     /* -= */
-  tk_times_eq,     /* *= */
-  tk_divide_by_eq, /* /= */
-  tk_mod_eq,       /* %= */
-
 };
 
 #define K(x) const char *const K_##x = #x
@@ -119,7 +102,6 @@ K(return );
 K(sizeof);
 K(static_print);
 K(struct);
-K(unreachable);
 K(var);
 K(while);
 K(with);
@@ -140,6 +122,9 @@ struct Token {
   std::string str() const;
 
   bool is_ident(const char *x) const;
+  bool is_dot_ident() const;
+  bool is_oper(const char *x) const;
+  bool is_oper_like(const char *x) const;
   bool operator<(const Token &rhs) const;
   bool follows_after(const Token &a) const;
 };
@@ -147,5 +132,5 @@ struct Token {
 const char *tkstr(TokenKind tk);
 int64_t parse_int_value(Token token);
 double parse_float_value(Token token);
-bool is_assignment_operator(TokenKind tk);
+bool is_assignment_operator(const Token &tk);
 } // namespace zion

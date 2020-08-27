@@ -41,8 +41,42 @@ inline Identifier iid(const Token &token) {
     }                                                                          \
   } while (0)
 
+#define expect_operator(text_)                                                 \
+  do {                                                                         \
+    const char *const token_text = (text_);                                    \
+    if (ps.token.tk != tk_operator || ps.token.text != token_text) {           \
+      ps.error("expected operator " c_id("%s") ", got " c_warn("%s"),          \
+               token_text,                                                     \
+               ps.token.text.size() != 0 ? ps.token.text.c_str()               \
+                                         : tkstr(ps.token.tk));                \
+    }                                                                          \
+  } while (0)
+
+#define expect_text(text_)                                                     \
+  do {                                                                         \
+    std::string token_text = (text_);                                          \
+    if (ps.token.text != token_text) {                                         \
+      ps.error("expected \"%s\", got " c_warn("%s"), token_text.c_str(),       \
+               ps.token.text.size() != 0 ? ps.token.text.c_str()               \
+                                         : tkstr(ps.token.tk));                \
+    }                                                                          \
+  } while (0)
+
+#define maybe_chomp_text(text_)                                                \
+  ((ps.token.text == (text_)) ? (ps.advance(), true) : (false))
 #define maybe_chomp_token(_tk)                                                 \
   ((ps.token.tk == (_tk)) ? (ps.advance(), true) : (false))
+#define chomp_operator(op)                                                     \
+  do {                                                                         \
+    expect_token(tk_operator);                                                 \
+    if (ps.token.text == (op)) {                                               \
+      eat_token();                                                             \
+    }                                                                          \
+  } while (0)
+#define maybe_chomp_operator(op)                                               \
+  ((ps.token.tk == tk_operator && ps.token.text == (op))                       \
+       ? (ps.advance(), true)                                                  \
+       : (false))
 #define chomp_token(_tk)                                                       \
   do {                                                                         \
     expect_token(_tk);                                                         \
@@ -51,6 +85,11 @@ inline Identifier iid(const Token &token) {
 #define chomp_ident(text_)                                                     \
   do {                                                                         \
     expect_ident(text_);                                                       \
+    eat_token();                                                               \
+  } while (0)
+#define chomp_text(text_)                                                      \
+  do {                                                                         \
+    expect_text(text_);                                                        \
     eat_token();                                                               \
   } while (0)
 
@@ -69,8 +108,8 @@ const ast::Expr *parse_block(ParseState &ps, bool expression_means_return);
 const ast::Expr *parse_if(ParseState &ps);
 const ast::While *parse_while(ParseState &ps);
 const ast::Expr *parse_lambda(ParseState &ps,
-                              TokenKind tk_start_param_list = tk_lparen,
-                              TokenKind tk_end_param_list = tk_rparen);
+                              std::string start_param_list = "(",
+                              std::string end_param_list = ")");
 const ast::Match *parse_match(ParseState &ps);
 const ast::Predicate *parse_predicate(ParseState &ps,
                                       bool allow_else,

@@ -1,0 +1,15 @@
+# test: pass, noprelude
+# expect: 894916
+
+let . = |f, g| => |x| => f(g(x))
+let + = |x, y| => __builtin_add_int(x, y)
+let * = |x, y| => __builtin_multiply_int(x, y)
+
+fn print_int(x Int) () => ffi zion_print_int64(x)
+fn inc(x) => x + 1
+fn square(x) => x * x
+let inc_square_print = print_int . square . inc
+
+fn main() {
+  inc_square_print(945)
+}

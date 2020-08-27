@@ -1,0 +1,9 @@
+# test: pass,noprelude
+# expect: 1
+
+fn !=(x, y) => __builtin_int_ne(x, y) ? 1 : 0
+fn <>(x, y) => x != y
+
+fn main() {
+  ffi zion_print_int64(1 <> 2)
+}
