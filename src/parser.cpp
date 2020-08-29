@@ -2655,7 +2655,6 @@ void generate_eq_instance(const Identifier &klass,
     std::vector<std::string> a_names;
     std::vector<std::string> b_names;
     std::vector<const Expr *> tests;
-    std::list<Identifier> and_operators;
     for (int i = 0; i < int(ctor_terms.size()) - 1; i++) {
       a_names.push_back(fresh());
       b_names.push_back(fresh());
