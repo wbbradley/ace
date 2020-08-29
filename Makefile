@@ -90,7 +90,7 @@ test:
 	make install-test
 	@echo "ZION_ROOT=$(test_destdir)/$(prefix)/share/$(PN)"
 	@ZION_ROOT="$(test_destdir)/$(prefix)/share/$(PN)" \
-		time "$(SRCDIR)/tests/run-tests.sh" \
+		"$(SRCDIR)/tests/run-tests.sh" \
 			"$(test_destdir)/$(prefix)/bin" \
 			"$(SRCDIR)" \
 			"$(SRCDIR)/tests"
