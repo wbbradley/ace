@@ -2634,8 +2634,8 @@ void generate_eq_instance(const Identifier &klass,
    *     {{ for data_ctor in data_ctors }}
    *       (data_ctor(a_args...), data_ctor(b_args...)) => a_args == b_args
    *     {{ end }}
-   *   }
-   * } else => False
+   *   } else => False
+   * }
    * */
 
   PatternBlocks pattern_blocks;
