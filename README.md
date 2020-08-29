@@ -1,7 +1,5 @@
 # Zion Language
 
-“Those who do not want to imitate anything, produce nothing.” -Salvador Dalí
-
 [![Tests](https://github.com/zionlang/zion/workflows/Tests/badge.svg)](https://github.com/zionlang/zion/actions?query=workflow%3ATests)
 
 ## Fundamentals
