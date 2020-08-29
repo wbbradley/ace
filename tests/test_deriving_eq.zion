@@ -1,0 +1,24 @@
+# test: pass
+
+data Van {
+  Ram(String)
+  Mercedes(String, Int)
+  Honda
+} deriving Eq
+
+fn main() {
+  let ram1 = Ram("Promaster")
+  let ram2 = Ram("Something")
+  let benz = Mercedes("Sprinter", 2500)
+
+  assert(ram1 == ram1)
+  assert(ram1 != ram2)
+  assert(Honda == Honda)
+  assert(Honda != ram1)
+  assert(ram1 != benz)
+  assert(ram1 != benz)
+  assert(benz == benz)
+
+  print("PASS")
+}
+

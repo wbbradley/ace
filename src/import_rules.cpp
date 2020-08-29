@@ -315,7 +315,8 @@ const Expr *rewrite_expr(const RewriteImportRules &rewrite_import_rules,
     PatternBlocks pattern_blocks;
     return new Match(
         rewrite_expr(rewrite_import_rules, match->scrutinee),
-        rewrite_pattern_blocks(rewrite_import_rules, match->pattern_blocks));
+        rewrite_pattern_blocks(rewrite_import_rules, match->pattern_blocks),
+        match->disable_coverage_check);
   } else if (auto defer = dcast<const Defer *>(expr)) {
     return new Defer(
         rewrite_application(rewrite_import_rules, defer->application));

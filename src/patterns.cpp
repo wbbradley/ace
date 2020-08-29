@@ -157,8 +157,10 @@ const Expr *translate_match_expr(
   }
 
   types::Ref scrutinee_type = get_tracked_type(tracked_types, match->scrutinee);
-  check_patterns(scrutinee_expr->get_location(), gensym_name(), data_ctors_map,
-                 match->pattern_blocks, scrutinee_type);
+  if (!match->disable_coverage_check) {
+    check_patterns(scrutinee_expr->get_location(), gensym_name(),
+                   data_ctors_map, match->pattern_blocks, scrutinee_type);
+  }
 
   Identifier scrutinee_id = make_iid("__scrutinee_" + fresh());
   const Expr *new_match = new Let(

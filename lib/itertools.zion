@@ -85,16 +85,14 @@ fn cycle(xs_input) {
   let recording = []
   var index = 0
   return fn () {
-    match! xs {
-      Just(iterator) {
-        match iterator() {
-          step@Just(x) {
-            append(recording, step)
-            return step
-          }
-          Nothing {
-            xs = Nothing
-          }
+    if xs is Just(iterator) {
+      match iterator() {
+        step@Just(x) {
+          append(recording, step)
+          return step
+        }
+        Nothing {
+          xs = Nothing
         }
       }
     }

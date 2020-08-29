@@ -79,6 +79,7 @@ K(continue);
 K(data);
 K(defer);
 K(default);
+K(deriving);
 K(else);
 K(ffi);
 K(fn);

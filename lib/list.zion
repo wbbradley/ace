@@ -83,10 +83,8 @@ fn remove_if(list List a, pred fn (a) Bool) (List a, Int) {
         cur_node = next
         continue
       } else {
-        match! starting_list {
-          Nil {
-            starting_list = cur_node
-          }
+        if starting_list is Nil {
+          starting_list = cur_node
         }
         prev_node = cur_node
         cur_node = next

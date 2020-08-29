@@ -4,15 +4,13 @@ import sys {Errno}
 import bufio {BufferedFileIO}
 
 fn main() {
-    with! let fd = open(__filename__) {
-        for buffer in BufferedFileIO(fd) {
-            match! write(stdout, buffer) {
-                Right(errno) {
-                    panic("Failed to write to stdout with ${errno}")
-                }
-            }
-        }
+  with! let fd = open(__filename__) {
+    for buffer in BufferedFileIO(fd) {
+      if write(stdout, buffer) is Right(errno) {
+        panic("Failed to write to stdout with ${errno}")
+      }
     }
+  }
 }
 
 # expect: It printed all the way down here.

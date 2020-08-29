@@ -184,7 +184,8 @@ const Expr *prefix(const std::set<std::string> &bindings,
     return new Var(prefix(bindings, pre, var->id));
   } else if (auto match = dcast<const Match *>(value)) {
     return new Match(prefix(bindings, pre, match->scrutinee),
-                     prefix(bindings, pre, match->pattern_blocks));
+                     prefix(bindings, pre, match->pattern_blocks),
+                     match->disable_coverage_check);
   } else if (auto block = dcast<const Block *>(value)) {
     return new Block(prefix(bindings, pre, block->statements));
   } else if (auto as = dcast<const As *>(value)) {

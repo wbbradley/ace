@@ -77,7 +77,8 @@ const Expr *parse_var_decl(ParseState &ps,
     const Expr *rhs = bvlt.escaped_parse_expr(
         false /*allow_for_comprehensions*/);
     const Expr *body = parse_block(ps, false /*expression_means_return*/);
-    return new Match(rhs, {new PatternBlock(predicate, body)});
+    return new Match(rhs, {new PatternBlock(predicate, body)},
+                     false /*disable_coverage_check*/);
   } else {
     expect_token(tk_identifier);
     assert(!isupper(ps.token.text[0]));
@@ -177,7 +178,7 @@ const Expr *parse_for_block(ParseState &ps) {
       new While(new Var(ps.id_mapped(Identifier{"True", in_token.location})),
                 new Match(new Application(new Var(iterator_id),
                                           {unit_expr(iterator_id.location)}),
-                          pattern_blocks)));
+                          pattern_blocks, false /*disable_coverage_check*/)));
 }
 
 const Expr *parse_new_expr(ParseState &ps) {
@@ -346,7 +347,8 @@ const Expr *parse_with(ParseState &ps) {
                               Identifier{tld::mktld("std", "ResourceFailure"),
                                          else_block->get_location()},
                               maybe<Identifier>{}),
-                          else_block)});
+                          else_block)},
+        false /*disable_coverage_check*/);
   } else {
     Identifier defer_id{fresh(), ps.token.location};
     /* construct the defer statement prior to the evaluation of the block */
@@ -363,7 +365,8 @@ const Expr *parse_with(ParseState &ps) {
                               Identifier{tld::mktld("std", "WithResource"),
                                          predicate->get_location()},
                               maybe<Identifier>{}),
-            new Block(statements))});
+            new Block(statements))},
+        false /*disable_coverage_check*/);
   }
 }
 
@@ -715,7 +718,8 @@ const Expr *build_generator(Location location,
                                            location},
                                 maybe<Identifier>()),
                             new ReturnStatement(new Var(Identifier{
-                                tld::mktld("maybe", "Nothing"), location})))})),
+                                tld::mktld("maybe", "Nothing"), location})))},
+                       false /*disable_coverage_check*/)),
                new ReturnStatement(new Var(
                    Identifier{tld::mktld("maybe", "Nothing"), location}))})));
 }
@@ -1438,7 +1442,7 @@ const Expr *parse_bitwise_or(ParseState &ps) {
   return expr;
 }
 
-const Expr *fold_and_exprs(std::vector<const Expr *> exprs, int index) {
+const Expr *fold_and_exprs(std::vector<const Expr *> exprs, int index = 0) {
   if (index < int(exprs.size()) - 1) {
     Identifier term_id = make_iid(fresh());
     return new Let(
@@ -1768,7 +1772,8 @@ const Expr *parse_if(ParseState &ps) {
           new IrrefutablePredicate(is_token.location, maybe<Identifier>()),
           unit_expr(is_token.location)));
     }
-    return new Match(condition, pattern_blocks);
+    return new Match(condition, pattern_blocks,
+                     false /*disable_coverage_check*/);
   } else {
     const Expr *block = parse_block(ps, false /*expression_means_return*/);
     const Expr *else_ = nullptr;
@@ -1814,7 +1819,8 @@ const While *parse_while(ParseState &ps) {
           new Break(is_token.location)));
       return new While(
           new Var(Identifier{tld::mktld("std", "True"), ps.token.location}),
-          new Match(condition_expr, pattern_blocks));
+          new Match(condition_expr, pattern_blocks,
+                    false /*disable_coverage_check*/));
     } else {
       return new While(condition_expr,
                        parse_block(ps, false /*expression_means_return*/));
@@ -1976,11 +1982,10 @@ const Predicate *parse_predicate(ParseState &ps,
 
 const Match *parse_match(ParseState &ps) {
   chomp_ident(K(match));
-  bool auto_else = false;
+  bool disable_coverage_check = false;
   Token bang_token = ps.token;
-  // TODO: this syntax needs some more thought. It's very subtle.
   if (ps.token.is_oper("!") && ps.token.follows_after(ps.prior_token)) {
-    auto_else = true;
+    disable_coverage_check = true;
     ps.advance();
   }
   auto scrutinee = parse_expr(ps, false /*allow_for_comprehensions*/);
@@ -1995,28 +2000,24 @@ const Match *parse_match(ParseState &ps) {
     pattern_blocks.push_back(parse_pattern_block(ps, false /*allow_else*/));
   }
   chomp_token(tk_rcurly);
-  if (auto_else) {
-    auto pattern_block = new PatternBlock(
-        new IrrefutablePredicate(bang_token.location, maybe<Identifier>()),
-        unit_expr(bang_token.location));
-    pattern_blocks.push_back(pattern_block);
-  }
   if (ps.token.is_ident(K(else))) {
-    if (auto_else) {
-      throw user_error(ps.token.location,
-                       "no need for else block when you are using \"match!\". "
-                       "either delete the ! or discard the else block");
-    } else {
-      pattern_blocks.push_back(parse_pattern_block(ps));
-    }
+    pattern_blocks.push_back(parse_pattern_block(ps));
   }
-
   if (pattern_blocks.size() == 0) {
     throw user_error(ps.token.location,
                      "match block did not have any patterns to match");
   }
 
-  return new Match(scrutinee, pattern_blocks);
+  if (disable_coverage_check) {
+    if (auto final_predicate = dynamic_cast<const IrrefutablePredicate *>(
+            pattern_blocks.back()->predicate)) {
+    } else {
+      throw user_error(pattern_blocks.back()->predicate->get_location(),
+                       "match statements with disabled coverage analysis "
+                       "(match!) must contain a final else predicate");
+    }
+  }
+  return new Match(scrutinee, pattern_blocks, disable_coverage_check);
 }
 
 std::pair<Identifier, types::Ref> parse_lambda_param_core(ParseState &ps) {
@@ -2621,6 +2622,141 @@ const TypeClass *parse_type_class(ParseState &ps) {
                        overloads, default_decls);
 }
 
+void generate_eq_instance(const Identifier &klass,
+                          const DataTypeDecl &data_type,
+                          const types::Map &data_ctors,
+                          std::vector<const Instance *> &instances) {
+  assert(klass.name == tld::mktld(GLOBAL_SCOPE_NAME, "Eq"));
+  std::vector<const Decl *> instance_decls;
+  /* the goal is to emit
+   * instance Eq ${klass} {
+   *   fn ==(a, b) => match (a, b) {
+   *     {{ for data_ctor in data_ctors }}
+   *       (data_ctor(a_args...), data_ctor(b_args...)) => a_args == b_args
+   *     {{ end }}
+   *   }
+   * } else => False
+   * */
+
+  PatternBlocks pattern_blocks;
+  for (auto pair : data_ctors) {
+    /* handle comparing this data constructor when it matches for both "a" and
+     * "b" */
+    auto ctor_terms = unfold_arrows(pair.second);
+    debug_above(
+        4, log(log_info, "matching %s%s", pair.first.c_str(),
+               ctor_terms.size() > 1
+                   ? str(vec_slice(ctor_terms, 0, int(ctor_terms.size()) - 1))
+                         .c_str()
+                   : ""));
+
+    std::vector<const Predicate *> a_params;
+    std::vector<const Predicate *> b_params;
+    std::vector<std::string> a_names;
+    std::vector<std::string> b_names;
+    std::vector<const Expr *> tests;
+    std::list<Identifier> and_operators;
+    for (int i = 0; i < int(ctor_terms.size()) - 1; i++) {
+      a_names.push_back(fresh());
+      b_names.push_back(fresh());
+      a_params.push_back(new IrrefutablePredicate(
+          klass.location, Identifier{a_names.back(), klass.location}));
+      b_params.push_back(new IrrefutablePredicate(
+          klass.location, Identifier{b_names.back(), klass.location}));
+      tests.push_back(new Application(
+          new Var(
+              Identifier{tld::mktld(GLOBAL_SCOPE_NAME, "=="), klass.location}),
+          {new Var(Identifier{a_names.back(), klass.location}),
+           new Var(Identifier{b_names.back(), klass.location})}));
+    }
+    auto a_ctor_predicate = new CtorPredicate(
+        klass.location, a_params, Identifier{pair.first, klass.location},
+        maybe<Identifier>());
+    auto b_ctor_predicate = new CtorPredicate(
+        klass.location, b_params, Identifier{pair.first, klass.location},
+        maybe<Identifier>());
+    auto tuple_predicate = new TuplePredicate(
+        klass.location, {a_ctor_predicate, b_ctor_predicate},
+        maybe<Identifier>());
+
+    pattern_blocks.push_back(new PatternBlock(
+        tuple_predicate,
+        tests.size() == 0
+            ? new Var(Identifier{tld::mktld(GLOBAL_SCOPE_NAME, "True"),
+                                 klass.location})
+            : fold_and_exprs(tests)));
+  }
+
+  /* handle the non-matching ctors case (else) */
+  pattern_blocks.push_back(new PatternBlock(
+      new IrrefutablePredicate(klass.location,
+                               Identifier{fresh(), klass.location}),
+      new Var(
+          Identifier{tld::mktld(GLOBAL_SCOPE_NAME, "False"), klass.location})));
+
+  auto id_a = Identifier{"a", klass.location};
+  auto id_b = Identifier{"b", klass.location};
+  auto scrutinee = new Tuple(klass.location, {new Var(id_a), new Var(id_b)});
+  auto match = new Match(scrutinee, pattern_blocks,
+                         true /*disable_coverage_check*/);
+  const Lambda *lambda = new Lambda(
+      {id_a, id_b},
+      {type_variable(klass.location), type_variable(klass.location)},
+      type_variable(klass.location), new ReturnStatement(match));
+  instance_decls.push_back(new Decl(
+      Identifier{tld::mktld(GLOBAL_SCOPE_NAME, "=="), klass.location}, lambda));
+  types::Refs type_parameters = {data_type.type_decl->get_type()};
+  types::ClassPredicateRef class_predicate =
+      std::make_shared<types::ClassPredicate>(klass, type_parameters);
+  instances.push_back(new Instance{class_predicate, instance_decls});
+}
+
+void generate_instance(const Identifier &klass,
+                       const DataTypeDecl &data_type,
+                       const types::Map &data_ctors,
+                       std::vector<const Instance *> &instances) {
+  debug_above(
+      3, log_location(
+             log_info, klass.location, "attempting to derive instance %s %s %s",
+             klass.str().c_str(), data_type.type_decl->id.str().c_str(),
+             join_with(data_type.type_decl->params, " ", [](Identifier id) {
+               return id.str();
+             }).c_str()));
+  if (klass.name == tld::mktld(GLOBAL_SCOPE_NAME, "Eq")) {
+    generate_eq_instance(klass, data_type, data_ctors, instances);
+  } else {
+    throw user_error(klass.location, "auto-deriving %s is not implemented",
+                     klass.str().c_str());
+  }
+}
+
+void parse_deriving(ParseState &ps,
+                    const DataTypeDecl &data_type,
+                    const types::Map &data_ctors,
+                    std::vector<const Instance *> &instances) {
+  chomp_ident(K(deriving));
+  Identifiers classes;
+  if (ps.token.tk == tk_lparen) {
+    ps.advance();
+
+    while (ps.token.tk == tk_identifier) {
+      classes.push_back(ps.identifier_and_advance());
+      if (ps.token.tk == tk_comma) {
+        ps.advance();
+        continue;
+      } else {
+        chomp_token(tk_rparen);
+        break;
+      }
+    }
+  } else {
+    classes.push_back(ps.identifier_and_advance());
+  }
+  for (auto klass : classes) {
+    generate_instance(klass, data_type, data_ctors, instances);
+  }
+}
+
 const Module *parse_module(ParseState &ps,
                            std::vector<const Module *> auto_import_modules,
                            std::set<Identifier> &module_deps) {
@@ -2741,6 +2877,9 @@ const Module *parse_module(ParseState &ps,
         decls.push_back(decl);
       }
       ps.data_ctors_map[data_type.type_decl->id.name] = data_ctors;
+      if (ps.token.is_ident(K(deriving))) {
+        parse_deriving(ps, data_type, data_ctors, instances);
+      }
     } else if (ps.token.is_ident(K(data))) {
       /* module-level data types */
       ps.advance();
@@ -2752,6 +2891,9 @@ const Module *parse_module(ParseState &ps,
         decls.push_back(decl);
       }
       ps.data_ctors_map[data_type.type_decl->id.name] = data_ctors;
+      if (ps.token.is_ident(K(deriving))) {
+        parse_deriving(ps, data_type, data_ctors, instances);
+      }
     } else if (ps.token.is_ident(K(let))) {
       /* module-level constants */
       ps.advance();

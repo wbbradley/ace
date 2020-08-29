@@ -59,14 +59,18 @@ struct PatternBlock {
 
 typedef std::vector<const PatternBlock *> PatternBlocks;
 struct Match : public Expr {
-  Match(const Expr *scrutinee, PatternBlocks pattern_blocks)
-      : scrutinee(scrutinee), pattern_blocks(pattern_blocks) {
+  Match(const Expr *scrutinee,
+        PatternBlocks pattern_blocks,
+        bool disable_coverage_check)
+      : scrutinee(scrutinee), pattern_blocks(pattern_blocks),
+        disable_coverage_check(disable_coverage_check) {
   }
   Location get_location() const override;
   std::ostream &render(std::ostream &os, int parent_precedence) const override;
 
   const Expr *scrutinee;
   const PatternBlocks pattern_blocks;
+  const bool disable_coverage_check;
 };
 
 struct Predicate {
