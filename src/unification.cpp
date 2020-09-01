@@ -182,7 +182,9 @@ Unification unify(Ref a, Ref b) {
   return Unification{
       false,
       location,
-      string_format("type error. %s != %s", a->str().c_str(), b->str().c_str()),
+      string_format("type error. %s != %s (%s, %s)", a->str().c_str(),
+                    b->str().c_str(), a->get_location().str().c_str(),
+                    b->get_location().str().c_str()),
       {},
   };
 }

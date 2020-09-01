@@ -26,6 +26,14 @@ BoundVarLifetimeTracker::~BoundVarLifetimeTracker() {
   ps.locals = locals_saved;
 }
 
+TypeVarRemappingTracker::TypeVarRemappingTracker(ParseState &ps)
+    : ps(ps), type_var_remapping_saved(ps.type_var_remapping) {
+}
+
+TypeVarRemappingTracker::~TypeVarRemappingTracker() {
+  ps.type_var_remapping = type_var_remapping_saved;
+}
+
 const ast::Expr *BoundVarLifetimeTracker::escaped_parse_expr(
     bool allow_for_comprehensions) {
   /* pop out of the current parsing scope to allow the parser to harken back to
@@ -79,6 +87,17 @@ Identifier ParseState::identifier_and_advance(bool map_id, bool ignore_locals) {
   advance();
   auto id = Identifier{prior_token.text, prior_token.location};
   return map_id ? id_mapped(id, ignore_locals) : id;
+}
+
+types::Ref ParseState::type_var_and_advance() {
+  if (token.tk != tk_identifier) {
+    throw user_error(token.location, "expected a type variable here");
+  }
+  advance();
+  return type_variable(Identifier{type_var_remapping.count(prior_token.text)
+                                      ? type_var_remapping[prior_token.text]
+                                      : prior_token.text,
+                                  prior_token.location});
 }
 
 Identifier ParseState::id_mapped(Identifier id, bool ignore_locals) {

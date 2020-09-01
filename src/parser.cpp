@@ -2166,7 +2166,7 @@ types::Ref parse_square_type(ParseState &ps) {
 
 types::Ref parse_named_type(ParseState &ps) {
   if (islower(ps.token.text[0])) {
-    return type_variable(iid(ps.token_and_advance()));
+    return ps.type_var_and_advance();
   } else {
     return type_id(ps.identifier_and_advance());
   }
@@ -2191,8 +2191,8 @@ types::Ref parse_type(ParseState &ps, bool allow_top_level_application) {
       ps.advance();
       types.push_back(parse_function_type(ps));
     } else if (ps.token.is_ident(K(var))) {
-      /* var syntax is a low-precedence unary type operator which applies the
-       * "Ref" type to its operand */
+      /* var syntax is a unary type operator which applies the "Ref" type to
+       * its operand */
       types::Ref ref_type_id = type_id(
           Identifier{REF_TYPE_OPERATOR, ps.token.location});
       ps.advance();
@@ -2565,9 +2565,21 @@ std::vector<const Decl *> parse_decls(ParseState &ps) {
   return decls;
 }
 
+std::map<std::string, std::string> make_remapping(types::Ftvs ftvs) {
+  std::map<std::string, std::string> remapping;
+  for (auto &ftv : ftvs) {
+    assert(!in(ftv, remapping));
+    remapping[ftv] = fresh();
+  }
+  return remapping;
+}
+
 const Instance *parse_type_class_instance(ParseState &ps) {
   types::ClassPredicateRef class_predicate = parse_class_predicate(ps);
-  return new Instance{class_predicate, parse_decls(ps)};
+  auto type_var_remapping = make_remapping(class_predicate->get_ftvs());
+  TypeVarRemappingTracker tvrt(ps);
+  return new Instance{class_predicate->remap_vars(type_var_remapping),
+                      parse_decls(ps)};
 }
 
 const TypeClass *parse_type_class(ParseState &ps) {
@@ -2693,8 +2705,8 @@ void generate_eq_instance(const Identifier &klass,
       new Var(
           Identifier{tld::mktld(GLOBAL_SCOPE_NAME, "False"), klass.location})));
 
-  auto id_a = Identifier{"a", klass.location};
-  auto id_b = Identifier{"b", klass.location};
+  auto id_a = Identifier{fresh(), klass.location};
+  auto id_b = Identifier{fresh(), klass.location};
   auto scrutinee = new Tuple(klass.location, {new Var(id_a), new Var(id_b)});
   auto match = new Match(scrutinee, pattern_blocks,
                          true /*disable_coverage_check*/);

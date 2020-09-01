@@ -1,0 +1,31 @@
+# test: pass,noprelude
+
+fn const42(a) Int {
+  return 42
+}
+
+class Functor f {
+  fn fmap(fn (a) collision, f a) f collision
+}
+
+data Either c d {
+  Left(c)
+  Right(d)
+}
+
+instance Functor (Either a) {
+  fn fmap(f, either) => match either {
+    Right(x) => Right(f(x))
+    Left(y)  => Left(y)
+  }
+}
+
+
+fn main() {
+  let e = Right(3.0) as Either Char Float
+  match fmap(const42, e) {
+    Right(i) => ffi zion_print_int64(i)
+    Left(_) => ()
+  }
+  ffi puts("PASS")
+}

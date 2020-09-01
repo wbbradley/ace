@@ -36,6 +36,7 @@ struct ParseState {
 
   bool advance();
   Token token_and_advance();
+  types::Ref type_var_and_advance();
   Identifier identifier_and_advance(bool map_id = true,
                                     bool ignore_locals = false);
   Identifier mkfqn(Identifier id);
@@ -54,6 +55,7 @@ struct ParseState {
   std::string module_name;
   std::unordered_set<std::string> mutable_vars;
   std::unordered_set<std::string> locals;
+  std::map<std::string, std::string> type_var_remapping;
 
   /* top-level term remapping from "import" statements */
   std::unordered_map<std::string, std::string> module_term_map;
@@ -88,6 +90,15 @@ private:
   ParseState &ps;
   std::unordered_set<std::string> mutable_vars_saved;
   std::unordered_set<std::string> locals_saved;
+};
+
+struct TypeVarRemappingTracker {
+  TypeVarRemappingTracker(ParseState &ps);
+  ~TypeVarRemappingTracker();
+
+private:
+  ParseState &ps;
+  std::map<std::string, std::string> type_var_remapping_saved;
 };
 
 } // namespace parser

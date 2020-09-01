@@ -3,10 +3,15 @@
 ## Language/Compiler (zion)
 
 - [x] (v0.3) global variable initialization
+- 
+- [ ] do notation
 - [ ] macro language around data structures for
   - [ ] property mptc auto-class and instance generation
   - [ ] serialization or type decl annotations
-  - [ ] automatic derived typeclass instance implementations
+  - [ ] automatic derived typeclass instance implementations (See https://www.haskell.org/onlinereport/haskell2010/haskellch11.html)
+    - [x] deriving Eq
+    - [ ] deriving Str
+    - [ ] deriving Ord
 - [ ] error on unused imports
 - [ ] allow nested modules (ie: net/http)
 - [ ] design/implement some form of [functional dependencies](https://github.com/zionlang/reference-docs/blob/master/docs/2000-jones-functional-dependencies.pdf) for mptc sanity

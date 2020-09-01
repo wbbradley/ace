@@ -550,6 +550,12 @@ void check_instance_for_type_class_overload(
     types::SchemeResolver &scheme_resolver,
     const types::ClassPredicates &class_predicates,
     CheckedDefinitionsByName &checked_defns) {
+  debug_above(
+      4, log("check_instance_for_type_class_overload(\nname=%s,\ntype=%s,"
+             "\ntype_class=%s,\ninstance=%s,\nsubst=%s, class_predicates=%s)",
+             name.c_str(), type->str().c_str(), type_class->str().c_str(),
+             instance->str().c_str(), str(subst).c_str(),
+             str(class_predicates).c_str()));
   const Decl *source_decl = find_overload_for_instance(
       name, type->get_location(), type_class, instance);
 
@@ -560,10 +566,16 @@ void check_instance_for_type_class_overload(
   }
   names_checked.insert(source_decl->id.name);
 
+  debug_above(4,
+              log("checking " c_id("%s") " for %s with subst %s", name.c_str(),
+                  type_class->str().c_str(), str(subst).c_str()));
   types::Ref expected_type = type->rebind(subst);
   types::SchemeRef expected_scheme = expected_type->generalize(
       class_predicates);
 
+  debug_above(
+      4, log("check will result in expected_type %s and expected_scheme",
+             expected_type->str().c_str(), expected_scheme->str().c_str()));
   CheckedDefinitionRef checked_defn = check_decl(
       false /*check_constraint_coverage*/, data_ctors_map, {}, source_decl->id,
       source_decl, expected_type, scheme_resolver);
@@ -725,10 +737,13 @@ CheckedDefinitionRef specialize_checked_defn(
   CheckedDefinitionRef checked_defn_to_specialize;
   types::Map bindings;
 
+  std::list<CheckedDefinitionRef> checked_defns_non_matching;
+
   for (auto checked_defn : checked_defns.at(name)) {
     /* we have to loop over all possible overloads to ensure that only one
      * unifies */
-    types::Unification unification = unify(checked_defn->scheme->type, type);
+    types::Unification unification = unify(
+        checked_defn->scheme->freshen()->type, type);
     if (unification.result) {
       /* multiple overloads exist that match this name and type */
       if (checked_defn_to_specialize != nullptr) {
@@ -744,13 +759,25 @@ CheckedDefinitionRef specialize_checked_defn(
       checked_defn_to_specialize = checked_defn;
       decl_type = type->rebind(unification.bindings);
       assert(decl_type->ftv_count() == 0);
+    } else {
+      checked_defns_non_matching.push_back(checked_defn);
     }
   }
 
   if (checked_defn_to_specialize == nullptr) {
-    throw user_error(
+    auto error = user_error(
         location, "could not find a definition for " c_id("%s") " :: %s",
         zion::tld::strip_prefix(name).c_str(), type->str().c_str());
+    for (auto checked_defn : checked_defns_non_matching) {
+      error.add_info(checked_defn->get_location(), "%s :: %s did not match",
+                     checked_defn->decl->str().c_str(),
+                     checked_defn->scheme->str().c_str());
+      error.add_info(
+          checked_defn->get_location(), "because %s did not unify with %s",
+          checked_defn->scheme->type->str().c_str(), type->str().c_str());
+    }
+
+    throw error;
   }
 
   INDENT(1, string_format("specializing checked definition %s :: %s",
