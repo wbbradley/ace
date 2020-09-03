@@ -412,12 +412,11 @@ Pattern::ref from_type(Location location,
     return allFloats;
   } else if (unify(type, type_ptr(type_variable(location))).result) {
     return all_of(location, {}, data_ctors_map, type);
-  } else if (unify(type, type_arrow(type_params({type_variable(location)}),
-                                    type_variable(location)))
+  } else if (unify(type,
+                   type_arrow(type_variable(location), type_variable(location)))
                  .result) {
     return all_of(location, {}, data_ctors_map, type);
   } else {
-    // TODO: support Char values here...
     auto ctors_types = zion::get_data_ctors_types(data_ctors_map, type);
     std::vector<CtorPatternValue> cpvs;
 

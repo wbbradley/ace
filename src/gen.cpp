@@ -27,17 +27,32 @@ enum DeferType {
 };
 
 struct DeferGuard {
-  DeferGuard(DeferGuard *parent, DeferType defer_type)
-      : parent(parent), defer_type(defer_type) {
+  DeferGuard(Location location, DeferGuard *parent, DeferType defer_type)
+      : location(location), parent(parent), defer_type(defer_type) {
   }
   ~DeferGuard() {
-    assert_implies(!std::uncaught_exception(), called);
+    assert_implies(!std::uncaught_exception(),
+                   called || defer_closures.size() == 0);
   }
 
   void call_deferred(llvm::IRBuilder<> &builder, DeferType dt) {
     if (builder.GetInsertBlock()->getTerminator()) {
       /* this should already have been called at least once... */
-      assert(called);
+      if (!called && defer_closures.size() != 0) {
+        log_location(
+            log_error, location,
+            "we're supposed to be calling a DeferGuard but there is already a "
+            "terminator %s",
+            llvm_print(builder.GetInsertBlock()->getTerminator()).c_str());
+        int i = 0;
+        for (auto closure_iter = defer_closures.rbegin();
+             closure_iter != defer_closures.rend(); ++closure_iter) {
+          llvm::Value *closure = *closure_iter;
+          log("closure %d: %s", ++i, llvm_print(closure).c_str());
+        }
+        assert(false);
+      }
+
       return;
     }
 
@@ -62,6 +77,7 @@ struct DeferGuard {
     defer_closures.push_back(llvm_closure);
   }
 
+  Location location;
   DeferGuard *parent;
   DeferType const defer_type;
   DeferClosures defer_closures;
@@ -923,7 +939,7 @@ void gen_lambda(std::string name,
       assert(free_vars.typed_ids.size() == 0);
     }
 
-    DeferGuard defer_guard(nullptr, dt_function);
+    DeferGuard defer_guard(lambda->get_location(), nullptr, dt_function);
     debug_above(3, log("generating body for %s = %s", name.c_str(),
                        lambda->body->str().c_str()));
     /* now build the body of the function */
@@ -1253,7 +1269,7 @@ ResolutionStatus gen(std::string name,
       builder.SetInsertPoint(while_block);
       LoopGuard loop_guard(else_block, cond_block, &break_to_block,
                            &continue_to_block);
-      DeferGuard defer_guard_loop(defer_guard, dt_loop);
+      DeferGuard defer_guard_loop(while_->get_location(), defer_guard, dt_loop);
       gen(builder, llvm_module, &defer_guard_loop, break_to_block,
           continue_to_block, while_->block, typing, type_env, gen_env_globals,
           gen_env_locals, globals);
@@ -1267,7 +1283,8 @@ ResolutionStatus gen(std::string name,
       builder.SetInsertPoint(else_block);
       return rs_cache_resolution;
     } else if (auto block = dcast<const ast::Block *>(expr)) {
-      DeferGuard defer_guard_local(defer_guard, dt_block);
+      DeferGuard defer_guard_local(block->get_location(), defer_guard,
+                                   dt_block);
 
       llvm::Value *value = nullptr;
       for (auto statement : block->statements) {

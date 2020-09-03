@@ -824,7 +824,6 @@ types::Ref type_arrow(types::Ref a, types::Ref b) {
 }
 
 types::Ref type_arrow(Location location, types::Ref a, types::Ref b) {
-  assert(dyncast<const types::TypeParams>(a));
   return type_operator(
       type_operator(type_id(Identifier{ARROW_TYPE_OPERATOR, location}), a), b);
 }
