@@ -561,7 +561,7 @@ std::pair<int, std::string> shell_get_output(std::string command) {
                            command.c_str());
   }
 
-  const int buffer_size = 4*1024;
+  const int buffer_size = 4 * 1024;
   char buffer[buffer_size + 1];
   buffer[buffer_size] = '\0';
   std::stringstream ss;

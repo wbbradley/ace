@@ -1,7 +1,7 @@
 #include "testing.h"
 
-#include <iostream>
 #include <cstdio>
+#include <iostream>
 
 #include "colors.h"
 #include "utils.h"
@@ -38,5 +38,5 @@ int run_tests(std::list<std::string> tests) {
   }
   return failures.size() ? EXIT_FAILURE : EXIT_SUCCESS;
 }
-}
+} // namespace testing
 } // namespace zion

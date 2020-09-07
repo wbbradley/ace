@@ -5,12 +5,13 @@
  *
  */
 #pragma once
-#include <limits.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <dirent.h>
+#include <limits.h>
 #include <stdint.h>
+#include <string.h>
 #include <string>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <vector>
 
 bool folder_exists(const std::string &path);
@@ -33,7 +34,9 @@ bool list_files(const std::string &folder,
 std::string ensure_ext(std::string name, std::string ext);
 
 struct for_each_file_stat_t {
-  bool regular_file() const { return !is_dir && is_file; }
+  bool regular_file() const {
+    return !is_dir && is_file;
+  }
   bool is_file;
   bool is_dir;
 };
@@ -75,7 +78,9 @@ bool for_each_file(const std::string &dir, const T &callback) {
         control.halt = false;
         control.recurse = false;
         callback(subdir_name, file_stat, control);
-        if (control.halt) return false;
+        if (control.halt) {
+          return false;
+        }
         if (control.recurse && !for_each_file(subdir_name, callback)) {
           return false;
         }
@@ -97,4 +102,3 @@ bool for_each_file(const std::string &dir, const T &callback) {
   }
   return true;
 }
-
