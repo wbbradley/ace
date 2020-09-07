@@ -5,6 +5,10 @@
  *
  */
 #pragma once
+#include <limits.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <dirent.h>
 #include <stdint.h>
 #include <string>
 #include <vector>
@@ -27,3 +31,70 @@ bool list_files(const std::string &folder,
                 const std::string &regex_match,
                 std::vector<std::string> &leaf_names);
 std::string ensure_ext(std::string name, std::string ext);
+
+struct for_each_file_stat_t {
+  bool regular_file() const { return !is_dir && is_file; }
+  bool is_file;
+  bool is_dir;
+};
+
+struct for_each_control_t {
+  bool halt;
+  bool recurse;
+};
+
+template <typename T>
+bool for_each_file(const std::string &dir, const T &callback) {
+  struct dirent *stFiles;
+  DIR *stDirIn;
+  char szFullName[PATH_MAX];
+  char szDirectory[PATH_MAX];
+  struct stat stFileInfo;
+
+  strncpy(szDirectory, dir.c_str(), PATH_MAX - 1);
+
+  if ((stDirIn = opendir(szDirectory)) != NULL) {
+    while ((stFiles = readdir(stDirIn)) != NULL) {
+      if ((strcmp(".", stFiles->d_name) == 0) ||
+          (strcmp("..", stFiles->d_name) == 0)) {
+        continue;
+      }
+
+      sprintf(szFullName, "%s/%s", szDirectory, stFiles->d_name);
+
+      if (lstat(szFullName, &stFileInfo) < 0) {
+        continue;
+      }
+
+      if (S_ISDIR(stFileInfo.st_mode)) {
+        std::string subdir_name(szFullName);
+        for_each_file_stat_t file_stat;
+        file_stat.is_file = false;
+        file_stat.is_dir = true;
+        for_each_control_t control;
+        control.halt = false;
+        control.recurse = false;
+        callback(subdir_name, file_stat, control);
+        if (control.halt) return false;
+        if (control.recurse && !for_each_file(subdir_name, callback)) {
+          return false;
+        }
+      } else {
+        std::string file_name(szFullName);
+        for_each_file_stat_t file_stat;
+        file_stat.is_file = true;
+        file_stat.is_dir = false;
+        for_each_control_t control;
+        control.halt = false;
+        control.recurse = false;
+        callback(file_name, file_stat, control);
+        if (control.halt) {
+          return false;
+        }
+      }
+    }
+    closedir(stDirIn);
+  }
+  return true;
+}
+

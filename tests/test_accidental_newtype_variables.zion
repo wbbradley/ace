@@ -1,0 +1,8 @@
+# test: fail
+# expect: type variables within newtype declarations must be declared first \(b is undeclared\)
+
+newtype Foo a = Foo(b, a)
+
+fn main() {
+  let foo = Foo(4, 4)
+}

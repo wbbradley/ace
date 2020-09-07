@@ -1,0 +1,11 @@
+# test: fail,noprelude
+# expect: Int != Float
+# expect: Char != Int
+
+newtype A = A(Int)
+newtype B = B(Char)
+
+fn main() {
+  A(4.5)!
+  B(4)!
+}

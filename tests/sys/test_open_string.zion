@@ -1,17 +1,17 @@
 # test: pass
 
 fn main() {
-    with! let f = open("/var/tmp/test.file") {
-        write(f, "Hey this is working!\n")!
-        write(f, "Second line.")!
+  with! let f = open("/var/tmp/test.file") {
+    write(f, "Hey this is working!\n")!
+    write(f, "Second line.")!
+  }
+  with! let f = open("/var/tmp/test.file") {
+    /* 
+    // TODO: implement readlines
+    for line in readlines(f) {
+      print(line)
     }
-    with! let f = open("/var/tmp/test.file") {
-        /* 
-        // TODO: implement readlines
-        for line in readlines(f) {
-            print(line)
-        }
-        */
-    }
-    print("PASS")
+    */
+  }
+  print("PASS")
 }

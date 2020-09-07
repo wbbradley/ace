@@ -179,6 +179,9 @@ void init_host() {
   V(ENOTRECOVERABLE);
   // V(ERFKILL);
   // V(EHWPOISON);
+  V(SEEK_SET);
+  V(SEEK_CUR);
+  V(SEEK_END);
   V(SIGHUP);
   V(SIGINT);
   V(SIGQUIT);

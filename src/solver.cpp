@@ -4,6 +4,7 @@
 #include "ast.h"
 #endif
 
+#include "colors.h"
 #include "dbg.h"
 #include "unification.h"
 #include "user_error.h"
@@ -67,6 +68,8 @@ types::Map solver(bool check_constraint_coverage,
 #endif
 
   types::Map bindings;
+  std::list<std::pair<Context, types::Unification>> errors;
+
   for (auto iter = constraints.begin(); iter != constraints.end();) {
     types::Unification unification = types::unify(iter->a, iter->b);
     if (unification.result) {
@@ -87,12 +90,23 @@ types::Map solver(bool check_constraint_coverage,
                                             unification.bindings);
       continue;
     } else {
-      auto error = user_error(unification.error_location, "%s",
-                              unification.error_string.c_str());
-      error.add_info(iter->context.location, "while checking that %s",
-                     iter->context.message.c_str());
-      throw error;
+      errors.push_back({iter->context, unification});
+      ++iter;
     }
+  }
+  if (errors.size() != 0) {
+    auto iter = errors.begin();
+    auto _error = user_error(iter->second.error_location, "%s",
+                             iter->second.error_string.c_str());
+    _error.add_info(iter->first.location, "while checking that %s",
+                    iter->first.message.c_str());
+    for (++iter; iter != errors.end(); ++iter) {
+      _error.add_info(iter->second.error_location, c_error("error:") "%s",
+                      iter->second.error_string.c_str());
+      _error.add_info(iter->first.location, "while checking that %s",
+                      iter->first.message.c_str());
+    }
+    throw _error;
   }
   return bindings;
 }

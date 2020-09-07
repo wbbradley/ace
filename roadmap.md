@@ -16,9 +16,11 @@
 - [ ] allow nested modules (ie: net/http)
 - [ ] design/implement some form of [functional dependencies](https://github.com/zionlang/reference-docs/blob/master/docs/2000-jones-functional-dependencies.pdf) for mptc sanity
 - [ ] unused variable check (variables that only appear on lhs)
+- [ ] higher-kinded type functions to allow for pulling types from other types for the purpose of mapping between types (for example to_with :: Either a b -> WithElseResource resource error)
 
 ## Standard Library (lib/std)
 
+- [ ] gain consistency around error handling in lib/sys, etc. (Choose between Either Errno () and WithElseResource where it makes sense)
 - [ ] option parsing - update lib/argparse.zion
 - [ ] net/http client
 - [ ] net/http server

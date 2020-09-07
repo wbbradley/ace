@@ -1,0 +1,11 @@
+# test: fail
+# expect: type variables within struct declarations must be declared first \(b is undeclared\)
+
+struct Foo a {
+  y a
+  x b
+}
+
+fn main() {
+  let foo = Foo(4, 4)
+}

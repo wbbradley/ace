@@ -81,6 +81,7 @@ add_executable(zion
 	src/scope.cpp
 	src/solver.cpp
   src/tarjan.cpp
+  src/testing.cpp
   src/tld.cpp
 	src/token.cpp
 	src/token_queue.cpp

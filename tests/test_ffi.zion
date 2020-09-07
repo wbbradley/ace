@@ -6,7 +6,7 @@ import bufio {BufferedFileIO}
 fn main() {
   with! let fd = open(__filename__) {
     for buffer in BufferedFileIO(fd) {
-      if write(stdout, buffer) is Right(errno) {
+      if write(stdout, buffer) is Left(errno) {
         panic("Failed to write to stdout with ${errno}")
       }
     }

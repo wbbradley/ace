@@ -4,10 +4,10 @@
 import sys {File, O_RDWR, O_TRUNC, O_CREAT, S_IWUSR, S_IRUSR}
 
 fn main() {
-    let filename = "/"
-    with let fd = open(File(filename, O_RDWR|O_TRUNC|O_CREAT, S_IWUSR|S_IRUSR)) {
-        write(fd, "hey")!
-    } else error {
-        print("Writing to ${filename} failed because \"${error}\"")
-    }
+  let filename = "/"
+  with let fd = open(File(filename, O_RDWR|O_TRUNC|O_CREAT, S_IWUSR|S_IRUSR)) {
+    write(fd, "hey")!
+  } else error {
+    print("Writing to ${filename} failed because \"${error}\"")
+  }
 }

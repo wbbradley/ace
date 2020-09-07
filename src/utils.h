@@ -37,6 +37,7 @@ bool regex_match(std::string input, std::string regex);
 std::string regex_sanitize(std::string unsafe);
 
 std::string shell_get_line(std::string command);
+std::pair<int, std::string> shell_get_output(std::string command);
 std::string clean_ansi_escapes_if_not_tty(FILE *fp, const std::string &out);
 std::string clean_ansi_escapes(std::string out);
 std::string string_formatv(const std::string fmt_str, va_list args);

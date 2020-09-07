@@ -86,7 +86,7 @@ install-test:
 test:
 	-@echo "Running Tests for Zion..."
 	make $(BUILT_BINARY)
-	$(BUILT_BINARY) test
+	$(BUILT_BINARY) unit-test
 	make install-test
 	@echo "ZION_ROOT=$(test_destdir)/$(prefix)/share/$(PN)"
 	@ZION_ROOT="$(test_destdir)/$(prefix)/share/$(PN)" \

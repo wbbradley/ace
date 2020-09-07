@@ -1482,8 +1482,32 @@ int run_job(const Job &job) {
     return EXIT_FAILURE;
   };
   cmd_map["test"] = [&](const Job &job, bool explain) {
+    if (explain || job.args.size() > 1) {
+      std::cout << "test: find and run tests within ./tests\nzion test "
+                   "<filename substring>"
+                << std::endl;
+      return EXIT_FAILURE;
+    }
+    std::list<std::string> tests_to_run;
+    for_each_file("./tests",
+                  [&job, &tests_to_run](const std::string &name,
+                                        const for_each_file_stat_t &file_stat,
+                                        for_each_control_t &control) {
+                    control.recurse = true;
+                    if (file_stat.regular_file() &&
+                        (job.args.size() == 0 ||
+                         name.find(job.args[0]) != std::string::npos) &&
+                        name.find("/test_") != std::string::npos &&
+                        ends_with(name, ".zion")) {
+                      tests_to_run.push_back(name);
+                    }
+                  });
+    zion::testing::run_tests(tests_to_run);
+    return EXIT_SUCCESS;
+  };
+  cmd_map["unit-test"] = [&](const Job &job, bool explain) {
     if (explain) {
-      std::cout << "test: run tests" << std::endl;
+      std::cout << "unit-test: run compiler unit tests" << std::endl;
       return EXIT_FAILURE;
     }
 
@@ -1519,7 +1543,9 @@ int run_job(const Job &job) {
     test_assert(zion::tld::is_tld_type("::copy::Copy"));
     test_assert(!zion::tld::is_tld_type("::copy::copy"));
     test_assert(tld::split_fqn("::inc").size() == 1);
-
+    auto pair = shell_get_output("echo hey;echo ho");
+    test_assert(!pair.first);
+    test_assert(pair.second == "hey\nho\n");
     return EXIT_SUCCESS;
   };
   cmd_map["find"] = [&](const Job &job, bool explain) {

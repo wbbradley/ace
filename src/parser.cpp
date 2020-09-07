@@ -2330,6 +2330,14 @@ DataTypeDecl parse_struct_decl(ParseState &ps, types::Map &data_ctors) {
 
     member_ids.push_back(iid(ps.token_and_advance()));
     dims.push_back(parse_type(ps, true /*allow_top_level_application*/));
+    for (auto ftv : dims.back()->get_ftvs()) {
+      if (!in(ftv, type_decl->params)) {
+        throw user_error(dims.back()->get_location(),
+                         "type variables within struct declarations must be "
+                         "declared first (%s is undeclared)",
+                         ftv.c_str());
+      }
+    }
     ps.export_symbol(member_ids.back(), ps.mkfqn(member_ids.back()));
   }
 
@@ -2384,6 +2392,14 @@ DataTypeDecl parse_newtype_decl(ParseState &ps,
   chomp_token(tk_identifier);
   types::Ref rhs_type = parse_type(ps, true /*allow_top_level_application*/);
 
+  for (auto ftv : rhs_type->get_ftvs()) {
+    if (!in(ftv, type_decl->params)) {
+      throw user_error(rhs_type->get_location(),
+                       "type variables within newtype declarations must be "
+                       "declared first (%s is undeclared)",
+                       ftv.c_str());
+    }
+  }
   const Decl *decl;
   std::vector<types::Ref> ctor_parts;
   if (auto tuple_type = dyncast<const types::TypeTuple>(rhs_type)) {
@@ -2458,12 +2474,19 @@ DataTypeDecl parse_data_type_decl(ParseState &ps,
       ps.advance();
       /* this is a data ctor */
       while (true) {
+        auto dim_type = parse_type(ps, true /*allow_top_level_application*/);
         /* parse the types of the dimensions (unnamed for now) */
-        data_ctor_parts->param_types.push_back(
-            parse_type(ps, true /*allow_top_level_application*/));
-        /* keep track of whether any of the values in this data type require
-         * extra storage. NB: Bool only being 1 word in size relies on this.
-         */
+        data_ctor_parts->param_types.push_back(dim_type);
+        /* check whether this type contains free type variables that are not
+         * pre-declared */
+        for (auto ftv : dim_type->get_ftvs()) {
+          if (!in(ftv, type_decl->params)) {
+            throw user_error(dim_type->get_location(),
+                             "type variables within data declarations must be "
+                             "declared first (%s is undeclared)",
+                             ftv.c_str());
+          }
+        }
         if (ps.token.tk == tk_comma) {
           ps.advance();
         } else {

@@ -37,11 +37,15 @@ int64_t zion_errno() {
 }
 
 int64_t zion_memcmp(const char *a, const char *b, int64_t len) {
-	return memcmp(a, b, len);
+  return memcmp(a, b, len);
 }
 
 int64_t zion_open(const char *path, int64_t flags, int64_t mode) {
-    return open(path, flags, mode);
+  return open(path, flags, mode);
+}
+
+int64_t zion_seek(int fd, int64_t offset, int64_t whence) {
+  return lseek(fd, offset, whence);
 }
 
 int64_t zion_creat(const char *path, int64_t mode) {
@@ -68,54 +72,58 @@ int64_t zion_socket(int64_t domain, int64_t type, int64_t protocol) {
   return socket(domain, type, protocol);
 }
 
-const char *zion_memmem(const char *big, int64_t big_len, const char *little, int64_t little_len) {
-	/* we need something to compare */
-	if (little_len == 0) {
-		return NULL;
-	}
+const char *zion_memmem(const char *big,
+                        int64_t big_len,
+                        const char *little,
+                        int64_t little_len) {
+  /* we need something to compare */
+  if (little_len == 0) {
+    return NULL;
+  }
 
-	if (big_len < little_len) {
-		/* little block can't possibly exist in big block */
-		return NULL;
-	}
+  if (big_len < little_len) {
+    /* little block can't possibly exist in big block */
+    return NULL;
+  }
 
-	if (big_len == 0) {
-		return NULL;
-	}
+  if (big_len == 0) {
+    return NULL;
+  }
 
-	if (little_len == sizeof(char)) {
-		return memchr(big, *little, big_len);
-	} else {
-		const char *max_big = big + big_len - little_len + 1;
+  if (little_len == sizeof(char)) {
+    return memchr(big, *little, big_len);
+  } else {
+    const char *max_big = big + big_len - little_len + 1;
 
-		while (big < max_big) {
-			if (memcmp(big, little, little_len) == 0) {
-				return big;
-			}
-			++big;
-		}
+    while (big < max_big) {
+      if (memcmp(big, little, little_len) == 0) {
+        return big;
+      }
+      ++big;
+    }
 
-		return NULL;
-	}
+    return NULL;
+  }
 }
 
 const char *zion_strerror(int errnum, char *buf, int64_t bufsize) {
 #ifdef __APPLE__
-	if (strerror_r(errnum, buf, bufsize) == 0) {
-		return buf;
-	} else {
-		return "Failed to find error description.";
-	}
+  if (strerror_r(errnum, buf, bufsize) == 0) {
+    return buf;
+  } else {
+    return "Failed to find error description.";
+  }
 #else
-	strncpy(buf, "Unknown error", bufsize);
-	strerror_r(errnum, buf, bufsize);
-	return buf;
+  strncpy(buf, "Unknown error", bufsize);
+  strerror_r(errnum, buf, bufsize);
+  return buf;
 #endif
 }
 
 void *zion_malloc(uint64_t cb) {
   void *pb = GC_MALLOC(cb);
-  // printf("allocated %" PRId64 " bytes at 0x%08" PRIx64 "\n", cb, (uint64_t)pb);
+  // printf("allocated %" PRId64 " bytes at 0x%08" PRIx64 "\n", cb,
+  // (uint64_t)pb);
   return pb;
 }
 
@@ -168,12 +176,12 @@ char *zion_ftoa(double x) {
 }
 
 double zion_atof(const char *sz, size_t n) {
-	char buf[64];
-	const size_t buf_size = sizeof(buf) / sizeof(buf[0]);
-	size_t byte_count_to_copy = (n >= buf_size ? buf_size - 1 : n);
-	memcpy(buf, sz, byte_count_to_copy);
-	buf[byte_count_to_copy] = '\0';
-	return atof(buf);
+  char buf[64];
+  const size_t buf_size = sizeof(buf) / sizeof(buf[0]);
+  size_t byte_count_to_copy = (n >= buf_size ? buf_size - 1 : n);
+  memcpy(buf, sz, byte_count_to_copy);
+  buf[byte_count_to_copy] = '\0';
+  return atof(buf);
 }
 
 int64_t zion_atoi(const char *sz, size_t n) {

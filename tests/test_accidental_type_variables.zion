@@ -1,0 +1,11 @@
+# test: fail
+# expect: type variables within data declarations must be declared first \(b is undeclared\)
+
+data Foo a {
+  # 
+  Bar(b Int)
+}
+
+fn main() {
+  let b = Bar(4)
+}

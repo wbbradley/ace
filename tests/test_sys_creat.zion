@@ -3,14 +3,14 @@
 import sys {File, unlink, O_CREAT, O_WRONLY, S_IRUSR, S_IWUSR, CreateMode}
 
 fn main() {
-    let filename = "/var/tmp/test_sys_creat.txt"
-    unlink(filename)!
-    defer fn () { unlink(filename)! }()
+  let filename = "/var/tmp/test_sys_creat.txt"
+  unlink(filename)!
+  defer || { unlink(filename)! }()
 
-    with let fd = open(File(filename, O_CREAT|O_WRONLY, S_IRUSR|S_IWUSR)) {
-        write(fd, "test")!
-    } else errno {
-        print("Failed with ${errno}")
-    }
-    print("PASS")
+  with let fd = open(File(filename, O_CREAT|O_WRONLY, S_IRUSR|S_IWUSR)) {
+    write(fd, "test")!
+  } else errno {
+    print("Failed with ${errno}")
+  }
+  print("PASS")
 }

@@ -822,7 +822,7 @@ fn pointer_subtraction(p1 *Char, p2 *Char) Int {
 }
 
 class FoldFromLeft container elem initial {
-  # Left fold
+  # Left-associative fold
   fn foldl(fn (initial, elem) initial, container elem, initial) initial
 }
 

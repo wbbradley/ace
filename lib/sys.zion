@@ -1,4 +1,5 @@
 import bufio {BufferedFileIO}
+import sys {SEEK_END}
 
 link pkg "bdw-gc"
 
@@ -140,6 +141,11 @@ let S_IROTH = __host_int(S_IROTH) as! CreateMode /* others have read permission 
 let S_IWOTH = __host_int(S_IWOTH) as! CreateMode /* others have write permission */
 let S_IXOTH = __host_int(S_IXOTH) as! CreateMode /* others have execute permission */
 
+newtype SeekWhence = SeekWhence(Int)
+let SEEK_SET = __host_int(SEEK_SET) as! SeekWhence
+let SEEK_CUR = __host_int(SEEK_CUR) as! SeekWhence
+let SEEK_END = __host_int(SEEK_END) as! SeekWhence
+
 fn create_mode_default() => S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH
 
 instance Bitwise OpenFlags {
@@ -227,43 +233,96 @@ fn creat(filename, mode CreateMode) Int {
 }
 
 class Readable a {
-    fn read(a, *Char, Int) Errno
+    fn read(a, *Char, Int) Either Errno Int
 }
 
 instance Readable FileDescriptor {
-  fn read(fd FileDescriptor, buffer *Char, nbyte Int) Errno {
+  fn read(fd FileDescriptor, buffer *Char, nbyte Int) Either Errno Int {
     let FileDescriptor(fd) = fd
-    return ffi zion_read(fd, buffer, nbyte)
+    var bytes_read = 0
+    while True {
+      let new_bytes_read = ffi zion_read(fd as! Int, __builtin_ptr_add(buffer, bytes_read), nbyte - bytes_read)
+      if new_bytes_read <= -1 {
+        return Left(ffi zion_errno())
+      } else if new_bytes_read == 0 {
+        return Right(bytes_read)
+      } else {
+        bytes_read += new_bytes_read
+      }
+    }
+    panic("unexpected failure in read")
+    return Left(Errno(-1))
   }
 }
 
 # For now all writes are blocking
-fn write(file, buffer) Either () Errno {
+fn write(file, buffer) Either Errno Int {
   let Buffer(pb, cb) = serialize(buffer)
   var cur = 0
   while cur < cb {
     match write_buffer(file, __builtin_ptr_add(pb, cur), cb - cur) {
-      Right(errno) {
-        return Right(errno)
+      Left(errno) {
+        return Left(errno)
       }
-      Left(bytes_written) {
+      Right(bytes_written) {
         cur += bytes_written
       }
     }
   }
-  return Left()
+  return Right(cur)
 }
 
 class WriteBuffer file {
-  fn write_buffer(file, *Char, Int) Either Int Errno
+  fn write_buffer(file, *Char, Int) Either Errno Int
 }
 
 instance WriteBuffer FileDescriptor {
   fn write_buffer(fd, pb, cb) {
     let FileDescriptor(fd) = fd
     return match ffi zion_write(fd, pb, cb) {
-      -1 => Right(Errno(ffi zion_errno()))
-      cb => Left(cb)
+      -1 => Left(Errno(ffi zion_errno()))
+      cb => Right(cb)
     }
+  }
+}
+
+class FileSize a {
+  fn file_size(a) Maybe Int
+}
+
+instance FileSize String {
+  fn file_size(filename) Maybe Int {
+    with let fd = open(filename) {
+      return file_size(fd)
+    } else {
+      return Nothing
+    }
+  }
+}
+
+instance FileSize FileDescriptor {
+  fn file_size(fd) {
+    # Get the original position, then seek to the end, read the offset, then
+    # seek back to the original position.
+    return match seek(fd, 0, SEEK_CUR) {
+      Left(errno) => Nothing
+      Right(orig_pos) => match seek(fd, 0, SEEK_END) {
+        Left(errno) => Nothing
+        Right(size) {
+          match seek(fd, orig_pos, SEEK_SET) {
+            Left(errno) => Nothing
+            Right(_) => Just(size)
+          }
+        }
+      }
+    }
+  }
+}
+
+fn seek(fd FileDescriptor, offset Int, whence SeekWhence) Either Errno Int {
+  let FileDescriptor(fd) = fd
+  return match ffi zion_seek(fd, offset, whence) {
+    -1     => Left(Errno(ffi zion_errno()))
+    offset => Right(offset)
   }
 }

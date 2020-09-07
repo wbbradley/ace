@@ -552,6 +552,34 @@ std::string shell_get_line(std::string command) {
   return ret;
 }
 
+std::pair<int, std::string> shell_get_output(std::string command) {
+  /* call a command and return the stdout as well as the return code. */
+  check_command_line_text(INTERNAL_LOC(), command);
+  FILE *fp = popen(command.c_str(), "r");
+  if (fp == nullptr) {
+    throw zion::user_error(INTERNAL_LOC(), "failed to invoke command %s",
+                           command.c_str());
+  }
+
+  const int buffer_size = 4*1024;
+  char buffer[buffer_size + 1];
+  buffer[buffer_size] = '\0';
+  std::stringstream ss;
+  int bytes_read = 0;
+
+  do {
+    buffer[fread(buffer, 1, buffer_size, fp)] = '\0';
+    ss << buffer;
+  } while (bytes_read != 0);
+
+  auto stat = pclose(fp);
+  if (!WIFEXITED(stat)) {
+    return {-1, ss.str()};
+  } else {
+    return {WEXITSTATUS(stat), ss.str()};
+  }
+}
+
 std::string get_pkg_config(std::string flags, std::string pkg_name) {
   std::stringstream ss;
   ss << "pkg-config " << flags << " \"" << pkg_name << "\"";
