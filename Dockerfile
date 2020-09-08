@@ -1,4 +1,4 @@
-FROM debian:latest
+FROM debian:buster
 MAINTAINER William Bradley <williambbradley@gmail.com>
 
 RUN apt update -y && apt install -y \

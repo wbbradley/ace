@@ -23,18 +23,18 @@ else
     wget
 
   # Use the ordained script from https://apt.llvm.org/
-	bash -c "LLVM_VERSION=$LLVM_VERSION $(wget -O - https://apt.llvm.org/llvm.sh)"
+  wget https://apt.llvm.org/llvm.sh
+  chmod +x llvm.sh
+  ./llvm.sh "$LLVM_VERSION"
 
   # Ensure the rest of the LLVM dependencies are available and mapped to sane
   # names.
   (apt-get install -y \
-    clang-"${LLVM_VERSION}" \
     clang-format-"${LLVM_VERSION}" \
     clang-tools-"${LLVM_VERSION}" \
     libclang-"${LLVM_VERSION}"-dev \
     libclang-common-"${LLVM_VERSION}"-dev \
     libllvm${LLVM_VERSION} \
-    lldb-${LLVM_VERSION} \
     llvm-"${LLVM_VERSION}" \
     llvm-"${LLVM_VERSION}"-dev \
     llvm-"${LLVM_VERSION}"-runtime \
