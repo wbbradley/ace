@@ -43,7 +43,7 @@ else()
 	add_compile_options(-std=c++17 -g -O3 -Wall -Werror ${option_flags})
 endif()
 
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -std=c++17 -Wl,-rpath,${LLVM_INSTALL_PREFIX}/lib")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lpthread -std=c++17 -Wl,-rpath,${LLVM_INSTALL_PREFIX}/lib")
 
 add_executable(zion
 	src/ast.cpp

@@ -1,5 +1,5 @@
 # test: fail
-# error: this pattern is already covered
+# expect: error: this pattern is already covered
 
 data DonutKind {
     Glazed

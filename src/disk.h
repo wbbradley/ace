@@ -7,6 +7,7 @@
 #pragma once
 #include <dirent.h>
 #include <limits.h>
+#include <list>
 #include <stdint.h>
 #include <string.h>
 #include <string>

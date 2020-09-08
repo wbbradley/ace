@@ -35,9 +35,11 @@ bool base64_decode(const std::string &input,
 bool regex_exists(std::string input, std::string regex);
 bool regex_match(std::string input, std::string regex);
 std::string regex_sanitize(std::string unsafe);
+bool regex_lift_match(std::string text, std::string regex_, std::string &match);
 
 std::string shell_get_line(std::string command);
-std::pair<int, std::string> shell_get_output(std::string command);
+std::pair<int, std::string> shell_get_output(std::string command,
+                                             bool redirect_to_stdout = false);
 std::string clean_ansi_escapes_if_not_tty(FILE *fp, const std::string &out);
 std::string clean_ansi_escapes(std::string out);
 std::string string_formatv(const std::string fmt_str, va_list args);
@@ -296,6 +298,12 @@ std::string escape_json_quotes(const std::string &s);
 void escape_json_quotes(std::ostream &ss, const std::string &str);
 std::string unescape_json_quotes(const std::string &s);
 size_t utf8_sequence_length(char ch_);
+void ltrim(std::string &s);
+void rtrim(std::string &s);
+void trim(std::string &s);
+std::string ltrim_copy(std::string s);
+std::string rtrim_copy(std::string s);
+std::string trim_copy(std::string s);
 
 template <typename K, typename V>
 bool contains_value(const std::map<K, V> &map, V value) {

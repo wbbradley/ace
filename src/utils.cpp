@@ -230,6 +230,23 @@ bool regex_match(std::string input, std::string regex_) {
   return std::regex_match(input, std::regex(regex_.c_str()));
 }
 
+bool regex_lift_match(std::string text,
+                      std::string regex_,
+                      std::string &match) {
+  std::smatch sm;
+  std::regex regex(regex_);
+  if (std::regex_search(text, sm, regex)) {
+    if (!sm.ready() || sm.size() <= 1) {
+      return false;
+    }
+
+    match = sm[1];
+    return true;
+  } else {
+    return false;
+  }
+}
+
 std::string regex_sanitize(std::string unsafe) {
   std::regex specialChars{R"([-[\]{}()*+?.,\^$|#\s])"};
 
@@ -323,6 +340,38 @@ bool ends_with(const std::string &haystack, const std::string &needle) {
   }
 }
 
+void ltrim(std::string &s) {
+  s.erase(s.begin(), std::find_if(s.begin(), s.end(),
+                                  [](int ch) { return !std::isspace(ch); }));
+}
+
+void rtrim(std::string &s) {
+  s.erase(std::find_if(s.rbegin(), s.rend(),
+                       [](int ch) { return !std::isspace(ch); })
+              .base(),
+          s.end());
+}
+
+void trim(std::string &s) {
+  ltrim(s);
+  rtrim(s);
+}
+
+std::string ltrim_copy(std::string s) {
+  ltrim(s);
+  return s;
+}
+
+std::string rtrim_copy(std::string s) {
+  rtrim(s);
+  return s;
+}
+
+std::string trim_copy(std::string s) {
+  trim(s);
+  return s;
+}
+
 std::vector<std::string> split(std::string data, std::string delim) {
   std::vector<std::string> output;
   size_t pos = std::string::npos;
@@ -361,8 +410,10 @@ std::string get_cwd() {
 std::vector<std::string> readlines(std::string filename) {
   std::vector<std::string> lines;
   std::ifstream ifs(filename);
-  std::copy(std::istream_iterator<std::string>(ifs),
-            std::istream_iterator<std::string>(), std::back_inserter(lines));
+  std::string line;
+  while (std::getline(ifs, line)) {
+    lines.push_back(line);
+  }
   return lines;
 }
 
@@ -552,9 +603,13 @@ std::string shell_get_line(std::string command) {
   return ret;
 }
 
-std::pair<int, std::string> shell_get_output(std::string command) {
+std::pair<int, std::string> shell_get_output(std::string command,
+                                             bool redirect_to_stdout) {
   /* call a command and return the stdout as well as the return code. */
   check_command_line_text(INTERNAL_LOC(), command);
+  if (redirect_to_stdout) {
+    command = command + " 2>&1";
+  }
   FILE *fp = popen(command.c_str(), "r");
   if (fp == nullptr) {
     throw zion::user_error(INTERNAL_LOC(), "failed to invoke command %s",
@@ -568,7 +623,8 @@ std::pair<int, std::string> shell_get_output(std::string command) {
   int bytes_read = 0;
 
   do {
-    buffer[fread(buffer, 1, buffer_size, fp)] = '\0';
+    bytes_read = fread(buffer, 1, buffer_size, fp);
+    buffer[bytes_read] = '\0';
     ss << buffer;
   } while (bytes_read != 0);
 

@@ -9,6 +9,7 @@
 
 #include <dirent.h>
 #include <fstream>
+#include <iostream>
 #include <regex>
 #include <sstream>
 #include <stdio.h>

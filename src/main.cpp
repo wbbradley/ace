@@ -19,7 +19,7 @@
 #include "logger_decls.h"
 #include "solver.h"
 #include "tarjan.h"
-#include "tests.h"
+#include "testing.h"
 #include "tld.h"
 #include "translate.h"
 #include "unification.h"
@@ -1502,8 +1502,7 @@ int run_job(const Job &job) {
                       tests_to_run.push_back(name);
                     }
                   });
-    zion::testing::run_tests(tests_to_run);
-    return EXIT_SUCCESS;
+    return zion::testing::run_tests(tests_to_run);
   };
   cmd_map["unit-test"] = [&](const Job &job, bool explain) {
     if (explain) {
@@ -1511,42 +1510,7 @@ int run_job(const Job &job) {
       return EXIT_FAILURE;
     }
 
-    test_assert(alphabetize(0) == "a");
-    test_assert(alphabetize(1) == "b");
-    test_assert(alphabetize(2) == "c");
-    test_assert(alphabetize(26) == "aa");
-    test_assert(alphabetize(27) == "ab");
-
-    tarjan::Graph graph;
-    graph.insert({"a", {"b", "f"}});
-    graph.insert({"b", {"c"}});
-    graph.insert({"g", {"c", "f"}});
-    graph.insert({"d", {"c"}});
-    graph.insert({"c", {"d"}});
-    graph.insert({"h", {"g"}});
-    graph.insert({"f", {"h", "c"}});
-    tarjan::SCCs sccs = tarjan::compute_strongly_connected_components(graph);
-    auto sccs_str = str(sccs);
-    std::string tarjan_expect = "{{c, d}, {f, g, h}, {b}, {a}}";
-    if (sccs_str != tarjan_expect) {
-      log("tarjan says: %s\nit should say: %s", sccs_str.c_str(),
-          tarjan_expect.c_str());
-      test_assert(false);
-    }
-
-    test_assert(zion::tld::split_fqn("::copy::Copy").size() == 2);
-    test_assert(zion::tld::is_tld_type("::Copy"));
-    test_assert(zion::tld::is_tld_type("::Z"));
-    test_assert(!zion::tld::is_tld_type("::copy::copy"));
-    test_assert(!zion::tld::is_tld_type("copy::copy"));
-    test_assert(!zion::tld::is_tld_type("copy"));
-    test_assert(zion::tld::is_tld_type("::copy::Copy"));
-    test_assert(!zion::tld::is_tld_type("::copy::copy"));
-    test_assert(tld::split_fqn("::inc").size() == 1);
-    auto pair = shell_get_output("echo hey;echo ho");
-    test_assert(!pair.first);
-    test_assert(pair.second == "hey\nho\n");
-    return EXIT_SUCCESS;
+    return zion::testing::run_unit_tests();
   };
   cmd_map["find"] = [&](const Job &job, bool explain) {
     if (explain) {

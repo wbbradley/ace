@@ -139,7 +139,7 @@ fn main() {
 
 There is no class-based encapsulation in Zion. Encapsulation can be achieved by
 
-1. using modules to implement Abstract Data Types, exporting only the functions
+1. using modules to implement Abstract Data Types, exposing only the functions
    relevant to the creation, use, and lifetime of a type.
 2. not letting local variables escape from functions (or blocks), or by using
    module-local functions.
@@ -148,8 +148,7 @@ There is no class-based encapsulation in Zion. Encapsulation can be achieved by
 
 Zion lacks support for shared libraries or any shareable intermediate
 representation. Code complexity and leaky abstractions can still be avoided by
-limiting which symbols are exported from source modules.  In other words, only
-`export` the public interface to your module.
+limiting which symbols are exposed from source modules.
 
 ### Type System
 

@@ -2,58 +2,58 @@
 # expect: Number of solutions is 92
 
 fn queens(rows Int, columns Int) [[Int]] {
-    var solutions = [[]]
+  var solutions = [[]]
 
-    for row in range(rows) {
-        solutions = add_one_queen(row, columns, solutions)
-    }
+  for row in range(rows) {
+    solutions = add_one_queen(row, columns, solutions)
+  }
 
-    return solutions
+  return solutions
 }
 
 fn copy_and_extend(solution, value) {
-    let ret = []
-    for x in solution {
-        append(ret, x)
-    }
-    append(ret, value)
-    return ret
+  let ret = []
+  for x in solution {
+    append(ret, x)
+  }
+  append(ret, value)
+  return ret
 }
 
 fn add_one_queen(new_row Int, columns Int, prev_solutions [[Int]]) [[Int]] {
-    let solutions = []
+  let solutions = []
 
-    for solution in prev_solutions {
-        for new_column in range(columns) {
-            if no_conflict(new_row, new_column, solution) {
-                append(solutions, copy_and_extend(solution, new_column))
-            }
-        }
+  for solution in prev_solutions {
+    for new_column in range(columns) {
+      if no_conflict(new_row, new_column, solution) {
+        append(solutions, copy_and_extend(solution, new_column))
+      }
     }
+  }
 
-    return solutions
+  return solutions
 }
 
 fn no_conflict(new_row Int, new_column Int, solution [Int]) bool {
-    for row in range(new_row) {
-        let condition = (
-            solution[row]       != new_column           and
-            solution[row] + row != new_column + new_row and
-            solution[row] - row != new_column - new_row)
-        if not condition {
-            return False
-        }
+  for row in range(new_row) {
+    let condition = (
+      solution[row]       != new_column           and
+      solution[row] + row != new_column + new_row and
+      solution[row] - row != new_column - new_row)
+    if not condition {
+      return False
     }
+  }
 
-    return True
+  return True
 }
 
 fn main() {
-    let solutions = queens(8, 8)
+  let solutions = queens(8, 8)
 
-    for solution in solutions {
-        print(solution)
-    }
+  for solution in solutions {
+    print(solution)
+  }
 
-    print("Number of solutions is ${len(solutions)}")
+  print("Number of solutions is ${len(solutions)}")
 }
