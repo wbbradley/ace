@@ -1492,19 +1492,18 @@ int run_job(const Job &job) {
       return EXIT_FAILURE;
     }
     std::list<std::string> tests_to_run;
-    for_each_file("./tests",
-                  [&job, &tests_to_run](const std::string &name,
-                                        const for_each_file_stat_t &file_stat,
-                                        for_each_control_t &control) {
-                    control.recurse = true;
-                    if (file_stat.regular_file() &&
-                        (job.args.size() == 0 ||
-                         name.find(job.args[0]) != std::string::npos) &&
-                        name.find("/test_") != std::string::npos &&
-                        ends_with(name, ".zion")) {
-                      tests_to_run.push_back(name);
-                    }
-                  });
+    for_each_file(
+        "./tests", [&job, &tests_to_run](const std::string &name,
+                                         const for_each_file_stat_t &file_stat,
+                                         for_each_control_t &control) {
+          control.recurse = true;
+          if (file_stat.regular_file() &&
+              (job.args.size() == 0 || regex_exists(name, job.args[0])) &&
+              name.find("/test_") != std::string::npos &&
+              ends_with(name, ".zion")) {
+            tests_to_run.push_back(name);
+          }
+        });
     return zion::testing::run_tests(tests_to_run);
   };
   cmd_map["unit-test"] = [&](const Job &job, bool explain) {
