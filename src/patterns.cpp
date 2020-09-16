@@ -98,11 +98,11 @@ void check_patterns(Location location,
                     const DataCtorsMap &data_ctors_map,
                     const PatternBlocks &pattern_blocks,
                     types::Ref pattern_value_type) {
-  match::Pattern::ref uncovered = match::all_of(
+  match::Pattern::Ref uncovered = match::all_of(
       location, maybe<Identifier>(make_iid(expr)), data_ctors_map,
       pattern_value_type);
   for (auto pattern_block : pattern_blocks) {
-    match::Pattern::ref covering = pattern_block->predicate->get_pattern(
+    match::Pattern::Ref covering = pattern_block->predicate->get_pattern(
         pattern_value_type, data_ctors_map);
     if (match::intersect(uncovered, covering)->asNothing() != nullptr) {
       auto error = user_error(pattern_block->predicate->get_location(),

@@ -77,7 +77,7 @@ struct Predicate {
   virtual ~Predicate() {
   }
   virtual std::ostream &render(std::ostream &os) const = 0;
-  virtual match::Pattern::ref get_pattern(
+  virtual match::Pattern::Ref get_pattern(
       types::Ref type,
       const DataCtorsMap &data_ctors_map) const = 0;
   virtual types::Ref tracking_infer(
@@ -119,7 +119,7 @@ struct TuplePredicate : public Predicate {
       : location(location), params(params), name_assignment(name_assignment) {
   }
   std::ostream &render(std::ostream &os) const override;
-  match::Pattern::ref get_pattern(
+  match::Pattern::Ref get_pattern(
       types::Ref type,
       const DataCtorsMap &data_ctors_map) const override;
   types::Ref tracking_infer(
@@ -159,7 +159,7 @@ struct IrrefutablePredicate : public Predicate {
       : location(location), name_assignment(name_assignment) {
   }
   std::ostream &render(std::ostream &os) const override;
-  match::Pattern::ref get_pattern(
+  match::Pattern::Ref get_pattern(
       types::Ref type,
       const DataCtorsMap &data_ctors_map) const override;
   types::Ref tracking_infer(
@@ -202,7 +202,7 @@ struct CtorPredicate : public Predicate {
         name_assignment(name_assignment) {
   }
   std::ostream &render(std::ostream &os) const override;
-  match::Pattern::ref get_pattern(
+  match::Pattern::Ref get_pattern(
       types::Ref type,
       const DataCtorsMap &data_ctors_map) const override;
   types::Ref tracking_infer(
@@ -365,7 +365,7 @@ struct Literal : public Expr, public Predicate {
   std::ostream &render(std::ostream &os, int parent_precedence) const override;
 
   std::ostream &render(std::ostream &os) const override;
-  match::Pattern::ref get_pattern(
+  match::Pattern::Ref get_pattern(
       types::Ref type,
       const DataCtorsMap &data_ctors_map) const override;
   types::Ref tracking_infer(

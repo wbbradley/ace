@@ -3,82 +3,64 @@
 newtype String = String(*Char, Int)
 
 instance Str String {
-    str = id
+  str = id
 }
 
 instance Repr String {
-    fn repr(s) {
-        # TODO: maybe make this a DFA or something
-        let text = (
-            replace(
-              replace(
-                replace(
-                  replace(
-                    replace(
-                      replace(
-                        s,
-                        "\"",
-                        "\\\""),
-                      "\n",
-                      "\\n"),
-                    "\t",
-                    "\\t"),
-                  "\b",
-                  "\\b"),
-                "\r",
-                "\\r"),
-              "\f",
-              "\\f"))
-        return "\"${text}\""
-    }
+  fn repr(s) => s.replace("\"", "\\\"")
+                 .replace("\n", "\\n")
+                 .replace("\t", "\\t")
+                 .replace("\b", "\\b")
+                 .replace("\r", "\\r")
+                 .replace("\f", "\\f")
 }
 
 instance HasLength String {
-    fn len(s) {
-        let String(_, l) = s
-        return l
-    }
+  fn len(s) {
+    let String(_, l) = s
+    return l
+  }
 }
 
 instance Eq String {
-    fn ==(a, b) {
-        let String(a, alen) = a
-        let String(b, blen) = b
+  fn ==(a, b) {
+    let String(a, alen) = a
+    let String(b, blen) = b
 
-        if alen != blen {
-            return False
-        } else {
-            return __builtin_memcmp(a, b, alen) == 0
-        }
+    if alen != blen {
+      return False
+    } else {
+      return __builtin_memcmp(a, b, alen) == 0
     }
+  }
 
-    fn !=(a, b) => not (a == b)
+  fn !=(a, b) => not (a == b)
 }
 
 instance Ord String {
-    fn <(a, b) => match compare(a, b) { LT => True } else => False
-    fn <=(a, b) => match compare(a, b) { GT => False } else => True
-    fn >(a, b) => match compare(a, b) { GT => True } else => False
-    fn >=(a, b) => match compare(a, b) { LT => False } else => True
+  fn <(a, b) => match compare(a, b) { LT => True } else => False
+  fn <=(a, b) => match compare(a, b) { GT => False } else => True
+  fn >(a, b) => match compare(a, b) { GT => True } else => False
+  fn >=(a, b) => match compare(a, b) { LT => False } else => True
 
-    fn compare(a, b) {
-        let String(a, len_a) = a
-        let String(b, len_b) = b
-        let ret = ffi zion_memcmp(a, b, min(len_a, len_b))
-        if ret == 0 {
-            if len_a == len_b {
-                return EQ
-            }
-            let ret = len_a < len_b ? LT : GT
-            return ret
-        } else {
-            let ret = ret < 0 ? LT : GT
-            return ret
-        }
+  fn compare(a, b) {
+    let String(a, len_a) = a
+    let String(b, len_b) = b
+    let ret = ffi zion_memcmp(a, b, min(len_a, len_b))
+    if ret == 0 {
+      if len_a == len_b {
+        return EQ
+      }
+      let ret = len_a < len_b ? LT : GT
+      return ret
+    } else {
+      let ret = ret < 0 ? LT : GT
+      return ret
     }
+  }
 
-    fn min(a, b) => a < b ? a : b
-    fn max(a, b) => a > b ? a : b
+  fn min(a, b) => a < b ? a : b
+  fn max(a, b) => a > b ? a : b
 }
 
 instance ConvertibleToInt String {
@@ -89,12 +71,12 @@ instance ConvertibleToInt String {
 }
 
 instance HasIndexableItems String Int Char {
-    fn get_indexed_item(s String, index Int) {
-        let String(sz, len) = s
-        assert(index < len)
-        assert(index >= 0)
-        return sz[index]
-    }
+  fn get_indexed_item(s String, index Int) {
+    let String(sz, len) = s
+    assert(index < len)
+    assert(index >= 0)
+    return sz[index]
+  }
 }
 
 instance HasSetMembership String Char {
@@ -161,154 +143,154 @@ instance Strippable String {
 let empty_string = ""
 
 fn chomp(s String) String {
-    let String(sz, cb) = s
-    # Find index of first non-space character from end
-    var j = cb
-    while j > 0 {
-        if not isspace(sz[j-1]) {
-            return s[:j]
-        } else {
-            j -= 1
-            continue
-        }
+  let String(sz, cb) = s
+  # Find index of first non-space character from end
+  var j = cb
+  while j > 0 {
+    if not isspace(sz[j-1]) {
+      return s[:j]
+    } else {
+      j -= 1
+      continue
     }
-    return ""
+  }
+  return ""
 }
 
 fn has_substring(haystack String, needle String) Bool {
-    let String(haystack, _) = haystack
-    let String(needle, _) = needle
-    return ffi strstr(haystack, needle) != null as *Char
+  let String(haystack, _) = haystack
+  let String(needle, _) = needle
+  return ffi strstr(haystack, needle) != null as *Char
 }
 
 fn has_substring_at(haystack String, index Int, needle String) Bool {
-    let String(haystack, haystack_len) = haystack
-    let String(needle, needle_len) = needle
-    if haystack_len - index >= needle_len {
-      let haystack_ptr = __builtin_ptr_add(haystack, index) as *Char
-      return ffi memcmp(haystack_ptr, needle, needle_len) == 0
-    } else {
-      return False
-    }
+  let String(haystack, haystack_len) = haystack
+  let String(needle, needle_len) = needle
+  if haystack_len - index >= needle_len {
+    let haystack_ptr = __builtin_ptr_add(haystack, index) as *Char
+    return ffi memcmp(haystack_ptr, needle, needle_len) == 0
+  } else {
+    return False
+  }
 }
 
 
 fn strstr_index(haystack *Char, haystack_len Int, needle *Char, needle_len Int) Int {
-    if haystack_len < needle_len {
-        return -1
-    }
+  if haystack_len < needle_len {
+    return -1
+  }
 
-    let pos = ffi strstr(haystack, needle) as *Char
-    return pos != null ? (pos as! Int) - (haystack as! Int) : -1
+  let pos = ffi strstr(haystack, needle) as *Char
+  return pos != null ? (pos as! Int) - (haystack as! Int) : -1
 }
 
 fn has_prefix(haystack String, needle String) Bool {
-    let String(haystack, _) = haystack
-    let String(needle, len) = needle
-    return ffi strncmp(haystack, needle, len) == 0
+  let String(haystack, _) = haystack
+  let String(needle, len) = needle
+  return ffi strncmp(haystack, needle, len) == 0
 }
 
 fn has_suffix(haystack String, needle String) Bool {
-    let String(haystack, len_haystack) = haystack
-    let String(needle, len_needle) = needle
-    if len_haystack < len_needle {
-        return False
-    }
-    return ffi memcmp(
-      __builtin_ptr_add(haystack, len_haystack - len_needle),
-      needle, len_needle) == 0
+  let String(haystack, len_haystack) = haystack
+  let String(needle, len_needle) = needle
+  if len_haystack < len_needle {
+    return False
+  }
+  return ffi memcmp(
+    __builtin_ptr_add(haystack, len_haystack - len_needle),
+    needle, len_needle) == 0
 }
 
 fn replace(source String, term String, new_term String) String {
-    let String(sz, len) = source
-    let String(needle, needle_len) = term
-    var i = 0
-    var start_span = 0
-    let result = []
-    while i < len {
-        let cur_start = __builtin_ptr_add(sz, i)
-        let next_index = strstr_index(cur_start, len - i, needle, needle_len)
-        if next_index == -1 {
-            append(result, String(cur_start, len - i))
-            i += len - i
-        } else {
-            if next_index > 0 {
-                append(result, String(cur_start, next_index))
-                i += next_index
-            }
-            append(result, new_term)
-            i += needle_len
-        }
+  let String(sz, len) = source
+  let String(needle, needle_len) = term
+  var i = 0
+  var start_span = 0
+  let result = []
+  while i < len {
+    let cur_start = __builtin_ptr_add(sz, i)
+    let next_index = strstr_index(cur_start, len - i, needle, needle_len)
+    if next_index == -1 {
+      append(result, String(cur_start, len - i))
+      i += len - i
+    } else {
+      if next_index > 0 {
+        append(result, String(cur_start, next_index))
+        i += next_index
+      }
+      append(result, new_term)
+      i += needle_len
     }
-    assert(i == len)
-    return join("", result)
+  }
+  assert(i == len)
+  return join("", result)
 }
 
 fn strconcat(xs) String => "".join(xs)
 
 fn join(delim_ String, xs) String {
-    let results = [] as [String]
-    var total = 0
-    let delim_len = len(delim_)
-    var count = 0
-    for x in xs {
-        count += 1
-        let s = str(x)
-        append(results, s)
-        total = total + len(s)
+  let results = [] as [String]
+  var total = 0
+  let delim_len = len(delim_)
+  var count = 0
+  for x in xs {
+    count += 1
+    let s = str(x)
+    append(results, s)
+    total = total + len(s)
+  }
+  if count == 0 {
+    return ""
+  }
+  let len_delim = len(delim_)
+  total += len_delim * (count - 1)
+  let buf = alloc(total + 1)
+  var i = 0
+  for r in results {
+    if i * len_delim != 0 {
+      for ch in delim_ {
+        buf[i] = ch
+        i = i + 1
+      }
     }
-    if count == 0 {
-      return ""
+    for ch in r {
+      buf[i] = ch
+      i = i + 1
     }
-    let len_delim = len(delim_)
-    total += len_delim * (count - 1)
-    let buf = alloc(total + 1)
-    var i = 0
-    for r in results {
-        if i * len_delim != 0 {
-            for ch in delim_ {
-                buf[i] = ch
-                i = i + 1
-            }
-        }
-        for ch in r {
-            buf[i] = ch
-            i = i + 1
-        }
-    }
-    buf[i] = '\0'
+  }
+  buf[i] = '\0'
 
-    return String(buf, i)
+  return String(buf, i)
 }
 
 fn concat(a String, b String) String {
-    let String(xs, xlen) = a
-    let String(ys, ylen) = b
+  let String(xs, xlen) = a
+  let String(ys, ylen) = b
 
-    let zlen = xlen + ylen
-    if xlen == 0 {
-        return b
-    } else if ylen == 0 {
-        return a
-    } else {
-        let zs = __builtin_calloc(zlen) as *Char
-        __builtin_memcpy(zs, xs, xlen)
-        __builtin_memcpy(__builtin_ptr_add(zs, xlen), ys, ylen)
-        return String(zs, zlen)
-    }
+  let zlen = xlen + ylen
+  if xlen == 0 {
+    return b
+  } else if ylen == 0 {
+    return a
+  } else {
+    let zs = __builtin_calloc(zlen) as *Char
+    __builtin_memcpy(zs, xs, xlen)
+    __builtin_memcpy(__builtin_ptr_add(zs, xlen), ys, ylen)
+    return String(zs, zlen)
+  }
 }
 
 instance CanSliceFrom String String {
-    fn get_slice_from(s String, index Int) String {
-        let String(sz, cb) = s
-        var index = min(index, cb)
-        if index < 0 or index >= cb {
-            return ""
-        }
-        let new_len = cb - index
-        assert(new_len > 0)
-        return String(ffi GC_strndup(__builtin_ptr_add(sz, index), new_len), new_len)
+  fn get_slice_from(s String, index Int) String {
+    let String(sz, cb) = s
+    var index = min(index, cb)
+    if index < 0 or index >= cb {
+      return ""
     }
+    let new_len = cb - index
+    assert(new_len > 0)
+    return String(ffi GC_strndup(__builtin_ptr_add(sz, index), new_len), new_len)
+  }
 }
 
 instance CanSliceFromTo String String {
@@ -331,11 +313,11 @@ instance CanSliceFromTo String String {
 }
 
 instance Serializeable String {
-    fn serialize(str) {
-        let String(sz, l) = str
-        # Assume utf-8 here.
-        return Buffer(sz, l)
-    }
+  fn serialize(str) {
+    let String(sz, l) = str
+    # Assume utf-8 here.
+    return Buffer(sz, l)
+  }
 }
 
 fn memmem(big *Char, big_len Int, little *Char, little_len Int) *Char {

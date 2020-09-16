@@ -9,7 +9,7 @@ struct Pattern;
 struct Nothing;
 
 struct Pattern {
-  typedef std::shared_ptr<const Pattern> ref;
+  typedef std::shared_ptr<const Pattern> Ref;
 
   Location location;
 
@@ -25,10 +25,10 @@ struct Pattern {
 };
 
 extern std::shared_ptr<Nothing> theNothing;
-Pattern::ref intersect(Pattern::ref lhs, Pattern::ref rhs);
-Pattern::ref difference(Pattern::ref lhs, Pattern::ref rhs);
-Pattern::ref pattern_union(Pattern::ref lhs, Pattern::ref rhs);
-Pattern::ref all_of(Location location,
+Pattern::Ref intersect(Pattern::Ref lhs, Pattern::Ref rhs);
+Pattern::Ref difference(Pattern::Ref lhs, Pattern::Ref rhs);
+Pattern::Ref pattern_union(Pattern::Ref lhs, Pattern::Ref rhs);
+Pattern::Ref all_of(Location location,
                     maybe<Identifier> expr,
                     const zion::DataCtorsMap &data_ctors_map,
                     types::Ref type);

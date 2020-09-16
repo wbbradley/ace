@@ -30,7 +30,7 @@ struct Nothing : std::enable_shared_from_this<Nothing>, Pattern {
 struct CtorPatternValue {
   std::string type_name;
   std::string name;
-  std::vector<Pattern::ref> args;
+  std::vector<Pattern::Ref> args;
 
   std::string str() const;
 };
@@ -115,20 +115,20 @@ template <> std::string Scalars<double>::scalar_name() {
   return s;
 }
 
-std::shared_ptr<const CtorPattern> asCtorPattern(Pattern::ref pattern) {
+std::shared_ptr<const CtorPattern> asCtorPattern(Pattern::Ref pattern) {
   return dyncast<const CtorPattern>(pattern);
 }
 
-std::shared_ptr<const CtorPatterns> asCtorPatterns(Pattern::ref pattern) {
+std::shared_ptr<const CtorPatterns> asCtorPatterns(Pattern::Ref pattern) {
   return dyncast<const CtorPatterns>(pattern);
 }
 
-std::shared_ptr<const AllOf> asAllOf(Pattern::ref pattern) {
+std::shared_ptr<const AllOf> asAllOf(Pattern::Ref pattern) {
   return dyncast<const AllOf>(pattern);
 }
 
 template <typename T>
-std::shared_ptr<const Scalars<T>> asScalars(Pattern::ref pattern) {
+std::shared_ptr<const Scalars<T>> asScalars(Pattern::Ref pattern) {
   return dyncast<const Scalars<T>>(pattern);
 }
 
@@ -146,16 +146,16 @@ std::shared_ptr<Scalars<double>> allFloats = std::make_shared<Scalars<double>>(
     Scalars<double>::Exclude,
     std::set<double>{});
 
-Pattern::ref all_of(Location location,
+Pattern::Ref all_of(Location location,
                     maybe<Identifier> expr,
                     const zion::DataCtorsMap &data_ctors_map,
                     types::Ref type) {
   return std::make_shared<match::AllOf>(location, expr, data_ctors_map, type);
 }
 
-Pattern::ref reduce_all_datatype(Location location,
+Pattern::Ref reduce_all_datatype(Location location,
                                  std::string type_name,
-                                 Pattern::ref rhs,
+                                 Pattern::Ref rhs,
                                  const std::vector<CtorPatternValue> &cpvs) {
   for (auto cpv : cpvs) {
     if (cpv.type_name != type_name) {
@@ -178,7 +178,7 @@ Pattern::ref reduce_all_datatype(Location location,
   }
 }
 
-Pattern::ref intersect(Location location,
+Pattern::Ref intersect(Location location,
                        const CtorPatternValue &lhs,
                        const CtorPatternValue &rhs) {
   assert(lhs.type_name == rhs.type_name);
@@ -187,7 +187,7 @@ Pattern::ref intersect(Location location,
   }
   assert(lhs.args.size() == rhs.args.size());
 
-  std::vector<Pattern::ref> reduced_args;
+  std::vector<Pattern::Ref> reduced_args;
   reduced_args.reserve(lhs.args.size());
 
   for (size_t i = 0; i < lhs.args.size(); ++i) {
@@ -203,18 +203,18 @@ Pattern::ref intersect(Location location,
       location, CtorPatternValue{lhs.type_name, lhs.name, reduced_args});
 }
 
-Pattern::ref cpv_intersect(Pattern::ref lhs, const CtorPatternValue &rhs) {
+Pattern::Ref cpv_intersect(Pattern::Ref lhs, const CtorPatternValue &rhs) {
   auto ctor_pattern = dyncast<const CtorPattern>(lhs);
   assert(ctor_pattern != nullptr);
   return intersect(lhs->location, ctor_pattern->cpv, rhs);
 }
 
-Pattern::ref intersect(Location location,
+Pattern::Ref intersect(Location location,
                        const std::vector<CtorPatternValue> &lhs,
                        const std::vector<CtorPatternValue> &rhs) {
-  Pattern::ref intersection = theNothing;
+  Pattern::Ref intersection = theNothing;
   for (auto &cpv : lhs) {
-    Pattern::ref init = std::make_shared<CtorPattern>(location, cpv);
+    Pattern::Ref init = std::make_shared<CtorPattern>(location, cpv);
     intersection = pattern_union(
         std::accumulate(rhs.begin(), rhs.end(), init, cpv_intersect),
         intersection);
@@ -223,7 +223,7 @@ Pattern::ref intersect(Location location,
 }
 
 template <typename T>
-Pattern::ref intersect(const Scalars<T> &lhs, const Scalars<T> &rhs) {
+Pattern::Ref intersect(const Scalars<T> &lhs, const Scalars<T> &rhs) {
   typename Scalars<T>::Kind new_kind;
   std::set<T> new_collection;
 
@@ -264,7 +264,7 @@ Pattern::ref intersect(const Scalars<T> &lhs, const Scalars<T> &rhs) {
   return std::make_shared<Scalars<T>>(lhs.location, new_kind, new_collection);
 }
 
-Pattern::ref intersect(Pattern::ref lhs, Pattern::ref rhs) {
+Pattern::Ref intersect(Pattern::Ref lhs, Pattern::Ref rhs) {
   /* ironically, this is where pattern matching would really help... */
   auto lhs_nothing = lhs->asNothing();
   auto rhs_nothing = rhs->asNothing();
@@ -338,7 +338,7 @@ Pattern::ref intersect(Pattern::ref lhs, Pattern::ref rhs) {
   return nullptr;
 }
 
-Pattern::ref pattern_union(Pattern::ref lhs, Pattern::ref rhs) {
+Pattern::Ref pattern_union(Pattern::Ref lhs, Pattern::Ref rhs) {
   auto lhs_nothing = lhs->asNothing();
   auto rhs_nothing = rhs->asNothing();
 
@@ -394,11 +394,11 @@ Pattern::ref pattern_union(Pattern::ref lhs, Pattern::ref rhs) {
   return nullptr;
 }
 
-Pattern::ref from_type(Location location,
+Pattern::Ref from_type(Location location,
                        const zion::DataCtorsMap &data_ctors_map,
                        types::Ref type) {
   if (auto tuple_type = dyncast<const types::TypeTuple>(type)) {
-    std::vector<Pattern::ref> args;
+    std::vector<Pattern::Ref> args;
     for (auto dim : tuple_type->dimensions) {
       args.push_back(from_type(location, data_ctors_map, dim));
     }
@@ -424,7 +424,7 @@ Pattern::ref from_type(Location location,
       auto &ctor_name = pair.first;
       auto ctor_terms = unfold_arrows(pair.second);
 
-      std::vector<Pattern::ref> args;
+      std::vector<Pattern::Ref> args;
       args.reserve(ctor_terms.size() - 1);
 
       for (size_t i = 0; i < ctor_terms.size() - 1; ++i) {
@@ -453,14 +453,14 @@ Pattern::ref from_type(Location location,
       data_ctors_map, type);
 }
 
-void difference(Pattern::ref lhs,
-                Pattern::ref rhs,
-                const std::function<void(Pattern::ref)> &send);
+void difference(Pattern::Ref lhs,
+                Pattern::Ref rhs,
+                const std::function<void(Pattern::Ref)> &send);
 
 void difference(Location location,
                 const CtorPatternValue &lhs,
                 const CtorPatternValue &rhs,
-                const std::function<void(Pattern::ref)> &send) {
+                const std::function<void(Pattern::Ref)> &send) {
   assert(lhs.type_name == rhs.type_name);
 
   if (lhs.name != rhs.name) {
@@ -470,11 +470,11 @@ void difference(Location location,
   } else {
     assert(lhs.args.size() == rhs.args.size());
     size_t i = 0;
-    auto send_ctor_pattern = [location, &i, &lhs, &send](Pattern::ref arg) {
+    auto send_ctor_pattern = [location, &i, &lhs, &send](Pattern::Ref arg) {
       if (dyncast<const Nothing>(arg)) {
         send(theNothing);
       } else {
-        std::vector<Pattern::ref> args = lhs.args;
+        std::vector<Pattern::Ref> args = lhs.args;
         args[i] = arg;
         send(std::make_shared<CtorPattern>(
             location, CtorPatternValue{lhs.type_name, lhs.name, args}));
@@ -488,7 +488,7 @@ void difference(Location location,
 }
 
 template <typename T>
-Pattern::ref difference(const Scalars<T> &lhs, const Scalars<T> &rhs) {
+Pattern::Ref difference(const Scalars<T> &lhs, const Scalars<T> &rhs) {
   typename Scalars<T>::Kind new_kind;
   std::set<T> new_collection;
 
@@ -529,32 +529,22 @@ Pattern::ref difference(const Scalars<T> &lhs, const Scalars<T> &rhs) {
   return std::make_shared<Scalars<T>>(lhs.location, new_kind, new_collection);
 }
 
-void difference(Pattern::ref lhs,
-                Pattern::ref rhs,
-                const std::function<void(Pattern::ref)> &send) {
+void difference(Pattern::Ref lhs,
+                Pattern::Ref rhs,
+                const std::function<void(Pattern::Ref)> &send) {
   debug_above(8, log_location(rhs->location, "computing %s \\ %s",
                               lhs->str().c_str(), rhs->str().c_str()));
 
   auto lhs_nothing = lhs->asNothing();
   auto rhs_nothing = rhs->asNothing();
-  auto lhs_allof = asAllOf(lhs);
-  auto rhs_allof = asAllOf(rhs);
-  auto lhs_ctor_patterns = asCtorPatterns(lhs);
-  auto rhs_ctor_patterns = asCtorPatterns(rhs);
-  auto lhs_ctor_pattern = asCtorPattern(lhs);
-  auto rhs_ctor_pattern = asCtorPattern(rhs);
-  auto lhs_integers = asScalars<int64_t>(lhs);
-  auto rhs_integers = asScalars<int64_t>(rhs);
-  auto lhs_floats = asScalars<double>(lhs);
-  auto rhs_floats = asScalars<double>(rhs);
-  auto lhs_chars = asScalars<uint8_t>(lhs);
-  auto rhs_chars = asScalars<uint8_t>(rhs);
 
   if (lhs_nothing || rhs_nothing) {
     send(lhs);
     return;
   }
 
+  auto lhs_allof = asAllOf(lhs);
+  auto rhs_allof = asAllOf(rhs);
   if (lhs_allof) {
     if (rhs_allof) {
       if (lhs_allof->type->repr() == rhs_allof->type->repr()) {
@@ -587,6 +577,10 @@ void difference(Pattern::ref lhs,
   assert(lhs_allof == nullptr);
   assert(rhs_allof == nullptr);
 
+  auto lhs_ctor_patterns = asCtorPatterns(lhs);
+  auto rhs_ctor_patterns = asCtorPatterns(rhs);
+  auto lhs_ctor_pattern = asCtorPattern(lhs);
+  auto rhs_ctor_pattern = asCtorPattern(rhs);
   if (lhs_ctor_patterns) {
     if (rhs_ctor_patterns) {
       for (auto &cpv : lhs_ctor_patterns->cpvs) {
@@ -607,9 +601,9 @@ void difference(Pattern::ref lhs,
 
   if (lhs_ctor_pattern) {
     if (rhs_ctor_patterns) {
-      Pattern::ref new_a = std::make_shared<CtorPattern>(lhs->location,
+      Pattern::Ref new_a = std::make_shared<CtorPattern>(lhs->location,
                                                          lhs_ctor_pattern->cpv);
-      auto new_a_send = [&new_a](Pattern::ref pattern) {
+      auto new_a_send = [&new_a](Pattern::Ref pattern) {
         new_a = pattern_union(new_a, pattern);
       };
 
@@ -629,6 +623,8 @@ void difference(Pattern::ref lhs,
     }
   }
 
+  auto lhs_integers = asScalars<int64_t>(lhs);
+  auto rhs_integers = asScalars<int64_t>(rhs);
   if (lhs_integers) {
     if (rhs_integers) {
       send(difference(*lhs_integers, *rhs_integers));
@@ -636,6 +632,8 @@ void difference(Pattern::ref lhs,
     }
   }
 
+  auto lhs_floats = asScalars<double>(lhs);
+  auto rhs_floats = asScalars<double>(rhs);
   if (lhs_floats) {
     if (rhs_floats) {
       send(difference(*lhs_floats, *rhs_floats));
@@ -643,6 +641,8 @@ void difference(Pattern::ref lhs,
     }
   }
 
+  auto lhs_chars = asScalars<uint8_t>(lhs);
+  auto rhs_chars = asScalars<uint8_t>(rhs);
   if (lhs_chars) {
     if (rhs_chars) {
       send(difference(*lhs_chars, *rhs_chars));
@@ -655,10 +655,10 @@ void difference(Pattern::ref lhs,
   throw zion::user_error(INTERNAL_LOC(), "not implemented");
 }
 
-Pattern::ref difference(Pattern::ref lhs, Pattern::ref rhs) {
-  Pattern::ref computed = theNothing;
+Pattern::Ref difference(Pattern::Ref lhs, Pattern::Ref rhs) {
+  Pattern::Ref computed = theNothing;
 
-  auto send = [&computed](Pattern::ref pattern) {
+  auto send = [&computed](Pattern::Ref pattern) {
     computed = pattern_union(pattern, computed);
   };
 
@@ -707,10 +707,10 @@ namespace ast {
 using namespace ::match;
 using namespace ::types;
 
-Pattern::ref TuplePredicate::get_pattern(
+Pattern::Ref TuplePredicate::get_pattern(
     types::Ref type,
     const zion::DataCtorsMap &data_ctors_map) const {
-  std::vector<Pattern::ref> args;
+  std::vector<Pattern::Ref> args;
   if (auto tuple_type = dyncast<const TypeTuple>(type)) {
     if (tuple_type->dimensions.size() != params.size()) {
       throw zion::user_error(location,
@@ -720,7 +720,7 @@ Pattern::ref TuplePredicate::get_pattern(
                              int(tuple_type->dimensions.size()));
     }
 
-    std::vector<Pattern::ref> args;
+    std::vector<Pattern::Ref> args;
     for (size_t i = 0; i < params.size(); ++i) {
       args.push_back(
           params[i]->get_pattern(tuple_type->dimensions[i], data_ctors_map));
@@ -736,13 +736,13 @@ Pattern::ref TuplePredicate::get_pattern(
   }
 }
 
-Pattern::ref CtorPredicate::get_pattern(
+Pattern::Ref CtorPredicate::get_pattern(
     types::Ref type,
     const zion::DataCtorsMap &data_ctors_map) const {
   auto ctor_terms = unfold_arrows(
       get_data_ctor_type(data_ctors_map, type, ctor_name));
 
-  std::vector<Pattern::ref> args;
+  std::vector<Pattern::Ref> args;
   if (ctor_terms.size() - 1 != params.size()) {
     log("params = %s", join_str(params).c_str());
     log("ctor_terms = %s", join_str(ctor_terms).c_str());
@@ -762,14 +762,14 @@ Pattern::ref CtorPredicate::get_pattern(
       location, CtorPatternValue{type->repr(), ctor_name.name, args});
 }
 
-Pattern::ref IrrefutablePredicate::get_pattern(
+Pattern::Ref IrrefutablePredicate::get_pattern(
     types::Ref type,
     const zion::DataCtorsMap &data_ctors_map) const {
   return std::make_shared<AllOf>(location, name_assignment, data_ctors_map,
                                  type);
 }
 
-Pattern::ref Literal::get_pattern(
+Pattern::Ref Literal::get_pattern(
     types::Ref type,
     const zion::DataCtorsMap &data_ctors_map) const {
   if (type_equality(type, type_int(INTERNAL_LOC()))) {
