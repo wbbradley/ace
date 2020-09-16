@@ -413,7 +413,8 @@ CheckedDefinitionsByName check_decls(std::string user_program_name,
     for (auto name : scc) {
       if (decl_map.count(name) != 0) {
         map[name] = type_variable(INTERNAL_LOC());
-        local_scheme_resolver.insert_scheme(name, scheme({}, {}, map[name]));
+        local_scheme_resolver.insert_scheme(
+            name, scheme(decl_map.at(name)->get_location(), {}, {}, map[name]));
       } else {
 #ifdef ZION_DEBUG
         if (debug_level() > 2) {
@@ -452,9 +453,11 @@ CheckedDefinitionsByName check_decls(std::string user_program_name,
                            "main function must have signature fn () ()"));
         }
 
-        append_to_constraints(
-            constraints, ty, map[name],
-            make_context(INTERNAL_LOC(), "scc checks should match inference"));
+        append_to_constraints(constraints, ty, map[name],
+                              make_context(INTERNAL_LOC(),
+                                           "scc checks should match inference "
+                                           "(in the case of " c_id("%s") ")",
+                                           name.c_str()));
       }
       debug_above(2, log("inferred types %s", str(map).c_str()));
     }

@@ -36,14 +36,14 @@ types::Ref infer_core(const Expr *expr,
      * and the inference constraints */
     std::set<Identifier> candidates;
     types::Scheme::Ref scheme =
-        scheme_resolver.lookup_scheme(var->id, candidates)->freshen();
+        scheme_resolver.lookup_scheme(var->id, candidates)->freshen(var->get_location());
     assert(scheme != nullptr);
     debug_above(4, log_location(var->get_location(),
                                 "found var ref %s with scheme %s",
                                 var->id.str().c_str(),
                                 scheme->normalize()->str().c_str()));
 
-    /* ad the related class predicates to this scheme into the mix */
+    /* add the related class predicates to this scheme into the mix */
     set_concat(instance_requirements, scheme->predicates);
     return scheme->type;
   } else if (auto lambda = dcast<const Lambda *>(expr)) {
@@ -61,7 +61,7 @@ types::Ref infer_core(const Expr *expr,
     types::SchemeResolver local_scheme_resolver(&scheme_resolver);
     i = 0;
     for (const Identifier &var : lambda->vars) {
-      local_scheme_resolver.insert_scheme(var.name, scheme({}, {}, tvs[i++]));
+      local_scheme_resolver.insert_scheme(var.name, scheme(var.location, {}, {}, tvs[i++]));
     }
     auto body_type = infer(lambda->body, data_ctors_map, local_return_type,
                            local_scheme_resolver, tracked_types, constraints,
@@ -108,7 +108,8 @@ types::Ref infer_core(const Expr *expr,
         make_context(let->value->get_location(), "digging deeper..."));
 
     types::SchemeResolver local_scheme_resolver(&scheme_resolver);
-    local_scheme_resolver.insert_scheme(let->var.name, scheme({}, {}, tv));
+    local_scheme_resolver.insert_scheme(let->var.name,
+                                        scheme(let->var.location, {}, {}, tv));
 
     auto t2 = infer(let->body, data_ctors_map, return_type,
                     local_scheme_resolver, tracked_types, constraints,
@@ -363,7 +364,9 @@ types::Ref TuplePredicate::tracking_infer(
   auto type = (types.size() == 0) ? type_unit(get_location())
                                   : type_tuple(types);
   if (name_assignment.valid) {
-    scheme_resolver.insert_scheme(name_assignment.t.name, scheme({}, {}, type));
+    scheme_resolver.insert_scheme(
+        name_assignment.t.name,
+        scheme(name_assignment.t.location, {}, {}, type));
   }
   return type;
 }
@@ -377,7 +380,8 @@ types::Ref IrrefutablePredicate::tracking_infer(
     types::ClassPredicates &instance_requirements) const {
   auto tv = type_variable(location);
   if (name_assignment.valid) {
-    scheme_resolver.insert_scheme(name_assignment.t.name, scheme({}, {}, tv));
+    scheme_resolver.insert_scheme(
+        name_assignment.t.name, scheme(name_assignment.t.location, {}, {}, tv));
   }
   return tv;
 }
@@ -418,8 +422,9 @@ types::Ref CtorPredicate::tracking_infer(
   debug_above(8, log("CtorPredicate::infer(...) -> %s",
                      ctor_terms.back()->str().c_str()));
   if (name_assignment.valid) {
-    scheme_resolver.insert_scheme(name_assignment.t.name,
-                                  scheme({}, {}, ctor_terms.back()));
+    scheme_resolver.insert_scheme(
+        name_assignment.t.name,
+        scheme(name_assignment.t.location, {}, {}, ctor_terms.back()));
   }
   return ctor_terms.back();
 }

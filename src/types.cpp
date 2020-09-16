@@ -136,7 +136,7 @@ std::shared_ptr<const Scheme> Type::generalize(
     /* make sure all the type variables are accounted for */
     vs.push_back(ftv);
   }
-  return scheme(vs, new_predicates, shared_from_this());
+  return scheme(get_location(), vs, new_predicates, shared_from_this());
 }
 
 Ref Type::apply(types::Ref type) const {
@@ -171,6 +171,14 @@ Ref TypeId::eval(const TypeEnv &type_env, bool shallow) const {
   }
 #endif
   return ref;
+}
+
+Ref TypeId::with_location(Location location) const {
+  if (location == get_location()) {
+    return shared_from_this();
+  } else {
+    return type_id(Identifier{id.name, location});
+  }
 }
 
 Ref TypeId::rebind(const Map &bindings) const {
@@ -232,6 +240,14 @@ void TypeVariable::compute_ftvs() const {
 
 Ref TypeVariable::eval(const TypeEnv &type_env, bool shallow) const {
   return shared_from_this();
+}
+
+Ref TypeVariable::with_location(Location location) const {
+  if (location == get_location()) {
+    return shared_from_this();
+  } else {
+    return type_variable(Identifier{id.name, location});
+  }
 }
 
 Ref TypeVariable::rebind(const Map &bindings) const {
@@ -341,6 +357,10 @@ Ref TypeOperator::prefix_ids(const std::set<std::string> &bindings,
                              const std::string &pre) const {
   return ::type_operator(oper->prefix_ids(bindings, pre),
                          operand->prefix_ids(bindings, pre));
+}
+
+Ref TypeOperator::with_location(Location location) const {
+  return type_operator(oper->with_location(location), operand);
 }
 
 Location TypeOperator::get_location() const {
@@ -459,6 +479,10 @@ Ref TypeTuple::prefix_ids(const std::set<std::string> &bindings,
   }
 }
 
+Ref TypeTuple::with_location(Location new_location) const {
+  return type_tuple(new_location, dimensions);
+}
+
 Location TypeTuple::get_location() const {
   return location;
 }
@@ -573,6 +597,10 @@ Ref TypeParams::prefix_ids(const std::set<std::string> &bindings,
   }
 }
 
+Ref TypeParams::with_location(Location new_location) const {
+  return shared_from_this();
+}
+
 Location TypeParams::get_location() const {
   return location;
 }
@@ -655,6 +683,10 @@ Ref TypeLambda::apply(types::Ref type) const {
   Map bindings;
   bindings[binding.name] = type;
   return body->rebind(bindings);
+}
+
+Ref TypeLambda::with_location(Location location) const {
+  return type_lambda(Identifier{binding.name, location}, body);
 }
 
 Location TypeLambda::get_location() const {
@@ -778,12 +810,6 @@ types::Ref type_operator(const types::Refs &xs) {
     result = type_operator(result, xs[i]);
   }
   return result;
-}
-
-types::Scheme::Ref scheme(std::vector<std::string> vars,
-                          const types::ClassPredicates &predicates,
-                          const types::Ref &type) {
-  return std::make_shared<types::Scheme>(vars, predicates, type);
 }
 
 types::NameIndex get_name_index_from_ids(Identifiers ids) {

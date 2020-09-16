@@ -673,27 +673,27 @@ instance CanSliceFrom [a] [a] {
 }
 
 instance CanSliceFromTo [a] [a] {
-    fn get_slice_from_to(xs, index, lim) {
-        let ys = []
-        let len_xs = len(xs)
-        var index = min(index, len_xs)
-        var lim = min(lim, len_xs)
+  fn get_slice_from_to(xs, index, lim) {
+    let ys = []
+    let len_xs = len(xs)
+    var index = min(index, len_xs)
+    var lim = min(lim, len_xs)
 
-        if index < 0 or index >= len_xs {
-            return ys
-        }
-
-        let new_len = lim - index
-        if new_len <= 0 {
-            return []
-        }
-        reserve(ys, lim-index)
-
-        for i in [index..lim-1] {
-            append(ys, xs[i])
-        }
-        return ys
+    if index < 0 or index >= len_xs {
+      return ys
     }
+
+    let new_len = lim - index
+    if new_len <= 0 {
+      return []
+    }
+    reserve(ys, lim-index)
+
+    for i in [index..lim-1] {
+      append(ys, xs[i])
+    }
+    return ys
+  }
 }
 
 let unit = ()

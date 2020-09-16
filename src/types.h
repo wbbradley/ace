@@ -52,6 +52,7 @@ struct Type : public std::enable_shared_from_this<Type> {
   }
 
   virtual Location get_location() const = 0;
+  virtual Ref with_location(Location location) const = 0;
 
   std::string str() const;
   std::string str(const Map &bindings) const;
@@ -103,6 +104,7 @@ struct TypeVariable final : public Type {
   Ref prefix_ids(const std::set<std::string> &bindings,
                  const std::string &pre) const override;
   Location get_location() const override;
+  Ref with_location(Location location) const override;
 };
 
 struct TypeId final : public Type {
@@ -121,6 +123,7 @@ struct TypeId final : public Type {
   Ref prefix_ids(const std::set<std::string> &bindings,
                  const std::string &pre) const override;
   Location get_location() const override;
+  Ref with_location(Location location) const override;
 };
 
 struct TypeOperator final : public Type {
@@ -144,6 +147,7 @@ struct TypeOperator final : public Type {
   Ref prefix_ids(const std::set<std::string> &bindings,
                  const std::string &pre) const override;
   Location get_location() const override;
+  Ref with_location(Location location) const override;
 };
 
 struct TypeTuple final : public Type {
@@ -164,6 +168,7 @@ struct TypeTuple final : public Type {
   types::Ref prefix_ids(const std::set<std::string> &bindings,
                         const std::string &pre) const override;
   Location get_location() const override;
+  types::Ref with_location(Location location) const override;
 
   Location location;
   Refs dimensions;
@@ -187,6 +192,7 @@ struct TypeParams final : public Type {
   types::Ref prefix_ids(const std::set<std::string> &bindings,
                         const std::string &pre) const override;
   Location get_location() const override;
+  types::Ref with_location(Location location) const override;
 
   Location location;
   Refs dimensions;
@@ -213,6 +219,7 @@ struct TypeLambda final : public Type {
                  const std::string &pre) const override;
   Ref apply(types::Ref type) const override;
   Location get_location() const override;
+  Ref with_location(Location location) const override;
 };
 
 Ref unitize(Ref type);

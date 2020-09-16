@@ -96,15 +96,16 @@ types::Map solver(bool check_constraint_coverage,
   }
   if (errors.size() != 0) {
     auto iter = errors.begin();
-    auto _error = user_error(iter->second.error_location, "%s",
-                             iter->second.error_string.c_str());
-    _error.add_info(iter->first.location, "while checking that %s",
-                    iter->first.message.c_str());
+    auto _error = user_error(iter->first.location, "while checking that %s",
+                             iter->first.message.c_str());
+    _error.add_info(iter->second.error_location, c_error("error:") " %s",
+                    iter->second.error_string.c_str());
     for (++iter; iter != errors.end(); ++iter) {
-      _error.add_info(iter->second.error_location, c_error("error:") "%s",
-                      iter->second.error_string.c_str());
-      _error.add_info(iter->first.location, "while checking that %s",
+      _error.add_info(iter->first.location,
+                      c_error("error:") " while checking that %s",
                       iter->first.message.c_str());
+      _error.add_info(iter->second.error_location, c_error("error:") " %s",
+                      iter->second.error_string.c_str());
     }
     throw _error;
   }

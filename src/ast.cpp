@@ -130,7 +130,7 @@ std::ostream &ReturnStatement::render(std::ostream &os,
                                       int parent_precedence) const {
   const int precedence = 4;
   Parens parens(os, parent_precedence, precedence);
-  os << C_CONTROL "return! " C_RESET;
+  os << C_CONTROL "return " C_RESET;
   value->render(os, 0);
   return os;
 }
@@ -226,7 +226,7 @@ std::ostream &Literal::render(std::ostream &os, int parent_precedence) const {
 }
 
 std::ostream &Literal::render(std::ostream &os) const {
-  return os << token.text;
+  return os << C_LITERAL << token.text << C_RESET;
 }
 
 Identifier Literal::instantiate_name_assignment() const {

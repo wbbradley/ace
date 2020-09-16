@@ -2294,7 +2294,7 @@ const Expr *create_ctor(Location location,
   if (params.size() > 0) {
     /* this ctor takes parameters, so it needs a lambda */
     assert(dims.size() == params.size() + 1);
-    /* (λx y z . return! (ctor_id, x, y, z) as! type_decl) */
+    /* (λx y z . return (ctor_id, x, y, z) as! type_decl) */
     expr = new Lambda(params, param_types, nullptr, new ReturnStatement(expr));
   }
 

@@ -307,13 +307,12 @@ fn many(parser) fn (parsestate) Progress parsestate [a] {
   return fn (parse_state) {
     let nodes = [] as [a]
     var parse_state = parse_state
-    while True {
-      if parser(parse_state) is OK(next_parse_state, node) {
+    while match parser(parse_state) {
+      OK(next_parse_state, node) {
         parse_state = next_parse_state
         append(nodes, node)
-      } else {
-        break
       }
+      _ => break
     }
     return OK(parse_state, nodes)
   }

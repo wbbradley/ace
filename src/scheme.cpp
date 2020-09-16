@@ -4,10 +4,11 @@
 
 namespace types {
 
-Scheme::Scheme(const std::vector<std::string> &vars,
+Scheme::Scheme(Location location,
+    const std::vector<std::string> &vars,
                const ClassPredicates &predicates,
                types::Ref type)
-    : vars(vars), predicates(predicates), type(type) {
+    : location(location), vars(vars), predicates(predicates), type(type) {
 #ifdef ZION_DEBUG
   if (vars.size() == 0) {
     if (types::get_ftvs(predicates).size() != 0) {
@@ -23,7 +24,7 @@ types::Ref Scheme::instantiate(Location location) const {
   for (auto var : vars) {
     subst[var] = type_variable(gensym(location));
   };
-  return type->rebind(subst);
+  return type->rebind(subst)->with_location(location);
 }
 
 static Map remove_bindings(const Map &env,
@@ -43,7 +44,7 @@ Scheme::Ref Scheme::rebind(const types::Map &bindings) const {
   if (bindings.size() == 0) {
     return shared_from_this();
   }
-  return scheme(vars, predicates,
+  return scheme(location, vars, predicates,
                 type->rebind(remove_bindings(bindings, vars)));
 }
 
@@ -56,13 +57,21 @@ Scheme::Ref Scheme::normalize() const {
     new_vars.push_back(alphabetize(counter++));
     ord[ftv] = new_vars.back();
   }
-  return scheme(new_vars, types::remap_vars(predicates, ord),
+  return scheme(location, new_vars, types::remap_vars(predicates, ord),
                 type->remap_vars(ord));
 }
 
 Scheme::Ref Scheme::freshen() const {
+  return freshen(location);
+}
+
+Scheme::Ref Scheme::freshen(Location location) const {
   if (vars.size() == 0) {
-    return shared_from_this();
+    if (location != get_location()) {
+      return scheme(location, {}, predicates, type);
+    } else {
+      return shared_from_this();
+    }
   }
 
   std::map<std::string, std::string> remapping;
@@ -73,7 +82,7 @@ Scheme::Ref Scheme::freshen() const {
     remapping[v] = new_vs.back();
   }
 
-  return std::make_shared<Scheme>(new_vs,
+  return std::make_shared<Scheme>(location, new_vs,
                                   types::remap_vars(predicates, remapping),
                                   type->remap_vars(remapping));
 }
@@ -144,7 +153,7 @@ int Scheme::btvs() const {
 }
 
 Location Scheme::get_location() const {
-  return type->get_location();
+  return location;
 }
 
 } // namespace types
@@ -158,4 +167,11 @@ std::string str(const types::Scheme::Map &m) {
   });
   ss << "}";
   return ss.str();
+}
+
+types::Scheme::Ref scheme(Location location,
+                          std::vector<std::string> vars,
+                          const types::ClassPredicates &predicates,
+                          const types::Ref &type) {
+  return std::make_shared<types::Scheme>(location, vars, predicates, type);
 }

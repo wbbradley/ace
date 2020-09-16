@@ -1,4 +1,24 @@
 import copy {Copy, copy}
+import math {Semigroup, <>}
+import list {from_list, FromList}
+
+instance FromList Vector {
+  fn from_list(xs) => [x for x in xs]
+}
+
+instance Semigroup [a] {
+  fn (<>)(a, b) {
+    let c = []
+    c.reserve(a.len + b.len)
+    for x in a {
+      c.append(x)
+    }
+    for x in b {
+      c.append(x)
+    }
+    return c
+  }
+}
 
 instance Repr [a] {
   fn repr(xs) {
@@ -99,6 +119,14 @@ instance HasDefault [a] {
     fn new() => Vector(Ref(null), Ref(0), Ref(0))
 }
 
+class FromVector f {
+  fn from_vector([a]) f a
+}
+
+instance FromVector Vector {
+  from_vector = id
+}
+
 fn vector(xs) {
     let rg = []
     for x in xs {
@@ -130,6 +158,17 @@ fn shrink_to(xs [a], new_len Int) {
     size = new_len
     # TODO: Consider nulling out memory that is no longer used.
   }
+}
+
+fn reverse(xs [a]) [a] {
+  let ys = []
+  ys.reserve(xs.len)
+  var j = xs.len - 1
+  while j >= 0 {
+    ys.append(xs[j])
+    j -= 1
+  }
+  return ys
 }
 
 instance Copy [a] {

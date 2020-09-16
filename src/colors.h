@@ -12,6 +12,7 @@
 #define _ANSI_COLOR_RESET "\x1b[0m"
 #define _ANSI_COLOR_DIM "\x1b[1;37;30m"
 #define _ANSI_COLOR_BRIGHT_GREEN "\x1b[1;32m"
+#define _ANSI_COLOR_ORANGE "\x1b[38;2;243;134;48m"
 #else
 #define _ANSI_COLOR_RED ""
 #define _ANSI_COLOR_GREEN ""
@@ -23,6 +24,7 @@
 #define _ANSI_COLOR_RESET ""
 #define _ANSI_COLOR_DIM ""
 #define _ANSI_COLOR_BRIGHT_GREEN ""
+#define _ANSI_COLOR_ORANGE ""
 #endif
 
 #define _COLOR(c, x) c x _ANSI_COLOR_RESET
@@ -40,13 +42,14 @@
 /* Semantic coloring helpers */
 #define C_MODULE _ANSI_COLOR_GREEN
 #define C_LINE_REF _ANSI_COLOR_DIM
-#define C_ID _ANSI_COLOR_MAGENTA
+#define C_ID _ANSI_COLOR_ORANGE
 #define C_CONTROL _ANSI_COLOR_CYAN
 #define C_TYPECLASS _ANSI_COLOR_CYAN
 #define C_TYPE _ANSI_COLOR_YELLOW
 #define C_VAR _ANSI_COLOR_GREEN
 #define C_UNCHECKED _ANSI_COLOR_DIM
 #define C_SIG C_TYPE
+#define C_LITERAL _ANSI_COLOR_DIM
 #define C_IR _ANSI_COLOR_BLUE
 #define C_AST _ANSI_COLOR_BRIGHT_WHITE
 #define C_FILENAME _ANSI_COLOR_BRIGHT_WHITE

@@ -36,18 +36,9 @@ fn sum(xs) {
   return s
 }
 
-class Magma a {
-  # Gives closure
-  fn op(a, a) a
-}
-
 class Semigroup a {
   # Gives associativity
-  has Magma a
-  fn associative_op(a, a) a
-  default {
-    associative_op = op
-  }
+  fn (<>)(a, a) a
 }
 
 class Monoid a {

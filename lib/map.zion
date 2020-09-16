@@ -1,24 +1,24 @@
 # Implements the default Map type in Zion
 
-import list {List, Cons, Nil, remove_if}
+import mutable_list {MutableList, MutableCons, MutableNil, remove_if}
 import copy {Copy, copy}
 
 newtype MapKeyValueCell key value = MapKeyValueCell(Int, key, var value)
-newtype MapStorage key value = MapStorage([List (MapKeyValueCell key value)])
+newtype MapStorage key value = MapStorage([MutableList (MapKeyValueCell key value)])
 newtype Map key value = Map(MapStorage key value, var Int)
 
 fn map_render(map, tuple_show) {
   let Map(MapStorage(storage), _) = map
   let results = []
-  for match Cons(MapKeyValueCell(_, key, var value), var next) in storage {
+  for match MutableCons(MapKeyValueCell(_, key, var value), var next) in storage {
     results.append(tuple_show(key, value))
     var next_list = next
     while match next_list {
-      Cons(MapKeyValueCell(_, key, var value), var next_next) {
+      MutableCons(MapKeyValueCell(_, key, var value), var next_next) {
         results.append(tuple_show(key, value))
         next_list = next_next
       }
-      Nil {
+      MutableNil {
         break
       }
     }
@@ -80,7 +80,7 @@ instance HasIndexableItems (Map key value) key (Maybe value) {
   }
 }
 
-instance HasIndexableItems (MapStorage key value) Int (List (MapKeyValueCell key value)) {
+instance HasIndexableItems (MapStorage key value) Int (MutableList (MapKeyValueCell key value)) {
   fn get_indexed_item(map_storage, index) {
     let MapStorage(map_storage) = map_storage
     assert(len(map_storage) > index)
@@ -118,15 +118,15 @@ instance Iterable (Map key value) (key, value) {
     let Map(MapStorage(storage), var size) = map
     let results = [] as [(key, value)]
     reserve(results, size)
-    for match Cons(MapKeyValueCell(_, key, var value), var next) in storage {
+    for match MutableCons(MapKeyValueCell(_, key, var value), var next) in storage {
       append(results, (key, value))
       var next_list = next
       while match next_list {
-        Cons(MapKeyValueCell(_, key, var value), var next_next) {
+        MutableCons(MapKeyValueCell(_, key, var value), var next_next) {
           append(results, (key, value))
           next_list = next_next
         }
-        Nil {
+        MutableNil {
           break
         }
       }
@@ -163,14 +163,14 @@ fn grow_storage(map_storage MapStorage key value, new_size) {
   let new_storage = []
   reserve(new_storage, new_size)
   for i in [0..new_size-1] {
-    append(new_storage, Nil)
+    append(new_storage, MutableNil)
   }
   assert(len(new_storage) == new_size)
   for key_value_cell_list in storage {
     for key_value_cell in key_value_cell_list {
       let MapKeyValueCell(key_hash, key, var value) = key_value_cell
       let index = key_hash % new_size
-      new_storage[index] = Cons(key_value_cell, Ref(new_storage[index]))
+      new_storage[index] = MutableCons(key_value_cell, Ref(new_storage[index]))
     }
   }
 
@@ -182,7 +182,7 @@ fn grow_storage(map_storage MapStorage key value, new_size) {
   capacity = new_capacity
 }
 
-instance HasAssignableIndexableItems (MapStorage key value) Int (List (MapKeyValueCell key value)) {
+instance HasAssignableIndexableItems (MapStorage key value) Int (MutableList (MapKeyValueCell key value)) {
     fn set_indexed_item(map_storage, index, bucket) {
         let MapStorage(map_storage) = map_storage
         map_storage[index] = bucket
@@ -216,7 +216,7 @@ instance HasAssignableIndexableItems (Map key value) key value {
             assert(len(storage) > 0)
             let index = map_key_hash % len(storage)
             let key_value_cell = MapKeyValueCell(map_key_hash, key, Ref(value))
-            storage[index] = Cons(key_value_cell, Ref(storage[index]))
+            storage[index] = MutableCons(key_value_cell, Ref(storage[index]))
             size += 1
         }
     }
@@ -227,15 +227,15 @@ fn keys(map Map key value) [key] {
     let Map(MapStorage(storage), var size) = map
     let results = []
     reserve(results, size)
-    for match Cons(MapKeyValueCell(_, key, _), var next) in storage {
+    for match MutableCons(MapKeyValueCell(_, key, _), var next) in storage {
         append(results, key)
         var next_list = next
         while match next_list {
-            Cons(MapKeyValueCell(_, key, _), var next_next) {
+            MutableCons(MapKeyValueCell(_, key, _), var next_next) {
                 append(results, key)
                 next_list = next_next
             }
-            Nil {
+            MutableNil {
                 break
             }
         }
@@ -248,15 +248,15 @@ fn values(map Map key value) [value] {
     let Map(MapStorage(storage), var size) = map
     let results = [] as [value]
     reserve(results, size)
-    for match Cons(MapKeyValueCell(_, _, var value), var next) in storage {
+    for match MutableCons(MapKeyValueCell(_, _, var value), var next) in storage {
         append(results, value)
         var next_list = next
         while match next_list {
-            Cons(MapKeyValueCell(_, _, var value), var next_next) {
+            MutableCons(MapKeyValueCell(_, _, var value), var next_next) {
                 append(results, value)
                 next_list = next_next
             }
-            Nil {
+            MutableNil {
                 break
             }
         }

@@ -1,0 +1,105 @@
+import vector {FromVector, from_vector, reverse}
+
+data MutableList x {
+  MutableCons(x, var (MutableList x))
+  MutableNil
+}
+
+instance HasLength (MutableList a) {
+  fn len(list) {
+    var p = list
+    var i = 0
+    while match p {
+      MutableCons(_, var next) {
+        i += 1
+        p = next
+      }
+      MutableNil => break
+    }
+    return i
+  }
+}
+
+fn nth(l MutableList x, index Int) Maybe x {
+  var rl = l
+  var i = 0
+  while match rl {
+    MutableCons(x, var next) {
+      if i == index {
+        return Just(x)
+      } else {
+        rl = next
+        i += 1
+      }
+    }
+    MutableNil => break
+  }
+  return Nothing
+}
+
+instance Iterable (MutableList a) a {
+  fn iter(list MutableList a) {
+    var list = list
+    return fn () Maybe a {
+      return match list {
+        MutableCons(x, var next) {
+          list = next
+          Just(x)
+        }
+        MutableNil => Nothing
+      }
+    }
+  }
+}
+
+instance Str (MutableList a) {
+  fn str(list) {
+    return join(", ", list)
+  }
+}
+
+# Removes items where pred(item) returns True.
+# Returns the new list, as well as the number of items removed.
+fn remove_if(list MutableList a, pred fn (a) Bool) (MutableList a, Int) {
+  var removed = 0
+  var starting_list = MutableNil
+  var cur_node = list
+  var prev_node = MutableNil
+  while match cur_node {
+    MutableCons(a, var next) {
+      if pred(a) {
+        removed += 1
+        match prev_node {
+          MutableCons(_, var prev_next) {
+            # Remove this node from the list
+            prev_next = next
+          }
+          MutableNil {}
+        }
+        cur_node = next
+        continue
+      } else {
+        if starting_list is MutableNil {
+          starting_list = cur_node
+        }
+        prev_node = cur_node
+        cur_node = next
+        continue
+      }
+    }
+    MutableNil {
+      return (starting_list, removed)
+    }
+  }
+  return (MutableNil, 0)
+}
+
+instance FromVector MutableList {
+  fn from_vector(xs) {
+    var list = MutableNil
+    for x in reverse(xs) {
+      list = MutableCons(x, var list)
+    }
+    return list
+  }
+}

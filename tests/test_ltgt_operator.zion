@@ -1,0 +1,23 @@
+# test: pass, noprelude
+# expect: 3
+
+class Semigroup a {
+  fn (<>)(a, a) a
+}
+
+newtype Integer = Integer(Int)
+
+instance Semigroup Integer {
+  fn (<>)(a, b) {
+    let Integer(a) = a
+    let Integer(b) = b
+    return Integer(__builtin_add_int(a, b))
+  }
+}
+
+fn main() {
+  let a = Integer(1)
+  let b = Integer(2)
+  let Integer(c) = a <> b
+  ffi zion_print_int64(c)
+}

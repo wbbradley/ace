@@ -26,7 +26,8 @@ struct Scheme final : public std::enable_shared_from_this<Scheme> {
   typedef std::vector<Ref> Refs;
   typedef std::map<std::string, Ref> Map;
 
-  Scheme(const std::vector<std::string> &vars,
+  Scheme(Location location,
+         const std::vector<std::string> &vars,
          const ClassPredicates &predicates,
          types::Ref type);
 
@@ -34,6 +35,7 @@ struct Scheme final : public std::enable_shared_from_this<Scheme> {
   Scheme::Ref rebind(const types::Map &env) const;
   Scheme::Ref normalize() const;
 
+  Scheme::Ref freshen(Location location) const;
   Scheme::Ref freshen() const;
 
   /* count of the constrained type variables */
@@ -44,6 +46,7 @@ struct Scheme final : public std::enable_shared_from_this<Scheme> {
   std::string repr() const;
   Location get_location() const;
 
+  Location location;
   std::vector<std::string> const vars;
   ClassPredicates const predicates;
   types::Ref const type;
@@ -55,7 +58,8 @@ private:
 
 } // namespace types
 
-types::SchemeRef scheme(std::vector<std::string> vars,
+types::SchemeRef scheme(Location location,
+                        std::vector<std::string> vars,
                         const types::ClassPredicates &predicates,
                         const types::Ref &type);
 

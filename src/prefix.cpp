@@ -294,8 +294,7 @@ const Module *prefix(const std::set<std::string> &bindings,
 types::Scheme::Ref prefix(const std::set<std::string> &bindings,
                           std::string pre,
                           types::Scheme::Ref scheme) {
-  return ::scheme(scheme->vars, {},
-                  // prefix(bindings, pre, scheme->predicates, false),
+  return ::scheme(scheme->get_location(), scheme->vars, {},
                   prefix(bindings, pre, scheme->type));
 }
 

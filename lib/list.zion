@@ -1,6 +1,16 @@
+import vector {FromVector, from_vector, reverse}
+
 data List x {
-  Cons(x, var (List x))
+  Cons(x, List x)
   Nil
+}
+
+class FromList f {
+  fn from_list(List a) f a
+}
+
+instance FromList List {
+  from_list = id
 }
 
 instance HasLength (List a) {
@@ -8,13 +18,11 @@ instance HasLength (List a) {
     var p = list
     var i = 0
     while match p {
-      Cons(_, var next) {
+      Cons(_, next) {
         i += 1
         p = next
       }
-      Nil {
-        break
-      }
+      Nil => break
     }
     return i
   }
@@ -24,7 +32,7 @@ fn nth(l List x, index Int) Maybe x {
   var rl = l
   var i = 0
   while match rl {
-    Cons(x, var next) {
+    Cons(x, next) {
       if i == index {
         return Just(x)
       } else {
@@ -44,7 +52,7 @@ instance Iterable (List a) a {
     var list = list
     return fn () Maybe a {
       match list {
-        Cons(x, var next) {
+        Cons(x, next) {
           list = next
           return Just(x)
         }
@@ -62,38 +70,12 @@ instance Str (List a) {
   }
 }
 
-# Removes items where pred(item) returns True.
-# Returns the new list, as well as the number of items removed.
-fn remove_if(list List a, pred fn (a) Bool) (List a, Int) {
-  var removed = 0
-  var starting_list = Nil
-  var cur_node = list
-  var prev_node = Nil
-  while match cur_node {
-    Cons(a, var next) {
-      if pred(a) {
-        removed += 1
-        match prev_node {
-          Cons(_, var prev_next) {
-            # Remove this node from the list
-            prev_next = next
-          }
-          Nil {}
-        }
-        cur_node = next
-        continue
-      } else {
-        if starting_list is Nil {
-          starting_list = cur_node
-        }
-        prev_node = cur_node
-        cur_node = next
-        continue
-      }
+instance FromVector List {
+  fn from_vector(xs) {
+    var list = Nil
+    for x in reverse(xs) {
+      list = Cons(x, list)
     }
-    Nil {
-      return (starting_list, removed)
-    }
+    return list
   }
-  return (Nil, 0)
 }

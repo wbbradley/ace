@@ -44,114 +44,130 @@ const types::Scheme::Map &get_builtins() {
     map = std::make_unique<types::Scheme::Map>();
 
     // TODO: unify this map with the implementation of these in gen.cpp
-    (*map)["__builtin_hello"] = scheme({}, {}, Unit);
-    (*map)["__builtin_goodbye"] = scheme({}, {}, Unit);
-    (*map)["__builtin_word_size"] = scheme({}, {}, Int);
+    (*map)["__builtin_hello"] = scheme(INTERNAL_LOC(), {}, {}, Unit);
+    (*map)["__builtin_goodbye"] = scheme(INTERNAL_LOC(), {}, {}, Unit);
+    (*map)["__builtin_word_size"] = scheme(INTERNAL_LOC(), {}, {}, Int);
 
-    (*map)["__builtin_min_int"] = scheme({}, {}, Int);
-    (*map)["__builtin_max_int"] = scheme({}, {}, Int);
-    (*map)["__builtin_multiply_int"] = scheme({}, {},
+    (*map)["__builtin_min_int"] = scheme(INTERNAL_LOC(), {}, {}, Int);
+    (*map)["__builtin_max_int"] = scheme(INTERNAL_LOC(), {}, {}, Int);
+    (*map)["__builtin_multiply_int"] = scheme(INTERNAL_LOC(), {}, {},
                                               type_arrows({Int, Int, Int}));
-    (*map)["__builtin_divide_int"] = scheme({}, {},
+    (*map)["__builtin_divide_int"] = scheme(INTERNAL_LOC(), {}, {},
                                             type_arrows({Int, Int, Int}));
-    (*map)["__builtin_subtract_int"] = scheme({}, {},
+    (*map)["__builtin_subtract_int"] = scheme(INTERNAL_LOC(), {}, {},
                                               type_arrows({Int, Int, Int}));
-    (*map)["__builtin_mod_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
-    (*map)["__builtin_add_int"] = scheme({}, {}, type_arrows({Int, Int, Int}));
-    (*map)["__builtin_negate_int"] = scheme({}, {}, type_arrows({Int, Int}));
-    (*map)["__builtin_abs_int"] = scheme({}, {}, type_arrows({Int, Int}));
-    (*map)["__builtin_multiply_char"] = scheme({}, {},
+    (*map)["__builtin_mod_int"] = scheme(INTERNAL_LOC(), {}, {},
+                                         type_arrows({Int, Int, Int}));
+    (*map)["__builtin_add_int"] = scheme(INTERNAL_LOC(), {}, {},
+                                         type_arrows({Int, Int, Int}));
+    (*map)["__builtin_negate_int"] = scheme(INTERNAL_LOC(), {}, {},
+                                            type_arrows({Int, Int}));
+    (*map)["__builtin_abs_int"] = scheme(INTERNAL_LOC(), {}, {},
+                                         type_arrows({Int, Int}));
+    (*map)["__builtin_multiply_char"] = scheme(INTERNAL_LOC(), {}, {},
                                                type_arrows({Char, Char, Char}));
-    (*map)["__builtin_divide_char"] = scheme({}, {},
+    (*map)["__builtin_divide_char"] = scheme(INTERNAL_LOC(), {}, {},
                                              type_arrows({Char, Char, Char}));
-    (*map)["__builtin_subtract_char"] = scheme({}, {},
+    (*map)["__builtin_subtract_char"] = scheme(INTERNAL_LOC(), {}, {},
                                                type_arrows({Char, Char, Char}));
-    (*map)["__builtin_add_char"] = scheme({}, {},
+    (*map)["__builtin_add_char"] = scheme(INTERNAL_LOC(), {}, {},
                                           type_arrows({Char, Char, Char}));
-    (*map)["__builtin_negate_char"] = scheme({}, {}, type_arrows({Char, Char}));
-    (*map)["__builtin_abs_char"] = scheme({}, {}, type_arrows({Char, Char}));
+    (*map)["__builtin_negate_char"] = scheme(INTERNAL_LOC(), {}, {},
+                                             type_arrows({Char, Char}));
+    (*map)["__builtin_abs_char"] = scheme(INTERNAL_LOC(), {}, {},
+                                          type_arrows({Char, Char}));
     (*map)["__builtin_multiply_float"] = scheme(
-        {}, {}, type_arrows({Float, Float, Float}));
+        INTERNAL_LOC(), {}, {}, type_arrows({Float, Float, Float}));
     (*map)["__builtin_divide_float"] = scheme(
-        {}, {}, type_arrows({Float, Float, Float}));
+        INTERNAL_LOC(), {}, {}, type_arrows({Float, Float, Float}));
     (*map)["__builtin_subtract_float"] = scheme(
-        {}, {}, type_arrows({Float, Float, Float}));
-    (*map)["__builtin_add_float"] = scheme({}, {},
+        INTERNAL_LOC(), {}, {}, type_arrows({Float, Float, Float}));
+    (*map)["__builtin_add_float"] = scheme(INTERNAL_LOC(), {}, {},
                                            type_arrows({Float, Float, Float}));
-    (*map)["__builtin_abs_float"] = scheme({}, {}, type_arrows({Float, Float}));
-    (*map)["__builtin_int_to_float"] = scheme({}, {},
+    (*map)["__builtin_abs_float"] = scheme(INTERNAL_LOC(), {}, {},
+                                           type_arrows({Float, Float}));
+    (*map)["__builtin_int_to_float"] = scheme(INTERNAL_LOC(), {}, {},
                                               type_arrows({Int, Float}));
-    (*map)["__builtin_float_to_int"] = scheme({}, {},
+    (*map)["__builtin_float_to_int"] = scheme(INTERNAL_LOC(), {}, {},
                                               type_arrows({Float, Int}));
-    (*map)["__builtin_negate_float"] = scheme({}, {},
+    (*map)["__builtin_negate_float"] = scheme(INTERNAL_LOC(), {}, {},
                                               type_arrows({Float, Float}));
-    (*map)["__builtin_ptr_add"] = scheme({"a"}, {},
+    (*map)["__builtin_ptr_add"] = scheme(INTERNAL_LOC(), {"a"}, {},
                                          type_arrows({tp_a, Int, tp_a}));
-    (*map)["__builtin_ptr_eq"] = scheme({"a"}, {},
+    (*map)["__builtin_ptr_eq"] = scheme(INTERNAL_LOC(), {"a"}, {},
                                         type_arrows({tp_a, tp_a, Bool}));
-    (*map)["__builtin_ptr_ne"] = scheme({"a"}, {},
+    (*map)["__builtin_ptr_ne"] = scheme(INTERNAL_LOC(), {"a"}, {},
                                         type_arrows({tp_a, tp_a, Bool}));
-    (*map)["__builtin_ptr_load"] = scheme({"a"}, {}, type_arrows({tp_a, tv_a}));
-    (*map)["__builtin_get_dim"] = scheme({"a", "b"}, {},
+    (*map)["__builtin_ptr_load"] = scheme(INTERNAL_LOC(), {"a"}, {},
+                                          type_arrows({tp_a, tv_a}));
+    (*map)["__builtin_get_dim"] = scheme(INTERNAL_LOC(), {"a", "b"}, {},
                                          type_arrows({tv_a, Int, tv_b}));
-    (*map)["__builtin_cmp_ctor_id"] = scheme({"a"}, {},
+    (*map)["__builtin_cmp_ctor_id"] = scheme(INTERNAL_LOC(), {"a"}, {},
                                              type_arrows({tv_a, Int, Bool}));
-    (*map)["__builtin_int_to_char"] = scheme({}, {}, type_arrows({Int, Char}));
-    (*map)["__builtin_int_eq"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
-    (*map)["__builtin_int_ne"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
-    (*map)["__builtin_int_lt"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
-    (*map)["__builtin_int_lte"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
-    (*map)["__builtin_int_gt"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
-    (*map)["__builtin_int_gte"] = scheme({}, {}, type_arrows({Int, Int, Bool}));
-    (*map)["__builtin_int_bitwise_and"] = scheme({}, {},
+    (*map)["__builtin_int_to_char"] = scheme(INTERNAL_LOC(), {}, {},
+                                             type_arrows({Int, Char}));
+    (*map)["__builtin_int_eq"] = scheme(INTERNAL_LOC(), {}, {},
+                                        type_arrows({Int, Int, Bool}));
+    (*map)["__builtin_int_ne"] = scheme(INTERNAL_LOC(), {}, {},
+                                        type_arrows({Int, Int, Bool}));
+    (*map)["__builtin_int_lt"] = scheme(INTERNAL_LOC(), {}, {},
+                                        type_arrows({Int, Int, Bool}));
+    (*map)["__builtin_int_lte"] = scheme(INTERNAL_LOC(), {}, {},
+                                         type_arrows({Int, Int, Bool}));
+    (*map)["__builtin_int_gt"] = scheme(INTERNAL_LOC(), {}, {},
+                                        type_arrows({Int, Int, Bool}));
+    (*map)["__builtin_int_gte"] = scheme(INTERNAL_LOC(), {}, {},
+                                         type_arrows({Int, Int, Bool}));
+    (*map)["__builtin_int_bitwise_and"] = scheme(INTERNAL_LOC(), {}, {},
                                                  type_arrows({Int, Int, Int}));
-    (*map)["__builtin_int_bitwise_or"] = scheme({}, {},
+    (*map)["__builtin_int_bitwise_or"] = scheme(INTERNAL_LOC(), {}, {},
                                                 type_arrows({Int, Int, Int}));
-    (*map)["__builtin_int_bitwise_xor"] = scheme({}, {},
+    (*map)["__builtin_int_bitwise_xor"] = scheme(INTERNAL_LOC(), {}, {},
                                                  type_arrows({Int, Int, Int}));
     (*map)["__builtin_int_bitwise_complement"] = scheme(
-        {}, {}, type_arrows({Int, Int}));
-    (*map)["__builtin_char_eq"] = scheme({}, {},
+        INTERNAL_LOC(), {}, {}, type_arrows({Int, Int}));
+    (*map)["__builtin_char_eq"] = scheme(INTERNAL_LOC(), {}, {},
                                          type_arrows({Char, Char, Bool}));
-    (*map)["__builtin_char_ne"] = scheme({}, {},
+    (*map)["__builtin_char_ne"] = scheme(INTERNAL_LOC(), {}, {},
                                          type_arrows({Char, Char, Bool}));
-    (*map)["__builtin_char_lt"] = scheme({}, {},
+    (*map)["__builtin_char_lt"] = scheme(INTERNAL_LOC(), {}, {},
                                          type_arrows({Char, Char, Bool}));
-    (*map)["__builtin_char_lte"] = scheme({}, {},
+    (*map)["__builtin_char_lte"] = scheme(INTERNAL_LOC(), {}, {},
                                           type_arrows({Char, Char, Bool}));
-    (*map)["__builtin_char_gt"] = scheme({}, {},
+    (*map)["__builtin_char_gt"] = scheme(INTERNAL_LOC(), {}, {},
                                          type_arrows({Char, Char, Bool}));
-    (*map)["__builtin_char_gte"] = scheme({}, {},
+    (*map)["__builtin_char_gte"] = scheme(INTERNAL_LOC(), {}, {},
                                           type_arrows({Char, Char, Bool}));
-    (*map)["__builtin_float_eq"] = scheme({}, {},
+    (*map)["__builtin_float_eq"] = scheme(INTERNAL_LOC(), {}, {},
                                           type_arrows({Float, Float, Bool}));
-    (*map)["__builtin_float_ne"] = scheme({}, {},
+    (*map)["__builtin_float_ne"] = scheme(INTERNAL_LOC(), {}, {},
                                           type_arrows({Float, Float, Bool}));
-    (*map)["__builtin_float_lt"] = scheme({}, {},
+    (*map)["__builtin_float_lt"] = scheme(INTERNAL_LOC(), {}, {},
                                           type_arrows({Float, Float, Bool}));
-    (*map)["__builtin_float_lte"] = scheme({}, {},
+    (*map)["__builtin_float_lte"] = scheme(INTERNAL_LOC(), {}, {},
                                            type_arrows({Float, Float, Bool}));
-    (*map)["__builtin_float_gt"] = scheme({}, {},
+    (*map)["__builtin_float_gt"] = scheme(INTERNAL_LOC(), {}, {},
                                           type_arrows({Float, Float, Bool}));
-    (*map)["__builtin_float_gte"] = scheme({}, {},
+    (*map)["__builtin_float_gte"] = scheme(INTERNAL_LOC(), {}, {},
                                            type_arrows({Float, Float, Bool}));
     (*map)["__builtin_memcpy"] = scheme(
-        {}, {},
+        INTERNAL_LOC(), {}, {},
         type_arrows({PtrToChar, PtrToChar, Int, type_unit(INTERNAL_LOC())}));
     (*map)["__builtin_memcmp"] = scheme(
-        {}, {}, type_arrows({PtrToChar, PtrToChar, Int, Int}));
-    (*map)["__builtin_pass_test"] = scheme({}, {}, Unit);
+        INTERNAL_LOC(), {}, {}, type_arrows({PtrToChar, PtrToChar, Int, Int}));
+    (*map)["__builtin_pass_test"] = scheme(INTERNAL_LOC(), {}, {}, Unit);
     (*map)["__builtin_print_int"] = scheme(
-        {}, {}, type_arrows({Int, type_unit(INTERNAL_LOC())}));
-    (*map)["__builtin_calloc"] = scheme({"a"}, {}, type_arrows({Int, tp_a}));
+        INTERNAL_LOC(), {}, {}, type_arrows({Int, type_unit(INTERNAL_LOC())}));
+    (*map)["__builtin_calloc"] = scheme(INTERNAL_LOC(), {"a"}, {},
+                                        type_arrows({Int, tp_a}));
     (*map)["__builtin_store_ref"] =
-        scheme({"a"}, {},
+        scheme(INTERNAL_LOC(), {"a"}, {},
                type_arrows(
                    {type_operator(type_id(make_iid(REF_TYPE_OPERATOR)), tv_a),
                     tv_a, type_unit(INTERNAL_LOC())}))
             ->normalize();
     (*map)["__builtin_store_ptr"] =
-        scheme({"a"}, {},
+        scheme(INTERNAL_LOC(), {"a"}, {},
                type_arrows(
                    {type_operator(type_id(make_iid(PTR_TYPE_OPERATOR)), tv_a),
                     tv_a, type_unit(INTERNAL_LOC())}))
