@@ -22,7 +22,7 @@ types::Ref infer_core(const Expr *expr,
                       types::ClassPredicates &instance_requirements) {
   debug_above(8, log("infer(%s, ..., ...)", expr->str().c_str()));
   if (auto literal = dcast<const Literal *>(expr)) {
-    return literal->non_tracking_infer();
+    return literal->non_tracking_infer(false /*for_pattern*/);
   } else if (auto static_print = dcast<const StaticPrint *>(expr)) {
     auto t1 = infer(static_print->expr, data_ctors_map, return_type,
                     scheme_resolver, tracked_types, constraints,
@@ -35,8 +35,9 @@ types::Ref infer_core(const Expr *expr,
     /* get a fresh version of this principal type to inject into the context,
      * and the inference constraints */
     std::set<Identifier> candidates;
-    types::Scheme::Ref scheme =
-        scheme_resolver.lookup_scheme(var->id, candidates)->freshen(var->get_location());
+    types::Scheme::Ref scheme = scheme_resolver
+                                    .lookup_scheme(var->id, candidates)
+                                    ->freshen(var->get_location());
     assert(scheme != nullptr);
     debug_above(4, log_location(var->get_location(),
                                 "found var ref %s with scheme %s",
@@ -61,7 +62,8 @@ types::Ref infer_core(const Expr *expr,
     types::SchemeResolver local_scheme_resolver(&scheme_resolver);
     i = 0;
     for (const Identifier &var : lambda->vars) {
-      local_scheme_resolver.insert_scheme(var.name, scheme(var.location, {}, {}, tvs[i++]));
+      local_scheme_resolver.insert_scheme(
+          var.name, scheme(var.location, {}, {}, tvs[i++]));
     }
     auto body_type = infer(lambda->body, data_ctors_map, local_return_type,
                            local_scheme_resolver, tracked_types, constraints,
@@ -328,19 +330,21 @@ types::Ref Literal::tracking_infer(
     TrackedTypes &tracked_types,
     types::Constraints &constraints,
     types::ClassPredicates &instance_requirements) const {
-  types::Ref type = non_tracking_infer();
+  types::Ref type = non_tracking_infer(true /*for_pattern*/);
   tracked_types[this] = type;
   return type;
 }
 
-types::Ref Literal::non_tracking_infer() const {
+types::Ref Literal::non_tracking_infer(bool for_pattern) const {
   switch (token.tk) {
   case tk_integer:
     return type_id(Identifier{INT_TYPE, token.location});
   case tk_float:
     return type_id(Identifier{FLOAT_TYPE, token.location});
   case tk_string:
-    return type_ptr(type_id(Identifier{CHAR_TYPE, token.location}));
+    return for_pattern
+               ? type_string(token.location)
+               : type_ptr(type_id(Identifier{CHAR_TYPE, token.location}));
   case tk_char:
     return type_id(Identifier{CHAR_TYPE, token.location});
   default:

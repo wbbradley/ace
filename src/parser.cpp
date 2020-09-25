@@ -820,14 +820,28 @@ const Expr *parse_array_literal(ParseState &ps) {
   return build_array_literal(location, exprs);
 }
 
-const Expr *parse_string_literal(const Token &token) {
+const Expr *parse_string_literal(const Token &token, TrackedTypes *typing) {
   assert(token.tk == tk_string);
   std::string str = unescape_json_quotes(token.text);
   int string_len = str.size();
-  return new Application(
-      new Var(Identifier{STRING_TYPE, token.location}),
-      {new Literal(token), new Literal(Token{token.location, tk_integer,
-                                             std::to_string(string_len)})});
+  auto string_ctor = new Var(Identifier{STRING_TYPE, token.location});
+  auto literal_sz = new Literal(token);
+  auto literal_len = new Literal(
+      Token{token.location, tk_integer, std::to_string(string_len)});
+  auto literal = new Application(string_ctor, {literal_sz, literal_len});
+
+  if (typing != nullptr) {
+    auto literal_type = type_id(make_iid(tld::mktld("string", "String")));
+    auto literal_sz_type = type_operator(type_id(make_iid(PTR_TYPE_OPERATOR)),
+                                         type_id(make_iid(CHAR_TYPE)));
+    auto literal_len_type = type_id(make_iid(INT_TYPE));
+    (*typing)[literal] = literal_type;
+    (*typing)[literal_sz] = literal_sz_type;
+    (*typing)[literal_len] = literal_len_type;
+    (*typing)[string_ctor] = type_arrows(
+        {literal_sz_type, literal_len_type, literal_type});
+  }
+  return literal;
 }
 
 const Expr *parse_string_expr_prefix(const Token &token) {
@@ -835,7 +849,7 @@ const Expr *parse_string_expr_prefix(const Token &token) {
     Token token_fixed = Token(token.location, tk_string,
                               token.text.substr(0, token.text.size() - 2) +
                                   "\"");
-    return parse_string_literal(token_fixed);
+    return parse_string_literal(token_fixed, nullptr /*typing*/);
   } else {
     return nullptr;
   }
@@ -851,7 +865,7 @@ const Expr *parse_string_expr_continuation(const Token &token) {
     Token token_fixed = Token(
         token.location, tk_string,
         "\"" + token.text.substr(1, token.text.size() - 3) + "\"");
-    return parse_string_literal(token_fixed);
+    return parse_string_literal(token_fixed, nullptr /*typing*/);
   } else {
     return nullptr;
   }
@@ -866,7 +880,7 @@ const Expr *parse_string_expr_suffix(const Token &token) {
     Token token_fixed = Token(token.location, tk_string,
                               "\"" +
                                   token.text.substr(1, token.text.size() - 1));
-    return parse_string_literal(token_fixed);
+    return parse_string_literal(token_fixed, nullptr /*typing*/);
   } else {
     return nullptr;
   }
@@ -919,7 +933,9 @@ const Expr *parse_string_expr(ParseState &ps) {
     const Expr *str_array = build_array_literal(location, exprs);
     return new Application(
         new Var(ps.id_mapped(Identifier{"join", location})),
-        {parse_string_literal(Token{location, tk_string, "\"\""}), str_array});
+        {parse_string_literal(Token{location, tk_string, "\"\""},
+                              nullptr /*typing*/),
+         str_array});
   }
 }
 
@@ -1080,7 +1096,7 @@ const Expr *parse_literal(ParseState &ps) {
     return new Literal(ps.token_and_advance());
   case tk_string:
     if (ps.sugar_literals) {
-      return parse_string_literal(ps.token_and_advance());
+      return parse_string_literal(ps.token_and_advance(), nullptr /*typing*/);
     } else {
       return new Literal(ps.token_and_advance());
     }

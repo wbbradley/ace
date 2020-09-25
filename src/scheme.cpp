@@ -5,7 +5,7 @@
 namespace types {
 
 Scheme::Scheme(Location location,
-    const std::vector<std::string> &vars,
+               const std::vector<std::string> &vars,
                const ClassPredicates &predicates,
                types::Ref type)
     : location(location), vars(vars), predicates(predicates), type(type) {

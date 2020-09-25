@@ -1,0 +1,9 @@
+# test: pass
+
+fn main() {
+  match "Hello" {
+    "No"    => ()
+    "Hello" => print("PASS")
+    _       => ()
+  }
+}

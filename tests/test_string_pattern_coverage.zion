@@ -1,0 +1,9 @@
+# test: fail
+# expect: not all patterns are covered
+
+fn main() {
+  let s = "Hello"
+  match s {
+    "Hey" => ()
+  }
+}

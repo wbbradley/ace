@@ -12,6 +12,10 @@
 
 namespace zion {
 
+namespace parser {
+const ast::Expr *parse_string_literal(const Token &token, TrackedTypes *typing);
+}
+
 using namespace ast;
 
 const Expr *build_patterns(const types::DefnId &for_defn_id,
@@ -211,11 +215,14 @@ const Expr *Literal::translate(
   auto scrutinee = new Var(scrutinee_id);
   typing[scrutinee] = type;
 
-  auto literal_value_copy = new Literal(token);
+  const ast::Expr *literal_value_copy = new Literal(token);
   typing[literal_value_copy] = type;
 
-  auto condition = new Application(literal_cmp,
-                                   {scrutinee, literal_value_copy});
+  auto rhs_for_cmp = literal_value_copy;
+  if (token.tk == tk_string) {
+    rhs_for_cmp = parser::parse_string_literal(token, &typing);
+  }
+  auto condition = new Application(literal_cmp, {scrutinee, rhs_for_cmp});
   typing[condition] = Bool;
 
   auto cond = new Conditional(

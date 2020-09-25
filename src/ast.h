@@ -375,7 +375,7 @@ struct Literal : public Expr, public Predicate {
       TrackedTypes &tracked_types,
       types::Constraints &constraints,
       types::ClassPredicates &instance_requirements) const override;
-  types::Ref non_tracking_infer() const;
+  types::Ref non_tracking_infer(bool for_pattern) const;
   Identifier instantiate_name_assignment() const override;
   void get_bound_vars(
       std::unordered_set<std::string> &bound_vars) const override;

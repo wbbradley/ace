@@ -101,17 +101,22 @@ struct Scalars : std::enable_shared_from_this<Scalars<T>>, Pattern {
 };
 
 template <> std::string Scalars<int64_t>::scalar_name() {
-  static auto s = INT_TYPE + "s";
+  static auto s = zion::tld::strip_prefix(INT_TYPE) + "s";
   return s;
 }
 
 template <> std::string Scalars<uint8_t>::scalar_name() {
-  static auto s = CHAR_TYPE + "s";
+  static auto s = zion::tld::strip_prefix(CHAR_TYPE) + "s";
   return s;
 }
 
 template <> std::string Scalars<double>::scalar_name() {
-  static auto s = FLOAT_TYPE + "s";
+  static auto s = zion::tld::strip_prefix(FLOAT_TYPE) + "s";
+  return s;
+}
+
+template <> std::string Scalars<std::string>::scalar_name() {
+  static auto s = zion::tld::strip_prefix(STRING_TYPE) + "s";
   return s;
 }
 
@@ -145,6 +150,11 @@ std::shared_ptr<Scalars<double>> allFloats = std::make_shared<Scalars<double>>(
     INTERNAL_LOC(),
     Scalars<double>::Exclude,
     std::set<double>{});
+
+std::shared_ptr<Scalars<std::string>> allStrings =
+    std::make_shared<Scalars<std::string>>(INTERNAL_LOC(),
+                                           Scalars<std::string>::Exclude,
+                                           std::set<std::string>{});
 
 Pattern::Ref all_of(Location location,
                     maybe<Identifier> expr,
@@ -323,6 +333,13 @@ Pattern::Ref intersect(Pattern::Ref lhs, Pattern::Ref rhs) {
     return intersect(*lhs_floats, *rhs_floats);
   }
 
+  auto lhs_strings = asScalars<std::string>(lhs);
+  auto rhs_strings = asScalars<std::string>(rhs);
+
+  if (lhs_strings && rhs_strings) {
+    return intersect(*lhs_strings, *rhs_strings);
+  }
+
   auto lhs_chars = asScalars<uint8_t>(lhs);
   auto rhs_chars = asScalars<uint8_t>(rhs);
 
@@ -408,6 +425,8 @@ Pattern::Ref from_type(Location location,
     return allIntegers;
   } else if (type_equality(type, type_id(make_iid(CHAR_TYPE)))) {
     return allChars;
+  } else if (type_equality(type, type_string(INTERNAL_LOC()))) {
+    return allStrings;
   } else if (type_equality(type, type_id(make_iid(FLOAT_TYPE)))) {
     return allFloats;
   } else if (unify(type, type_ptr(type_variable(location))).result) {
@@ -641,6 +660,36 @@ void difference(Pattern::Ref lhs,
     }
   }
 
+  auto lhs_strings = asScalars<std::string>(lhs);
+  auto rhs_strings = asScalars<std::string>(rhs);
+  if (lhs_strings) {
+    if (rhs_strings) {
+      send(difference(*lhs_strings, *rhs_strings));
+      return;
+    } else if (rhs_ctor_pattern) {
+      /* handle string::String(a, alen) as a special case. */
+      /* fail on other cases */
+      if (rhs_ctor_pattern->cpv.name == STRING_TYPE) {
+        for (auto arg : rhs_ctor_pattern->cpv.args) {
+          if (!asAllOf(arg)) {
+            throw zion::user_error(
+                arg->location,
+                "%s pattern matching is only allowed in String(a, b) form (all "
+                "irrefutables. this is to allow for string literal matching. i "
+                "can explain...)",
+                STRING_TYPE.c_str());
+          }
+        }
+        send(difference(*lhs_strings, *allStrings));
+        return;
+      }
+    } else {
+      dbg();
+      std::cout << lhs->str() << std::endl;
+      std::cout << rhs->str() << std::endl;
+    }
+  }
+
   auto lhs_chars = asScalars<uint8_t>(lhs);
   auto rhs_chars = asScalars<uint8_t>(rhs);
   if (lhs_chars) {
@@ -786,6 +835,17 @@ Pattern::Ref Literal::get_pattern(
       double value = parse_float_value(token);
       return std::make_shared<Scalars<double>>(
           token.location, Scalars<double>::Include, std::set<double>{value});
+    }
+  } else if (type_equality(type, type_string(INTERNAL_LOC()))) {
+    if (token.tk == tk_string) {
+      std::string value = unescape_json_quotes(token.text);
+      return std::make_shared<Scalars<std::string>>(
+          token.location, Scalars<std::string>::Include,
+          std::set<std::string>{value});
+    } else if (token.tk == tk_identifier) {
+      return std::make_shared<Scalars<std::string>>(
+          token.location, Scalars<std::string>::Exclude,
+          std::set<std::string>{});
     }
   } else if (type_equality(type, type_id(make_iid(CHAR_TYPE)))) {
     if (token.tk == tk_char) {
