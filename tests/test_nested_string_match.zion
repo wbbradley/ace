@@ -1,0 +1,13 @@
+# test: pass
+
+fn look_for_just_this(x) => match x {
+  Just("that") => "FAIL"
+  Just("this") => "PASS"
+  Just("thing") => "FAIL"
+  Just(_) => "abysmal failure"
+  Nothing => "catastrophe"
+}
+
+fn main() {
+  print(look_for_just_this(Just("this")))
+}
