@@ -154,8 +154,8 @@ limiting which symbols are exposed from source modules.
 
 Types are inferred but type annotations are also allowed/encouraged as
 documentation and sometimes necessary when types cannot be inferred. Zion
-does not support default type class instances by design (although, if a good
-design for that comes along, it might happen.)
+rejects [intermediate type defaulting](https://kseo.github.io/posts/2017-01-04-type-defaulting-in-haskell.html) by design. Although, if a good
+design for that comes along, it might happen.
 
 ### Polymorphism
 
