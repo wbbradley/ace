@@ -5,8 +5,8 @@
 ## Fundamentals
 
 Zion resembles a combination of Haskell and C, with garbage collection, strict
-evaluation, purity and impurity (when you want it), extensible infix operators,
-type-classes supporting parametric polymorphism, and static type inference.
+evaluation, static type-checking, purity and impurity (when you want it), extensible infix operators,
+type-classes to allow ad-hoc polymorphism, RAII, pattern-matching, and type inference.
 
 ## Quick Start
 
