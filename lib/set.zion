@@ -3,54 +3,54 @@ import copy {Copy, copy}
 newtype Set a = Set(Map a ())
 
 fn set(xs) Set a {
-    let set
-    for x in xs {
-        insert(set, x)
-    }
-    return set
+  let set
+  for x in xs {
+    insert(set, x)
+  }
+  return set
 }
 
 instance HasInsertableItems (Set a) a {
-    fn insert(set, value) {
-        let Set(map) = set
-        map[value] = ()
-    }
+  fn insert(set, value) {
+    let Set(map) = set
+    map[value] = ()
+  }
 }
 
 instance HasSetMembership (Set a) a {
-    fn in(a, set) Bool {
-        let Set(map) = set
-        return a in map
-    }
-    fn not_in(a, set) Bool {
-        let Set(map) = set
-        return a not in map
-    }
+  fn in(a, set) Bool {
+    let Set(map) = set
+    return a in map
+  }
+  fn not_in(a, set) Bool {
+    let Set(map) = set
+    return a not in map
+  }
 }
 
 instance HasDefault (Set a) {
-    fn new() {
-        return Set({})
-    }
+  fn new() {
+    return Set({})
+  }
 }
 
 instance HasLength (Set a) {
-    fn len(set) {
-        let Set(map) = set
-        return len(map)
-    }
+  fn len(set) {
+    let Set(map) = set
+    return len(map)
+  }
 }
 
 instance Iterable (Set a) a {
-    fn iter(set Set a) fn () Maybe a {
-      let Set(inner_map) = set
-      return iter(
-        inner_map.map(|pair| {
-          let (a, _) = pair
-          return a
-        }))
+  fn iter(set Set a) fn () Maybe a {
+    let Set(inner_map) = set
+    return iter(
+      inner_map.map(|pair| {
+        let (a, _) = pair
+        return a
+      }))
     }
-}
+  }
 
 instance Str (Set a) {
   fn str(xs) => "{${join(", ", xs)}}"
