@@ -1,0 +1,10 @@
+# test: pass
+# expect: 7
+
+fn f(x) => || => x + 4
+
+fn main() {
+  let y = 3
+  let p = y.f
+  print(p())
+}

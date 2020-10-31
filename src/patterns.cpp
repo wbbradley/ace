@@ -5,16 +5,13 @@
 #include "ast.h"
 #include "builtins.h"
 #include "compiler.h"
+#include "parser.h"
 #include "tld.h"
 #include "translate.h"
 #include "unification.h"
 #include "zion.h"
 
 namespace zion {
-
-namespace parser {
-const ast::Expr *parse_string_literal(const Token &token, TrackedTypes *typing);
-}
 
 using namespace ast;
 

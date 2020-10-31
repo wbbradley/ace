@@ -1144,16 +1144,21 @@ const Expr *parse_literal(ParseState &ps) {
 
 const Expr *parse_application(ParseState &ps,
                               const Expr *expr,
-                              std::vector<const Expr *> args) {
+                              std::vector<const Expr *> args,
+                              bool after_dot_ident) {
   /* function call or implicit partial application (implicit lambda) */
   auto location = ps.token.location;
   ps.advance();
   if (ps.token.tk == tk_rparen) {
     ps.advance();
-    if (args.size() == 0) {
-      args.push_back(unit_expr(ps.token.location));
+    if (after_dot_ident) {
+      /* after a dot identifier, if we invoke the unit-call () syntax, we
+       * double apply it because unless the dot identifier is a function,
+       * there's no need to place the () after it */
+      return new Application(new Application(expr, args), {unit_expr(ps.token.location)});
+    } else {
+      return new Application(expr, {unit_expr(ps.token.location)});
     }
-    return new Application(expr, args);
   } else {
     while (ps.token.tk != tk_rparen) {
       args.push_back(parse_expr(ps, true /*allow_for_comprehensions*/));
@@ -1179,7 +1184,7 @@ const Expr *parse_postfix_chain(ParseState &ps, const Expr *expr) {
       expr = new As(expr, type_unit(ps.token_and_advance().location),
                     true /*force_cast*/);
     } else if (ps.token.tk == tk_lparen) {
-      expr = parse_application(ps, expr, {});
+      expr = parse_application(ps, expr, {}, false /*after_dot_ident*/);
     } else if (ps.token.is_dot_ident()) {
       /* NB: this call to tld::tld is very important because it forces .foo to
        * resolve to non-local identifiers. */
@@ -1189,7 +1194,7 @@ const Expr *parse_postfix_chain(ParseState &ps, const Expr *expr) {
       ps.advance();
 
       if (!ps.line_broke() && ps.token.tk == tk_lparen) {
-        expr = parse_application(ps, new Var(iid), {expr});
+        expr = parse_application(ps, new Var(iid), {expr}, true /*after_dot_ident*/);
       } else {
         expr = new Application(new Var(iid), {expr});
       }
