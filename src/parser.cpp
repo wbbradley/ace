@@ -443,7 +443,7 @@ const Expr *parse_ffi(ParseState &ps) {
   } else {
     expect_token(tk_string);
 
-    id = Identifier(unescape_json_quotes(ps.token.text), ps.token.location);
+    id = Identifier{unescape_json_quotes(ps.token.text), ps.token.location};
   }
 
   ps.advance();
