@@ -654,6 +654,6 @@ void open_file(std::string filename) {
       "xdg-open"
 #endif
       ;
-  system((open_command + " " + filename).c_str());
+  (void)system((open_command + " " + filename).c_str());
 }
 } // namespace ui
