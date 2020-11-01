@@ -52,7 +52,7 @@ jobs:
     # 📚 
 
     - run: |
-       ./install-deps.sh
+       sudo -E ./install-deps.sh
        make DEBUG= test
        
 
