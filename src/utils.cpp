@@ -654,6 +654,8 @@ void open_file(std::string filename) {
       "xdg-open"
 #endif
       ;
-  (void)system((open_command + " " + filename).c_str());
+  if (system((open_command + " " + filename).c_str())) {
+    log("failed to open %s", filename.c_str());
+  }
 }
 } // namespace ui

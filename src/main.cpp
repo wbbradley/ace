@@ -398,8 +398,12 @@ CheckedDefinitionsByName check_decls(std::string user_program_name,
     auto dot_file = user_program_name + ".dot";
     zion::graph::emit_graphviz_dot(graph, sccs, entry_point_name, dot_file);
     auto png_file = dot_file + ".png";
-    (void)system(("dot " + dot_file + " -Tpng -Gdpi=1000 -o " + png_file).c_str());
-    ui::open_file(png_file);
+    auto dot_cmd = "dot " + dot_file + " -Tpng -Gdpi=1000 -o " + png_file;
+    if (system(dot_cmd.c_str())) {
+      log(log_error, "failed to invoke dot");
+    } else {
+      ui::open_file(png_file);
+    }
   }
 
   CheckedDefinitionsByName checked_defns;
