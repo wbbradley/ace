@@ -30,8 +30,10 @@ message(STATUS "LLVM installation prefix is ${LLVM_INSTALL_PREFIX}")
 include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 
-add_compile_options(-Wno-unknown-warning-option)
-add_compile_options(-Wno-error=init-list-lifetime)
+if (APPLE)
+  add_compile_options(-Wno-unknown-warning-option)
+  add_compile_options(-Wno-error=init-list-lifetime)
+endif()
 
 option(DEBUG "Build a Debug build" OFF)
 if(DEBUG)
