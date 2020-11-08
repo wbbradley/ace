@@ -171,6 +171,19 @@ fn reverse(xs [a]) [a] {
   return ys
 }
 
+fn without_index(xs [a], i Int) [a] {
+  let ys = []
+  ys.reserve(max(0, xs.len - 1))
+  var j = 0
+  while j < xs.len {
+    if j != i {
+      ys.append(xs[j])
+    }
+    j += 1
+  }
+  return ys
+}
+
 instance Copy [a] {
   fn copy(xs [a]) [a] {
     let ys = []

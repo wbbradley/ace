@@ -1,0 +1,48 @@
+# test: pass
+# expect: Sorting\(\[\], \[1, 2, 3\]\)
+
+import backtrack {backtrack, Backtrackable, accept, reject, output}
+import sort {is_sorted}
+import copy {copy}
+import vector {without_index}
+
+newtype Sorting = Sorting([Int], [Int])
+
+instance Str Sorting {
+  fn str(s) => match s {
+    Sorting(left, solution) => "Sorting(${left}, ${solution})"
+  }
+}
+
+instance Iterable Sorting Sorting {
+  fn iter(s) => match s {
+    Sorting(left, solution) {
+      var i = -1
+      let ll = left.len
+      fn () {
+        i += 1
+        if i < ll {
+          let new_solution = solution.copy
+          new_solution.append(left[i])
+          return Just(Sorting(left.without_index(i), new_solution))
+        } else {
+          return Nothing
+        }
+      }
+    }
+  }
+}
+
+instance Backtrackable Sorting {
+  fn reject(candidate) Bool => match candidate {
+    Sorting(_, solution) => not is_sorted(solution)
+  }
+  fn accept(c) => match c {
+    Sorting(left, _) => left.len == 0
+  }
+  output = print
+}
+
+fn main() {
+  backtrack(Sorting([3, 1, 2], []))
+}

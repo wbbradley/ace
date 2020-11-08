@@ -16,6 +16,12 @@ link pkg "bdw-gc"
 
 let (.) = |f, g| => |x| => f(g(x)) 
 
+fn chr(i Int) Char {
+  assert(i >= 0)
+  assert(i < 128)
+  return __builtin_int_to_char(i)
+}
+
 data Bool {
   False
   True

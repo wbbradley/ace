@@ -3,8 +3,8 @@
 ## Language/Compiler (zion)
 
 - [x] (v0.3) global variable initialization
-- 
 - [ ] do notation
+- [ ] allow regular assignment in instance declarations (let f = not . g)
 - [ ] macro language around data structures for
   - [ ] property mptc auto-class and instance generation
   - [ ] serialization or type decl annotations

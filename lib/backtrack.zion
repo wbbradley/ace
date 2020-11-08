@@ -1,0 +1,21 @@
+# Simple backtracking algorithm with basic pruning upon rejected nodes or
+# accepted nodes.
+class Backtrackable candidate {
+  has Iterable candidate candidate
+  fn reject(candidate) Bool
+  fn accept(candidate) Bool
+  fn output(candidate) ()
+}
+
+fn backtrack(candidate) {
+  if reject(candidate) {
+    return
+  }
+  if accept(candidate) {
+    output(candidate)
+    return
+  }
+  for s in candidate {
+    backtrack(s)
+  }
+}
