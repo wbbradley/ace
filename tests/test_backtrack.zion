@@ -1,12 +1,15 @@
 # test: pass
 # expect: Sorting\(\[\], \[1, 2, 3\]\)
 
-import backtrack {backtrack, Backtrackable, accept, reject, output}
+import backtrack {backtrack, Backtrackable, accept, reject, output, permuting_appender}
 import sort {is_sorted}
 import copy {copy}
 import vector {without_index}
 
-newtype Sorting = Sorting([Int], [Int])
+struct Sorting {
+  left     [Int]
+  solution [Int]
+}
 
 instance Str Sorting {
   fn str(s) => match s {
@@ -15,31 +18,12 @@ instance Str Sorting {
 }
 
 instance Iterable Sorting Sorting {
-  fn iter(s) => match s {
-    Sorting(left, solution) {
-      var i = -1
-      let ll = left.len
-      fn () {
-        i += 1
-        if i < ll {
-          let new_solution = solution.copy
-          new_solution.append(left[i])
-          return Just(Sorting(left.without_index(i), new_solution))
-        } else {
-          return Nothing
-        }
-      }
-    }
-  }
+  fn iter(s) => permuting_appender(Sorting, s.left, s.solution)
 }
 
 instance Backtrackable Sorting {
-  fn reject(candidate) Bool => match candidate {
-    Sorting(_, solution) => not is_sorted(solution)
-  }
-  fn accept(c) => match c {
-    Sorting(left, _) => left.len == 0
-  }
+  fn reject(sorting) => not sorting.solution.is_sorted
+  fn accept(sorting) => sorting.left.len == 0
   output = print
 }
 

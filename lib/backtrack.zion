@@ -1,3 +1,6 @@
+import copy {copy}
+import vector {without_index}
+
 # Simple backtracking algorithm with basic pruning upon rejected nodes or
 # accepted nodes.
 class Backtrackable candidate {
@@ -17,5 +20,20 @@ fn backtrack(candidate) {
   }
   for s in candidate {
     backtrack(s)
+  }
+}
+
+fn permuting_appender(ctor fn ([a], [a]) b, left [a], solution [a]) fn () Maybe b {
+  var i = -1
+  let ll = left.len
+  return fn () Maybe b {
+    i += 1
+    if i < ll {
+      let new_solution = solution.copy
+      new_solution.append(left[i])
+      return Just(ctor(left.without_index(i), new_solution))
+    } else {
+      return Nothing
+    }
   }
 }
