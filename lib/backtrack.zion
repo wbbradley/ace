@@ -37,3 +37,26 @@ fn permuting_appender(ctor fn ([a], [a]) b, left [a], solution [a]) fn () Maybe 
     }
   }
 }
+
+fn unique_permuting_appender(ctor fn ([a], [a]) b, left [a], solution [a]) fn () Maybe b {
+  var i = -1
+  let left_set = new Set a
+  let ll = left.len
+  return fn () Maybe b {
+    i += 1
+    while i < ll {
+      let cur_item = left[i]
+      if cur_item in left_set {
+        i += 1
+        continue
+      }
+
+      left_set.insert(cur_item)
+
+      let new_solution = solution.copy
+      new_solution.append(left[i])
+      return Just(ctor(left.without_index(i), new_solution))
+    }
+    return Nothing
+  }
+}

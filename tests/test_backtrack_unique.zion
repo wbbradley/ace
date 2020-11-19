@@ -1,0 +1,32 @@
+# test: pass
+# expect: Sorting\(\[\], \[1, 2, 3, 3\]\)
+
+import backtrack {backtrack, Backtrackable, accept, reject, output, unique_permuting_appender}
+import sort {is_sorted}
+import copy {copy}
+import vector {without_index}
+
+struct Sorting {
+  left     [Int]
+  solution [Int]
+}
+
+instance Str Sorting {
+  fn str(s) => match s {
+    Sorting(left, solution) => "Sorting(${left}, ${solution})"
+  }
+}
+
+instance Iterable Sorting Sorting {
+  fn iter(s) => unique_permuting_appender(Sorting, s.left, s.solution)
+}
+
+instance Backtrackable Sorting {
+  fn reject(sorting) => not sorting.solution.is_sorted
+  fn accept(sorting) => sorting.left.len == 0
+  output = print
+}
+
+fn main() {
+  backtrack(Sorting([3, 3, 1, 2], []))
+}

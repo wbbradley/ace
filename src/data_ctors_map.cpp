@@ -94,7 +94,8 @@ int get_ctor_id(Location location,
                             "bad ctor name requested during translation (%s)",
                             ctor_name.c_str());
     for (auto pair : data_ctors_map.ctor_id_map) {
-      error.add_info(INTERNAL_LOC(), "it's not %s", pair.first.c_str());
+      error.add_info(INTERNAL_LOC(), "it's not %s",
+                     tld::strip_prefix(pair.first).c_str());
     }
     throw error;
   } else {
