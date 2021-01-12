@@ -1,7 +1,17 @@
 PN = zion
+
+# TODO: ifeq ($(OS),Windows_NT)
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+	# Assume you are using homebrew for now on Mac
+	LLVM_CONFIG ?= "/usr/local/opt/llvm/bin/llvm-config"
+else
+	LLVM_CONFIG ?= "llvm-config"
+endif
+
 BUILD_DIR ?= $(HOME)/var/$(PN)
 SRCDIR = $(shell pwd)
-LLVM_DIR ?= $(shell llvm-config --cmakedir)
+LLVM_DIR ?= $(shell $(LLVM_CONFIG) --cmakedir)
 prefix ?= /usr/local
 BUILT_BINARY = $(BUILD_DIR)/zion
 MAKEFLAGS=--no-print-directory
@@ -45,10 +55,10 @@ $(BUILD_DIR)/Makefile: $(LLVM_DIR)/LLVMConfig.cmake CMakeLists.txt
 	-mkdir -p $(BUILD_DIR)
 	@if [ "$(DEBUG)" = "" ]; then \
 		echo "Release mode..."; \
-		(cd $(BUILD_DIR) && cmake $(SRCDIR) -G 'Unix Makefiles') \
+		(cd $(BUILD_DIR) && LLVM_DIR="$(LLVM_DIR)" cmake $(SRCDIR) -G 'Unix Makefiles') \
 	else \
 		echo "Debug mode..."; \
-		(cd $(BUILD_DIR) && cmake $(SRCDIR) -DDEBUG=ON -G 'Unix Makefiles') \
+		(cd $(BUILD_DIR) && LLVM_DIR="$(LLVM_DIR)" cmake $(SRCDIR) -DDEBUG=ON -G 'Unix Makefiles') \
 	fi
 
 ZION_LIBS=$(shell cd lib && find *.zion)
