@@ -1,3 +1,7 @@
+#ifdef __APPLE__
+#include <TargetConditionals.h>
+#endif
+
 #include <fcntl.h>
 #include <math.h>
 #include <stdint.h>

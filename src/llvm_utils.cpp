@@ -154,7 +154,8 @@ llvm::CallInst *llvm_create_call_inst(llvm::IRBuilder<> &builder,
                      llvm_print(llvm_function_type).c_str(),
                      join_with(llvm_values, ", ", llvm_print_value).c_str()));
 
-  return builder.CreateCall(llvm_function, llvm_args_array);
+  auto callee = llvm::FunctionCallee(llvm_function_type, llvm_function);
+  return builder.CreateCall(callee, llvm_args_array);
 }
 
 llvm::Module *llvm_get_module(llvm::IRBuilder<> &builder) {
@@ -778,7 +779,9 @@ void destructure_closure(llvm::IRBuilder<> &builder,
 llvm::Value *llvm_create_closure_callsite(Location location,
                                           llvm::IRBuilder<> &builder,
                                           llvm::Value *closure,
+                                          llvm::FunctionType *llvm_function_type,
                                           std::vector<llvm::Value *> args) {
+  assert(llvm_function_type != nullptr);
   assert(builder.GetInsertBlock() != nullptr);
   llvm::Value *llvm_function_to_call = nullptr;
   destructure_closure(builder, closure, &llvm_function_to_call, nullptr);
@@ -790,10 +793,10 @@ llvm::Value *llvm_create_closure_callsite(Location location,
                      llvm_print(llvm_function_to_call->getType()).c_str(),
                      llvm_print(args[0]->getType()).c_str(),
                      llvm_print(args[1]->getType()).c_str()));
-  return builder.CreateCall(llvm_function_to_call,
-                            llvm::ArrayRef<llvm::Value *>(args)
+  auto callee = llvm::FunctionCallee(llvm_function_type, llvm_function_to_call);
+  return builder.CreateCall(callee, llvm::ArrayRef<llvm::Value *>(args)
 #ifdef ZION_DEBUG
-                                ,
+                                        ,
                             string_format("call{%s}", location.repr().c_str())
 #endif
   );

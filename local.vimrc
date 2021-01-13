@@ -6,10 +6,14 @@ autocmd FileType c inoremap <F4> <Esc> <F4>
 autocmd FileType c vnoremap <F4> <Esc> <F4>
 nnoremap <Leader>` :echom system("./zion-tags\ .")<CR>
 autocmd FileType * setlocal makeprg=make\ debug
+
 let &path=substitute(
       \ system('pkg-config bdw-gc --variable=includedir'),
       \ '\n', '', 'g') . ',.'
 let g:ale_cpp_clang_options=substitute(system("pkg-config bdw-gc --cflags") . ' ' . 
       \ system("llvm-config --cxxflags"), '\n', '', 'g')
+let g:ale_cpp_cc_options=substitute(system("pkg-config bdw-gc --cflags")
+      \ . ' -isysroot ' . system("xcrun --sdk macosx --show-sdk-path")
+      \ . ' ' .  system("llvm-config --cxxflags"), '\n', '', 'g')
 let g:ale_c_clang_options=substitute(system("pkg-config bdw-gc --cflags") . ' ' . 
       \ system("llvm-config --cflags"), '\n', '', 'g')

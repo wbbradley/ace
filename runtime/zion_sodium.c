@@ -1,3 +1,7 @@
+#ifdef __APPLE__
+#include <TargetConditionals.h>
+#endif
+
 #include <stdint.h>
 #include <sodium.h>
 

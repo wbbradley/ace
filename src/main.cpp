@@ -1201,7 +1201,12 @@ void write_main_block(llvm::IRBuilder<> &builder,
       builder.CreateBitCast(llvm_main_closure,
                             builder.getInt8Ty()->getPointerTo(),
                             "main_closure")};
-  builder.CreateCall(main_func, llvm::ArrayRef<llvm::Value *>(main_args));
+
+  llvm::FunctionType *llvm_function_type = get_llvm_arrow_function_type(
+      builder, {}, unfold_arrows(main_closure_type()));
+  assert(llvm_function_type != nullptr);
+  auto callee = llvm::FunctionCallee(llvm_function_type, main_func);
+  builder.CreateCall(callee, llvm::ArrayRef<llvm::Value *>(main_args));
   builder.CreateRet(builder.getInt32(0));
 }
 
@@ -1436,6 +1441,9 @@ bool build_binary(const Job &job, bool explain, std::string &program_name) {
       // Include extra compilands
       "%s "
       // Add linker flags
+#ifdef __APPLE__
+      "-L \"$(xcrun --sdk macosx --show-sdk-path)/usr/lib\" "
+#endif
       "-lm %s "
       // Don't forget the built .ll file from our frontend here.
       "%s "

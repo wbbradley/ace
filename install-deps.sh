@@ -1,6 +1,6 @@
 #!/bin/bash
 
-LLVM_VERSION="10"
+LLVM_VERSION="11"
 if [ "$(uname -s)" = "Darwin" ]; then
   brew install \
     "llvm@$LLVM_VERSION" \

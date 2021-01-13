@@ -35,7 +35,7 @@ struct DeferGuard {
                    called || defer_closures.size() == 0);
   }
 
-  void call_deferred(llvm::IRBuilder<> &builder, DeferType dt) {
+  void call_deferred(llvm::IRBuilder<> &builder, DeferType dt, const types::TypeEnv &type_env) {
     if (builder.GetInsertBlock()->getTerminator()) {
       /* this should already have been called at least once... */
       if (!called && defer_closures.size() != 0) {
@@ -61,15 +61,18 @@ struct DeferGuard {
          closure_iter != defer_closures.rend(); ++closure_iter) {
       std::vector<llvm::Value *> args{
           llvm::Constant::getNullValue(builder.getInt8Ty()->getPointerTo())};
+      types::Refs terms{type_unit(INTERNAL_LOC()), type_unit(INTERNAL_LOC())};
+      llvm::FunctionType *llvm_closure_type = get_llvm_arrow_function_type(
+          builder, type_env, terms);
       llvm_create_closure_callsite(INTERNAL_LOC(), builder, *closure_iter,
-                                   args);
+                                   llvm_closure_type, args);
     }
 
     called = true;
 
     if (defer_type != dt && defer_type != dt_function) {
       assert(parent != nullptr);
-      parent->call_deferred(builder, dt);
+      parent->call_deferred(builder, dt, type_env);
     }
   }
 
@@ -947,7 +950,7 @@ void gen_lambda(std::string name,
         nullptr /*continue_to_block*/, lambda->body, typing, type_env,
         gen_env_globals, new_env_locals, globals, nullptr /*publishable*/);
 
-    defer_guard.call_deferred(builder, dt_function);
+    defer_guard.call_deferred(builder, dt_function, type_env);
 
     if (builder.GetInsertBlock()->getTerminator() == nullptr) {
       /* ensure that we have a terminator */
@@ -1120,8 +1123,11 @@ ResolutionStatus gen(std::string name,
                            gen_env_globals, gen_env_locals, globals));
       }
 
+      types::Refs terms = unfold_arrows(typing.at(application->a));
+      llvm::FunctionType *llvm_closure_type = get_llvm_arrow_function_type(
+          builder, type_env, terms);
       publish(llvm_create_closure_callsite(application->get_location(), builder,
-                                           closure, args));
+                                           closure, llvm_closure_type, args));
       return rs_cache_resolution;
     } else if (auto let = dcast<const ast::Let *>(expr)) {
       llvm::Value *let_value = nullptr;
@@ -1237,12 +1243,12 @@ ResolutionStatus gen(std::string name,
       return rs_cache_resolution;
     } else if (dcast<const ast::Break *>(expr)) {
       assert(break_to_block != nullptr);
-      defer_guard->call_deferred(builder, dt_loop);
+      defer_guard->call_deferred(builder, dt_loop, type_env);
       builder.CreateBr(break_to_block);
       return rs_cache_resolution;
     } else if (dcast<const ast::Continue *>(expr)) {
       assert(continue_to_block != nullptr);
-      defer_guard->call_deferred(builder, dt_loop);
+      defer_guard->call_deferred(builder, dt_loop, type_env);
       builder.CreateBr(continue_to_block);
       return rs_cache_resolution;
     } else if (auto while_ = dcast<const ast::While *>(expr)) {
@@ -1274,7 +1280,7 @@ ResolutionStatus gen(std::string name,
           continue_to_block, while_->block, typing, type_env, gen_env_globals,
           gen_env_locals, globals);
 
-      defer_guard_loop.call_deferred(builder, dt_loop);
+      defer_guard_loop.call_deferred(builder, dt_loop, type_env);
       if (builder.GetInsertBlock()->getTerminator() == nullptr) {
         /* loop */
         builder.CreateBr(cond_block);
@@ -1295,7 +1301,7 @@ ResolutionStatus gen(std::string name,
       publish(value);
 
       /* clean up any deferred actions */
-      defer_guard_local.call_deferred(builder, dt_block);
+      defer_guard_local.call_deferred(builder, dt_block, type_env);
 
       return rs_cache_resolution;
     } else if (auto return_ = dcast<const ast::ReturnStatement *>(expr)) {
@@ -1322,7 +1328,7 @@ ResolutionStatus gen(std::string name,
         }
       }
 #endif
-      defer_guard->call_deferred(builder, dt_function);
+      defer_guard->call_deferred(builder, dt_function, type_env);
       builder.CreateRet(llvm_value);
       return rs_cache_resolution;
     } else if (auto tuple = dcast<const ast::Tuple *>(expr)) {

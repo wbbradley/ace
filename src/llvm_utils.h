@@ -143,6 +143,7 @@ std::vector<llvm::Type *> llvm_get_types(
 llvm::Value *llvm_create_closure_callsite(Location location,
                                           llvm::IRBuilder<> &builder,
                                           llvm::Value *closure,
+                                          llvm::FunctionType *llvm_function_type,
                                           std::vector<llvm::Value *> args);
 
 } // namespace zion
