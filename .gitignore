@@ -1,5 +1,6 @@
 *.trace
 camelize
+compile_commands.json
 .swp
 # Remove test binary executables that may have been generated in the source
 # tree during testing

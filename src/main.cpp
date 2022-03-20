@@ -1419,7 +1419,7 @@ bool build_binary(const Job &job, bool explain, std::string &program_name) {
   // We are using clang to lower the code from LLVM, and link it
   // to the runtime.
 #ifdef __APPLE__
-      "\"$(brew --prefix)/opt/llvm/bin/clang\" "
+      "\"$(brew --prefix)/opt/llvm@11/bin/clang\" "
 #else
       "clang "
 #endif
@@ -1440,7 +1440,7 @@ bool build_binary(const Job &job, bool explain, std::string &program_name) {
       // "--target=$(llvm-config --host-target) "
       // Include extra compilands
       "%s "
-      // Add linker flags
+  // Add linker flags
 #ifdef __APPLE__
       "-L \"$(xcrun --sdk macosx --show-sdk-path)/usr/lib\" "
 #endif

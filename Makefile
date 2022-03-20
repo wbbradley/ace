@@ -4,7 +4,7 @@ PN = zion
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
 	# Assume you are using homebrew for now on Mac
-	LLVM_CONFIG ?= "/usr/local/opt/llvm/bin/llvm-config"
+	LLVM_CONFIG ?= "/usr/local/opt/llvm@11/bin/llvm-config"
 else
 	LLVM_CONFIG ?= "llvm-config"
 endif
