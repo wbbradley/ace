@@ -1,7 +1,12 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+die() {
+  echo "$(basename "$0"): error: $*" >&2
+  exit 1
+}
 
 LLVM_VERSION="11"
-if [ "$(uname -s)" = "Darwin" ]; then
+if [[ "$(uname)" = "Darwin" ]]; then
   brew install \
     "llvm@$LLVM_VERSION" \
     bdw-gc \
@@ -29,7 +34,7 @@ else
 
   # Ensure the rest of the LLVM dependencies are available and mapped to sane
   # names.
-  (apt-get install -y \
+  apt-get install -y \
     clang-format-"${LLVM_VERSION}" \
     clang-tools-"${LLVM_VERSION}" \
     libclang-"${LLVM_VERSION}"-dev \
@@ -38,7 +43,8 @@ else
     llvm-"${LLVM_VERSION}" \
     llvm-"${LLVM_VERSION}"-dev \
     llvm-"${LLVM_VERSION}"-runtime \
-    llvm-"${LLVM_VERSION}"-tools) || exit 1
+    llvm-"${LLVM_VERSION}"-tools \
+    || die "failed to install clang and llvm (and dependencies)..."
 
   update-alternatives --install /usr/bin/llvm-link llvm-link /usr/bin/llvm-link-"${LLVM_VERSION}" 100 && \
     update-alternatives --install /usr/bin/clang clang /usr/bin/clang-"${LLVM_VERSION}" 100 && \
