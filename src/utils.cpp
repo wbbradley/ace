@@ -12,7 +12,6 @@
 #include "dbg.h"
 #include "logger_decls.h"
 #include "user_error.h"
-#include "utf8/utf8.h"
 #include "zion_assert.h"
 
 #define SWP(x, y) (x ^= y, y ^= x, x ^= y)

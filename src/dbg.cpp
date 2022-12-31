@@ -56,7 +56,9 @@ bool AmIBeingDebugged(void)
 // Returns true if the current process is being debugged (either
 // running under the debugger or has a debugger attached post facto).
 {
+#ifdef ZION_DEBUG
   int junk;
+#endif
   int mib[4];
   struct kinfo_proc info;
   size_t size;
@@ -77,7 +79,10 @@ bool AmIBeingDebugged(void)
   // Call sysctl.
 
   size = sizeof(info);
-  junk = sysctl(mib, sizeof(mib) / sizeof(*mib), &info, &size, NULL, 0);
+#ifdef ZION_DEBUG
+  junk =
+#endif
+      sysctl(mib, sizeof(mib) / sizeof(*mib), &info, &size, NULL, 0);
   assert(junk == 0);
 
   // We're being debugged if the P_TRACED flag is set.
