@@ -1,8 +1,10 @@
+#include <codecvt>
 #include <cstdarg>
 #include <ctype.h>
 #include <fstream>
 #include <iostream>
 #include <limits.h>
+#include <locale>
 #include <regex>
 #include <sstream>
 #include <stdlib.h>
@@ -22,6 +24,30 @@ std::string to_upper(std::string x) {
     ch = std::toupper(ch);
   }
   return copy;
+}
+template <typename T>
+std::string to_utf8(
+    const std::basic_string<T, std::char_traits<T>, std::allocator<T>>
+        &source) {
+  std::string result;
+
+  std::wstring_convert<std::codecvt_utf8_utf16<T>, T> convertor;
+  result = convertor.to_bytes(source);
+
+  return result;
+}
+
+template <typename T>
+void from_utf8(
+    const std::string &source,
+    std::basic_string<T, std::char_traits<T>, std::allocator<T>> &result) {
+  std::wstring_convert<std::codecvt_utf8_utf16<T>, T> convertor;
+  result = convertor.from_bytes(source);
+}
+
+std::string utf16_to_utf8(char16_t ch) {
+  char16_t x[2] = {ch, 0};
+  return to_utf8(std::u16string(x));
 }
 
 size_t utf8_sequence_length(char ch_) {
@@ -521,9 +547,7 @@ std::string unescape_json_quotes(const char *str, size_t len) {
         ch <<= 4;
         i++;
         ch += hexval(*i);
-        std::string utf8_encoding;
-        utf8::utf16to8(&ch, &ch + 1, back_inserter(utf8_encoding));
-        res += utf8_encoding;
+        res += utf16_to_utf8(ch);
         continue;
       }
     } else if (*i == '\\') {

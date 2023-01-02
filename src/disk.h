@@ -64,7 +64,7 @@ bool for_each_file(const std::string &dir, const T &callback) {
         continue;
       }
 
-      sprintf(szFullName, "%s/%s", szDirectory, stFiles->d_name);
+      snprintf(szFullName, PATH_MAX, "%s/%s", szDirectory, stFiles->d_name);
 
       if (lstat(szFullName, &stFileInfo) < 0) {
         continue;

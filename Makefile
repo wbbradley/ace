@@ -51,6 +51,7 @@ uninstall:
 $(BUILT_BINARY): $(BUILD_DIR)/Makefile
 	@(cd $(BUILD_DIR) && make -j16 $(PN))
 
+$(BUILD_DIR)/Makefile: export CMAKE_EXPORT_COMPILE_COMMANDS=1
 $(BUILD_DIR)/Makefile: $(LLVM_DIR)/LLVMConfig.cmake CMakeLists.txt
 	-mkdir -p $(BUILD_DIR)
 	@if [ "$(DEBUG)" = "" ]; then \
