@@ -1,9 +1,9 @@
 #pragma once
-#include "llvm_zion.h"
+#include "llvm_cider.h"
 #include "types.h"
-#include "zion.h"
+#include "cider.h"
 
-namespace zion {
+namespace cider {
 
 llvm::Constant *llvm_create_struct_instance(
     std::string var_name,
@@ -36,7 +36,7 @@ llvm::Type *get_llvm_type(llvm::IRBuilder<> &builder,
 llvm::Value *llvm_create_bool(llvm::IRBuilder<> &builder, bool value);
 llvm::ConstantInt *llvm_create_int(llvm::IRBuilder<> &builder, int64_t value);
 llvm::ConstantInt *llvm_create_int32(llvm::IRBuilder<> &builder, int32_t value);
-llvm::Value *llvm_zion_bool_to_i1(llvm::IRBuilder<> &builder,
+llvm::Value *llvm_cider_bool_to_i1(llvm::IRBuilder<> &builder,
                                   llvm::Value *llvm_value);
 llvm::Value *llvm_create_double(llvm::IRBuilder<> &builder, double value);
 llvm::GlobalVariable *llvm_get_global(llvm::Module *llvm_module,
@@ -146,4 +146,4 @@ llvm::Value *llvm_create_closure_callsite(Location location,
                                           llvm::FunctionType *llvm_function_type,
                                           std::vector<llvm::Value *> args);
 
-} // namespace zion
+} // namespace cider

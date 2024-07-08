@@ -4,7 +4,7 @@
 #include "ptr.h"
 #include "tld.h"
 
-namespace zion {
+namespace cider {
 
 using namespace ast;
 
@@ -298,4 +298,4 @@ types::Scheme::Ref prefix(const std::set<std::string> &bindings,
                   prefix(bindings, pre, scheme->type));
 }
 
-} // namespace zion
+} // namespace cider

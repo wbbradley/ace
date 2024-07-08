@@ -4,7 +4,7 @@
 #include "dbg.h"
 #include "logger_decls.h"
 
-namespace zion {
+namespace cider {
 
 types::Ref get_tracked_type(const TrackedTypes &tracked_types,
                             const ast::Expr *e) {
@@ -36,4 +36,4 @@ void rebind_tracked_types(TrackedTypes &tracked_types,
   }
 }
 
-} // namespace zion
+} // namespace cider

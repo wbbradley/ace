@@ -25,12 +25,12 @@
   - [x] int matching
   - [x] tuple matching
   - [x] string matching
-- [x] Play: Rewrite expect.py in Zion
+- [x] Play: Rewrite expect.py in Cider
 - [x] decide on `with` (Python) / `using`(`dispose`) (C#) / 'defer' (Golang) style syntax for deterministic destruction - or ref-counting
 - [x] Implement generic in-place sort for vectors
 - [x] Ergo: Ability to import symbols from modules by name (symbol injection)
 - [x] Add safety checks on casting (as)
-- [x] Exercise: implement parser combinators in Zion
+- [x] Exercise: implement parser combinators in Cider
 - [x] Implement closures with capture by value
 - [x] Implement backtracking in unification of product types
 - [x] Consider marking null-terminated strings differently for FFI purposes (ended up doing this as part of "safe-unboxing" for easier FFI.
@@ -51,7 +51,7 @@
 - [x] change `str` to use `wchar_t` as its underlying physical character type
   - [x] use C99's `mbstowcs` and `wcstombs` to convert back and forth
   - [x] propagate usage of utf8 for `char`
-- [x] 'for' syntax - based on `tests/test_list_iter.zion` pattern
+- [x] 'for' syntax - based on `tests/test_list_iter.cider` pattern
 - [x] Ternary operator
 - [x] Logical and/or (build with ternary operator)
 - [x] Type refinements for ternary / conditional expressions

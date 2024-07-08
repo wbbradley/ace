@@ -1,4 +1,4 @@
-PN = zion
+PN = cider
 
 # TODO: ifeq ($(OS),Windows_NT)
 UNAME_S := $(shell uname -s)
@@ -13,7 +13,7 @@ BUILD_DIR ?= $(HOME)/var/$(PN)
 SRCDIR = $(shell pwd)
 LLVM_DIR ?= $(shell $(LLVM_CONFIG) --cmakedir)
 prefix ?= /usr/local
-BUILT_BINARY = $(BUILD_DIR)/zion
+BUILT_BINARY = $(BUILD_DIR)/cider
 MAKEFLAGS=--no-print-directory
 
 # Installation-related directories
@@ -24,19 +24,19 @@ stdlibdir = $(sharedir)/lib
 runtimedir = $(sharedir)/runtime
 man1dir ?= $(DESTDIR)/$(prefix)/share/man/man1
 manfile = $(man1dir)/$(PN).1
-test_destdir ?= $(HOME)/var/zion-test
+test_destdir ?= $(HOME)/var/cider-test
 
 .PHONY: release
 release:
-	make DEBUG= zion
+	make DEBUG= cider
 
 .PHONY: debug
 debug:
-	make DEBUG=1 zion
+	make DEBUG=1 cider
 
-.PHONY: zion
-zion:
-	-@echo "Building Zion..."
+.PHONY: cider
+cider:
+	-@echo "Building Cider..."
 	# make clean
 	make install
 
@@ -45,7 +45,7 @@ uninstall:
 	-rm -rf $(sharedir)
 	-rm $(bindir)/$(PN)
 	-rm $(manfile)
-	-rm $(bindir)/zion-tags
+	-rm $(bindir)/cider-tags
 
 .PHONY: $(BUILT_BINARY)
 $(BUILT_BINARY): $(BUILD_DIR)/Makefile
@@ -62,12 +62,12 @@ $(BUILD_DIR)/Makefile: $(LLVM_DIR)/LLVMConfig.cmake CMakeLists.txt
 		(cd $(BUILD_DIR) && LLVM_DIR="$(LLVM_DIR)" cmake $(SRCDIR) -DDEBUG=ON -G 'Unix Makefiles') \
 	fi
 
-ZION_LIBS=$(shell cd lib && find *.zion)
+CIDER_LIBS=$(shell cd lib && find *.cider)
 RUNTIME_C_FILES=$(shell find runtime -regex '.*\.c$$')
 
 .PHONY: install
-install: $(BUILT_BINARY) $(addprefix $(SRCDIR)/lib/,$(ZION_LIBS)) $(RUNTIME_C_FILES) $(SRCDIR)/$(PN).1 zion-tags
-	-echo "Installing Zion to ${DESTDIR}..."
+install: $(BUILT_BINARY) $(addprefix $(SRCDIR)/lib/,$(CIDER_LIBS)) $(RUNTIME_C_FILES) $(SRCDIR)/$(PN).1 cider-tags
+	-echo "Installing Cider to ${DESTDIR}..."
 	-echo "Making sure that various installation dirs exist..." 
 	mkdir -p $(bindir)
 	-rm -rf $(stdlibdir)
@@ -78,11 +78,11 @@ install: $(BUILT_BINARY) $(addprefix $(SRCDIR)/lib/,$(ZION_LIBS)) $(RUNTIME_C_FI
 	mkdir -p $(runtimedir)
 	-echo "Copying compiler binary from $(BUILT_BINARY) to $(bindir)..."
 	cp $(BUILT_BINARY) $(bindir)
-	cp ./zion-tags $(bindir)
+	cp ./cider-tags $(bindir)
 	for f in $(RUNTIME_C_FILES); do cp "$$f" "$(runtimedir)"; done
-	cp $(addprefix $(SRCDIR)/lib/,$(ZION_LIBS)) $(stdlibdir)
+	cp $(addprefix $(SRCDIR)/lib/,$(CIDER_LIBS)) $(stdlibdir)
 	cp $(SRCDIR)/$(PN).1 $(man1dir)
-	-test -x ./zion-link-to-src && ZION_ROOT=$(sharedir) ./zion-link-to-src
+	-test -x ./cider-link-to-src && CIDER_ROOT=$(sharedir) ./cider-link-to-src
 
 .PHONY: clean
 clean:
@@ -95,12 +95,12 @@ install-test:
 
 .PHONY: test
 test:
-	-@echo "Running Tests for Zion..."
+	-@echo "Running Tests for Cider..."
 	make $(BUILT_BINARY)
 	$(BUILT_BINARY) unit-test
 	make install-test
-	@echo "ZION_ROOT=$(test_destdir)/$(prefix)/share/$(PN)"
-	@ZION_ROOT="$(test_destdir)/$(prefix)/share/$(PN)" \
+	@echo "CIDER_ROOT=$(test_destdir)/$(prefix)/share/$(PN)"
+	@CIDER_ROOT="$(test_destdir)/$(prefix)/share/$(PN)" \
 		"$(SRCDIR)/tests/run-tests.sh" \
 		"$(test_destdir)/$(prefix)/bin" \
 		"$(SRCDIR)"

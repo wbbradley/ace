@@ -1,6 +1,6 @@
 # An implementation of Conway's Game of Life.
 # Stolen shamelessly from https://golang.org/ in order to
-# see how hard it would be to port to Zion.
+# see how hard it would be to port to Cider.
 
 import random {rand}
 

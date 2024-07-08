@@ -1,5 +1,5 @@
 #!/bin/bash
 set -ex
 
-cd /opt/zion
+cd /opt/cider
 make DEBUG= test

@@ -3,7 +3,7 @@
 
 #include "token.h"
 
-namespace zion {
+namespace cider {
 
 enum LinkInType {
   lit_pkgconfig,
@@ -21,4 +21,4 @@ struct LinkIn {
   bool operator<(const LinkIn &) const;
 };
 
-} // namespace zion
+} // namespace cider

@@ -5,18 +5,18 @@
 #include <memory>
 #include <string>
 
-namespace zion {
+namespace cider {
 struct CheckedDefinition;
 typedef std::shared_ptr<const CheckedDefinition> CheckedDefinitionRef;
 typedef std::map<std::string, std::list<CheckedDefinitionRef>>
     CheckedDefinitionsByName;
-} // namespace zion
+} // namespace cider
 
 #include "ast.h"
 #include "scheme.h"
 #include "types.h"
 
-namespace zion {
+namespace cider {
 
 struct CheckedDefinition {
   CheckedDefinition(types::SchemeRef scheme,
@@ -29,4 +29,4 @@ struct CheckedDefinition {
   Location get_location() const;
 };
 
-} // namespace zion
+} // namespace cider

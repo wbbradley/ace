@@ -43,7 +43,7 @@ DepthGuard::DepthGuard(Location location, int &depth, int max_depth)
     : depth(depth) {
   ++depth;
   if (!__depth_level_override && (depth > max_depth)) {
-    throw zion::user_error(location, "maximum recursion depth reached");
+    throw cider::user_error(location, "maximum recursion depth reached");
   }
 }
 
@@ -56,7 +56,7 @@ bool AmIBeingDebugged(void)
 // Returns true if the current process is being debugged (either
 // running under the debugger or has a debugger attached post facto).
 {
-#ifdef ZION_DEBUG
+#ifdef CIDER_DEBUG
   int junk;
 #endif
   int mib[4];
@@ -79,7 +79,7 @@ bool AmIBeingDebugged(void)
   // Call sysctl.
 
   size = sizeof(info);
-#ifdef ZION_DEBUG
+#ifdef CIDER_DEBUG
   junk =
 #endif
       sysctl(mib, sizeof(mib) / sizeof(*mib), &info, &size, NULL, 0);

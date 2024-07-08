@@ -7,7 +7,7 @@
 #include "dbg.h"
 #include "logger.h"
 
-namespace zion {
+namespace cider {
 
 namespace {
 bool errors_occurred_ = false;
@@ -108,4 +108,4 @@ user_error &user_error::add_info(Location location, const char *format...) {
   return *this;
 }
 
-} // namespace zion
+} // namespace cider

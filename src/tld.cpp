@@ -2,7 +2,7 @@
 
 #include "builtins.h"
 
-namespace zion {
+namespace cider {
 namespace tld {
 
 #define SCOPE_SEP "::"
@@ -100,4 +100,4 @@ std::string strip_prefix(std::string fqn) {
 }
 
 } // namespace tld
-} // namespace zion
+} // namespace cider

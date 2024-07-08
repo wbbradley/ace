@@ -6,7 +6,7 @@
 #include "llvm_utils.h"
 #include "types.h"
 
-namespace zion {
+namespace cider {
 
 namespace gen {
 
@@ -49,4 +49,4 @@ std::shared_ptr<Resolver> lazy_resolver(std::string name,
 
 } // namespace gen
 
-} // namespace zion
+} // namespace cider

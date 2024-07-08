@@ -1,30 +1,30 @@
-.TH ZION 1
+.TH CIDER 1
 .SH NAME
-zion \- Zion programming language compiler
+cider \- Cider programming language compiler
 .SH SYNOPSIS
-zion [\fIprogram\fR] [\fIargs\fR ...]
+cider [\fIprogram\fR] [\fIargs\fR ...]
 .br
-zion [\fBrun\fR \fIprogram\fR] [\fIargs\fR ...]
+cider [\fBrun\fR \fIprogram\fR] [\fIargs\fR ...]
 .br
-zion [\fBfind\fR \fIprogram\fR]
+cider [\fBfind\fR \fIprogram\fR]
 .br
-zion [\fBlex\fR \fIprogram\fR]
+cider [\fBlex\fR \fIprogram\fR]
 .br
-zion [\fBparse\fR \fIprogram\fR]
+cider [\fBparse\fR \fIprogram\fR]
 .br
-zion [\fBcompile\fR \fIprogram\fR]
+cider [\fBcompile\fR \fIprogram\fR]
 .br
-zion [\fBspecialize\fR \fIprogram\fR]
+cider [\fBspecialize\fR \fIprogram\fR]
 .br
-zion [\fBll\fR \fIprogram\fR]
+cider [\fBll\fR \fIprogram\fR]
 .br
-zion [\fBtest\fR] \-\- run unit tests
+cider [\fBtest\fR] \-\- run unit tests
 .SH DESCRIPTION
 .na
-Zion is a general purpose programming language.
-The source code is available at \fBhttps://github.com/zionlang/zion\fR.
+Cider is a general purpose programming language.
+The source code is available at \fBhttps://github.com/ciderlang/cider\fR.
 .P
-zion
+cider
 .B run
 will attempt to compose all the phases of compilation, then pass the resulting LLVM code off to
 .B clang
@@ -34,7 +34,7 @@ It will then
 the built user program and pass along any remaining \fIargs\fR.
 .br
 .P
-zion
+cider
 .B ll
 will emit an LLVM IR file of the
 .I program
@@ -42,39 +42,39 @@ and its dependencies.
 .P
 .I program
 is resolved by
-.B zion
+.B cider
 into an actual filename.
-When you reference a source file, you can omit the `.zion` extension.
-When searching for the specified \fIprogram\fR, \fBzion\fR will look in the current directory first, then proceed to looking through the \fBZION_PATH\fR, as described below.
+When you reference a source file, you can omit the `.cider` extension.
+When searching for the specified \fIprogram\fR, \fBcider\fR will look in the current directory first, then proceed to looking through the \fBCIDER_PATH\fR, as described below.
 .SH ENVIRONMENT
 .TP
 .br
-ZION_ROOT=\fI/usr/local/share/zion\fR
+CIDER_ROOT=\fI/usr/local/share/cider\fR
 Should point to the base directory for standard runtime and library.
 If 
-.B ZION_PATH
+.B CIDER_PATH
 is not set, it will default to
-.B $ZION_ROOT/lib
+.B $CIDER_ROOT/lib
 \&. If 
-.B ZION_RUNTIME
+.B CIDER_RUNTIME
 is not set, it will default to "
-.B $ZION_ROOT/runtime
+.B $CIDER_ROOT/runtime
 \&.
 .TP
 .br
-ZION_PATH=\fI/usr/local/share/zion/lib\fR
+CIDER_PATH=\fI/usr/local/share/cider/lib\fR
 A colon-separated list of directories to search for imported libraries.
 Libraries are imported with the `import` keyword.
-The `lib/std.zion` library is called the prelude and is automatically imported unless 
+The `lib/std.cider` library is called the prelude and is automatically imported unless 
 .B NO_PRELUDE
 is given. Setting this variable overrides the
-.B $ZION_ROOT/lib
+.B $CIDER_ROOT/lib
 location.
 .TP
 .br
-ZION_RUNTIME=\fI/usr/local/share/zion/runtime\fR
-The location of the C-runtime portion of Zion's builtins. See src/zion_rt.c. Setting this variable overrides the
-.B $ZION_ROOT/runtime
+CIDER_RUNTIME=\fI/usr/local/share/cider/runtime\fR
+The location of the C-runtime portion of Cider's builtins. See src/cider_rt.c. Setting this variable overrides the
+.B $CIDER_ROOT/runtime
 location.
 .TP
 .br
@@ -88,26 +88,26 @@ DEBUG=\fI[0-10]\fR
 Sets the level of debugging information to spew.
 Default is 0 or none.
 Note that
-.B zion
+.B cider
 must be compiled with
-.B \-DZION_DEBUG
+.B \-DCIDER_DEBUG
 in order to enable debug logging.
 See src/logging.cpp.
 .TP
 .br
 STATUS_BREAK=\fI1\fR
 When set to non-zero value,
-.B zion
+.B cider
 breaks into the debugger at the first user error found (helpful when working on the compiler).
 .TP
 .br
 DUMP_BUILTINS=\fI1\fR
 When set to non-zero value,
-.B zion
+.B cider
 lists all the registered builtin functions and quits.
 .SH LICENSE
 .sp
-Zion Programming Environment
+Cider Programming Environment
 .TP
 .br
 MIT License
@@ -137,8 +137,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE \
 SOFTWARE.
 .SH "REPORTING BUGS"
 .sp
-Note that this version of Zion is pre-release quality software. No guarantees \
+Note that this version of Cider is pre-release quality software. No guarantees \
 are given regarding changes to protocols, language grammar, semantics, or \
 standard library interface. Bug reports are greatly appreciated. Report bugs to \
-the Zion GitHub site. \fBhttps://github.com/zionlang/zion/issues\fR. Pull Requests \
+the Cider GitHub site. \fBhttps://github.com/ciderlang/cider/issues\fR. Pull Requests \
 are welcome!

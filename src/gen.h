@@ -8,7 +8,7 @@
 #include "unification.h"
 #include "user_error.h"
 
-namespace zion {
+namespace cider {
 
 namespace gen {
 
@@ -48,4 +48,4 @@ ResolutionStatus gen(std::string name,
                      Publisher *publisher);
 } // namespace gen
 
-} // namespace zion
+} // namespace cider

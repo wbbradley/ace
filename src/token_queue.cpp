@@ -3,7 +3,7 @@
 #include "dbg.h"
 #include "utils.h"
 
-namespace zion {
+namespace cider {
 
 struct token_matcher {
   const char *text;
@@ -63,4 +63,4 @@ void TokenQueue::set_last_tk(TokenKind tk) {
   m_last_tk = tk;
 }
 
-} // namespace zion
+} // namespace cider

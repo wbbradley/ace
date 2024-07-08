@@ -13,7 +13,7 @@
 #include "token.h"
 #include "types.h"
 
-namespace zion {
+namespace cider {
 namespace ast {
 
 std::string fresh();
@@ -555,8 +555,8 @@ ast::Expr *unit_expr(Location location);
 tarjan::Vertices get_free_vars(
     const ast::Expr *expr,
     const std::unordered_set<std::string> &bound_vars);
-} // namespace zion
+} // namespace cider
 
-std::ostream &operator<<(std::ostream &os, zion::ast::Program *program);
-std::ostream &operator<<(std::ostream &os, zion::ast::Decl *decl);
-std::ostream &operator<<(std::ostream &os, zion::ast::Expr *expr);
+std::ostream &operator<<(std::ostream &os, cider::ast::Program *program);
+std::ostream &operator<<(std::ostream &os, cider::ast::Decl *decl);
+std::ostream &operator<<(std::ostream &os, cider::ast::Expr *expr);

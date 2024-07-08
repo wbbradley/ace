@@ -2,9 +2,9 @@
 
 #include "tld.h"
 
-std::string ARROW_TYPE_OPERATOR = zion::tld::mktld("std", "->");
-std::string PTR_TYPE_OPERATOR = zion::tld::mktld("std", "Ptr");
-std::string REF_TYPE_OPERATOR = zion::tld::mktld("std", "Ref");
+std::string ARROW_TYPE_OPERATOR = cider::tld::mktld("std", "->");
+std::string PTR_TYPE_OPERATOR = cider::tld::mktld("std", "Ptr");
+std::string REF_TYPE_OPERATOR = cider::tld::mktld("std", "Ref");
 
 std::string CHAR_TYPE = "Char";
 std::string INT_TYPE = "Int";
@@ -19,12 +19,12 @@ std::string INT8_TYPE = "Int8";
 std::string UINT8_TYPE = "UInt8";
 std::string FLOAT_TYPE = "Float";
 
-std::string BOOL_TYPE = zion::tld::mktld("std", "Bool");
-std::string MAYBE_TYPE = zion::tld::mktld("maybe", "Maybe");
-std::string VECTOR_TYPE = zion::tld::mktld("vector", "Vector");
-std::string MAP_TYPE = zion::tld::mktld("map", "Map");
-std::string SET_TYPE = zion::tld::mktld("set", "Set");
-std::string STRING_TYPE = zion::tld::mktld("string", "String");
+std::string BOOL_TYPE = cider::tld::mktld("std", "Bool");
+std::string MAYBE_TYPE = cider::tld::mktld("maybe", "Maybe");
+std::string VECTOR_TYPE = cider::tld::mktld("vector", "Vector");
+std::string MAP_TYPE = cider::tld::mktld("map", "Map");
+std::string SET_TYPE = cider::tld::mktld("set", "Set");
+std::string STRING_TYPE = cider::tld::mktld("string", "String");
 
 const types::Scheme::Map &get_builtins() {
   static std::unique_ptr<types::Scheme::Map> map;

@@ -6,7 +6,7 @@ fn readline(prompt String) Maybe String {
   if raw_line == null {
     return Nothing
   } else {
-    let line = ffi zion_dup_free(raw_line)
+    let line = ffi cider_dup_free(raw_line)
     return Just(String(line, strlen(line)))
   }
 }

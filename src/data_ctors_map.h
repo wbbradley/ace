@@ -3,7 +3,7 @@
 #include "identifier.h"
 #include "types.h"
 
-namespace zion {
+namespace cider {
 
 typedef std::map<std::string, types::Map> ParsedDataCtorsMap;
 typedef std::unordered_map<std::string, int> ParsedCtorIdMap;
@@ -25,6 +25,6 @@ int get_ctor_id(Location location,
 types::Ref get_fresh_data_ctor_type(const DataCtorsMap &data_ctors_map,
                                     Identifier ctor_id);
 
-} // namespace zion
+} // namespace cider
 
-std::string str(const zion::DataCtorsMap &data_ctors_map);
+std::string str(const cider::DataCtorsMap &data_ctors_map);

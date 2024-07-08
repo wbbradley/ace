@@ -9,9 +9,9 @@
 #include "logger_decls.h"
 #include "user_error.h"
 #include "utils.h"
-#include "zion.h"
+#include "cider.h"
 
-namespace zion {
+namespace cider {
 
 Lexer::Lexer(std::string filename, std::istream &sock_is)
     : m_filename(filename), m_is(sock_is) {
@@ -640,7 +640,7 @@ bool Lexer::_get_tokens() {
     }
 
     if (scan_ahead && gts != gts_error) {
-#ifdef ZION_DEBUG
+#ifdef CIDER_DEBUG
       char ch_old = ch;
 #endif
       m_is.get(ch);
@@ -717,4 +717,4 @@ void Lexer::pop_nested(TokenKind tk) {
 Lexer::~Lexer() {
 }
 
-} // namespace zion
+} // namespace cider

@@ -2,7 +2,7 @@
 #include <ostream>
 #include <vector>
 
-namespace zion {
+namespace cider {
 namespace ast {
 struct Expr;
 struct Var;
@@ -25,7 +25,7 @@ struct Decl;
 struct Module;
 struct Program;
 } // namespace ast
-} // namespace zion
+} // namespace cider
 
-std::ostream &operator<<(std::ostream &os, zion::ast::Program *program);
-std::ostream &operator<<(std::ostream &os, zion::ast::Decl *decl);
+std::ostream &operator<<(std::ostream &os, cider::ast::Program *program);
+std::ostream &operator<<(std::ostream &os, cider::ast::Decl *decl);

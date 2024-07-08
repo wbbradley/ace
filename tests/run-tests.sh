@@ -11,5 +11,5 @@ cd "$src_dir" || {
 }
 
 echo "Running tests in $(pwd)..."
-zion help
-zion test
+cider help
+cider test

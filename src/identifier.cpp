@@ -5,11 +5,11 @@
 #include "dbg.h"
 #include "tld.h"
 #include "user_error.h"
-#include "zion.h"
+#include "cider.h"
 
 Identifier::Identifier(const std::string &name, Location location)
     : name(name), location(location) {
-#ifdef ZION_DEBUG
+#ifdef CIDER_DEBUG
   assert(name.size() != 0);
   for (auto ch : name) {
     assert(!iscntrl(ch));
@@ -37,16 +37,16 @@ std::set<std::string> to_atom_set(const Identifiers &refs) {
   return set;
 }
 
-zion::Token Identifier::get_token() const {
-  return zion::Token{location, zion::tk_identifier, name};
+cider::Token Identifier::get_token() const {
+  return cider::Token{location, cider::tk_identifier, name};
 }
 
 std::string Identifier::str() const {
-  return string_format(c_id("%s"), zion::tld::strip_prefix(name).c_str());
+  return string_format(c_id("%s"), cider::tld::strip_prefix(name).c_str());
 }
 
-Identifier Identifier::from_token(zion::Token token) {
-  assert(token.tk == zion::tk_identifier || token.tk == zion::tk_operator);
+Identifier Identifier::from_token(cider::Token token) {
+  assert(token.tk == cider::tk_identifier || token.tk == cider::tk_operator);
   return Identifier{token.text, token.location};
 }
 

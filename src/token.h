@@ -5,7 +5,7 @@
 #include "location.h"
 #include "stackstring.h"
 
-namespace zion {
+namespace cider {
 
 enum TokenKind {
   tk_none, /* NULL TOKEN */
@@ -134,4 +134,4 @@ const char *tkstr(TokenKind tk);
 int64_t parse_int_value(Token token);
 double parse_float_value(Token token);
 bool is_assignment_operator(const Token &tk);
-} // namespace zion
+} // namespace cider

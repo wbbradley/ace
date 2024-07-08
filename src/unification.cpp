@@ -10,7 +10,7 @@
 #include "types.h"
 #include "user_error.h"
 #include "utils.h"
-#include "zion.h"
+#include "cider.h"
 
 namespace types {
 
@@ -121,7 +121,7 @@ bool type_equality(types::Ref a, types::Ref b) {
       return true;
     }
   } else {
-    auto error = zion::user_error(
+    auto error = cider::user_error(
         a->get_location(),
         "type_equality is not implemented between these two types");
     error.add_info(b->get_location(), "%s and %s", a->str().c_str(),
@@ -262,7 +262,7 @@ Unification unify_many(const types::Refs &as, const types::Refs &bs) {
                                      str(as).c_str(), str(bs).c_str()),
                        {}};
     /*
-    throw zion::user_error(
+    throw cider::user_error(
         as.size() != 0
             ? as[0]->get_location()
             : (bs.size() != 0 ? bs[0]->get_location() : INTERNAL_LOC()),

@@ -5,7 +5,7 @@
 #include "tld.h"
 #include "user_error.h"
 
-namespace zion {
+namespace cider {
 namespace graph {
 void dfs(FILE *fp,
          std::string node,
@@ -45,7 +45,7 @@ void emit_graphviz_dot(const tarjan::Graph &graph,
                        std::string filename) {
   FILE *fp = fopen(filename.c_str(), "wt");
   if (fp == nullptr) {
-    throw zion::user_error(INTERNAL_LOC(),
+    throw cider::user_error(INTERNAL_LOC(),
                            "unable to open %s for writing DOT_DEPS",
                            filename.c_str());
   }
@@ -76,4 +76,4 @@ void emit_graphviz_dot(const tarjan::Graph &graph,
 }
 
 } // namespace graph
-} // namespace zion
+} // namespace cider

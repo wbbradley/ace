@@ -3,5 +3,5 @@
 newtype A = A(Int)
 fn main() {
   let A(x) = A(3)
-  ffi zion_print_int64(x)!
+  ffi cider_print_int64(x)!
 }

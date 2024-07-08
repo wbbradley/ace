@@ -8,7 +8,7 @@
 #include "types.h"
 #include "user_error.h"
 
-namespace zion {
+namespace cider {
 
 namespace gen {
 
@@ -52,4 +52,4 @@ void Publishable::publish(llvm::Value *llvm_value_) const {
 
 } // namespace gen
 
-} // namespace zion
+} // namespace cider

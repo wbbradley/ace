@@ -4,9 +4,9 @@
 #include "parens.h"
 #include "ptr.h"
 #include "tld.h"
-#include "zion.h"
+#include "cider.h"
 
-std::ostream &operator<<(std::ostream &os, zion::ast::Program *program) {
+std::ostream &operator<<(std::ostream &os, cider::ast::Program *program) {
   os << "program";
   const char *delim = "\n";
   for (auto decl : program->decls) {
@@ -15,16 +15,16 @@ std::ostream &operator<<(std::ostream &os, zion::ast::Program *program) {
   return os << std::endl;
 }
 
-std::ostream &operator<<(std::ostream &os, zion::ast::Decl *decl) {
+std::ostream &operator<<(std::ostream &os, cider::ast::Decl *decl) {
   os << decl->id.name << " = ";
   return decl->value->render(os, 0);
 }
 
-std::ostream &operator<<(std::ostream &os, zion::ast::Expr *expr) {
+std::ostream &operator<<(std::ostream &os, cider::ast::Expr *expr) {
   return expr->render(os, 0);
 }
 
-namespace zion {
+namespace cider {
 namespace ast {
 
 std::string Expr::str() const {
@@ -413,7 +413,7 @@ const Predicate *IrrefutablePredicate::rewrite(
 
 types::Ref TypeDecl::get_type() const {
   std::vector<types::Ref> types;
-#ifdef ZION_DEBUG
+#ifdef CIDER_DEBUG
   std::vector<std::string> pieces = tld::split_fqn(id.name);
   assert(isupper(pieces.back()[0]));
 #endif
@@ -585,4 +585,4 @@ tarjan::Vertices get_free_vars(
   }
 }
 
-} // namespace zion
+} // namespace cider

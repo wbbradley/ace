@@ -4,7 +4,7 @@
 #include "tld.h"
 #include "user_error.h"
 
-namespace zion {
+namespace cider {
 
 RewriteImportRules solve_rewriting_imports(
     const parser::SymbolImports &symbol_imports,
@@ -12,7 +12,7 @@ RewriteImportRules solve_rewriting_imports(
   std::map<Identifier, Identifier> graph;
   std::set<std::string> legal_exports;
 
-#ifdef ZION_DEBUG
+#ifdef CIDER_DEBUG
   for (auto &module_pair : symbol_imports) {
     for (auto &pair_ids : module_pair.second) {
       debug_above(3, log("import: " c_module("%s") " imports from " c_module(
@@ -24,10 +24,10 @@ RewriteImportRules solve_rewriting_imports(
 #endif
 
   if (getenv("DOT_DEPS") != nullptr) {
-    std::string filename = "zion.dot";
+    std::string filename = "cider.dot";
     FILE *fp = fopen(filename.c_str(), "wt");
     if (fp == nullptr) {
-      throw zion::user_error(INTERNAL_LOC(),
+      throw cider::user_error(INTERNAL_LOC(),
                              "unable to open %s for writing DOT_DEPS",
                              filename.c_str());
     }
@@ -194,7 +194,7 @@ const types::Refs rewrite_types(const RewriteImportRules &rewrite_import_rules,
 
 namespace {
 
-using namespace ::zion::ast;
+using namespace ::cider::ast;
 
 std::vector<const Expr *> rewrite_exprs(
     const RewriteImportRules &rewrite_import_rules,
@@ -474,4 +474,4 @@ std::vector<const Module *> rewrite_modules(
   return new_modules;
 }
 
-} // namespace zion
+} // namespace cider

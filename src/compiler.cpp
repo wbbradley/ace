@@ -17,60 +17,60 @@
 #include "prefix.h"
 #include "tld.h"
 #include "utils.h"
-#include "zion.h"
+#include "cider.h"
 
-namespace zion {
+namespace cider {
 
 using namespace ast;
 
-std::string strip_zion_extension(std::string module_name) {
-  if (ends_with(module_name, ".zion")) {
+std::string strip_cider_extension(std::string module_name) {
+  if (ends_with(module_name, ".cider")) {
     /* as a courtesy, strip the extension from the filename here */
-    return module_name.substr(0, module_name.size() - strlen(".zion"));
+    return module_name.substr(0, module_name.size() - strlen(".cider"));
   } else {
     return module_name;
   }
 }
 
-const std::vector<std::string> &get_zion_paths() {
+const std::vector<std::string> &get_cider_paths() {
   static bool checked = false;
-  static std::vector<std::string> zion_paths;
+  static std::vector<std::string> cider_paths;
 
   if (!checked) {
     checked = true;
-    if (getenv("ZION_PATH") != nullptr) {
-      for (auto &path : split(getenv("ZION_PATH"), ":")) {
+    if (getenv("CIDER_PATH") != nullptr) {
+      for (auto &path : split(getenv("CIDER_PATH"), ":")) {
         if (path != "") {
-          /* just be careful that user didn't put in an empty ZION_PATH */
-          zion_paths.push_back(path);
+          /* just be careful that user didn't put in an empty CIDER_PATH */
+          cider_paths.push_back(path);
         }
       }
     } else {
       log(log_error,
-          "ZION_PATH is not set. It should be set to the dirname of std.zion. "
-          "That is typically /usr/local/share/zion/lib.");
+          "CIDER_PATH is not set. It should be set to the dirname of std.cider. "
+          "That is typically /usr/local/share/cider/lib.");
       exit(1);
     }
 
-    zion_paths.insert(zion_paths.begin(), ".");
-    for (auto &zion_path : zion_paths) {
+    cider_paths.insert(cider_paths.begin(), ".");
+    for (auto &cider_path : cider_paths) {
       /* fix any paths to be absolute */
-      real_path(zion_path, zion_path);
+      real_path(cider_path, cider_path);
     }
   }
-  return zion_paths;
+  return cider_paths;
 }
 
 namespace compiler {
 
 void resolve_module_filename_in_path(Location location,
-                                     std::string zion_path,
+                                     std::string cider_path,
                                      std::string leaf_name,
                                      std::string name,
                                      std::string &working_resolution) {
   debug_above(2, log("attempting to resolve filename %s in %s",
-                     leaf_name.c_str(), zion_path.c_str()));
-  auto test_path = zion_path + "/" + leaf_name;
+                     leaf_name.c_str(), cider_path.c_str()));
+  auto test_path = cider_path + "/" + leaf_name;
   if (file_exists(test_path)) {
     std::string test_resolution;
     if (real_path(test_path, test_resolution)) {
@@ -136,8 +136,8 @@ std::string resolve_module_filename(Location location,
                                     working_resolution);
   }
 
-  for (auto zion_path : get_zion_paths()) {
-    resolve_module_filename_in_path(location, zion_path, leaf_name, name,
+  for (auto cider_path : get_cider_paths()) {
+    resolve_module_filename_in_path(location, cider_path, leaf_name, name,
                                     working_resolution);
   }
 
@@ -148,8 +148,8 @@ std::string resolve_module_filename(Location location,
   } else {
     throw user_error(
         location,
-        "module not found: " c_error("`%s`") ". Looked in ZION_PATH=[%s]",
-        name.c_str(), join(get_zion_paths(), ":").c_str());
+        "module not found: " c_error("`%s`") ". Looked in CIDER_PATH=[%s]",
+        name.c_str(), join(get_cider_paths(), ":").c_str());
     return "";
   }
 }
@@ -175,7 +175,7 @@ struct GlobalParserState {
       return module;
     }
     std::string module_filename = compiler::resolve_module_filename(
-        module_id.location, module_id.name, ".zion", reference_path);
+        module_id.location, module_id.name, ".cider", reference_path);
     if (auto module = get(modules_map_by_filename, module_filename,
                           static_cast<const Module *>(nullptr))) {
       return module;
@@ -341,7 +341,7 @@ std::shared_ptr<Compilation> merge_compilation(
 Compilation::ref parse_program(
     std::string user_program_name,
     const std::map<std::string, int> &builtin_arities) {
-  std::string program_name = strip_zion_extension(
+  std::string program_name = strip_cider_extension(
       leaf_from_file_path(user_program_name));
   try {
     /* first just parse all the modules that are reachable from the initial
@@ -377,7 +377,7 @@ Compilation::ref parse_program(
         gps.symbol_imports, gps.symbol_exports);
 
     std::string program_filename = compiler::resolve_module_filename(
-        INTERNAL_LOC(), user_program_name, ".zion", maybe<std::string>());
+        INTERNAL_LOC(), user_program_name, ".cider", maybe<std::string>());
     return merge_compilation(
         program_filename, program_name,
         rewrite_modules(rewriting_imports_rules, gps.modules), gps.comments,
@@ -390,4 +390,4 @@ Compilation::ref parse_program(
 }
 
 } // namespace compiler
-} // namespace zion
+} // namespace cider

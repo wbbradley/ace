@@ -6,7 +6,7 @@
 #include "lexer.h"
 #include "parse_state.h"
 
-namespace zion {
+namespace cider {
 namespace parser {
 
 std::map<std::string, int> get_builtin_arities();
@@ -122,4 +122,4 @@ const ast::Predicate *unfold_application_into_predicate(
 const ast::Predicate *convert_expr_to_predicate(const ast::Expr *expr);
 
 } // namespace parser
-} // namespace zion
+} // namespace cider

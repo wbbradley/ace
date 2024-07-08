@@ -10,8 +10,8 @@ newtype LineReader stream = LineReader(BufferedFileIO stream)
 let args = get_args()
 
 fn get_args() [String] {
-  let argc = ffi zion_sys_argc() as Int
-  let argv = ffi zion_sys_argv() as *(*Char)
+  let argc = ffi cider_sys_argc() as Int
+  let argv = ffi cider_sys_argv() as *(*Char)
   let args = []
   reserve(args, argc)
   var i = 0
@@ -109,7 +109,7 @@ instance Str Errno {
   fn str(errno) {
     let Errno(errno) = errno
     let buffer = alloc(1024) as *Char
-    let res = ffi zion_strerror(errno, buffer, 1024) as *Char
+    let res = ffi cider_strerror(errno, buffer, 1024) as *Char
     return String(res, strlen(res))
   }
 }
@@ -189,7 +189,7 @@ class FileOpen params error {
 }
 
 fn get_errno() {
-  return Errno(ffi zion_errno())
+  return Errno(ffi cider_errno())
 }
 
 newtype File = File(String, OpenFlags, CreateMode)
@@ -197,10 +197,10 @@ newtype File = File(String, OpenFlags, CreateMode)
 instance FileOpen File Errno {
   fn open(params) {
     let File(String(sz_filename, _), OpenFlags(flags), CreateMode(mode)) = params
-    return match ffi zion_open(sz_filename, flags, mode) {
+    return match ffi cider_open(sz_filename, flags, mode) {
       -1 => ResourceFailure(get_errno())
       fd => ResourceAcquired(WithResource(FileDescriptor(fd), || {
-        (ffi zion_close(fd) as Int)!
+        (ffi cider_close(fd) as Int)!
       }))
     }
   }
@@ -219,17 +219,17 @@ instance FileOpen String Errno {
 
 fn unlink(filename String) Int {
   let String(filename, _) = filename
-  return ffi zion_unlink(filename)
+  return ffi cider_unlink(filename)
 }
 
 fn close(fd Int) Int {
-  return ffi zion_close(fd)
+  return ffi cider_close(fd)
 }
 
 fn creat(filename, mode CreateMode) Int {
   let String(filename, _) = filename
   let CreateMode(mode) = mode
-  return ffi zion_creat(filename, mode)
+  return ffi cider_creat(filename, mode)
 }
 
 class Readable a {
@@ -241,9 +241,9 @@ instance Readable FileDescriptor {
     let FileDescriptor(fd) = fd
     var bytes_read = 0
     while True {
-      let new_bytes_read = ffi zion_read(fd as! Int, __builtin_ptr_add(buffer, bytes_read), nbyte - bytes_read)
+      let new_bytes_read = ffi cider_read(fd as! Int, __builtin_ptr_add(buffer, bytes_read), nbyte - bytes_read)
       if new_bytes_read <= -1 {
-        return Left(ffi zion_errno())
+        return Left(ffi cider_errno())
       } else if new_bytes_read == 0 {
         return Right(bytes_read)
       } else {
@@ -279,8 +279,8 @@ class WriteBuffer file {
 instance WriteBuffer FileDescriptor {
   fn write_buffer(fd, pb, cb) {
     let FileDescriptor(fd) = fd
-    return match ffi zion_write(fd, pb, cb) {
-      -1 => Left(Errno(ffi zion_errno()))
+    return match ffi cider_write(fd, pb, cb) {
+      -1 => Left(Errno(ffi cider_errno()))
       cb => Right(cb)
     }
   }
@@ -321,8 +321,8 @@ instance FileSize FileDescriptor {
 
 fn seek(fd FileDescriptor, offset Int, whence SeekWhence) Either Errno Int {
   let FileDescriptor(fd) = fd
-  return match ffi zion_seek(fd, offset, whence) {
-    -1     => Left(Errno(ffi zion_errno()))
+  return match ffi cider_seek(fd, offset, whence) {
+    -1     => Left(Errno(ffi cider_errno()))
     offset => Right(offset)
   }
 }

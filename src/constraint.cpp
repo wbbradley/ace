@@ -2,7 +2,7 @@
 
 #include <cstdlib>
 
-const bool dbg_show_constraints = std::getenv("ZION_SHOW_CONSTRAINTS") !=
+const bool dbg_show_constraints = std::getenv("CIDER_SHOW_CONSTRAINTS") !=
                                   nullptr;
 
 namespace types {

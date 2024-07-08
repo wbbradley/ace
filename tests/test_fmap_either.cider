@@ -24,7 +24,7 @@ instance Functor (Either a) {
 fn main() {
   let e = Right(3.0) as Either Char Float
   match fmap(const42, e) {
-    Right(i) => ffi zion_print_int64(i)
+    Right(i) => ffi cider_print_int64(i)
     Left(_) => ()
   }
   ffi puts("PASS")

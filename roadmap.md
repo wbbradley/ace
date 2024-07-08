@@ -1,6 +1,6 @@
-# Zion Roadmap
+# Cider Roadmap
 
-## Language/Compiler (zion)
+## Language/Compiler (cider)
 
 - [x] (v0.3) global variable initialization
 - [ ] do notation
@@ -14,14 +14,14 @@
     - [ ] deriving Ord
 - [ ] error on unused imports
 - [ ] allow nested modules (ie: net/http)
-- [ ] design/implement some form of [functional dependencies](https://github.com/zionlang/reference-docs/blob/master/docs/2000-jones-functional-dependencies.pdf) for mptc sanity
+- [ ] design/implement some form of [functional dependencies](https://github.com/ciderlang/reference-docs/blob/master/docs/2000-jones-functional-dependencies.pdf) for mptc sanity
 - [ ] unused variable check (variables that only appear on lhs)
 - [ ] higher-kinded type functions to allow for pulling types from other types for the purpose of mapping between types (for example to_with :: Either a b -> WithElseResource resource error)
 
 ## Standard Library (lib/std)
 
 - [ ] gain consistency around error handling in lib/sys, etc. (Choose between Either Errno () and WithElseResource where it makes sense)
-- [ ] option parsing - update lib/argparse.zion
+- [ ] option parsing - update lib/argparse.cider
 - [ ] net/http client
 - [ ] net/http server
 - [ ] HTML parser
@@ -30,7 +30,7 @@
 - [ ] language reference documentation
 - [ ] example code documentation
 - [ ] tutorial documentation
-- [ ] finalize name (Zion is a codename)
+- [ ] finalize name (Cider is a codename)
 - [ ] homebrew bottling releases
 - [ ] a debian package
 - [ ] a package management system (v0.8)
@@ -38,7 +38,7 @@
 - [ ] onboarding page - tutorial, etc...
 
 ## Tooling
-- [ ] zion-format tool
+- [ ] cider-format tool
 - [ ] `compile` should build binary, rename existing `compile` phase to `check`
 
 ### Performance

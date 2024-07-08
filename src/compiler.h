@@ -6,9 +6,9 @@
 #include "data_ctors_map.h"
 #include "location.h"
 #include "parse_state.h"
-#include "zion.h"
+#include "cider.h"
 
-namespace zion {
+namespace cider {
 struct Compilation {
   using ref = std::shared_ptr<Compilation>;
   Compilation(std::string program_filename,
@@ -54,6 +54,6 @@ std::set<std::string> get_top_level_decls(
     const std::vector<Identifier> &imports);
 }; // namespace compiler
 
-std::string strip_zion_extension(std::string module_name);
-const std::vector<std::string> &get_zion_paths();
-} // namespace zion
+std::string strip_cider_extension(std::string module_name);
+const std::vector<std::string> &get_cider_paths();
+} // namespace cider

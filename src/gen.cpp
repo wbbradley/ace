@@ -14,7 +14,7 @@
     assert(false);                                                             \
   } while (0)
 
-namespace zion {
+namespace cider {
 
 namespace gen {
 
@@ -129,7 +129,7 @@ struct FreeVars {
   }
 };
 
-#ifdef ZION_DEBUG
+#ifdef CIDER_DEBUG
 static types::Ref get_nth_type_in_lambda_type(types::Ref arrow_type, int n) {
   return unfold_arrows(arrow_type)[n];
 }
@@ -150,7 +150,7 @@ void get_free_vars(const ast::Expr *expr,
   } else if (auto lambda = dcast<const ast::Lambda *>(expr)) {
     debug_above(5, log("checking lambda %s", lambda->str().c_str()));
 
-#ifdef ZION_DEBUG
+#ifdef CIDER_DEBUG
     auto lambda_type = typing.at(lambda);
     std::vector<bool> already_has_lambda_vars;
     int i = 0;
@@ -168,7 +168,7 @@ void get_free_vars(const ast::Expr *expr,
     }
     get_free_vars(lambda->body, typing, new_globals, {}, free_vars);
 
-#ifdef ZION_DEBUG
+#ifdef CIDER_DEBUG
     /* we should never be adding a bound variable name to the closure if it is
      * being overwritten at a lower scope prior to capture */
     i = 0;
@@ -300,7 +300,7 @@ llvm::Value *get_env_var(llvm::IRBuilder<> &builder,
     throw error;
   }
 
-#ifdef ZION_DEBUG
+#ifdef CIDER_DEBUG
   debug_above(5, log("get_env_var(%s, %s) -> %s", id.str().c_str(),
                      type->str().c_str(), llvm_print(llvm_value).c_str()));
   if (auto arg = llvm::dyn_cast<llvm::Argument>(llvm_value)) {
@@ -609,7 +609,7 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
     auto llvm_func_decl = llvm::cast<llvm::Function>(
         llvm_module
             ->getOrInsertFunction(
-                "zion_pass_test",
+                "cider_pass_test",
                 llvm::FunctionType::get(builder.getInt8Ty()->getPointerTo(),
                                         llvm::ArrayRef<llvm::Type *>(),
                                         false /*isVarArg*/))
@@ -626,7 +626,7 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
     auto llvm_print_int_func_decl = llvm::cast<llvm::Function>(
         llvm_module
             ->getOrInsertFunction(
-                "zion_print_int64",
+                "cider_print_int64",
                 llvm::FunctionType::get(
                     builder.getInt8Ty()->getPointerTo(),
                     llvm::ArrayRef<llvm::Type *>(print_int_terms),
@@ -643,7 +643,7 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
     auto func_decl = llvm::cast<llvm::Function>(
         llvm_module
             ->getOrInsertFunction(
-                "zion_ftoa",
+                "cider_ftoa",
                 llvm::FunctionType::get(builder.getInt8Ty()->getPointerTo(),
                                         llvm::ArrayRef<llvm::Type *>(terms),
                                         false /*isVarArg*/))
@@ -658,7 +658,7 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
 
     auto ffi_function = llvm::cast<llvm::Function>(
         llvm_module
-            ->getOrInsertFunction("zion_malloc",
+            ->getOrInsertFunction("cider_malloc",
                                   llvm::FunctionType::get(
                                       builder.getInt8Ty()->getPointerTo(),
                                       llvm::ArrayRef<llvm::Type *>(param_types),
@@ -749,7 +749,7 @@ llvm::Value *gen_builtin(llvm::IRBuilder<> &builder,
     // libc dependency
     auto llvm_write_func_decl = llvm::cast<llvm::Function>(
         llvm_module
-            ->getOrInsertFunction("zion_puts",
+            ->getOrInsertFunction("cider_puts",
                                   llvm::FunctionType::get(
                                       builder.getInt64Ty(),
                                       llvm::ArrayRef<llvm::Type *>(write_terms),
@@ -848,7 +848,7 @@ void gen_lambda(std::string name,
   llvm::StructType *llvm_closure_type = llvm::StructType::get(
       llvm_function->getType(), builder.getInt8Ty()->getPointerTo());
 
-#ifdef ZION_DEBUG
+#ifdef CIDER_DEBUG
   auto _llvm_closure_type = get_llvm_closure_type(builder, type_env,
                                                   type_terms);
   debug_above(
@@ -978,7 +978,7 @@ ResolutionStatus gen_literal(std::string name,
     return rs_resolve_again;
   } else if (type_equality(type, type_id(make_iid(INT_TYPE)))) {
     int64_t value = parse_int_value(token);
-    auto llvm_value = builder.getZionInt(value);
+    auto llvm_value = builder.getCiderInt(value);
     if (publisher != nullptr) {
       publisher->publish(llvm_value);
     }
@@ -1195,7 +1195,7 @@ ResolutionStatus gen(std::string name,
                 string_format("phi%s{%s}", tag.c_str(),
                               condition->get_location().repr().c_str()),
                 merge_block);
-#ifdef ZION_DEBUG
+#ifdef CIDER_DEBUG
             phi_node->setName(string_format("phi::%s", type->repr().c_str()));
 #endif
             phi_node->addIncoming(truthy_value, builder.GetInsertBlock());
@@ -1222,7 +1222,7 @@ ResolutionStatus gen(std::string name,
                   string_format("phi%s{%s}", tag.c_str(),
                                 condition->get_location().repr().c_str()),
                   merge_block);
-#ifdef ZION_DEBUG
+#ifdef CIDER_DEBUG
               phi_node->setName(string_format("phi::%s", type->repr().c_str()));
 #endif
             }
@@ -1314,7 +1314,7 @@ ResolutionStatus gen(std::string name,
         llvm_value = llvm::Constant::getNullValue(
             builder.getInt8Ty()->getPointerTo());
       }
-#ifdef ZION_DEBUG
+#ifdef CIDER_DEBUG
       if (auto llvm_inst = llvm::dyn_cast<llvm::Instruction>(llvm_value)) {
         if (llvm_inst->getParent()->getParent() != llvm_get_function(builder)) {
           /* there seems to be an attempt to load an instruction value from
@@ -1438,4 +1438,4 @@ ResolutionStatus gen(std::string name,
 
 } // namespace gen
 
-} // namespace zion
+} // namespace cider

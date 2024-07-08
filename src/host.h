@@ -4,9 +4,9 @@
 
 #include "location.h"
 
-namespace zion {
+namespace cider {
 
 void init_host();
 int get_host_int(Location location, std::string name);
 
-} // namespace zion
+} // namespace cider

@@ -5,7 +5,7 @@
 #include "llvm_utils.h"
 #include "resolver.h"
 
-namespace zion {
+namespace cider {
 
 namespace gen {
 
@@ -49,4 +49,4 @@ private:
 
 } // namespace gen
 
-} // namespace zion
+} // namespace cider

@@ -1,4 +1,4 @@
-# Implements the default Map type in Zion
+# Implements the default Map type in Cider
 
 import mutable_list {MutableList, MutableCons, MutableNil, remove_if}
 import copy {Copy, copy}

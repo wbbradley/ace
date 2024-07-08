@@ -33,7 +33,7 @@
 #include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/Transforms/Utils/ValueMapper.h>
 
-#define getZionIntTy getInt64Ty
-#define getZionInt getInt64
+#define getCiderIntTy getInt64Ty
+#define getCiderInt getInt64
 
-#include "zion_assert.h"
+#include "cider_assert.h"

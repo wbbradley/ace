@@ -17,7 +17,7 @@
 #include "user_error.h"
 #include "utils.h"
 
-namespace zion {
+namespace cider {
 namespace testing {
 
 struct TestFlag {
@@ -174,7 +174,7 @@ enum RunTestResult {
 
 RunTestResult run_test(std::string test_name) {
   std::stringstream ss;
-  ss << "DEBUG= zion run " << test_name;
+  ss << "DEBUG= cider run " << test_name;
   std::string command_line = ss.str();
 
   std::vector<std::string> lines = readlines(test_name);
@@ -314,14 +314,14 @@ int run_unit_tests() {
     test_assert(false);
   }
 
-  test_assert(zion::tld::split_fqn("::copy::Copy").size() == 2);
-  test_assert(zion::tld::is_tld_type("::Copy"));
-  test_assert(zion::tld::is_tld_type("::Z"));
-  test_assert(!zion::tld::is_tld_type("::copy::copy"));
-  test_assert(!zion::tld::is_tld_type("copy::copy"));
-  test_assert(!zion::tld::is_tld_type("copy"));
-  test_assert(zion::tld::is_tld_type("::copy::Copy"));
-  test_assert(!zion::tld::is_tld_type("::copy::copy"));
+  test_assert(cider::tld::split_fqn("::copy::Copy").size() == 2);
+  test_assert(cider::tld::is_tld_type("::Copy"));
+  test_assert(cider::tld::is_tld_type("::Z"));
+  test_assert(!cider::tld::is_tld_type("::copy::copy"));
+  test_assert(!cider::tld::is_tld_type("copy::copy"));
+  test_assert(!cider::tld::is_tld_type("copy"));
+  test_assert(cider::tld::is_tld_type("::copy::Copy"));
+  test_assert(!cider::tld::is_tld_type("::copy::copy"));
   test_assert(tld::split_fqn("::inc").size() == 1);
   auto pair = shell_get_output("seq 10000");
   if (pair.first) {
@@ -331,11 +331,11 @@ int run_unit_tests() {
   test_assert(!pair.first);
   test_assert(pair.second.find("10000") != std::string::npos);
   std::string output =
-      "tests/test_assert_fail.zion:5:17: assertion failed: (std::False)\n";
+      "tests/test_assert_fail.cider:5:17: assertion failed: (std::False)\n";
 
   test_assert(regex_exists(output, "assertion failed.*False"));
   return EXIT_SUCCESS;
 }
 
 } // namespace testing
-} // namespace zion
+} // namespace cider

@@ -11,9 +11,9 @@
 #include "parser.h"
 #include "tld.h"
 #include "types.h"
-#include "zion.h"
+#include "cider.h"
 
-namespace zion {
+namespace cider {
 
 namespace parser {
 
@@ -61,7 +61,7 @@ ParseState::ParseState(std::string filename,
     : filename(filename),
       module_name(module_name.size() != 0
                       ? module_name
-                      : strip_zion_extension(leaf_from_file_path(filename))),
+                      : strip_cider_extension(leaf_from_file_path(filename))),
       builtin_arities(builtin_arities), lexer(lexer), comments(comments),
       link_ins(link_ins), symbol_exports(symbol_exports),
       symbol_imports(symbol_imports) {
@@ -175,4 +175,4 @@ void ParseState::add_term_map(Location location,
 }
 
 } // namespace parser
-} // namespace zion
+} // namespace cider

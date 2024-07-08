@@ -5,9 +5,9 @@
 
 #include "dbg.h"
 #include "user_error.h"
-#include "zion_assert.h"
+#include "cider_assert.h"
 
-namespace zion {
+namespace cider {
 
 bool is_restricted_var_name(std::string x) {
   static const std::string keywords[] = {
@@ -151,10 +151,10 @@ int64_t parse_int_value(Token token) {
     return value;
   }
   default:
-    throw zion::user_error(token.location,
+    throw cider::user_error(token.location,
                            "unable to read an integer value from %s",
                            token.str().c_str());
   }
 }
 
-} // namespace zion
+} // namespace cider

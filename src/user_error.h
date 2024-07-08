@@ -3,9 +3,9 @@
 
 #include "location.h"
 #include "logger_decls.h"
-#include "zion.h"
+#include "cider.h"
 
-namespace zion {
+namespace cider {
 
 struct user_error : std::exception {
   user_error(LogLevel log_level, Location location);
@@ -38,4 +38,4 @@ struct user_error : std::exception {
 
 void print_exception(const user_error &e, int level = 0);
 
-} // namespace zion
+} // namespace cider

@@ -10,7 +10,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "zion_assert.h"
+#include "cider_assert.h"
 
 struct shared_comparator {
   template <typename T>

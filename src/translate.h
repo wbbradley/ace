@@ -8,7 +8,7 @@
 #include "tracked_types.h"
 #include "types.h"
 
-namespace zion {
+namespace cider {
 
 struct Translation {
   typedef std::shared_ptr<Translation> ref;
@@ -43,4 +43,4 @@ const ast::Expr *texpr(const types::DefnId &for_defn_id,
                        // TODO: pass in overloads in order to perform resolution
                        bool &returns);
 
-} // namespace zion
+} // namespace cider

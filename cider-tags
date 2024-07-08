@@ -12,7 +12,7 @@ if [ $# -eq 0 ]; then
   targets=(
     .
     "$(maybe-dir "$(llvm-config --cppflags | xargs -n 1 echo | grep '^-I' | cut -c3-)")"
-    "${ZION_ROOT:-/usr/local/share/zion}"
+    "${CIDER_ROOT:-/usr/local/share/cider}"
   )
 else
   targets=(
@@ -29,7 +29,7 @@ trap 'rm -f "$ztags"' EXIT
 # shellcheck disable=SC2068
 ctags -f "$tags_file" -R ${targets[@]} || exit 1
 
-gather-zion-tags() {
+gather-cider-tags() {
   keyword=$1
   code=$2
   allow_indent=$3
@@ -42,7 +42,7 @@ gather-zion-tags() {
   # shellcheck disable=SC2068
   for target in ${targets[@]}; do
     # shellcheck disable=SC2038
-    find -L "$target" -regex '.*\.zion$' \
+    find -L "$target" -regex '.*\.cider$' \
       | xargs grep -ERn "^$indent$keyword$spacePlus.*" \
       | sed \
         -Ene \
@@ -51,12 +51,12 @@ gather-zion-tags() {
   done
 }
 
-gather-zion-tags "let" "v"
-gather-zion-tags "fn" "f" 1
-gather-zion-tags "class" "s"
-gather-zion-tags "instance" "s"
-gather-zion-tags "newtype" "s"
-gather-zion-tags "struct" "s"
+gather-cider-tags "let" "v"
+gather-cider-tags "fn" "f" 1
+gather-cider-tags "class" "s"
+gather-cider-tags "instance" "s"
+gather-cider-tags "newtype" "s"
+gather-cider-tags "struct" "s"
 # TODO: support data-ctors
 
 cat "$tags_file" >> "$ztags"

@@ -47,7 +47,7 @@ instance Ord String {
   fn compare(a, b) {
     let String(a, len_a) = a
     let String(b, len_b) = b
-    let ret = ffi zion_memcmp(a, b, min(len_a, len_b))
+    let ret = ffi cider_memcmp(a, b, min(len_a, len_b))
     if ret == 0 {
       if len_a == len_b {
         return EQ
@@ -67,7 +67,7 @@ instance Ord String {
 instance ConvertibleToInt String {
   fn int(sz) Int {
     let String(a, len_a) = sz
-    return ffi zion_atoi(a, len_a)
+    return ffi cider_atoi(a, len_a)
   }
 }
 
@@ -322,7 +322,7 @@ instance Serializeable String {
 }
 
 fn memmem(big *Char, big_len Int, little *Char, little_len Int) *Char {
-  return ffi zion_memmem(big, big_len, little, little_len)
+  return ffi cider_memmem(big, big_len, little, little_len)
 }
 
 fn split(input String, delim String) [String] {

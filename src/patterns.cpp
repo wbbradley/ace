@@ -9,9 +9,9 @@
 #include "tld.h"
 #include "translate.h"
 #include "unification.h"
-#include "zion.h"
+#include "cider.h"
 
-namespace zion {
+namespace cider {
 
 using namespace ast;
 
@@ -539,4 +539,4 @@ const Expr *IrrefutablePredicate::translate(
                  needed_defns, returns);
 }
 
-} // namespace zion
+} // namespace cider

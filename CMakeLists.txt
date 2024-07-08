@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.4.3)
-project(Zion)
+project(Cider)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -38,7 +38,7 @@ endif()
 option(DEBUG "Build a Debug build" OFF)
 if(DEBUG)
 	message("Compiling in Debug mode...")
-	add_definitions(-DZION_DEBUG)
+	add_definitions(-DCIDER_DEBUG)
 	add_compile_options(-std=c++17 -g -O0 -Wall -Werror ${option_flags})
 else()
 	message("Compiling in Release mode...")
@@ -47,7 +47,7 @@ endif()
 
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lpthread -std=c++17 -Wl,-rpath,${LLVM_INSTALL_PREFIX}/lib")
 
-add_executable(zion
+add_executable(cider
 	src/ast.cpp
 	src/builtins.cpp
 	src/class_predicate.cpp
@@ -98,6 +98,6 @@ add_executable(zion
 
 
 message(STATUS "Using dynamic link options -L${LLVM_LIBRARY_DIR} -lLLVM")
-target_link_libraries(zion -L${LLVM_LIBRARY_DIR} -lLLVM)
+target_link_libraries(cider -L${LLVM_LIBRARY_DIR} -lLLVM)
 
 
