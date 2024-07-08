@@ -3,16 +3,18 @@
 
 ## Overview
 
-Note: Ace was a learning project for me. My goal was to do a deep dive into programming language
-design and construction. Along the way I learned about lambda calculus, type theory including
-System-F with typeclasses, unification, multi-pass compiler construction, hand-writing lexers and
-parsers, code generation with LLVM, and many other topics. Efforts on this project in earnest
-stopped circa 2020.
+The language was born in the mind of a learner. It was good. The learner wanted to know about
+programming languages. He learned deeply. He learned about lambda calculus and type theory. He
+learned about System-F and typeclasses. He learned about unification and compilers. He built lexers
+and parsers with his hands. He generated code with LLVM. He learned many things. The work was hard
+but good. It ended in 2020.
 
-Ace resembles a combination of Haskell and C, with conservative garbage collection, eager
-evaluation, static type-checking, purity and mutation (when you want it), extensible infix
-operators, type-classes to allow ad-hoc polymorphism, `with` control-flow semantics for bracketing
-resource usage, branch-checked pattern-matching, and type inference.
+The language was like Haskell and C together. It had garbage collection. It was eager. It checked
+types. It was pure but could change when needed. It had operators you could extend. It had
+typeclasses. It managed resources well. It matched patterns and checked branches. It knew about
+types without being told.
+
+It was a good language. It was called Ace.
 
 ## Quick Start
 
