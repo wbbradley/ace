@@ -2,7 +2,7 @@
 
 #include "builtins.h"
 
-namespace cider {
+namespace ace {
 namespace tld {
 
 #define SCOPE_SEP "::"
@@ -100,4 +100,4 @@ std::string strip_prefix(std::string fqn) {
 }
 
 } // namespace tld
-} // namespace cider
+} // namespace ace

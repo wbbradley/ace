@@ -8,7 +8,7 @@
 #define debug_lexer(x)
 #endif
 
-namespace cider {
+namespace ace {
 
 struct token_pair {
   TokenKind tk;
@@ -37,4 +37,4 @@ private:
   TokenQueue m_token_queue;
 };
 
-} // namespace cider
+} // namespace ace

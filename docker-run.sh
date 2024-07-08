@@ -6,9 +6,9 @@ set +x
 # Running docker tests by default, add a parameter to execute that command
 # instead of the tests.
 
-IMAGE="ciderlang/cider"
+IMAGE="acelang/ace"
 VERSION="$(cat VERSION)"
-NAME="cider-build"
+NAME="ace-build"
 
 docker kill "${NAME}" 2>/dev/null
 docker rm "${NAME}" 2>/dev/null
@@ -16,7 +16,7 @@ docker rm "${NAME}" 2>/dev/null
 docker run \
 	--rm \
 	--name "${NAME}" \
-	-v "$(pwd)/tests:/opt/cider/tests" \
-	-v "$(pwd)/lib:/opt/cider/lib" \
+	-v "$(pwd)/tests:/opt/ace/tests" \
+	-v "$(pwd)/lib:/opt/ace/lib" \
 	-t "${IMAGE}:${VERSION}" \
-	"${1:-/opt/cider/docker-test.sh}"
+	"${1:-/opt/ace/docker-test.sh}"

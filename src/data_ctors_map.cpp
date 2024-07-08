@@ -9,7 +9,7 @@
 #include "tld.h"
 #include "user_error.h"
 
-namespace cider {
+namespace ace {
 
 types::Ref get_data_ctor_type(const DataCtorsMap &data_ctors_map,
                               types::Ref type,
@@ -141,9 +141,9 @@ types::Ref get_fresh_data_ctor_type(const DataCtorsMap &data_ctors_map,
   throw error;
 }
 
-} // namespace cider
+} // namespace ace
 
-std::string str(const cider::DataCtorsMap &data_ctors_map) {
+std::string str(const ace::DataCtorsMap &data_ctors_map) {
   std::stringstream ss;
   const char *delim = "";
   for (auto pair : data_ctors_map.data_ctors_type_map) {

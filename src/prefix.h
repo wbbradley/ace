@@ -5,7 +5,7 @@
 #include "ast.h"
 #include "identifier.h"
 
-namespace cider {
+namespace ace {
 
 std::string prefix(const std::set<std::string> &bindings,
                    std::string pre,
@@ -123,4 +123,4 @@ std::unordered_map<std::string, T> prefix(
   return new_map;
 }
 
-} // namespace cider
+} // namespace ace

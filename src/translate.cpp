@@ -9,7 +9,7 @@
 #include "unification.h"
 #include "user_error.h"
 
-namespace cider {
+namespace ace {
 
 using namespace ast;
 
@@ -70,7 +70,7 @@ const Expr *texpr(const types::DefnId &for_defn_id,
     /* check for fully concrete type */
     if (type->generalize({})->btvs() != 0) {
       throw user_error(expr->get_location(),
-                       "while (%s) is type-safe, Cider cannot figure out which "
+                       "while (%s) is type-safe, Ace cannot figure out which "
                        "instance within %s to use. please use an 'as' operator "
                        "to add a type hint.",
                        expr->str().c_str(), type->str().c_str());
@@ -372,4 +372,4 @@ Location Translation::get_location() const {
   return expr->get_location();
 }
 
-} // namespace cider
+} // namespace ace

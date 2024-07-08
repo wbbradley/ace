@@ -14,8 +14,8 @@ a.out
 test.c
 test
 env
-cider
-!cider.*
+ace
+!ace.*
 logs
 *.llir
 *.log
@@ -35,7 +35,7 @@ rt_gc
 *.ll
 *.html
 *.pyc
-!**/*.cider
+!**/*.ace
 *.zx
 CMakeCache.txt
 CMakeFiles/

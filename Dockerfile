@@ -13,7 +13,7 @@ RUN echo "nmap ; :" >> /root/.vimrc
 RUN echo "imap jk <Esc>" >> /root/.vimrc
 RUN echo "imap kj <Esc>" >> /root/.vimrc
 
-ADD . /opt/cider
-WORKDIR /opt/cider
+ADD . /opt/ace
+WORKDIR /opt/ace
 
 CMD bash

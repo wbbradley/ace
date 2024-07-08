@@ -8,7 +8,7 @@
 
 #include "logger_decls.h"
 #include "utils.h"
-#include "cider.h"
+#include "ace.h"
 
 const char *logstr(LogLevel ll);
 void time_now(std::ostream &os, bool exact, bool for_humans);
@@ -110,7 +110,7 @@ struct indent_logger : logger {
   logger *logger_old;
 };
 
-#ifdef CIDER_DEBUG
+#ifdef ACE_DEBUG
 #define INDENT(level, message)                                                 \
   indent_logger _indent(INTERNAL_LOC(), level,                                 \
                         debug_above_else(level, message, ""))

@@ -7,7 +7,7 @@
 #include "tracked_types.h"
 #include "types.h"
 
-namespace cider {
+namespace ace {
 
 const ast::Expr *translate_match_expr(
     const types::DefnId &for_defn_id,
@@ -29,4 +29,4 @@ typedef const std::function<const ast::Expr *(
     types::NeededDefns &needed_defns,
     bool &returns)> &TranslateContinuationFn;
 
-} // namespace cider
+} // namespace ace

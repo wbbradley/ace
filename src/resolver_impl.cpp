@@ -6,7 +6,7 @@
 #include "llvm_utils.h"
 #include "user_error.h"
 
-namespace cider {
+namespace ace {
 
 namespace gen {
 
@@ -128,4 +128,4 @@ std::string LazyResolver::str() const {
 
 } // namespace gen
 
-} // namespace cider
+} // namespace ace

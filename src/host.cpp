@@ -9,7 +9,7 @@
 
 #include "user_error.h"
 
-namespace cider {
+namespace ace {
 
 namespace {
 std::unordered_map<std::string, int> host_values;
@@ -236,4 +236,4 @@ int get_host_int(Location location, std::string name) {
   return host_values.at(name);
 }
 
-} // namespace cider
+} // namespace ace

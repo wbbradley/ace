@@ -1,6 +1,6 @@
 #include "solver.h"
 
-#ifdef CIDER_DEBUG
+#ifdef ACE_DEBUG
 #include "ast.h"
 #endif
 
@@ -9,11 +9,11 @@
 #include "unification.h"
 #include "user_error.h"
 
-namespace cider {
+namespace ace {
 
 namespace {
 
-#ifdef CIDER_DEBUG
+#ifdef ACE_DEBUG
 void check_constraints_cover_tracked_types(
     const Context &context,
     const TrackedTypes &tracked_types,
@@ -54,7 +54,7 @@ types::Map solver(bool check_constraint_coverage,
                   types::ClassPredicates &instance_requirements) {
   debug_above(2, log("solver(%s, ... %d constraints)", context.message.c_str(),
                      constraints.size()));
-#ifdef CIDER_DEBUG
+#ifdef ACE_DEBUG
   if (debug_level() > 3) {
     for (auto &constraint : constraints) {
       log_location(best_location(constraint.a->get_location(),
@@ -112,4 +112,4 @@ types::Map solver(bool check_constraint_coverage,
   return bindings;
 }
 
-} // namespace cider
+} // namespace ace

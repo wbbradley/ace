@@ -9,9 +9,9 @@
 #include "tld.h"
 #include "translate.h"
 #include "unification.h"
-#include "cider.h"
+#include "ace.h"
 
-namespace cider {
+namespace ace {
 
 using namespace ast;
 
@@ -539,4 +539,4 @@ const Expr *IrrefutablePredicate::translate(
                  needed_defns, returns);
 }
 
-} // namespace cider
+} // namespace ace

@@ -7,7 +7,7 @@
 #include "unification.h"
 #include "user_error.h"
 
-namespace cider {
+namespace ace {
 
 using namespace ast;
 
@@ -433,4 +433,4 @@ types::Ref CtorPredicate::tracking_infer(
   return ctor_terms.back();
 }
 
-} // namespace cider
+} // namespace ace

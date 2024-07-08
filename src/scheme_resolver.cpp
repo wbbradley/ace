@@ -48,9 +48,9 @@ types::SchemeRef SchemeResolver::lookup_scheme(
     if (parent != nullptr) {
       return parent->lookup_scheme(id, candidates);
     } else {
-      auto user_error = cider::user_error(
+      auto user_error = ace::user_error(
           id.location, "symbol " c_id("%s") " is undefined",
-          cider::tld::strip_prefix(id.name).c_str());
+          ace::tld::strip_prefix(id.name).c_str());
       for (auto &id : candidates) {
         user_error.add_info(id.location, "did you mean %s?", id.str().c_str());
       }

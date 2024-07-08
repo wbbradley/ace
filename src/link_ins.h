@@ -3,7 +3,7 @@
 
 #include "token.h"
 
-namespace cider {
+namespace ace {
 
 enum LinkInType {
   lit_pkgconfig,
@@ -21,4 +21,4 @@ struct LinkIn {
   bool operator<(const LinkIn &) const;
 };
 
-} // namespace cider
+} // namespace ace

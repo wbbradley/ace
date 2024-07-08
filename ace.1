@@ -1,30 +1,30 @@
-.TH CIDER 1
+.TH ACE 1
 .SH NAME
-cider \- Cider programming language compiler
+ace \- Ace programming language compiler
 .SH SYNOPSIS
-cider [\fIprogram\fR] [\fIargs\fR ...]
+ace [\fIprogram\fR] [\fIargs\fR ...]
 .br
-cider [\fBrun\fR \fIprogram\fR] [\fIargs\fR ...]
+ace [\fBrun\fR \fIprogram\fR] [\fIargs\fR ...]
 .br
-cider [\fBfind\fR \fIprogram\fR]
+ace [\fBfind\fR \fIprogram\fR]
 .br
-cider [\fBlex\fR \fIprogram\fR]
+ace [\fBlex\fR \fIprogram\fR]
 .br
-cider [\fBparse\fR \fIprogram\fR]
+ace [\fBparse\fR \fIprogram\fR]
 .br
-cider [\fBcompile\fR \fIprogram\fR]
+ace [\fBcompile\fR \fIprogram\fR]
 .br
-cider [\fBspecialize\fR \fIprogram\fR]
+ace [\fBspecialize\fR \fIprogram\fR]
 .br
-cider [\fBll\fR \fIprogram\fR]
+ace [\fBll\fR \fIprogram\fR]
 .br
-cider [\fBtest\fR] \-\- run unit tests
+ace [\fBtest\fR] \-\- run unit tests
 .SH DESCRIPTION
 .na
-Cider is a general purpose programming language.
-The source code is available at \fBhttps://github.com/ciderlang/cider\fR.
+Ace is a general purpose programming language.
+The source code is available at \fBhttps://github.com/acelang/ace\fR.
 .P
-cider
+ace
 .B run
 will attempt to compose all the phases of compilation, then pass the resulting LLVM code off to
 .B clang
@@ -34,7 +34,7 @@ It will then
 the built user program and pass along any remaining \fIargs\fR.
 .br
 .P
-cider
+ace
 .B ll
 will emit an LLVM IR file of the
 .I program
@@ -42,39 +42,39 @@ and its dependencies.
 .P
 .I program
 is resolved by
-.B cider
+.B ace
 into an actual filename.
-When you reference a source file, you can omit the `.cider` extension.
-When searching for the specified \fIprogram\fR, \fBcider\fR will look in the current directory first, then proceed to looking through the \fBCIDER_PATH\fR, as described below.
+When you reference a source file, you can omit the `.ace` extension.
+When searching for the specified \fIprogram\fR, \fBace\fR will look in the current directory first, then proceed to looking through the \fBACE_PATH\fR, as described below.
 .SH ENVIRONMENT
 .TP
 .br
-CIDER_ROOT=\fI/usr/local/share/cider\fR
+ACE_ROOT=\fI/usr/local/share/ace\fR
 Should point to the base directory for standard runtime and library.
 If 
-.B CIDER_PATH
+.B ACE_PATH
 is not set, it will default to
-.B $CIDER_ROOT/lib
+.B $ACE_ROOT/lib
 \&. If 
-.B CIDER_RUNTIME
+.B ACE_RUNTIME
 is not set, it will default to "
-.B $CIDER_ROOT/runtime
+.B $ACE_ROOT/runtime
 \&.
 .TP
 .br
-CIDER_PATH=\fI/usr/local/share/cider/lib\fR
+ACE_PATH=\fI/usr/local/share/ace/lib\fR
 A colon-separated list of directories to search for imported libraries.
 Libraries are imported with the `import` keyword.
-The `lib/std.cider` library is called the prelude and is automatically imported unless 
+The `lib/std.ace` library is called the prelude and is automatically imported unless 
 .B NO_PRELUDE
 is given. Setting this variable overrides the
-.B $CIDER_ROOT/lib
+.B $ACE_ROOT/lib
 location.
 .TP
 .br
-CIDER_RUNTIME=\fI/usr/local/share/cider/runtime\fR
-The location of the C-runtime portion of Cider's builtins. See src/cider_rt.c. Setting this variable overrides the
-.B $CIDER_ROOT/runtime
+ACE_RUNTIME=\fI/usr/local/share/ace/runtime\fR
+The location of the C-runtime portion of Ace's builtins. See src/ace_rt.c. Setting this variable overrides the
+.B $ACE_ROOT/runtime
 location.
 .TP
 .br
@@ -88,26 +88,26 @@ DEBUG=\fI[0-10]\fR
 Sets the level of debugging information to spew.
 Default is 0 or none.
 Note that
-.B cider
+.B ace
 must be compiled with
-.B \-DCIDER_DEBUG
+.B \-DACE_DEBUG
 in order to enable debug logging.
 See src/logging.cpp.
 .TP
 .br
 STATUS_BREAK=\fI1\fR
 When set to non-zero value,
-.B cider
+.B ace
 breaks into the debugger at the first user error found (helpful when working on the compiler).
 .TP
 .br
 DUMP_BUILTINS=\fI1\fR
 When set to non-zero value,
-.B cider
+.B ace
 lists all the registered builtin functions and quits.
 .SH LICENSE
 .sp
-Cider Programming Environment
+Ace Programming Environment
 .TP
 .br
 MIT License
@@ -137,8 +137,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE \
 SOFTWARE.
 .SH "REPORTING BUGS"
 .sp
-Note that this version of Cider is pre-release quality software. No guarantees \
+Note that this version of Ace is pre-release quality software. No guarantees \
 are given regarding changes to protocols, language grammar, semantics, or \
 standard library interface. Bug reports are greatly appreciated. Report bugs to \
-the Cider GitHub site. \fBhttps://github.com/ciderlang/cider/issues\fR. Pull Requests \
+the Ace GitHub site. \fBhttps://github.com/acelang/ace/issues\fR. Pull Requests \
 are welcome!

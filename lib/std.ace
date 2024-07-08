@@ -70,11 +70,11 @@ instance Repr () {
   fn repr(a) => "()"
 }
 
-fn strlen(sz *Char) Int => ffi cider_strlen(sz)
+fn strlen(sz *Char) Int => ffi ace_strlen(sz)
 
 instance Str Int {
   fn str(x Int) {
-    let sz = ffi cider_itoa(x)
+    let sz = ffi ace_itoa(x)
     return String(sz, strlen(sz))
   }
 }
@@ -93,8 +93,8 @@ instance Str UInt8 {
 
 instance Str Float {
   fn str(x) {
-    let sz = ffi cider_ftoa(x)
-    let length = ffi cider_strlen(sz)
+    let sz = ffi ace_ftoa(x)
+    let length = ffi ace_strlen(sz)
     return String(sz, length)
   }
 }
@@ -108,7 +108,7 @@ instance Str (var a) {
 }
 
 instance Str (* Char) {
-  fn str(a) => String(a, ffi cider_strlen(a))
+  fn str(a) => String(a, ffi ace_strlen(a))
 }
 
 instance Str [a] {
@@ -129,7 +129,7 @@ instance Str (a, b) {
 }
 
 fn putch(ch Char) () {
-  (ffi cider_write_char(1, ch) as Int)!
+  (ffi ace_write_char(1, ch) as Int)!
 }
 
 fn print(x) () {
@@ -429,7 +429,7 @@ instance ConvertibleToInt Int {
 
 instance ConvertibleToInt Char {
   fn int(a) Int {
-    return ffi cider_char_to_int(a)
+    return ffi ace_char_to_int(a)
   }
 }
 
@@ -444,13 +444,13 @@ class ConvertibleToFloat a {
 }
 
 instance ConvertibleToFloat Int {
-  fn float(a) => ffi cider_itof(a)
+  fn float(a) => ffi ace_itof(a)
 }
 
 instance ConvertibleToFloat String {
   fn float(a) Float {
     let String(sz, n) = a
-    return ffi cider_atof(sz, n)
+    return ffi ace_atof(sz, n)
   }
 }
 

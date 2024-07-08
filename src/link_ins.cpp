@@ -4,7 +4,7 @@
 
 #include "user_error.h"
 
-namespace cider {
+namespace ace {
 
 LinkIn::LinkIn(const LinkIn &link_in) : lit(link_in.lit), name(link_in.name) {
 }
@@ -27,4 +27,4 @@ bool LinkIn::operator<(const LinkIn &rhs) const {
   return lit < rhs.lit || name < rhs.name;
 }
 
-} // namespace cider
+} // namespace ace

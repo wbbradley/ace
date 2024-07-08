@@ -5,5 +5,5 @@ fn !=(x, y) => __builtin_int_ne(x, y) ? 1 : 0
 fn <>(x, y) => x != y
 
 fn main() {
-  ffi cider_print_int64(1 <> 2)
+  ffi ace_print_int64(1 <> 2)
 }

@@ -13,7 +13,7 @@
 #include "types.h"
 #include "unification.h"
 #include "user_error.h"
-#include "cider.h"
+#include "ace.h"
 
 namespace match {
 
@@ -55,12 +55,12 @@ struct CtorPatterns : std::enable_shared_from_this<CtorPatterns>, Pattern {
 
 struct AllOf : std::enable_shared_from_this<AllOf>, Pattern {
   maybe<Identifier> name;
-  const cider::DataCtorsMap &data_ctors_map;
+  const ace::DataCtorsMap &data_ctors_map;
   types::Ref type;
 
   AllOf(Location location,
         maybe<Identifier> name,
-        const cider::DataCtorsMap &data_ctors_map,
+        const ace::DataCtorsMap &data_ctors_map,
         types::Ref type)
       : Pattern(location), name(name), data_ctors_map(data_ctors_map),
         type(type) {
@@ -101,22 +101,22 @@ struct Scalars : std::enable_shared_from_this<Scalars<T>>, Pattern {
 };
 
 template <> std::string Scalars<int64_t>::scalar_name() {
-  static auto s = cider::tld::strip_prefix(INT_TYPE) + "s";
+  static auto s = ace::tld::strip_prefix(INT_TYPE) + "s";
   return s;
 }
 
 template <> std::string Scalars<uint8_t>::scalar_name() {
-  static auto s = cider::tld::strip_prefix(CHAR_TYPE) + "s";
+  static auto s = ace::tld::strip_prefix(CHAR_TYPE) + "s";
   return s;
 }
 
 template <> std::string Scalars<double>::scalar_name() {
-  static auto s = cider::tld::strip_prefix(FLOAT_TYPE) + "s";
+  static auto s = ace::tld::strip_prefix(FLOAT_TYPE) + "s";
   return s;
 }
 
 template <> std::string Scalars<std::string>::scalar_name() {
-  static auto s = cider::tld::strip_prefix(STRING_TYPE) + "s";
+  static auto s = ace::tld::strip_prefix(STRING_TYPE) + "s";
   return s;
 }
 
@@ -158,7 +158,7 @@ std::shared_ptr<Scalars<std::string>> allStrings =
 
 Pattern::Ref all_of(Location location,
                     maybe<Identifier> expr,
-                    const cider::DataCtorsMap &data_ctors_map,
+                    const ace::DataCtorsMap &data_ctors_map,
                     types::Ref type) {
   return std::make_shared<match::AllOf>(location, expr, data_ctors_map, type);
 }
@@ -169,7 +169,7 @@ Pattern::Ref reduce_all_datatype(Location location,
                                  const std::vector<CtorPatternValue> &cpvs) {
   for (auto cpv : cpvs) {
     if (cpv.type_name != type_name) {
-      auto error = cider::user_error(
+      auto error = ace::user_error(
           location,
           "invalid typed ctor pattern found. expected %s "
           "but ctor_pattern indicates it is a %s",
@@ -351,7 +351,7 @@ Pattern::Ref intersect(Pattern::Ref lhs, Pattern::Ref rhs) {
                "intersect is not implemented yet (%s vs. %s)",
                lhs->str().c_str(), rhs->str().c_str());
 
-  throw cider::user_error(INTERNAL_LOC(), "not implemented");
+  throw ace::user_error(INTERNAL_LOC(), "not implemented");
   return nullptr;
 }
 
@@ -407,12 +407,12 @@ Pattern::Ref pattern_union(Pattern::Ref lhs, Pattern::Ref rhs) {
 
   log_location(log_error, lhs->location, "unhandled pattern_union (%s ∪ %s)",
                lhs->str().c_str(), rhs->str().c_str());
-  throw cider::user_error(INTERNAL_LOC(), "not implemented");
+  throw ace::user_error(INTERNAL_LOC(), "not implemented");
   return nullptr;
 }
 
 Pattern::Ref from_type(Location location,
-                       const cider::DataCtorsMap &data_ctors_map,
+                       const ace::DataCtorsMap &data_ctors_map,
                        types::Ref type) {
   if (auto tuple_type = dyncast<const types::TypeTuple>(type)) {
     std::vector<Pattern::Ref> args;
@@ -436,7 +436,7 @@ Pattern::Ref from_type(Location location,
                  .result) {
     return all_of(location, {}, data_ctors_map, type);
   } else {
-    auto ctors_types = cider::get_data_ctors_types(data_ctors_map, type);
+    auto ctors_types = ace::get_data_ctors_types(data_ctors_map, type);
     std::vector<CtorPatternValue> cpvs;
 
     for (auto pair : ctors_types) {
@@ -459,7 +459,7 @@ Pattern::Ref from_type(Location location,
     } else if (cpvs.size() > 1) {
       return std::make_shared<CtorPatterns>(location, cpvs);
     } else {
-      throw cider::user_error(INTERNAL_LOC(), "not implemented");
+      throw ace::user_error(INTERNAL_LOC(), "not implemented");
     }
   }
 
@@ -572,7 +572,7 @@ void difference(Pattern::Ref lhs,
         return;
       }
 
-      auto error = cider::user_error(
+      auto error = ace::user_error(
           lhs->location,
           "type mismatch when comparing ctors for pattern intersection");
       error.add_info(rhs->location, "comparing this type");
@@ -614,7 +614,7 @@ void difference(Pattern::Ref lhs,
       }
       return;
     } else {
-      throw cider::user_error(rhs->location, "type mismatch");
+      throw ace::user_error(rhs->location, "type mismatch");
     }
   }
 
@@ -672,7 +672,7 @@ void difference(Pattern::Ref lhs,
       if (rhs_ctor_pattern->cpv.name == STRING_TYPE) {
         for (auto arg : rhs_ctor_pattern->cpv.args) {
           if (!asAllOf(arg)) {
-            throw cider::user_error(
+            throw ace::user_error(
                 arg->location,
                 "%s pattern matching is only allowed in String(a, b) form (all "
                 "irrefutables. this is to allow for string literal matching. i "
@@ -701,7 +701,7 @@ void difference(Pattern::Ref lhs,
 
   log_location(log_error, lhs->location, "unhandled difference - %s \\ %s",
                lhs->str().c_str(), rhs->str().c_str());
-  throw cider::user_error(INTERNAL_LOC(), "not implemented");
+  throw ace::user_error(INTERNAL_LOC(), "not implemented");
 }
 
 Pattern::Ref difference(Pattern::Ref lhs, Pattern::Ref rhs) {
@@ -742,7 +742,7 @@ std::string CtorPatterns::str() const {
 
 std::string CtorPatternValue::str() const {
   std::stringstream ss;
-  ss << cider::tld::strip_prefix(name);
+  ss << ace::tld::strip_prefix(name);
   if (args.size() != 0) {
     ss << "(" << ::join_str(args, ", ") << ")";
   }
@@ -751,18 +751,18 @@ std::string CtorPatternValue::str() const {
 
 } // namespace match
 
-namespace cider {
+namespace ace {
 namespace ast {
 using namespace ::match;
 using namespace ::types;
 
 Pattern::Ref TuplePredicate::get_pattern(
     types::Ref type,
-    const cider::DataCtorsMap &data_ctors_map) const {
+    const ace::DataCtorsMap &data_ctors_map) const {
   std::vector<Pattern::Ref> args;
   if (auto tuple_type = dyncast<const TypeTuple>(type)) {
     if (tuple_type->dimensions.size() != params.size()) {
-      throw cider::user_error(location,
+      throw ace::user_error(location,
                              "tuple predicate has an incorrect number of "
                              "sub-patterns. there are %d, there should be %d",
                              int(params.size()),
@@ -777,7 +777,7 @@ Pattern::Ref TuplePredicate::get_pattern(
     return std::make_shared<CtorPattern>(
         location, CtorPatternValue{tuple_type->repr(), "tuple", args});
   } else {
-    throw cider::user_error(location,
+    throw ace::user_error(location,
                            "type mismatch on pattern. incoming type is %s. "
                            "it is not a %d-tuple.",
                            type->str().c_str(), (int)params.size());
@@ -787,7 +787,7 @@ Pattern::Ref TuplePredicate::get_pattern(
 
 Pattern::Ref CtorPredicate::get_pattern(
     types::Ref type,
-    const cider::DataCtorsMap &data_ctors_map) const {
+    const ace::DataCtorsMap &data_ctors_map) const {
   auto ctor_terms = unfold_arrows(
       get_data_ctor_type(data_ctors_map, type, ctor_name));
 
@@ -795,7 +795,7 @@ Pattern::Ref CtorPredicate::get_pattern(
   if (ctor_terms.size() - 1 != params.size()) {
     log("params = %s", join_str(params).c_str());
     log("ctor_terms = %s", join_str(ctor_terms).c_str());
-    throw cider::user_error(
+    throw ace::user_error(
         location,
         "%s has an incorrect number of sub-patterns. there are "
         "%d, there should be %d",
@@ -813,14 +813,14 @@ Pattern::Ref CtorPredicate::get_pattern(
 
 Pattern::Ref IrrefutablePredicate::get_pattern(
     types::Ref type,
-    const cider::DataCtorsMap &data_ctors_map) const {
+    const ace::DataCtorsMap &data_ctors_map) const {
   return std::make_shared<AllOf>(location, name_assignment, data_ctors_map,
                                  type);
 }
 
 Pattern::Ref Literal::get_pattern(
     types::Ref type,
-    const cider::DataCtorsMap &data_ctors_map) const {
+    const ace::DataCtorsMap &data_ctors_map) const {
   if (type_equality(type, type_int(INTERNAL_LOC()))) {
     if (token.tk == tk_integer) {
       int64_t value = parse_int_value(token);
@@ -855,10 +855,10 @@ Pattern::Ref Literal::get_pattern(
     }
   }
 
-  throw cider::user_error(
+  throw ace::user_error(
       token.location, "invalid type for literal '%s' (%s). should be a %s",
       token.text.c_str(), tkstr(token.tk), type->str().c_str());
   return nullptr;
 }
 } // namespace ast
-} // namespace cider
+} // namespace ace

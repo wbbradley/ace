@@ -3,7 +3,7 @@
 **/docs
 **/*.ll
 **/*.ir
-**/cider
+**/ace
 **/*.o
 **/logs
 lib    # Gets mounted using -v in docker-run.sh

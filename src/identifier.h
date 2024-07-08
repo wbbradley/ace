@@ -16,8 +16,8 @@ struct Identifier {
   std::string name;
   Location location;
 
-  static Identifier from_token(cider::Token token);
-  cider::Token get_token() const;
+  static Identifier from_token(ace::Token token);
+  ace::Token get_token() const;
   std::string str() const;
 
   bool operator<(const Identifier &rhs) const;

@@ -17,60 +17,60 @@
 #include "prefix.h"
 #include "tld.h"
 #include "utils.h"
-#include "cider.h"
+#include "ace.h"
 
-namespace cider {
+namespace ace {
 
 using namespace ast;
 
-std::string strip_cider_extension(std::string module_name) {
-  if (ends_with(module_name, ".cider")) {
+std::string strip_ace_extension(std::string module_name) {
+  if (ends_with(module_name, ".ace")) {
     /* as a courtesy, strip the extension from the filename here */
-    return module_name.substr(0, module_name.size() - strlen(".cider"));
+    return module_name.substr(0, module_name.size() - strlen(".ace"));
   } else {
     return module_name;
   }
 }
 
-const std::vector<std::string> &get_cider_paths() {
+const std::vector<std::string> &get_ace_paths() {
   static bool checked = false;
-  static std::vector<std::string> cider_paths;
+  static std::vector<std::string> ace_paths;
 
   if (!checked) {
     checked = true;
-    if (getenv("CIDER_PATH") != nullptr) {
-      for (auto &path : split(getenv("CIDER_PATH"), ":")) {
+    if (getenv("ACE_PATH") != nullptr) {
+      for (auto &path : split(getenv("ACE_PATH"), ":")) {
         if (path != "") {
-          /* just be careful that user didn't put in an empty CIDER_PATH */
-          cider_paths.push_back(path);
+          /* just be careful that user didn't put in an empty ACE_PATH */
+          ace_paths.push_back(path);
         }
       }
     } else {
       log(log_error,
-          "CIDER_PATH is not set. It should be set to the dirname of std.cider. "
-          "That is typically /usr/local/share/cider/lib.");
+          "ACE_PATH is not set. It should be set to the dirname of std.ace. "
+          "That is typically /usr/local/share/ace/lib.");
       exit(1);
     }
 
-    cider_paths.insert(cider_paths.begin(), ".");
-    for (auto &cider_path : cider_paths) {
+    ace_paths.insert(ace_paths.begin(), ".");
+    for (auto &ace_path : ace_paths) {
       /* fix any paths to be absolute */
-      real_path(cider_path, cider_path);
+      real_path(ace_path, ace_path);
     }
   }
-  return cider_paths;
+  return ace_paths;
 }
 
 namespace compiler {
 
 void resolve_module_filename_in_path(Location location,
-                                     std::string cider_path,
+                                     std::string ace_path,
                                      std::string leaf_name,
                                      std::string name,
                                      std::string &working_resolution) {
   debug_above(2, log("attempting to resolve filename %s in %s",
-                     leaf_name.c_str(), cider_path.c_str()));
-  auto test_path = cider_path + "/" + leaf_name;
+                     leaf_name.c_str(), ace_path.c_str()));
+  auto test_path = ace_path + "/" + leaf_name;
   if (file_exists(test_path)) {
     std::string test_resolution;
     if (real_path(test_path, test_resolution)) {
@@ -136,8 +136,8 @@ std::string resolve_module_filename(Location location,
                                     working_resolution);
   }
 
-  for (auto cider_path : get_cider_paths()) {
-    resolve_module_filename_in_path(location, cider_path, leaf_name, name,
+  for (auto ace_path : get_ace_paths()) {
+    resolve_module_filename_in_path(location, ace_path, leaf_name, name,
                                     working_resolution);
   }
 
@@ -148,8 +148,8 @@ std::string resolve_module_filename(Location location,
   } else {
     throw user_error(
         location,
-        "module not found: " c_error("`%s`") ". Looked in CIDER_PATH=[%s]",
-        name.c_str(), join(get_cider_paths(), ":").c_str());
+        "module not found: " c_error("`%s`") ". Looked in ACE_PATH=[%s]",
+        name.c_str(), join(get_ace_paths(), ":").c_str());
     return "";
   }
 }
@@ -175,7 +175,7 @@ struct GlobalParserState {
       return module;
     }
     std::string module_filename = compiler::resolve_module_filename(
-        module_id.location, module_id.name, ".cider", reference_path);
+        module_id.location, module_id.name, ".ace", reference_path);
     if (auto module = get(modules_map_by_filename, module_filename,
                           static_cast<const Module *>(nullptr))) {
       return module;
@@ -341,7 +341,7 @@ std::shared_ptr<Compilation> merge_compilation(
 Compilation::ref parse_program(
     std::string user_program_name,
     const std::map<std::string, int> &builtin_arities) {
-  std::string program_name = strip_cider_extension(
+  std::string program_name = strip_ace_extension(
       leaf_from_file_path(user_program_name));
   try {
     /* first just parse all the modules that are reachable from the initial
@@ -377,7 +377,7 @@ Compilation::ref parse_program(
         gps.symbol_imports, gps.symbol_exports);
 
     std::string program_filename = compiler::resolve_module_filename(
-        INTERNAL_LOC(), user_program_name, ".cider", maybe<std::string>());
+        INTERNAL_LOC(), user_program_name, ".ace", maybe<std::string>());
     return merge_compilation(
         program_filename, program_name,
         rewrite_modules(rewriting_imports_rules, gps.modules), gps.comments,
@@ -390,4 +390,4 @@ Compilation::ref parse_program(
 }
 
 } // namespace compiler
-} // namespace cider
+} // namespace ace

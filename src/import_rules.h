@@ -8,7 +8,7 @@
 #include "identifier.h"
 #include "parse_state.h"
 
-namespace cider {
+namespace ace {
 
 typedef std::map<Identifier, Identifier> RewriteImportRules;
 
@@ -29,4 +29,4 @@ Identifier rewrite_identifier(const RewriteImportRules &rewrite_import_rules,
 
 const types::Refs rewrite_types(const RewriteImportRules &rewrite_import_rules,
                                 types::Refs types);
-} // namespace cider
+} // namespace ace

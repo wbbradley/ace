@@ -13,7 +13,7 @@
 #include "token.h"
 #include "types.h"
 
-namespace cider {
+namespace ace {
 namespace ast {
 
 std::string fresh();
@@ -555,8 +555,8 @@ ast::Expr *unit_expr(Location location);
 tarjan::Vertices get_free_vars(
     const ast::Expr *expr,
     const std::unordered_set<std::string> &bound_vars);
-} // namespace cider
+} // namespace ace
 
-std::ostream &operator<<(std::ostream &os, cider::ast::Program *program);
-std::ostream &operator<<(std::ostream &os, cider::ast::Decl *decl);
-std::ostream &operator<<(std::ostream &os, cider::ast::Expr *expr);
+std::ostream &operator<<(std::ostream &os, ace::ast::Program *program);
+std::ostream &operator<<(std::ostream &os, ace::ast::Decl *decl);
+std::ostream &operator<<(std::ostream &os, ace::ast::Expr *expr);

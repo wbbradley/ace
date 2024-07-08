@@ -30,6 +30,6 @@ Pattern::Ref difference(Pattern::Ref lhs, Pattern::Ref rhs);
 Pattern::Ref pattern_union(Pattern::Ref lhs, Pattern::Ref rhs);
 Pattern::Ref all_of(Location location,
                     maybe<Identifier> expr,
-                    const cider::DataCtorsMap &data_ctors_map,
+                    const ace::DataCtorsMap &data_ctors_map,
                     types::Ref type);
 } // namespace match

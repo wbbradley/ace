@@ -8,7 +8,7 @@
 #include "logger.h"
 #include "utils.h"
 
-namespace cider {
+namespace ace {
 
 llvm::Value *llvm_create_global_string(llvm::IRBuilder<> &builder,
                                        std::string value) {
@@ -50,7 +50,7 @@ llvm::Value *llvm_create_bool(llvm::IRBuilder<> &builder, bool value) {
 }
 
 llvm::ConstantInt *llvm_create_int(llvm::IRBuilder<> &builder, int64_t value) {
-  return builder.getCiderInt(value);
+  return builder.getAceInt(value);
 }
 
 llvm::ConstantInt *llvm_create_int16(llvm::IRBuilder<> &builder,
@@ -246,7 +246,7 @@ llvm::AllocaInst *llvm_create_entry_block_alloca(llvm::Function *llvm_function,
                               var_name.c_str());
 }
 
-llvm::Value *llvm_cider_bool_to_i1(llvm::IRBuilder<> &builder,
+llvm::Value *llvm_ace_bool_to_i1(llvm::IRBuilder<> &builder,
                                   llvm::Value *llvm_value) {
   if (llvm_value->getType()->isIntegerTy(1)) {
     return llvm_value;
@@ -268,7 +268,7 @@ void llvm_create_if_branch(llvm::IRBuilder<> &builder,
                            llvm::BasicBlock *else_bb) {
   /* the job of this function is to derive a value from the input value that is
    * a valid input to a branch instruction */
-  builder.CreateCondBr(llvm_cider_bool_to_i1(builder, llvm_value), then_bb,
+  builder.CreateCondBr(llvm_ace_bool_to_i1(builder, llvm_value), then_bb,
                        else_bb);
 }
 
@@ -332,7 +332,7 @@ llvm::StructType *llvm_create_struct_type(
 }
 
 void llvm_verify_function(Location location, llvm::Function *llvm_function) {
-#ifdef CIDER_DEBUG
+#ifdef ACE_DEBUG
   debug_above(5, log("writing to function-verification-failure.ll..."));
   std::string llir_filename = "function-verification-failure.ll";
 #if 0
@@ -389,7 +389,7 @@ llvm::Constant *llvm_sizeof_type(llvm::IRBuilder<> &builder,
   llvm::Constant *alloc_size_const = llvm::ConstantExpr::getSizeOf(llvm_type);
   llvm::Constant *size_value = llvm::ConstantExpr::getTruncOrBitCast(
       alloc_size_const, builder.getInt64Ty());
-#ifdef CIDER_DEBUG
+#ifdef ACE_DEBUG
   size_value->setName("size_value");
 #endif
   debug_above(3,
@@ -549,7 +549,7 @@ llvm::Type *get_llvm_type_(llvm::IRBuilder<> &builder,
     if (name == CHAR_TYPE) {
       return builder.getInt8Ty();
     } else if (name == INT_TYPE) {
-      return builder.getCiderIntTy();
+      return builder.getAceIntTy();
     } else if (name == FLOAT_TYPE) {
       return builder.getDoubleTy();
     } else {
@@ -675,7 +675,7 @@ llvm::Value *llvm_tuple_alloc(llvm::IRBuilder<> &builder,
     auto llvm_alloc_func_decl = llvm::cast<llvm::Function>(
         llvm_module
             ->getOrInsertFunction(
-                "cider_malloc",
+                "ace_malloc",
                 llvm::FunctionType::get(builder.getInt8Ty()->getPointerTo(),
                                         alloc_terms, false /*isVarArg*/))
             .getCallee());
@@ -684,7 +684,7 @@ llvm::Value *llvm_tuple_alloc(llvm::IRBuilder<> &builder,
                            std::vector<llvm::Value *>{
                                llvm_sizeof_type(builder, llvm_tuple_type)}),
         llvm_tuple_type->getPointerTo());
-#ifdef CIDER_DEBUG
+#ifdef ACE_DEBUG
     llvm_allocated_tuple->setName(
         string_format("tuple/%d", int(llvm_dims.size())));
 #endif
@@ -705,7 +705,7 @@ llvm::Value *llvm_tuple_alloc(llvm::IRBuilder<> &builder,
                       llvm_print(llvm_allocated_tuple->getType()).c_str(), i));
       llvm::Value *llvm_member_address = builder.CreateInBoundsGEP(
           llvm_tuple_type, llvm_allocated_tuple, llvm_gep_args);
-#ifdef CIDER_DEBUG
+#ifdef ACE_DEBUG
       llvm_member_address->setName(
           string_format("&tuple/%d[%d]", int(llvm_dims.size()), i));
 #endif
@@ -728,7 +728,7 @@ void destructure_closure(llvm::IRBuilder<> &builder,
                          llvm::Value *closure,
                          llvm::Value **llvm_function,
                          llvm::Value **llvm_closure_env) {
-#ifdef CIDER_DEBUG
+#ifdef ACE_DEBUG
   assert(closure->getType()->isPointerTy());
   auto inner_type = closure->getType()->getPointerElementType();
   auto struct_type = llvm::dyn_cast<llvm::StructType>(inner_type);
@@ -760,7 +760,7 @@ void destructure_closure(llvm::IRBuilder<> &builder,
   if (llvm_function != nullptr) {
     *llvm_function = builder.CreateLoad(builder.CreateInBoundsGEP(
         closure, llvm::ArrayRef<llvm::Value *>(gep_function_path)));
-#ifdef CIDER_DEBUG
+#ifdef ACE_DEBUG
     if (llvm_function_type !=
         (*llvm_function)->getType()->getPointerElementType()) {
       log("why does %s != %s", llvm_print(llvm_function_type).c_str(),
@@ -795,11 +795,11 @@ llvm::Value *llvm_create_closure_callsite(Location location,
                      llvm_print(args[1]->getType()).c_str()));
   auto callee = llvm::FunctionCallee(llvm_function_type, llvm_function_to_call);
   return builder.CreateCall(callee, llvm::ArrayRef<llvm::Value *>(args)
-#ifdef CIDER_DEBUG
+#ifdef ACE_DEBUG
                                         ,
                             string_format("call{%s}", location.repr().c_str())
 #endif
   );
 }
 
-} // namespace cider
+} // namespace ace

@@ -6,7 +6,7 @@
 #include "tracked_types.h"
 #include "types.h"
 
-namespace cider {
+namespace ace {
 
 types::Map solver(bool check_constraint_coverage,
                   Context &&context,
@@ -15,4 +15,4 @@ types::Map solver(bool check_constraint_coverage,
                   const types::SchemeResolver &scheme_resolver,
                   types::ClassPredicates &instance_requirements);
 
-} // namespace cider
+} // namespace ace

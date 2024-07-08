@@ -24,7 +24,7 @@
 #include "dbg.h"
 #include "logger_decls.h"
 #include "utils.h"
-#include "cider.h"
+#include "ace.h"
 
 bool file_exists(const std::string &file_path) {
   errno = 0;

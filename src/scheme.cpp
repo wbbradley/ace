@@ -9,7 +9,7 @@ Scheme::Scheme(Location location,
                const ClassPredicates &predicates,
                types::Ref type)
     : location(location), vars(vars), predicates(predicates), type(type) {
-#ifdef CIDER_DEBUG
+#ifdef ACE_DEBUG
   if (vars.size() == 0) {
     if (types::get_ftvs(predicates).size() != 0) {
       log("unexpected lack of vars in scheme %s", str().c_str());

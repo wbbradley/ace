@@ -1,5 +1,5 @@
 #!/bin/bash
-IMAGE="ciderlang/cider"
+IMAGE="acelang/ace"
 VERSION="$(cat VERSION)"
 
 docker build -t "${IMAGE}:${VERSION}" .

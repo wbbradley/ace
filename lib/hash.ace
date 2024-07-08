@@ -1,5 +1,5 @@
 link pkg "libsodium"
-link in "cider_sodium.c"
+link in "ace_sodium.c"
 
 class Hashable a {
     fn hash(a) Int # NB: probably should be an uint but we don't have
@@ -9,16 +9,16 @@ class Hashable a {
 instance Hashable String {
     fn hash(s) {
         let String(sz, len) = s
-        return ffi cider_hash(sz, len)
+        return ffi ace_hash(sz, len)
     }
 }
 
 instance Hashable Int {
     fn hash(i) {
-        return ffi cider_hash_int(i)
+        return ffi ace_hash_int(i)
     }
 }
 
 fn hash_combine(seed Int, value Int) Int {
-  return ffi cider_hash_combine(seed, value)
+  return ffi ace_hash_combine(seed, value)
 }

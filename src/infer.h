@@ -7,7 +7,7 @@
 #include "scheme_resolver.h"
 #include "tracked_types.h"
 
-namespace cider {
+namespace ace {
 types::Ref infer(const ast::Expr *expr,
                  const DataCtorsMap &data_ctors_map,
                  const types::Ref &return_type,
@@ -15,4 +15,4 @@ types::Ref infer(const ast::Expr *expr,
                  TrackedTypes &tracked_types,
                  types::Constraints &constraints,
                  types::ClassPredicates &instance_requirements);
-} // namespace cider
+} // namespace ace

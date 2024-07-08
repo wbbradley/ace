@@ -9,7 +9,7 @@
 bool AmIBeingDebugged();
 #else
 // TODO: find ways of detecting this on other platforms
-#ifdef CIDER_DEBUG
+#ifdef ACE_DEBUG
 #define AmIBeingDebugged() true
 #else
 #define AmIBeingDebugged() false
@@ -70,7 +70,7 @@ extern int __dbg_level;
     DEBUG_BREAK();                                                             \
   } while (0)
 
-#ifdef CIDER_DEBUG
+#ifdef ACE_DEBUG
 #define dbg_when(x)                                                            \
   if (x) {                                                                     \
     fprintf(stderr,                                                            \
@@ -89,7 +89,7 @@ extern int __dbg_level;
 
 #define wat() panic("wat is this branch doing?")
 
-#ifdef CIDER_DEBUG
+#ifdef ACE_DEBUG
 #define debug(x) ((x))
 #define debug_else(x, y) ((x))
 #define debug_above(level, x)                                                  \

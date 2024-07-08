@@ -17,7 +17,7 @@ void _emit_assert(const char *filename,
 
 #define verbose() (getenv("DEBUG") != nullptr)
 
-#ifdef CIDER_DEBUG
+#ifdef ACE_DEBUG
 #define assert(x)                                                              \
   do {                                                                         \
     if (!(x)) {                                                                \
@@ -29,7 +29,7 @@ void _emit_assert(const char *filename,
 #else
 #define assert(x) ((void)0)
 #define null_impl() nullptr
-#endif // CIDER_DEBUG
+#endif // ACE_DEBUG
 
 #define not_impl() panic("not yet implemented")
 
@@ -57,7 +57,7 @@ void _emit_assert(const char *filename,
   } while (0)
 #endif
 
-#ifdef CIDER_DEBUG
+#ifdef ACE_DEBUG
 #define assert_implies(x, y)                                                   \
   do {                                                                         \
     if (x)                                                                     \

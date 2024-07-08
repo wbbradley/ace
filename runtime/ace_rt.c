@@ -16,67 +16,67 @@
 
 #include <gc/gc.h>
 
-const char **cider_argv;
-int64_t cider_argc;
+const char **ace_argv;
+int64_t ace_argc;
 
-void cider_init(int argc, const char *argv[]) {
+void ace_init(int argc, const char *argv[]) {
 	/* initialize the collector */
 	GC_INIT();
 
-	cider_argc = argc;
-	cider_argv = argv;
+	ace_argc = argc;
+	ace_argv = argv;
 	/* start mutator ... */
 }
 
-int64_t cider_sys_argc() {
-	return (int64_t)cider_argc;
+int64_t ace_sys_argc() {
+	return (int64_t)ace_argc;
 }
 
-const char **cider_sys_argv() {
-	return cider_argv;
+const char **ace_sys_argv() {
+	return ace_argv;
 }
 
-int64_t cider_errno() {
+int64_t ace_errno() {
 	return (int64_t)errno;
 }
 
-int64_t cider_memcmp(const char *a, const char *b, int64_t len) {
+int64_t ace_memcmp(const char *a, const char *b, int64_t len) {
   return memcmp(a, b, len);
 }
 
-int64_t cider_open(const char *path, int64_t flags, int64_t mode) {
+int64_t ace_open(const char *path, int64_t flags, int64_t mode) {
   return open(path, flags, mode);
 }
 
-int64_t cider_seek(int fd, int64_t offset, int64_t whence) {
+int64_t ace_seek(int fd, int64_t offset, int64_t whence) {
   return lseek(fd, offset, whence);
 }
 
-int64_t cider_creat(const char *path, int64_t mode) {
+int64_t ace_creat(const char *path, int64_t mode) {
     return creat(path, mode);
 }
 
-int64_t cider_close(int64_t fd) {
+int64_t ace_close(int64_t fd) {
   return close(fd);
 }
 
-int64_t cider_read(int64_t fd, char *pb, int64_t nbyte) {
+int64_t ace_read(int64_t fd, char *pb, int64_t nbyte) {
   return read(fd, pb, nbyte);
 }
 
-int64_t cider_write(int64_t fd, char *pb, int64_t nbyte) {
+int64_t ace_write(int64_t fd, char *pb, int64_t nbyte) {
   return write(fd, pb, nbyte);
 }
 
-int64_t cider_unlink(const char *filename) {
+int64_t ace_unlink(const char *filename) {
   return unlink(filename);
 }
 
-int64_t cider_socket(int64_t domain, int64_t type, int64_t protocol) {
+int64_t ace_socket(int64_t domain, int64_t type, int64_t protocol) {
   return socket(domain, type, protocol);
 }
 
-const char *cider_memmem(const char *big,
+const char *ace_memmem(const char *big,
                         int64_t big_len,
                         const char *little,
                         int64_t little_len) {
@@ -110,7 +110,7 @@ const char *cider_memmem(const char *big,
   }
 }
 
-const char *cider_strerror(int errnum, char *buf, int64_t bufsize) {
+const char *ace_strerror(int errnum, char *buf, int64_t bufsize) {
 #ifdef __APPLE__
   if (strerror_r(errnum, buf, bufsize) == 0) {
     return buf;
@@ -124,62 +124,62 @@ const char *cider_strerror(int errnum, char *buf, int64_t bufsize) {
 #endif
 }
 
-void *cider_malloc(uint64_t cb) {
+void *ace_malloc(uint64_t cb) {
   void *pb = GC_MALLOC(cb);
   // printf("allocated %" PRId64 " bytes at 0x%08" PRIx64 "\n", cb,
   // (uint64_t)pb);
   return pb;
 }
 
-int64_t cider_strlen(const char *sz) {
+int64_t ace_strlen(const char *sz) {
 	return strlen(sz);
 }
 
-void *cider_print_int64(int64_t x) {
+void *ace_print_int64(int64_t x) {
   printf("%" PRId64 "\n", x);
   return 0;
 }
 
-int64_t cider_write_char(int64_t fd, char x) {
+int64_t ace_write_char(int64_t fd, char x) {
   char sz[] = {x};
   return write(fd, sz, 1);
 }
 
-int64_t cider_char_to_int(char ch) {
+int64_t ace_char_to_int(char ch) {
 	return (int64_t)ch;
 }
 
-double cider_itof(int64_t x) {
+double ace_itof(int64_t x) {
   return (double)x;
 }
 
-char *cider_itoa(int64_t x) {
+char *ace_itoa(int64_t x) {
   char sz[128];
   if (snprintf(sz, sizeof(sz), "%" PRId64, x) < 1) {
-    perror("Failed in cider_itoa");
+    perror("Failed in ace_itoa");
     exit(1);
   }
   return GC_strndup(sz, strlen(sz));
 }
 
-const char *cider_dup_free(const char *src) {
+const char *ace_dup_free(const char *src) {
   const char *sz = GC_strndup(src, strlen(src));
   free((void *)src);
   return sz;
 }
 
-char *cider_ftoa(double x) {
+char *ace_ftoa(double x) {
   char sz[128];
   /* IEEE double precision floats have about 15 decimal digits of precision */
   // For now, let's use 6.
   if (snprintf(sz, sizeof(sz), "%.6f", x) < 1) {
-    perror("Failed in cider_ftoa");
+    perror("Failed in ace_ftoa");
     exit(1);
   }
   return GC_strndup(sz, strlen(sz));
 }
 
-double cider_atof(const char *sz, size_t n) {
+double ace_atof(const char *sz, size_t n) {
   char buf[64];
   const size_t buf_size = sizeof(buf) / sizeof(buf[0]);
   size_t byte_count_to_copy = (n >= buf_size ? buf_size - 1 : n);
@@ -188,7 +188,7 @@ double cider_atof(const char *sz, size_t n) {
   return atof(buf);
 }
 
-int64_t cider_atoi(const char *sz, size_t n) {
+int64_t ace_atoi(const char *sz, size_t n) {
 	char buf[64];
 	const size_t buf_size = sizeof(buf) / sizeof(buf[0]);
 	size_t byte_count_to_copy = (n >= buf_size ? buf_size - 1 : n);
@@ -197,21 +197,21 @@ int64_t cider_atoi(const char *sz, size_t n) {
 	return atoll(buf);
 }
 
-void cider_pass_test() {
+void ace_pass_test() {
   write(1, "PASS\n", 5);
 }
 
-int64_t cider_puts(char *sz) {
+int64_t ace_puts(char *sz) {
   if (sz == 0) {
     const char *error = "attempt to puts a null pointer!\n";
-    write(1, error, cider_strlen(error));
+    write(1, error, ace_strlen(error));
   }
-  write(1, sz, cider_strlen(sz));
+  write(1, sz, ace_strlen(sz));
   write(1, "\n", 1);
   return 0;
 }
 
-int64_t cider_epoch_millis() {
+int64_t ace_epoch_millis() {
   long ms;  // Milliseconds
   time_t s; // Seconds
   struct timespec spec;
@@ -227,6 +227,6 @@ int64_t cider_epoch_millis() {
   return (int64_t)s * 1000 + ms;
 }
 
-int64_t cider_hash_combine(uint64_t seed, uint64_t value) {
+int64_t ace_hash_combine(uint64_t seed, uint64_t value) {
   return seed ^ (value + 0x9e3779b97f4a7c15LLU + (seed << 12) + (seed >> 4));
 }

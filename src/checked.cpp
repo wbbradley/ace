@@ -1,6 +1,6 @@
 #include "checked.h"
 
-namespace cider {
+namespace ace {
 
 CheckedDefinition::CheckedDefinition(types::SchemeRef scheme,
                                      const ast::Decl *decl,
@@ -14,4 +14,4 @@ Location CheckedDefinition::get_location() const {
   return decl->get_location();
 }
 
-} // namespace cider
+} // namespace ace

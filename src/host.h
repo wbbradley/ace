@@ -4,9 +4,9 @@
 
 #include "location.h"
 
-namespace cider {
+namespace ace {
 
 void init_host();
 int get_host_int(Location location, std::string name);
 
-} // namespace cider
+} // namespace ace

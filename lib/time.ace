@@ -11,7 +11,7 @@ data TimeDelta {
 
 newtype EpochMilliseconds = EpochMilliseconds(Int)
 
-fn time() => EpochMilliseconds(ffi cider_epoch_millis())
+fn time() => EpochMilliseconds(ffi ace_epoch_millis())
 
 instance Str EpochMilliseconds {
     fn str(e) {

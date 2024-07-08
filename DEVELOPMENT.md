@@ -1,8 +1,8 @@
-# Development of Cider
+# Development of Ace
 
 ## Machine setup
 
-So far all development of Cider has taken place on MacOS and Linux. The most
+So far all development of Ace has taken place on MacOS and Linux. The most
 well-supported path is to develop on MacOS at the moment. However, all tests in
 GitHub Actions are running in a Docker debian:latest container. Consult
 [Dockerfile](Dockerfile) for more info on that test setup.
@@ -21,7 +21,7 @@ You will need Docker for the supported Linux test path.
 #### Plugins
 
 * If you use vim, take a look at
-  [vim-cider](https://github.com/ciderlang/vim-cider).
+  [vim-ace](https://github.com/acelang/vim-ace).
 
 
 ## Development workflow

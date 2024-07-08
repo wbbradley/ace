@@ -5,7 +5,7 @@
 #include "llvm_utils.h"
 #include "resolver.h"
 
-namespace cider {
+namespace ace {
 
 namespace gen {
 
@@ -49,4 +49,4 @@ private:
 
 } // namespace gen
 
-} // namespace cider
+} // namespace ace

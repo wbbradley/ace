@@ -17,7 +17,7 @@
 #include "tld.h"
 #include "token.h"
 
-namespace cider {
+namespace ace {
 namespace parser {
 
 using namespace ast;
@@ -436,7 +436,7 @@ const Expr *parse_ffi(ParseState &ps) {
   RawParseMode rpm(ps);
 
   /* get the name of the FFI user wants to call. Non-quoted is fine, but quotes
-   * are allowed in case of system linker/Cider lexer compatibility issues. */
+   * are allowed in case of system linker/Ace lexer compatibility issues. */
   Identifier id;
   if (ps.token.tk == tk_identifier) {
     id = iid(ps.token);
@@ -731,7 +731,7 @@ const Expr *parse_generator(ParseState &ps, const Expr *expr) {
   GeneratorFor generator_for = parse_generator_for(ps);
   if (ps.token.is_ident(K(for))) {
     throw user_error(ps.token.location,
-                     "nested comprehensions are not legal in Cider");
+                     "nested comprehensions are not legal in Ace");
   }
   return build_generator(expr->get_location(), expr, generator_for);
 }
@@ -3001,4 +3001,4 @@ const Module *parse_module(ParseState &ps,
 }
 
 } // namespace parser
-} // namespace cider
+} // namespace ace

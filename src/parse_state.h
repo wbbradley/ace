@@ -11,7 +11,7 @@
 #include "types.h"
 #include "user_error.h"
 
-namespace cider {
+namespace ace {
 namespace parser {
 
 typedef std::map<std::string, std::map<Identifier, Identifier>> SymbolExports;
@@ -102,4 +102,4 @@ private:
 };
 
 } // namespace parser
-} // namespace cider
+} // namespace ace

@@ -36,14 +36,14 @@ const char *LOGO = C_UNCHECKED R"(
 
 )" C_RESET;
 
-namespace cider {
+namespace ace {
 
 using namespace ast;
 
 namespace {
 
 bool get_help = false;
-bool fast_fail = true && (getenv("CIDER_SHOW_ALL_ERRORS") == nullptr);
+bool fast_fail = true && (getenv("ACE_SHOW_ALL_ERRORS") == nullptr);
 bool debug_compiled_env = getenv("SHOW_ENV") != nullptr;
 bool debug_compile_step = getenv("SHOW_CC") != nullptr;
 bool debug_specialized_env = getenv("SHOW_ENV2") != nullptr;
@@ -109,7 +109,7 @@ types::Map resolve_free_type_after_specialization_inference(
     const types::ClassPredicates &instance_requirements,
     const types::ClassPredicates &instance_predicates) {
   if (type->ftv_count() != 0) {
-#ifdef CIDER_DEBUG
+#ifdef ACE_DEBUG
     INDENT(2, "--resolve_free_type_after_specialization_inference--");
     debug_above(7, log_location(expr->get_location(), "rftasi ::: %s :: %s",
                                 expr->str().c_str(), type->str().c_str()));
@@ -225,7 +225,7 @@ CheckedDefinitionRef check_decl(
                         make_context(expected_type->get_location(),
                                      "declaration %s has its expected type",
                                      id.str().c_str()));
-  types::Map bindings = cider::solver(
+  types::Map bindings = ace::solver(
       check_constraint_coverage,
       make_context(id.location, "solving %s :: %s", id.name.c_str(),
                    ty->str().c_str()),
@@ -364,13 +364,13 @@ tarjan::Graph build_program_graph(const std::vector<const Decl *> &decls) {
     const auto &name = decl->id.name;
     const auto free_vars = get_free_vars(decl->value, {});
     for (auto free_var : free_vars) {
-      if (!cider::tld::is_fqn(free_var)) {
+      if (!ace::tld::is_fqn(free_var)) {
         throw user_error(decl->id.location,
                          "found free_var \"%s\" that is not fully qualified "
                          "within %s (TODO: extract free variable locations, "
                          "not just the containing function's location)",
                          free_var.c_str(),
-                         cider::tld::strip_prefix(name).c_str());
+                         ace::tld::strip_prefix(name).c_str());
       }
     }
     graph.insert({name, free_vars});
@@ -396,7 +396,7 @@ CheckedDefinitionsByName check_decls(std::string user_program_name,
   debug_above(5, log("found program ordering %s", str(sccs).c_str()));
   if (emit_graph_dot) {
     auto dot_file = user_program_name + ".dot";
-    cider::graph::emit_graphviz_dot(graph, sccs, entry_point_name, dot_file);
+    ace::graph::emit_graphviz_dot(graph, sccs, entry_point_name, dot_file);
     auto png_file = dot_file + ".png";
     auto dot_cmd = "dot " + dot_file + " -Tpng -Gdpi=1000 -o " + png_file;
     if (system(dot_cmd.c_str())) {
@@ -420,7 +420,7 @@ CheckedDefinitionsByName check_decls(std::string user_program_name,
         local_scheme_resolver.insert_scheme(
             name, scheme(decl_map.at(name)->get_location(), {}, {}, map[name]));
       } else {
-#ifdef CIDER_DEBUG
+#ifdef ACE_DEBUG
         if (debug_level() > 2) {
           log("found a reference to " c_id("%s") " in SCCs that has no decl",
               name.c_str());
@@ -477,13 +477,13 @@ CheckedDefinitionsByName check_decls(std::string user_program_name,
       log("%s", str(constraints).c_str());
     }
 
-    types::Map bindings = cider::solver(false /*check_constraint_coverage*/,
+    types::Map bindings = ace::solver(false /*check_constraint_coverage*/,
                                        make_context(INTERNAL_LOC(), "solving"),
                                        constraints, tracked_types,
                                        scheme_resolver, instance_requirements);
 
     rebind_tracked_types(tracked_types, bindings);
-#ifdef CIDER_DEBUG
+#ifdef ACE_DEBUG
     if (debug_all_expr_types) {
       log("Rebound Expression Types for {%s}", join(scc, ", ").c_str());
       for (auto pair : tracked_types) {
@@ -542,7 +542,7 @@ const Decl *find_overload_for_instance(std::string name,
     }
   }
   throw user_error(location, "could not find decl for %s in instance %s",
-                   cider::tld::strip_prefix(name).c_str(),
+                   ace::tld::strip_prefix(name).c_str(),
                    instance->class_predicate->str().c_str());
 }
 
@@ -690,7 +690,7 @@ void check_instances(
         auto error = user_error(instance->class_predicate->get_location(),
                                 "could not find type class for instance %s",
                                 instance->class_predicate->str().c_str());
-        auto leaf_name = cider::tld::split_fqn(
+        auto leaf_name = ace::tld::split_fqn(
                              instance->class_predicate->classname.name)
                              .back();
         for (auto type_class_pair : type_class_map) {
@@ -774,7 +774,7 @@ CheckedDefinitionRef specialize_checked_defn(
   if (checked_defn_to_specialize == nullptr) {
     auto error = user_error(
         location, "could not find a definition for " c_id("%s") " :: %s",
-        cider::tld::strip_prefix(name).c_str(), type->str().c_str());
+        ace::tld::strip_prefix(name).c_str(), type->str().c_str());
     for (auto checked_defn : checked_defns_non_matching) {
       error.add_info(checked_defn->get_location(), "%s :: %s did not match",
                      checked_defn->decl->str().c_str(),
@@ -870,7 +870,7 @@ Phase2 compile(std::string user_program_name_, bool emit_graph_dot) {
                                            scheme_resolver);
   /* start resolving more schemes */
   CheckedDefinitionsByName checked_defns = check_decls(
-      user_program_name_, cider::tld::mktld(compilation->program_name, "main"),
+      user_program_name_, ace::tld::mktld(compilation->program_name, "main"),
       program->decls, compilation->data_ctors_map, scheme_resolver,
       emit_graph_dot);
 
@@ -902,7 +902,7 @@ void specialize_core(const types::TypeEnv &type_env,
 
   /* expected type schemes for specializations can have unresolved type
    * variables. That indicates that an input to the function is irrelevant to
-   * the output. However, since Cider is eagerly evaluated and permits impure
+   * the output. However, since Ace is eagerly evaluated and permits impure
    * side effects, it may not be irrelevant to the overall program's
    * semantics, so terms with ambiguous types cannot be thrown out altogether.
    */
@@ -973,7 +973,7 @@ void specialize_core(const types::TypeEnv &type_env,
     std::unordered_set<std::string> bound_vars;
     INDENT(1, string_format("----------- specialize %s ------------",
                             defn_id.str().c_str()));
-#ifdef CIDER_DEBUG
+#ifdef ACE_DEBUG
     for (auto pair : tracked_types) {
       const ast::Expr *expr;
       types::Ref type;
@@ -1024,13 +1024,13 @@ Phase3 specialize(const Phase2 &phase_2) {
   if (user_error::errors_occurred()) {
     throw user_error(INTERNAL_LOC(), "quitting");
   }
-  std::string entry_point_name = cider::tld::mktld(
+  std::string entry_point_name = ace::tld::mktld(
       phase_2.compilation->program_name, "main");
   if (phase_2.checked_defns.count(entry_point_name) == 0) {
     auto error = user_error(
         Location{phase_2.compilation->program_filename, 1, 1},
         "could not find a definition for %s",
-        cider::tld::strip_prefix(entry_point_name).c_str());
+        ace::tld::strip_prefix(entry_point_name).c_str());
     for (auto pair : phase_2.checked_defns) {
       if (pair.first.find(entry_point_name) != std::string::npos) {
         for (auto checked_def : pair.second) {
@@ -1158,17 +1158,17 @@ llvm::Function *build_main_function(llvm::IRBuilder<> &builder,
   builder.SetInsertPoint(entry_block);
 
   // Initialize the process
-  auto llvm_cider_init_func_decl = llvm::cast<llvm::Function>(
+  auto llvm_ace_init_func_decl = llvm::cast<llvm::Function>(
       llvm_module
-          ->getOrInsertFunction("cider_init", llvm_main_function_type(builder))
+          ->getOrInsertFunction("ace_init", llvm_main_function_type(builder))
           .getCallee());
   auto arg_iter = llvm_function->args().begin();
   llvm::Value *llvm_argc = *&arg_iter;
   ++arg_iter;
   llvm::Value *llvm_argv = *&arg_iter;
-  std::vector<llvm::Value *> cider_main_args{llvm_argc, llvm_argv};
-  builder.CreateCall(llvm_cider_init_func_decl,
-                     llvm::ArrayRef<llvm::Value *>(cider_main_args));
+  std::vector<llvm::Value *> ace_main_args{llvm_argc, llvm_argv};
+  builder.CreateCall(llvm_ace_init_func_decl,
+                     llvm::ArrayRef<llvm::Value *>(ace_main_args));
 
   llvm::IRBuilderBase::InsertPointGuard ipg(builder);
 
@@ -1188,7 +1188,7 @@ void write_main_block(llvm::IRBuilder<> &builder,
                       std::string main_closure,
                       llvm::Function *llvm_function) {
   builder.SetInsertPoint(
-      cider::llvm_find_block_by_name(llvm_function, MAIN_PROGRAM_BLOCK));
+      ace::llvm_find_block_by_name(llvm_function, MAIN_PROGRAM_BLOCK));
 
   llvm::Value *llvm_main_closure = gen::get_env_var(
       builder, gen_env, make_iid(main_closure), main_closure_type());
@@ -1224,7 +1224,7 @@ Phase4 ssa_gen(llvm::LLVMContext &context, const Phase3 &phase_3) {
     llvm::Function *llvm_main_function = build_main_function(
         builder, llvm_module, gen_env, program_name);
 
-    const std::string main_closure = cider::tld::mktld(program_name, "main");
+    const std::string main_closure = ace::tld::mktld(program_name, "main");
 
     debug_above(6, log("globals are %s", join(globals).c_str()));
     debug_above(2, log("type_env is %s",
@@ -1253,7 +1253,7 @@ Phase4 ssa_gen(llvm::LLVMContext &context, const Phase3 &phase_3) {
 
         /* at this point we should not have a resolver or a declaration or
          * definition or anything for this symbol */
-#ifdef CIDER_DEBUG
+#ifdef ACE_DEBUG
         llvm::Value *value = gen::maybe_get_env_var(
             builder, gen_env,
             Identifier{pair.first, overload.second->expr->get_location()},
@@ -1397,7 +1397,7 @@ bool build_binary(const Job &job, bool explain, std::string &program_name) {
   std::stringstream ss_c_flags;
   std::stringstream ss_compilands;
   std::stringstream ss_lib_flags;
-  ss_compilands << "\"$CIDER_RUNTIME/cider_rt.c\" ";
+  ss_compilands << "\"$ACE_RUNTIME/ace_rt.c\" ";
   for (auto link_in : phase_4.phase_3.phase_2.compilation->link_ins) {
     std::string link_text = unescape_json_quotes(link_in.name.text);
     switch (link_in.lit) {
@@ -1410,7 +1410,7 @@ bool build_binary(const Job &job, bool explain, std::string &program_name) {
       ss_lib_flags << "-l\"" << link_text << "\" ";
       break;
     case lit_compile:
-      ss_compilands << "\"$CIDER_RUNTIME/" << link_text << "\" ";
+      ss_compilands << "\"$ACE_RUNTIME/" << link_text << "\" ";
       break;
     }
   }
@@ -1429,7 +1429,7 @@ bool build_binary(const Job &job, bool explain, std::string &program_name) {
       "-I \"$(xcrun --sdk macosx --show-sdk-path)/usr/include\" "
 #endif
       // Allow for the user to specify optimizations
-      "$CIDER_OPT_FLAGS "
+      "$ACE_OPT_FLAGS "
       // NB: we don't embed the target triple into the LL, so any
       // targeted triple causes an ugly error from clang, so I just
       // ignore it here.
@@ -1480,8 +1480,8 @@ int run_job(const Job &job) {
   std::map<std::string, std::function<int(const Job &, bool)>> cmd_map;
   cmd_map["help"] = [&](const Job &job, bool explain) {
     std::cout << clean_ansi_escapes_if_not_tty(stdout, LOGO);
-    std::cout << "cider";
-#ifdef CIDER_DEBUG
+    std::cout << "ace";
+#ifdef ACE_DEBUG
     std::cout << " (debug build)";
 #endif
     std::cout << ':' << std::endl;
@@ -1493,12 +1493,12 @@ int run_job(const Job &job) {
         cmd_pair.second(job, true);
       }
     }
-    std::cout << "Also try looking at the manpage. man cider." << std::endl;
+    std::cout << "Also try looking at the manpage. man ace." << std::endl;
     return EXIT_FAILURE;
   };
   cmd_map["test"] = [&](const Job &job, bool explain) {
     if (explain || job.args.size() > 1) {
-      std::cout << "test: find and run tests within ./tests\ncider test "
+      std::cout << "test: find and run tests within ./tests\nace test "
                    "<filename substring>"
                 << std::endl;
       return EXIT_FAILURE;
@@ -1512,11 +1512,11 @@ int run_job(const Job &job) {
           if (file_stat.regular_file() &&
               (job.args.size() == 0 || regex_exists(name, job.args[0])) &&
               name.find("/test_") != std::string::npos &&
-              ends_with(name, ".cider")) {
+              ends_with(name, ".ace")) {
             tests_to_run.push_back(name);
           }
         });
-    return cider::testing::run_tests(tests_to_run);
+    return ace::testing::run_tests(tests_to_run);
   };
   cmd_map["unit-test"] = [&](const Job &job, bool explain) {
     if (explain) {
@@ -1524,7 +1524,7 @@ int run_job(const Job &job) {
       return EXIT_FAILURE;
     }
 
-    return cider::testing::run_unit_tests();
+    return ace::testing::run_unit_tests();
   };
   cmd_map["find"] = [&](const Job &job, bool explain) {
     if (explain) {
@@ -1535,13 +1535,13 @@ int run_job(const Job &job) {
       return run_job({"help", {}, {}});
     }
     log("%s", compiler::resolve_module_filename(INTERNAL_LOC(), job.args[0],
-                                                ".cider", maybe<std::string>())
+                                                ".ace", maybe<std::string>())
                   .c_str());
     return EXIT_SUCCESS;
   };
   cmd_map["lex"] = [&](const Job &job, bool explain) {
     if (explain) {
-      std::cout << "lex: lexes Cider into tokens" << std::endl;
+      std::cout << "lex: lexes Ace into tokens" << std::endl;
       return EXIT_FAILURE;
     }
     if (job.args.size() != 1) {
@@ -1561,7 +1561,7 @@ int run_job(const Job &job) {
       return EXIT_SUCCESS;
     } else {
       std::string filename = compiler::resolve_module_filename(
-          INTERNAL_LOC(), job.args[0], ".cider", maybe<std::string>());
+          INTERNAL_LOC(), job.args[0], ".ace", maybe<std::string>());
       std::ifstream ifs;
       ifs.open(filename.c_str());
       Lexer lexer({filename}, ifs);
@@ -1577,7 +1577,7 @@ int run_job(const Job &job) {
 
   cmd_map["parse"] = [&](const Job &job, bool explain) {
     if (explain) {
-      std::cout << "parse: parses Cider into an intermediate lambda calculus"
+      std::cout << "parse: parses Ace into an intermediate lambda calculus"
                 << std::endl;
       return EXIT_FAILURE;
     }
@@ -1606,7 +1606,7 @@ int run_job(const Job &job) {
   };
   cmd_map["compile"] = [&](const Job &job, bool explain) {
     if (explain) {
-      std::cout << "compile: parses and compiles Cider into an intermediate "
+      std::cout << "compile: parses and compiles Ace into an intermediate "
                    "lambda calculus. this performs type checking"
                 << std::endl;
       return EXIT_FAILURE;
@@ -1626,7 +1626,7 @@ int run_job(const Job &job) {
   };
   cmd_map["specialize"] = [&](const Job &job, bool explain) {
     if (explain) {
-      std::cout << "specialize: compiles, then specializes the Cider lambda "
+      std::cout << "specialize: compiles, then specializes the Ace lambda "
                    "calculus to a monomorphized form"
                 << std::endl;
       return EXIT_FAILURE;
@@ -1681,10 +1681,10 @@ int run_job(const Job &job) {
   cmd_map["build"] = [&](const Job &job, bool explain) {
     std::string program_name;
     if (build_binary(job, explain, program_name)) {
-      debug_above(1, log("cider build succeeded: %s", program_name.c_str()));
+      debug_above(1, log("ace build succeeded: %s", program_name.c_str()));
       return EXIT_SUCCESS;
     } else {
-      std::cerr << "cider build failed." << std::endl;
+      std::cerr << "ace build failed." << std::endl;
       return EXIT_FAILURE;
     }
   };
@@ -1701,7 +1701,7 @@ int run_job(const Job &job) {
   }
 }
 
-} // namespace cider
+} // namespace ace
 
 namespace {
 void append_env(std::string var_name, std::string value) {
@@ -1711,38 +1711,38 @@ void append_env(std::string var_name, std::string value) {
   if (existing_value.size() != 0) {
     std::stringstream ss;
     ss << existing_value << ":" << value;
-    setenv("CIDER_PATH", ss.str().c_str(), true /*overwrite*/);
-    std::cout << "Setting CIDER_PATH to " << ss.str() << std::endl;
+    setenv("ACE_PATH", ss.str().c_str(), true /*overwrite*/);
+    std::cout << "Setting ACE_PATH to " << ss.str() << std::endl;
   } else {
-    setenv("CIDER_PATH", value.c_str(), true /*overwrite*/);
+    setenv("ACE_PATH", value.c_str(), true /*overwrite*/);
   }
 }
 void setup_environment_variables() {
-  const char *default_cider_root =
+  const char *default_ace_root =
 #ifdef __APPLE__
-      "/usr/local/share/cider";
+      "/usr/local/share/ace";
 #else
       ".";
 #endif
 
-  setenv("CIDER_ROOT", default_cider_root, false /*overwrite*/);
+  setenv("ACE_ROOT", default_ace_root, false /*overwrite*/);
 
   std::stringstream ss;
-  ss << getenv("CIDER_ROOT") << "/lib";
-  append_env("CIDER_PATH", ss.str());
+  ss << getenv("ACE_ROOT") << "/lib";
+  append_env("ACE_PATH", ss.str());
   ss.str("");
-  ss << getenv("CIDER_ROOT") << "/runtime";
-  setenv("CIDER_RUNTIME", ss.str().c_str(), false /*overwrite*/);
+  ss << getenv("ACE_ROOT") << "/runtime";
+  setenv("ACE_RUNTIME", ss.str().c_str(), false /*overwrite*/);
 }
 } // namespace
 
 int main(int argc, char *argv[]) {
   setup_environment_variables();
   init_dbg();
-  cider::init_host();
+  ace::init_host();
   std::shared_ptr<logger> logger(std::make_shared<standard_logger>("", "."));
 
-  cider::Job job;
+  ace::Job job;
   if (1 < argc) {
     int index = 1;
     job.cmd = argv[index++];
@@ -1758,9 +1758,9 @@ int main(int argc, char *argv[]) {
   }
 
   try {
-    return cider::run_job(job);
-  } catch (cider::user_error &e) {
-    cider::print_exception(e);
+    return ace::run_job(job);
+  } catch (ace::user_error &e) {
+    ace::print_exception(e);
     /* and continue */
     return EXIT_FAILURE;
   }

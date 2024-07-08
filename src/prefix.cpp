@@ -4,7 +4,7 @@
 #include "ptr.h"
 #include "tld.h"
 
-namespace cider {
+namespace ace {
 
 using namespace ast;
 
@@ -298,4 +298,4 @@ types::Scheme::Ref prefix(const std::set<std::string> &bindings,
                   prefix(bindings, pre, scheme->type));
 }
 
-} // namespace cider
+} // namespace ace

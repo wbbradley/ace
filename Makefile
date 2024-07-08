@@ -1,4 +1,4 @@
-PN = cider
+PN = ace
 
 # TODO: ifeq ($(OS),Windows_NT)
 UNAME_S := $(shell uname -s)
@@ -13,7 +13,7 @@ BUILD_DIR ?= $(HOME)/var/$(PN)
 SRCDIR = $(shell pwd)
 LLVM_DIR ?= $(shell $(LLVM_CONFIG) --cmakedir)
 prefix ?= /usr/local
-BUILT_BINARY = $(BUILD_DIR)/cider
+BUILT_BINARY = $(BUILD_DIR)/ace
 MAKEFLAGS=--no-print-directory
 
 # Installation-related directories
@@ -24,19 +24,19 @@ stdlibdir = $(sharedir)/lib
 runtimedir = $(sharedir)/runtime
 man1dir ?= $(DESTDIR)/$(prefix)/share/man/man1
 manfile = $(man1dir)/$(PN).1
-test_destdir ?= $(HOME)/var/cider-test
+test_destdir ?= $(HOME)/var/ace-test
 
 .PHONY: release
 release:
-	make DEBUG= cider
+	make DEBUG= ace
 
 .PHONY: debug
 debug:
-	make DEBUG=1 cider
+	make DEBUG=1 ace
 
-.PHONY: cider
-cider:
-	-@echo "Building Cider..."
+.PHONY: ace
+ace:
+	-@echo "Building Ace..."
 	# make clean
 	make install
 
@@ -45,7 +45,7 @@ uninstall:
 	-rm -rf $(sharedir)
 	-rm $(bindir)/$(PN)
 	-rm $(manfile)
-	-rm $(bindir)/cider-tags
+	-rm $(bindir)/ace-tags
 
 .PHONY: $(BUILT_BINARY)
 $(BUILT_BINARY): $(BUILD_DIR)/Makefile
@@ -62,12 +62,12 @@ $(BUILD_DIR)/Makefile: $(LLVM_DIR)/LLVMConfig.cmake CMakeLists.txt
 		(cd $(BUILD_DIR) && LLVM_DIR="$(LLVM_DIR)" cmake $(SRCDIR) -DDEBUG=ON -G 'Unix Makefiles') \
 	fi
 
-CIDER_LIBS=$(shell cd lib && find *.cider)
+ACE_LIBS=$(shell cd lib && find *.ace)
 RUNTIME_C_FILES=$(shell find runtime -regex '.*\.c$$')
 
 .PHONY: install
-install: $(BUILT_BINARY) $(addprefix $(SRCDIR)/lib/,$(CIDER_LIBS)) $(RUNTIME_C_FILES) $(SRCDIR)/$(PN).1 cider-tags
-	-echo "Installing Cider to ${DESTDIR}..."
+install: $(BUILT_BINARY) $(addprefix $(SRCDIR)/lib/,$(ACE_LIBS)) $(RUNTIME_C_FILES) $(SRCDIR)/$(PN).1 ace-tags
+	-echo "Installing Ace to ${DESTDIR}..."
 	-echo "Making sure that various installation dirs exist..." 
 	mkdir -p $(bindir)
 	-rm -rf $(stdlibdir)
@@ -78,11 +78,11 @@ install: $(BUILT_BINARY) $(addprefix $(SRCDIR)/lib/,$(CIDER_LIBS)) $(RUNTIME_C_F
 	mkdir -p $(runtimedir)
 	-echo "Copying compiler binary from $(BUILT_BINARY) to $(bindir)..."
 	cp $(BUILT_BINARY) $(bindir)
-	cp ./cider-tags $(bindir)
+	cp ./ace-tags $(bindir)
 	for f in $(RUNTIME_C_FILES); do cp "$$f" "$(runtimedir)"; done
-	cp $(addprefix $(SRCDIR)/lib/,$(CIDER_LIBS)) $(stdlibdir)
+	cp $(addprefix $(SRCDIR)/lib/,$(ACE_LIBS)) $(stdlibdir)
 	cp $(SRCDIR)/$(PN).1 $(man1dir)
-	-test -x ./cider-link-to-src && CIDER_ROOT=$(sharedir) ./cider-link-to-src
+	-test -x ./ace-link-to-src && ACE_ROOT=$(sharedir) ./ace-link-to-src
 
 .PHONY: clean
 clean:
@@ -95,12 +95,12 @@ install-test:
 
 .PHONY: test
 test:
-	-@echo "Running Tests for Cider..."
+	-@echo "Running Tests for Ace..."
 	make $(BUILT_BINARY)
 	$(BUILT_BINARY) unit-test
 	make install-test
-	@echo "CIDER_ROOT=$(test_destdir)/$(prefix)/share/$(PN)"
-	@CIDER_ROOT="$(test_destdir)/$(prefix)/share/$(PN)" \
+	@echo "ACE_ROOT=$(test_destdir)/$(prefix)/share/$(PN)"
+	@ACE_ROOT="$(test_destdir)/$(prefix)/share/$(PN)" \
 		"$(SRCDIR)/tests/run-tests.sh" \
 		"$(test_destdir)/$(prefix)/bin" \
 		"$(SRCDIR)"

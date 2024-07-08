@@ -16,7 +16,7 @@
 #include "unification.h"
 #include "user_error.h"
 #include "utils.h"
-#include "cider.h"
+#include "ace.h"
 
 const char *NULL_TYPE = "null";
 const char *STD_MANAGED_TYPE = "Var";
@@ -87,7 +87,7 @@ types::ClassPredicates get_overlapping_predicates(
     Ftvs *overlapping_ftvs) {
   /* eliminate class predicates that do not mention any ftvs. fill out the
    * |overlapping_ftvs|.  */
-#ifdef CIDER_DEBUG
+#ifdef ACE_DEBUG
   if (class_predicates.size() != 0 || ftvs.size() != 0) {
     debug_above(5,
                 log("looking for overlapping predicates between {%s} and {%s}",
@@ -108,7 +108,7 @@ types::ClassPredicates get_overlapping_predicates(
     overlapping_ftvs->clear();
     std::swap(*overlapping_ftvs, existing_ftvs);
   }
-#ifdef CIDER_DEBUG
+#ifdef ACE_DEBUG
   if (class_predicates.size() != 0) {
     debug_above(5, log("found new class_predicates %s",
                        str(new_class_predicates).c_str()));
@@ -145,8 +145,8 @@ Ref Type::apply(types::Ref type) const {
 }
 
 TypeId::TypeId(Identifier id) : id(id) {
-  if (cider::tld::is_lowercase_leaf(id.name)) {
-    throw cider::user_error(
+  if (ace::tld::is_lowercase_leaf(id.name)) {
+    throw ace::user_error(
         id.location,
         "type identifiers must begin with an upper-case letter (%s)",
         str().c_str());
@@ -156,7 +156,7 @@ TypeId::TypeId(Identifier id) : id(id) {
 std::ostream &TypeId::emit(std::ostream &os,
                            const Map &bindings,
                            int parent_precedence) const {
-  return os << cider::tld::strip_prefix(id.name);
+  return os << ace::tld::strip_prefix(id.name);
 }
 
 void TypeId::compute_ftvs() const {
@@ -192,7 +192,7 @@ Ref TypeId::remap_vars(const std::map<std::string, std::string> &map) const {
 types::Ref TypeId::rewrite_ids(
     const std::map<Identifier, Identifier> &rewrite_rules) const {
   if (in(id, rewrite_rules)) {
-    return type_id(cider::rewrite_identifier(rewrite_rules, id));
+    return type_id(ace::rewrite_identifier(rewrite_rules, id));
   } else {
     return shared_from_this();
   }
@@ -201,7 +201,7 @@ types::Ref TypeId::rewrite_ids(
 Ref TypeId::prefix_ids(const std::set<std::string> &bindings,
                        const std::string &pre) const {
   if (in(id.name, bindings)) {
-    return type_id(cider::prefix(bindings, pre, id));
+    return type_id(ace::prefix(bindings, pre, id));
   } else {
     return shared_from_this();
   }
@@ -212,7 +212,7 @@ Location TypeId::get_location() const {
 }
 
 TypeVariable::TypeVariable(Identifier id) : id(id) {
-#ifdef CIDER_DEBUG
+#ifdef ACE_DEBUG
   for (auto ch : id.name) {
     assert(islower(ch) || !isalpha(ch));
   }
@@ -294,7 +294,7 @@ std::ostream &TypeOperator::emit(std::ostream &os,
     auto rebound_oper = oper->rebind(bindings);
     if (auto op = dyncast<const TypeOperator>(rebound_oper)) {
       if (auto inner_op = dyncast<const TypeId>(op->oper)) {
-        if (strspn(cider::tld::fqn_leaf(inner_op->id.name).c_str(),
+        if (strspn(ace::tld::fqn_leaf(inner_op->id.name).c_str(),
                    MATHY_SYMBOLS) != 0) {
           op->operand->emit(os, {}, get_precedence());
           if (inner_op->id.name == ARROW_TYPE_OPERATOR) {
@@ -369,7 +369,7 @@ Location TypeOperator::get_location() const {
 
 TypeTuple::TypeTuple(Location location, const Refs &dimensions)
     : location(location), dimensions(dimensions) {
-#ifdef CIDER_DEBUG
+#ifdef ACE_DEBUG
   for (auto dimension : dimensions) {
     assert(dimension != nullptr);
   }
@@ -457,7 +457,7 @@ Ref TypeTuple::remap_vars(const std::map<std::string, std::string> &map) const {
 
 types::Ref TypeTuple::rewrite_ids(
     const std::map<Identifier, Identifier> &rewrite_rules) const {
-  return ::type_tuple(location, cider::rewrite_types(rewrite_rules, dimensions));
+  return ::type_tuple(location, ace::rewrite_types(rewrite_rules, dimensions));
 }
 
 Ref TypeTuple::prefix_ids(const std::set<std::string> &bindings,
@@ -489,7 +489,7 @@ Location TypeTuple::get_location() const {
 
 TypeParams::TypeParams(Location location, const Refs &dimensions)
     : location(location), dimensions(dimensions) {
-#ifdef CIDER_DEBUG
+#ifdef ACE_DEBUG
   for (auto dimension : dimensions) {
     assert(dimension != nullptr);
   }
@@ -575,7 +575,7 @@ Ref TypeParams::remap_vars(
 
 types::Ref TypeParams::rewrite_ids(
     const std::map<Identifier, Identifier> &rewrite_rules) const {
-  return ::type_params(cider::rewrite_types(rewrite_rules, dimensions));
+  return ::type_params(ace::rewrite_types(rewrite_rules, dimensions));
 }
 
 Ref TypeParams::prefix_ids(const std::set<std::string> &bindings,
@@ -827,7 +827,7 @@ types::Ref type_map(types::Ref a, types::Ref b) {
 }
 
 types::Ref type_params(const types::Refs &params) {
-#ifdef CIDER_DEBUG
+#ifdef ACE_DEBUG
   for (auto &param : params) {
     assert(!dyncast<const types::TypeParams>(param));
   }
@@ -997,7 +997,7 @@ types::Ref type_deref(Location location, types::Ref type) {
   if (types::is_type_id(ptr->oper, PTR_TYPE_OPERATOR)) {
     return ptr->operand;
   } else {
-    throw cider::user_error(location, "attempt to dereference value of type %s",
+    throw ace::user_error(location, "attempt to dereference value of type %s",
                            type->str().c_str());
   }
 }
@@ -1007,7 +1007,7 @@ types::Ref tuple_deref_type(Location location,
                             int index) {
   auto tuple = safe_dyncast<const types::TypeTuple>(tuple_);
   if (int(tuple->dimensions.size()) < index || index < 0) {
-    auto error = cider::user_error(
+    auto error = ace::user_error(
         location,
         "attempt to access type of element at index %d which is out of range",
         index);

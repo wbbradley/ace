@@ -1,0 +1,10 @@
+#!/bin/bash
+# Note this assumes ACE_SRC_DIR is $HOME/src/ace.
+ACE_SRC_DIR="${ACE_SRC_DIR:-$PWD}"
+ACE_ROOT="${ACE_ROOT:-/usr/local/share/ace}"
+
+cd "$ACE_ROOT" || { printf "Couldn't cd into %s.\n" "$ACE_ROOT"; exit 1; }
+rm -rf runtime
+rm -rf lib
+ln -s "$ACE_SRC_DIR/runtime" .
+ln -s "$ACE_SRC_DIR/lib" .

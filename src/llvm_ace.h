@@ -33,7 +33,7 @@
 #include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/Transforms/Utils/ValueMapper.h>
 
-#define getCiderIntTy getInt64Ty
-#define getCiderInt getInt64
+#define getAceIntTy getInt64Ty
+#define getAceInt getInt64
 
-#include "cider_assert.h"
+#include "ace_assert.h"

@@ -2,7 +2,7 @@
 
 #include "token.h"
 
-namespace cider {
+namespace ace {
 
 struct TokenQueue {
   std::list<Token> m_queue;
@@ -17,4 +17,4 @@ struct TokenQueue {
   Token pop();
 };
 
-} // namespace cider
+} // namespace ace

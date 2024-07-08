@@ -1,45 +1,45 @@
-# Cider Language
+# Ace Language
 
 
-[![Tests](https://github.com/ciderlang/cider/workflows/Tests/badge.svg)](https://github.com/ciderlang/cider/actions?query=workflow%3ATests)
+[![Tests](https://github.com/acelang/ace/workflows/Tests/badge.svg)](https://github.com/acelang/ace/actions?query=workflow%3ATests)
 
 ## Fundamentals
 
-Cider resembles a combination of Haskell and C, with garbage collection, eager
+Ace resembles a combination of Haskell and C, with garbage collection, eager
 evaluation, static type-checking, purity and impurity (when you want it), extensible infix operators,
 type-classes to allow ad-hoc polymorphism, `with` control-flow semantics for bracketing resource usage, pattern-matching, and type inference.
 
 ## Quick Start
 
-To play with Cider in Docker, try this.
+To play with Ace in Docker, try this.
 
 ```
-git clone https://github.com/ciderlang/cider.git
-cd cider
+git clone https://github.com/acelang/ace.git
+cd ace
 
 # Get a docker image set up ready to run a build (assumes Docker is running).
 ./docker-build.sh && ./docker-run.sh bash
 
 # The prior command should open up a bash prompt within a new docker container.
-# Build and install Cider inside this container.
+# Build and install Ace inside this container.
 make install
 
-# The prior command should have installed Cider to /usr/local. Set up the
-# $CIDER_ROOT environment variable.
-export CIDER_ROOT="/usr/local/share/cider"
+# The prior command should have installed Ace to /usr/local. Set up the
+# $ACE_ROOT environment variable.
+export ACE_ROOT="/usr/local/share/ace"
 
 # Build and run a simple test program
 cd
-echo 'fn main() { print("Hello world.") }' > hello_world.cider
-cider hello_world
+echo 'fn main() { print("Hello world.") }' > hello_world.ace
+ace hello_world
 
 # Read more
-man cider
+man ace
 ```
 
 ## Description
 
-Cider is a statically typed procedural/functional language. It is a work in
+Ace is a statically typed procedural/functional language. It is a work in
 progress. Please reach out if you'd like to get involved.
 
 ### Syntax
@@ -105,7 +105,7 @@ fn main() {
 
 ### Semantics
 
-The evaluation of Cider is strict, not lazy. The call-by-value method of passing
+The evaluation of Ace is strict, not lazy. The call-by-value method of passing
 arguments is used.
 
 ### Mutability
@@ -138,7 +138,7 @@ fn main() {
 
 ### Encapsulation
 
-There is no class-based encapsulation in Cider. Encapsulation can be achieved by
+There is no class-based encapsulation in Ace. Encapsulation can be achieved by
 
 1. using modules to implement Abstract Data Types, exposing only the functions
    relevant to the creation, use, and lifetime of a type.
@@ -147,14 +147,14 @@ There is no class-based encapsulation in Cider. Encapsulation can be achieved by
 
 #### Modularity
 
-Cider lacks support for shared libraries or any shareable intermediate
+Ace lacks support for shared libraries or any shareable intermediate
 representation. Code complexity and leaky abstractions can still be avoided by
 limiting which symbols are exposed from source modules.
 
 ### Type System
 
 Types are inferred but type annotations are also allowed/encouraged as
-documentation and sometimes necessary when types cannot be inferred. Cider
+documentation and sometimes necessary when types cannot be inferred. Ace
 rejects [intermediate type defaulting](https://kseo.github.io/posts/2017-01-04-type-defaulting-in-haskell.html) by design. Although, if a good
 design for that comes along, it might happen.
 
@@ -164,14 +164,14 @@ Polymorphism comes in two flavors.
 
 Type-based polymorphism exists at compile time in the ability to use type
 variables which are re-bound per function invocation. At run-time, there are a
-couple different notions of polymorphism. First, Cider supports sum types by
+couple different notions of polymorphism. First, Ace supports sum types by
 allowing the declaration of types with multiple data constructors.  This then
 relies on `match` statements (pattern matching) to branch on the run-time
 value. This form of polymorphism may feel unfamiliar to folks coming from "OOP"
 languages that rely on inheritance and/or abstract classes with any number of
 derived implementations.
 
-Since Cider treats functions as values and allows closure over function
+Since Ace treats functions as values and allows closure over function
 definitions (`fn`), you can `return` new behaviors as functions. Users of those
 functions will get statically checked run-time varying behavior (aka run-time
 polymorphism). For example, the `Iterable` type-class requires the definition
@@ -200,9 +200,9 @@ the target host.
 ### Learning more
 
 The best way to learn more at this time is to read through the
-`tests/test_*.cider` code.
+`tests/test_*.ace` code.
 
 TODO: struct types do not support pattern matching. proposed solution: eliminate
 structs, but add names to newtypes.
 
-[![HitCount](http://hits.dwyl.com/ciderlang/cider.svg)](http://hits.dwyl.com/ciderlang/cider)
+[![HitCount](http://hits.dwyl.com/acelang/ace.svg)](http://hits.dwyl.com/acelang/ace)
