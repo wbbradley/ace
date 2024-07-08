@@ -6,7 +6,7 @@ set +x
 # Running docker tests by default, add a parameter to execute that command
 # instead of the tests.
 
-IMAGE="acelang/ace"
+IMAGE="wbbradley/ace"
 VERSION="$(cat VERSION)"
 NAME="ace-build"
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-IMAGE="acelang/ace"
+IMAGE="wbbradley/ace"
 VERSION="$(cat VERSION)"
 
 docker build -t "${IMAGE}:${VERSION}" .

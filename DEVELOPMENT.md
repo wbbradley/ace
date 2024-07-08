@@ -21,7 +21,7 @@ You will need Docker for the supported Linux test path.
 #### Plugins
 
 * If you use vim, take a look at
-  [vim-ace](https://github.com/acelang/vim-ace).
+  [vim-ace](https://github.com/wbbradley/vim-ace).
 
 
 ## Development workflow

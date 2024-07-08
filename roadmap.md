@@ -14,7 +14,7 @@
     - [ ] deriving Ord
 - [ ] error on unused imports
 - [ ] allow nested modules (ie: net/http)
-- [ ] design/implement some form of [functional dependencies](https://github.com/acelang/reference-docs/blob/master/docs/2000-jones-functional-dependencies.pdf) for mptc sanity
+- [ ] design/implement some form of [functional dependencies](https://github.com/wbbradley/reference-docs/blob/master/docs/2000-jones-functional-dependencies.pdf) for mptc sanity
 - [ ] unused variable check (variables that only appear on lhs)
 - [ ] higher-kinded type functions to allow for pulling types from other types for the purpose of mapping between types (for example to_with :: Either a b -> WithElseResource resource error)
 

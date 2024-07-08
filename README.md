@@ -1,7 +1,7 @@
 # Ace Language
 
 
-[![Tests](https://github.com/acelang/ace/workflows/Tests/badge.svg)](https://github.com/acelang/ace/actions?query=workflow%3ATests)
+[![Tests](https://github.com/wbbradley/ace/workflows/Tests/badge.svg)](https://github.com/wbbradley/ace/actions?query=workflow%3ATests)
 
 ## Fundamentals
 
@@ -14,7 +14,7 @@ type-classes to allow ad-hoc polymorphism, `with` control-flow semantics for bra
 To play with Ace in Docker, try this.
 
 ```
-git clone https://github.com/acelang/ace.git
+git clone https://github.com/wbbradley/ace.git
 cd ace
 
 # Get a docker image set up ready to run a build (assumes Docker is running).
@@ -205,4 +205,4 @@ The best way to learn more at this time is to read through the
 TODO: struct types do not support pattern matching. proposed solution: eliminate
 structs, but add names to newtypes.
 
-[![HitCount](http://hits.dwyl.com/acelang/ace.svg)](http://hits.dwyl.com/acelang/ace)
+[![HitCount](http://hits.dwyl.com/wbbradley/ace.svg)](http://hits.dwyl.com/wbbradley/ace)
