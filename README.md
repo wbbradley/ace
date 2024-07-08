@@ -1,13 +1,12 @@
 # Ace Language
 
 
-[![Tests](https://github.com/wbbradley/ace/workflows/Tests/badge.svg)](https://github.com/wbbradley/ace/actions?query=workflow%3ATests)
-
 ## Fundamentals
 
-Ace resembles a combination of Haskell and C, with garbage collection, eager
-evaluation, static type-checking, purity and impurity (when you want it), extensible infix operators,
-type-classes to allow ad-hoc polymorphism, `with` control-flow semantics for bracketing resource usage, pattern-matching, and type inference.
+Ace resembles a combination of Haskell and C, with conservative garbage collection, eager
+evaluation, static type-checking, purity and mutation (when you want it), extensible infix
+operators, type-classes to allow ad-hoc polymorphism, `with` control-flow semantics for bracketing
+resource usage, pattern-matching, and type inference.
 
 ## Quick Start
 
