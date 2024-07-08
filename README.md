@@ -1,14 +1,22 @@
 # Ace Language
 
 
-## Fundamentals
+## Overview
+
+Note: Ace was a learning project for me. My goal was to do a deep dive into programming language
+design and construction. Along the way I learned about lambda calculus, type theory including
+System-F with typeclasses, unification, multi-pass compiler construction, hand-writing lexers and
+parsers, code generation with LLVM, and many other topics. Efforts on this project in earnest
+stopped circa 2020.
 
 Ace resembles a combination of Haskell and C, with conservative garbage collection, eager
 evaluation, static type-checking, purity and mutation (when you want it), extensible infix
 operators, type-classes to allow ad-hoc polymorphism, `with` control-flow semantics for bracketing
-resource usage, pattern-matching, and type inference.
+resource usage, branch-checked pattern-matching, and type inference.
 
 ## Quick Start
+
+Note: these instructions are likely no longer functional.
 
 To play with Ace in Docker, try this.
 
